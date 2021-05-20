@@ -17,10 +17,10 @@ import logging
 
 import pybedtools
 
-from .utr_reference import extract_3UTRs, prepare_annotations_index, reduce_regions_bed
+from .utr_reference import extract_feature, prepare_annotations_index, reduce_regions
 
 # create logger with 'spam_application'
-logger = logging.getLogger('Core')
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler('Test.log')
@@ -31,15 +31,16 @@ fh.setFormatter(formatter)
 # add the handler to the logger
 logger.addHandler(fh)
 
-logger.info('test core')
+logger.debug('test core')
 
 def main(file):
-    utr = extract_3UTRs(file)  # extract 3'UTRs from all the features in the file
+    utr = extract_feature(file, "three_prime_utr")  # extract 3'UTRs from all the features in the file
     utr = utr.sort_values(by=['seqname', 'start'])  # sort by chr and start for bed merge
     utr_bed = pybedtools.BedTool.from_dataframe(utr)  # Create BedTool obj with dataframe
     ann_idx = prepare_annotations_index(utr, 'gene_id', 'transcript_id')
     # find and merge overlapping regions
-    utr_reduced = reduce_regions_bed(utr_bed, annotations_index=ann_idx)
-
+    utr_reduced = reduce_regions(utr_bed, annotations_index=ann_idx)
+    return utr_reduced
+    
 if __name__ == "__main__":
     main("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz")

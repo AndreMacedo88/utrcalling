@@ -4,17 +4,28 @@ import logging
 
 from gtfparse import read_gtf
 
-module_logger = logging.getLogger('Utr_reference')
+module_logger = logging.getLogger(__name__)
+if not len(module_logger.handlers):
+    module_logger.setLevel(logging.DEBUG)
+    # create file handler which logs even debug messages
+    fh = logging.FileHandler('Test.log')
+    fh.setLevel(logging.DEBUG)
+    # create formatter and add it to the handler
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    # add the handler to the logger
+    module_logger.addHandler(fh)
+module_logger.debug('testsss')
 
-def extract_3UTRs(gtf_file):
+def extract_feature(gtf_file, feature):
     """
-    Extracts the 3'UTR regions from a GTF annotation file
+    Extracts a feature from a GTF annotation file.
 
     Args:
         gtf_file (typing.BinaryIO): Gene annotation file in GTF format.
     """    
     gtf_df = open_gtf(gtf_file)
-    utr_df = gtf_df[gtf_df["feature"] == "three_prime_utr"]
+    utr_df = gtf_df[gtf_df["feature"] == feature]
     return(utr_df)
 
 def open_gtf(gtf_file):
@@ -35,7 +46,7 @@ def prepare_annotations_index(df, *args):
             print(f"Annotation {arg} not found")
     return annotations_index
 
-def reduce_regions_bed(bed, annotations_index=[], operation_list=[]):
+def reduce_regions(bed, annotations_index=[], operation_list=[]):
     if not operation_list:
         operations = ['distinct',] * len(annotations_index) + ['count']
     else:
