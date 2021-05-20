@@ -13,75 +13,33 @@ straight away.
 - Output should inherit single cell annotations, as well as gene annotation like the 
 genomic coordinates (GRanges obj) and 3'UTR sequence information.
 """
+import logging
 
-import typing
-import gzip
-import numpy as np
-import pandas as pd
-from tqdm import tqdm
-from gtfparse import read_gtf
+import pybedtools
 
-def extract_3UTR(gtf_file):
-    """
-    Extracts the 3'UTR regions from a GTF annotation file
+from .utr_reference import extract_3UTRs, prepare_annotations_index, reduce_regions_bed
 
-    Args:
-        gtf_file (typing.BinaryIO): Gene annotation file in GTF format.
-    """    
-    gtf_df = open_gtf(gtf_file)
-    utr_df = gtf_df[gtf_df["feature"] == "three_prime_utr"]
-    return(utr_df)
+# create logger with 'spam_application'
+logger = logging.getLogger('Core')
+logger.setLevel(logging.DEBUG)
+# create file handler which logs even debug messages
+fh = logging.FileHandler('Test.log')
+fh.setLevel(logging.DEBUG)
+# create formatter and add it to the handler
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+fh.setFormatter(formatter)
+# add the handler to the logger
+logger.addHandler(fh)
 
-def open_gtf(gtf_file):
-    if gtf_file.endswith(".gz"):
-        with gzip.open(gtf_file) as f:
-            gtf_df = read_gtf(f)
-    else:
-        with gtf_file as f:
-            gtf_df = read_gtf(f)
-    return gtf_df
+logger.info('test core')
 
+def main(file):
+    utr = extract_3UTRs(file)  # extract 3'UTRs from all the features in the file
+    utr = utr.sort_values(by=['seqname', 'start'])  # sort by chr and start for bed merge
+    utr_bed = pybedtools.BedTool.from_dataframe(utr)  # Create BedTool obj with dataframe
+    ann_idx = prepare_annotations_index(utr, 'gene_id', 'transcript_id')
+    # find and merge overlapping regions
+    utr_reduced = reduce_regions_bed(utr_bed, annotations_index=ann_idx)
 
-def reduce_regions(df):
-    df_ = df.copy()
-    df_ = df_.sort_values(by=['seqname', 'start'])
-    chr_list = df_['seqname'].unique()
-    count = 0
-    for chr in tqdm(chr_list):
-        df_chr = df_[df_['seqname'] == chr]
-        t = df_chr.itertuples()
-        y = df_chr.itertuples()
-        next(y)
-        for row1, row2 in zip(t, y):
-            if row2.start >= row1.end:
-                continue
-            elif row2.start < row1.end and row1.gene_id == row2.gene_id:
-                df_.at[row1.Index, "end"] = row2.end
-                df_ = df_.drop(index=row2.Index)
-            else:
-                count += 1
-    print(f"Number of overlapping UTRs with different gene IDs: {count}")
-    return df_
-
-def reduce_regions_faster(df):
-    df_ = df.copy()
-    df_ = df_.sort_values(by=['seqname', 'start'])
-    chr_list = df_['seqname'].unique()
-    count = 0
-    for chr in tqdm(chr_list):
-        df_chr = df_[df_['seqname'] == chr]
-        t = df_chr.iterrows()
-        y = df_chr.iterrows()
-        next(y)
-        rows = []
-        for (i, row1), (j, row2) in zip(t, y):
-            if row2.start >= row1.end:
-                continue
-            elif row2.start < row1.end and row1.gene_id == row2.gene_id:
-                row1.end = row2.end
-                rows.append(row1)
-                df_ = df_.drop(index=j)
-            else:
-                count += 1
-    print(f"Number of overlapping UTRs with different gene IDs: {count}")
-    return df_
+if __name__ == "__main__":
+    main("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz")
