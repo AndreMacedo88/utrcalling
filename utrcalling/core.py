@@ -20,7 +20,7 @@ import pybedtools
 from .utr_reference import extract_feature, prepare_annotations_index, reduce_regions
 
 # create logger with 'spam_application'
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("utrcallingtool")
 logger.setLevel(logging.DEBUG)
 # create file handler which logs even debug messages
 fh = logging.FileHandler('Test.log')
@@ -30,8 +30,6 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 fh.setFormatter(formatter)
 # add the handler to the logger
 logger.addHandler(fh)
-
-logger.debug('test core')
 
 def main(file):
     utr = extract_feature(file, "three_prime_utr")  # extract 3'UTRs from all the features in the file

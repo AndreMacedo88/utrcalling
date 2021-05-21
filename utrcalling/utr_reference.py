@@ -4,7 +4,7 @@ import logging
 
 from gtfparse import read_gtf
 
-module_logger = logging.getLogger(__name__)
+module_logger = logging.getLogger("utrcallingtool")
 if not len(module_logger.handlers):
     module_logger.setLevel(logging.DEBUG)
     # create file handler which logs even debug messages
@@ -15,7 +15,6 @@ if not len(module_logger.handlers):
     fh.setFormatter(formatter)
     # add the handler to the logger
     module_logger.addHandler(fh)
-module_logger.debug('testsss')
 
 def extract_feature(gtf_file, feature):
     """
