@@ -1,20 +1,13 @@
 import typing
 import gzip
-import logging
 
 from gtfparse import read_gtf
+from numpy import generic
 
-module_logger = logging.getLogger("utrcallingtool")
-if not len(module_logger.handlers):
-    module_logger.setLevel(logging.DEBUG)
-    # create file handler which logs even debug messages
-    fh = logging.FileHandler('Test.log')
-    fh.setLevel(logging.DEBUG)
-    # create formatter and add it to the handler
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    fh.setFormatter(formatter)
-    # add the handler to the logger
-    module_logger.addHandler(fh)
+from .module_log import module_logger
+
+# Set up logging
+logger = module_logger()
 
 def extract_feature(gtf_file, feature):
     """
@@ -42,7 +35,7 @@ def prepare_annotations_index(df, *args):
         if arg in df.columns:
             annotations_index.append(df.columns.get_loc(arg) + 1)
         else:
-            print(f"Annotation {arg} not found")
+            logger.error(f"Annotation {arg} not found")
     return annotations_index
 
 def reduce_regions(bed, annotations_index=[], operation_list=[]):
@@ -52,8 +45,11 @@ def reduce_regions(bed, annotations_index=[], operation_list=[]):
         operations = operation_list.append('count')
     annotations_index.append(1)
     bed_merged = bed.merge(c=annotations_index, o=operations, s=True)
-    module_logger.info('test ref')
     return bed_merged
+
+def get_sequences(genome, bed):
+    bed.sequence(fi=genome)
+    pass
 
 # def reduce_regions(df):
 #     df_ = df.copy()
