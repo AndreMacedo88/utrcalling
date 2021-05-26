@@ -1,6 +1,12 @@
 utrcalling package
 ##################
 
+Requisites
+----------
+
+Should download GTF and fasta files from http://ftp.ensembl.org/pub/
+
+
 Tests
 -----
 

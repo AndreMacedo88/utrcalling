@@ -25,18 +25,15 @@ def open_gtf(gtf_file):
         with gzip.open(gtf_file) as f:
             gtf_df = read_gtf(f)
     else:
-        with gtf_file as f:
-            gtf_df = read_gtf(f)
+        gtf_df = read_gtf(gtf_file)
     return gtf_df
 
-def prepare_annotations_index(df, *args):
-    annotations_index = []
-    for arg in args:
-        if arg in df.columns:
-            annotations_index.append(df.columns.get_loc(arg) + 1)
-        else:
-            logger.error(f"Annotation {arg} not found")
-    return annotations_index
+def prepare_annotations_index(annotations_extra):
+    main = ['seqname', 'start', 'end']
+    annotations_columns = main + annotations_extra
+    annotations_index = \
+    [index+1 for index, value in enumerate(annotations_columns) if value not in main]
+    return annotations_columns, annotations_index
 
 def reduce_regions(bed, annotations_index=[], operation_list=[]):
     if not operation_list:
