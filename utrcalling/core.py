@@ -19,7 +19,7 @@ import pybedtools
 from .module_log import module_logger
 from .utr_reference import extract_feature, prepare_annotations_index, reduce_regions,\
      get_sequences
-from .utr_mapping import generate_utr_intervals, count_reads
+from .utr_mapping import generate_utr_intervals, map_reads_to_utr
 
 # Set up logging
 logger = module_logger()
@@ -30,22 +30,24 @@ def main(annotation, genome, feature, alignment):
     return utr_positions_counts
 
 def prepare_utr_reference_regions(gtf, genome, feature):
-    # extract 3'UTRs from all the features in the file
+    # extract 3'UTRs from all the features in the GTF file
     utr = extract_feature(gtf, feature)
     # sort by chr and start for bed merge
     utr = utr.sort_values(by=['seqname', 'start'])
     annotations = ['gene_id', 'score', 'strand', 'transcript_id']
     ann_cols, ann_idx = prepare_annotations_index(annotations)
-    # Create BedTool obj using the dataframe
+    # Create BedTool obj using the GTF dataframe
     utr_bed = pybedtools.BedTool.from_dataframe(utr, columns=ann_cols)
     # find and merge overlapping regions
     utr_reduced = reduce_regions(utr_bed, annotations_index=ann_idx)
+    # get the sequences (from the genome file) for each UTR region
     sequences = get_sequences(genome, utr_reduced)
     return utr_reduced
 
 def map_aligned_reads(alignment, utr_regions):
     intervals = generate_utr_intervals(utr_regions)
-    counts = count_reads(alignment, intervals, read='first')
+    read_mappings = map_reads_to_utr(alignment, intervals, read='first')
+    return read_mappings
     
     return
 

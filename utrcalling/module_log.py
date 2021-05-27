@@ -15,4 +15,4 @@ def module_logger():
         fh.setFormatter(formatter)
         # add the handler to the logger
         module_logger.addHandler(fh)
-        return module_logger
+    return module_logger

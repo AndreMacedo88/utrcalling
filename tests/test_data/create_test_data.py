@@ -12,7 +12,7 @@ def generate_genome_intervals(regions):
 def match_alignments(bam, intervals):
     #set-up BAM_Writer with same header as reader:
     bam_writer = HTSeq.BAM_Writer.from_BAM_Reader(
-        "/mnt/o_drive/andre/projects/3utr/youngNSC/bwt/results/test_UTRyoungNSCgenome_bwt2_sort.bam", bam)
+        "/mnt/o_drive/andre/projects/3utr/youngNSC/bwt/results/test_UTRyoungNSCgenome_bwt2_102_sort.bam", bam)
     for interval in intervals:
         num_1 = random.random()
         if num_1 < 0.33:
@@ -24,7 +24,7 @@ def match_alignments(bam, intervals):
             bam_writer.write(alignment)
     bam_writer.close()
 
-gtf = pybedtools.BedTool('test_mus_musculus_GRCm39_104.gtf')
+gtf = pybedtools.BedTool('test_mus_musculus_GRCm38_102.gtf')
 
 bam_file = HTSeq.BAM_Reader(
     '/mnt/o_drive/andre/projects/3utr/youngNSC/bwt/results/UTRyoungNSCgenome_bwt2_sort.bam'
