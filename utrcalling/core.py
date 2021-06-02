@@ -20,6 +20,7 @@ from .module_log import module_logger
 from .utr_reference import extract_feature, prepare_annotations_index, reduce_regions,\
      get_sequences
 from .utr_mapping import generate_utr_intervals, map_reads_to_utr
+from .peak_calling import cluster
 
 # Set up logging
 logger = module_logger()
@@ -48,8 +49,11 @@ def map_aligned_reads(alignment, utr_regions):
     intervals = generate_utr_intervals(utr_regions)
     read_mappings = map_reads_to_utr(alignment, intervals, read='first')
     return read_mappings
-    
+
+def call_peaks(utr_positions_counts, utr_reference_regions):
+    cluster(utr_positions_counts)
     return
+
 
 if __name__ == "__main__":
     main("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz")

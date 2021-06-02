@@ -2,6 +2,7 @@ from collections import defaultdict
 
 import HTSeq
 
+from .storage import UtrMappings, MappedReadInformation
 from .module_log import module_logger
 
 # Set up logging
@@ -23,9 +24,9 @@ def generate_utr_intervals(utr_regions):
 
 def map_reads_to_utr(bam, intervals, read='first', version=3):
     bam_file = HTSeq.BAM_Reader(bam)
-    read_mappings = dict()
+    utr_mappings = UtrMappings()
     for name, interval in intervals.items():
-        read_information = defaultdict(list)
+        mapped_read_information = MappedReadInformation(utr_name=name)
         for alignment in bam_file[interval]:
             if not alignment.pe_which == read:  # get only one of the 2 paired reads
                 continue
@@ -36,27 +37,27 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
             if alignment.not_primary_alignment:
                 continue
             else:
-                read_info = extract_read_information(alignment=alignment, version=version)
-            
-            read_information['read_start_position'].append(read_info[0])
-            read_information['read_strand'].append(read_info[1])
-            read_information['read_sequence'].append(read_info[2])
-            read_information['read_barcode'].append(read_info[3])
-            read_information['read_length'].append(read_info[4])
-        if read_information:
-            read_mappings[name] = read_information
-    return read_mappings
+                read_info = extract_read_information(alignment=alignment, 
+                interval=interval, version=version)
+                mapped_read_information.read_start_positions.append(read_info[0])
+                mapped_read_information.read_strands.append(read_info[1])
+                mapped_read_information.read_sequences.append(read_info[2])
+                mapped_read_information.read_barcodes.append(read_info[3])
+                mapped_read_information.read_lengths.append(read_info[4])
+                mapped_read_information.utr_sizes_from_reads.append(read_info[5])
 
-def extract_read_information(alignment, version=3):
+        if mapped_read_information:
+            utr_mappings.utr_ids.append(name)
+            setattr(utr_mappings, name, mapped_read_information)
+    return utr_mappings
+
+def extract_read_information(alignment, interval, version=3):
 
     # get read strand
     read_strand = alignment.iv.strand
 
     # get UTR start position (which is the read starting position)
-    if read_strand == '+':
-        read_start_position = alignment.iv.start
-    else:
-        read_start_position = alignment.iv.end
+    read_start_position = alignment.iv.start_d
 
     # get read sequence
     query_from = None
@@ -85,4 +86,10 @@ def extract_read_information(alignment, version=3):
     # get read length
     read_length = len(read_sequence)
 
-    return read_start_position, read_strand, read_sequence, read_barcode, read_length
+    # get the computed size of the UTR for this molecule
+    utr_size = read_start_position - interval.start_d
+
+    information = read_start_position, read_strand, read_sequence, read_barcode, \
+    read_length, utr_size
+
+    return information
