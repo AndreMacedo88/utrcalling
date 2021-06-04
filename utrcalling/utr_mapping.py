@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import HTSeq
 
 from .storage import UtrMappings, MappedReadInformation
@@ -47,8 +45,7 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
                 mapped_read_information.utr_sizes_from_reads.append(read_info[5])
 
         if mapped_read_information:
-            utr_mappings.utr_ids.append(name)
-            setattr(utr_mappings, name, mapped_read_information)
+            utr_mappings[name] = mapped_read_information
     return utr_mappings
 
 def extract_read_information(alignment, interval, version=3):
