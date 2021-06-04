@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field, asdict
 from copy import deepcopy, copy
+import operator
 
 from .module_log import module_logger
 
@@ -73,22 +74,29 @@ class UtrMappings:
     # Set up the main operations
 
     def filter(self, operation, by, amount, inplace=False):
-        if operation == 'greater':
-            result = self._greater_than(by, amount, inplace=inplace)
+        if operation in ('>','<','=','>=', '<='):
+            result = self._operator_functions(operation, by, amount, inplace=inplace)
         return result
 
     # Private functions
 
-    def _greater_than(self, by, amount, inplace=False):
+    def _operator_functions(self, operation, by, amount, inplace=False):
+        ops = { 
+            ">": operator.gt,
+            "<": operator.lt,
+            ">=": operator.ge,
+            "<=": operator.le,
+            "=": operator.eq,
+            }
         if not inplace:
             new = self.copy(deep=True)
         for utr in self.utr_ids:
-            new[utr][by] = [item for item in new[utr][by] if item > amount]
+            new[utr][by] = [item for item in new[utr][by] if ops[operation](item,amount)]
         if not inplace:
             return new
         else:
             return None
-
+    
 @dataclass
 class MappedReadInformation:
     """Information on the reads that mapped to a reference UTR region."""
