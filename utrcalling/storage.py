@@ -11,6 +11,13 @@ logger = module_logger()
 class UtrMappings:
     utr_ids: list[str] = field(default_factory=list)
     _index: int = 0
+    # read_start_positions: list[list] = field(default_factory=list)
+    # read_strands: list[list] = field(default_factory=list)
+    # read_sequences: list[list] = field(default_factory=list)
+    # read_barcodes: list[list] = field(default_factory=list)
+    # read_umis: list[list] = field(default_factory=list)
+    # read_lengths: list[list] = field(default_factory=list)
+    # utr_sizes_from_reads: list[list] = field(default_factory=list)
 
     # Set up the necessary magic methods.
     # This object should work like a dictionary with extra methods and structure.
@@ -28,8 +35,13 @@ class UtrMappings:
     def __setitem__(self, key, value):
         return setattr(self, key, value)
     
-    def __getitem__(self,key):
-        return getattr(self, key)
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return getattr(self, item)
+        elif isinstance(item, (int, slice)):
+            return self.utr_ids[item]
+        else:
+            return [getattr(self, i) for i in item]
     
     def __delitem__(self, key):
         try:
@@ -73,10 +85,13 @@ class UtrMappings:
     
     # Set up the main operations
 
-    def filter(self, operation, by, amount, inplace=False):
+    def filter(self, operation, feature, amount, inplace=False):
         if operation in ('>','<','=','>=', '<='):
-            result = self._operator_functions(operation, by, amount, inplace=inplace)
+            result = self._operator_functions(operation, feature, amount, inplace=inplace)
         return result
+
+    def maximum(feature):
+        return max()
 
     # Private functions
 
@@ -91,12 +106,12 @@ class UtrMappings:
         if not inplace:
             new = self.copy(deep=True)
         for utr in self.utr_ids:
-            new[utr][by] = [item for item in new[utr][by] if ops[operation](item,amount)]
+            new[utr][by] = [item for item in new[utr][by] if ops[operation](item, amount)]
         if not inplace:
             return new
         else:
             return None
-    
+        
 @dataclass
 class MappedReadInformation:
     """Information on the reads that mapped to a reference UTR region."""
@@ -105,12 +120,14 @@ class MappedReadInformation:
     read_strands: list[str] = field(default_factory=list)
     read_sequences: list[str] = field(default_factory=list)
     read_barcodes: list[str] = field(default_factory=list)
+    read_umis: list[str] = field(default_factory=list)
     read_lengths: list[int] = field(default_factory=list)
     utr_sizes_from_reads: list[int] = field(default_factory=list)
 
     def __bool__(self):
         return bool(self.read_start_positions or self.read_strands or self.read_sequences \
-            or self.read_barcodes or self.read_lengths or self.utr_sizes_from_reads)
+            or self.read_barcodes or self.read_umis or self.read_lengths or \
+                self.utr_sizes_from_reads)
     
     def __setitem__(self, key, value):
         return setattr(self, key, value)

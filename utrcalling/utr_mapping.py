@@ -41,8 +41,9 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
                 mapped_read_information.read_strands.append(read_info[1])
                 mapped_read_information.read_sequences.append(read_info[2])
                 mapped_read_information.read_barcodes.append(read_info[3])
-                mapped_read_information.read_lengths.append(read_info[4])
-                mapped_read_information.utr_sizes_from_reads.append(read_info[5])
+                mapped_read_information.read_umis.append(read_info[4])
+                mapped_read_information.read_lengths.append(read_info[5])
+                mapped_read_information.utr_sizes_from_reads.append(read_info[6])
 
         if mapped_read_information:
             utr_mappings[name] = mapped_read_information
@@ -71,10 +72,11 @@ def extract_read_information(alignment, interval, version=3):
         else:
             read_sequence = alignment.read.seq[-query_to:-query_from]
     # get the read's cell barcode and UMI
+    read_barcode = alignment.read.seq[:16]
     if version >= 3:
-        read_barcode = alignment.read.seq[:28]
+        read_umi = alignment.read.seq[17:28]
     if version < 3:
-        read_barcode = alignment.read.seq[:26]
+        read_umi = alignment.read.seq[17:26]
     else:
         message = f'10x genomics protocol version {version} currently not supported'
         logger.error(message)
@@ -84,9 +86,9 @@ def extract_read_information(alignment, interval, version=3):
     read_length = len(read_sequence)
 
     # get the computed size of the UTR for this molecule
-    utr_size = read_start_position - interval.start_d
+    utr_size = abs(read_start_position - interval.start_d)
 
     information = read_start_position, read_strand, read_sequence, read_barcode, \
-    read_length, utr_size
+    read_umi, read_length, utr_size
 
     return information
