@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field, asdict
 from copy import deepcopy, copy
-import operator
 
 from .module_log import module_logger
 
@@ -11,21 +10,28 @@ logger = module_logger()
 class UtrMappings:
     utr_ids: list[str] = field(default_factory=list)
     _index: int = 0
-    # read_start_positions: list[list] = field(default_factory=list)
-    # read_strands: list[list] = field(default_factory=list)
-    # read_sequences: list[list] = field(default_factory=list)
-    # read_barcodes: list[list] = field(default_factory=list)
-    # read_umis: list[list] = field(default_factory=list)
-    # read_lengths: list[list] = field(default_factory=list)
-    # utr_sizes_from_reads: list[list] = field(default_factory=list)
+    read_start_positions: list[list] = field(default_factory=list)
+    read_strands: list[list] = field(default_factory=list)
+    read_sequences: list[list] = field(default_factory=list)
+    read_barcodes: list[list] = field(default_factory=list)
+    read_umis: list[list] = field(default_factory=list)
+    read_lengths: list[list] = field(default_factory=list)
+    utr_sizes_from_reads: list[list] = field(default_factory=list)
 
     # Set up the necessary magic methods.
     # This object should work like a dictionary with extra methods and structure.
 
     def __setattr__(self, name, value):
         self.__dict__[name] = value
-        if name != 'utr_ids' and not name.startswith('_'):
+        if name not in self.__dataclass_fields__:
             self.utr_ids.append(name)
+            self.read_start_positions.append(value.read_start_positions)
+            self.read_strands.append(value.read_strands)
+            self.read_sequences.append(value.read_sequences)
+            self.read_barcodes.append(value.read_barcodes)
+            self.read_umis.append(value.read_umis)
+            self.read_lengths.append(value.read_lengths)
+            self.utr_sizes_from_reads.append(value.utr_sizes_from_reads)
     
     def __len__(self):
         return len(self.utr_ids)
@@ -78,40 +84,11 @@ class UtrMappings:
 
     def todict(self):
         as_dictionary = dict()
-        for attr in self.__dict__.keys():
-            if attr != 'utr_ids' and not attr.startswith('_'):
-                as_dictionary[attr] = asdict(self[attr])
+        for attr in self.utr_ids:
+            as_dictionary[attr] = asdict(self[attr])
         return as_dictionary
-    
-    # Set up the main operations
 
-    def filter(self, operation, feature, amount, inplace=False):
-        if operation in ('>','<','=','>=', '<='):
-            result = self._operator_functions(operation, feature, amount, inplace=inplace)
-        return result
 
-    def maximum(feature):
-        return max()
-
-    # Private functions
-
-    def _operator_functions(self, operation, by, amount, inplace=False):
-        ops = { 
-            ">": operator.gt,
-            "<": operator.lt,
-            ">=": operator.ge,
-            "<=": operator.le,
-            "=": operator.eq,
-            }
-        if not inplace:
-            new = self.copy(deep=True)
-        for utr in self.utr_ids:
-            new[utr][by] = [item for item in new[utr][by] if ops[operation](item, amount)]
-        if not inplace:
-            return new
-        else:
-            return None
-        
 @dataclass
 class MappedReadInformation:
     """Information on the reads that mapped to a reference UTR region."""
