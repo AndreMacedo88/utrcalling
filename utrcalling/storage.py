@@ -51,22 +51,30 @@ class UtrMappings:
     
     def __delitem__(self, key):
         try:
-            del self.a[key]
-        except AttributeError:
+            idx = self.utr_ids.index(key)
+            del self.utr_ids[idx]
+            del self.read_start_positions[idx]
+            del self.read_strands[idx]
+            del self.read_sequences[idx]
+            del self.read_barcodes[idx]
+            del self.read_umis[idx]
+            del self.read_lengths[idx]
+            del self.utr_sizes_from_reads[idx]
+            del self.__dict__[key]
+        except (ValueError, AttributeError, KeyError):
             logger.error(f'Attribute {key} not found')
     
     # And set up iteration capabilities
 
     def __iter__(self):
-            return self
+            return deepcopy(self)
     
     def __next__(self):
         if self._index >= len(self.utr_ids):
-            self._index = 0
             raise StopIteration
         else:
             self._index += 1
-            return self.utr_ids[self._index-1]
+            return self[self.utr_ids[self._index-1]]
     
     # Set up some supporting functions
 
@@ -88,6 +96,16 @@ class UtrMappings:
             as_dictionary[attr] = asdict(self[attr])
         return as_dictionary
 
+    def filter(self, func, *args, **kwargs):
+        filtered = UtrMappings()
+        for read_info in iter(self):
+            filtered_info = func(read_info, *args, **kwargs)
+            if filtered_info:
+                if isinstance(filtered_info, MappedReadInformation):
+                    filtered[read_info.utr_name] = filtered_info
+                else:
+                    filtered[read_info.utr_name] = read_info
+        return filtered
 
 @dataclass
 class MappedReadInformation:
@@ -114,8 +132,8 @@ class MappedReadInformation:
     
     def __delitem__(self, key):
         try:
-            del self.a[key]
-        except AttributeError:
+            del self.__dict__[key]
+        except KeyError:
             logger.error(f'Attribute {key} not found')
 
     def copy(self, deep=True):
@@ -123,3 +141,13 @@ class MappedReadInformation:
             return deepcopy(self)
         else:
             return copy(self)
+        
+    def filter(self, func, *args, **kwargs):
+        filtered = MappedReadInformation()
+        filtered['utr_name'] = self.utr_name
+        mask = func(self.__dict__, *args, **kwargs)
+        for key, values in self.__dict__.items():
+            if key == 'utr_name':
+                continue
+            filtered[key] = [b for a, b in zip(mask, values) if a]
+        return filtered

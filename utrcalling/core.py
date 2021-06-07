@@ -50,8 +50,7 @@ def map_aligned_reads(alignment, utr_regions):
     read_mappings = map_reads_to_utr(alignment, intervals, read='first')
     return read_mappings
 
-def call_peaks(utr_positions_counts, utr_reference_regions):
-    cluster(utr_positions_counts)
+def call_peaks(utr_positions_counts, utr_reference_regions, annotations):
     return
 
 
