@@ -97,6 +97,18 @@ class UtrMappings:
         return as_dictionary
 
     def filter(self, func, *args, **kwargs):
+        """
+        Filter features by user-defined function.
+
+        Takes a function *func* that is called for each UTR in the
+        `UtrMappings` object and returns only those for which the function returns
+        True.
+
+        *args and **kwargs are passed directly to *func*.
+
+        Returns a new UtrMappings object.
+        """
+
         filtered = UtrMappings()
         for read_info in iter(self):
             filtered_info = func(read_info, *args, **kwargs)
@@ -106,6 +118,19 @@ class UtrMappings:
                 else:
                     filtered[read_info.utr_name] = read_info
         return filtered
+
+    def merge(self, other):
+        def merge_read_info(x, other_):
+            for key in x.__dict__.keys():
+                if key != 'utr_name':
+                    x[key].extend(other_[key])
+            return x
+
+        merged = UtrMappings()
+        for utr in self.utr_ids:
+            if utr in other.utr_ids:
+                merged[utr] = self[utr].each(merge_read_info, other[utr])
+        return merged
 
 @dataclass
 class MappedReadInformation:
@@ -151,3 +176,18 @@ class MappedReadInformation:
                 continue
             filtered[key] = [b for a, b in zip(mask, values) if a]
         return filtered
+
+    def each(self, func, *args, **kwargs):
+        """
+        Modify each feature with a user-defined function.
+
+        Applies user-defined function *func* to each feature.  *func* must
+        accept an MappedReadInformation as its first argument; *args and **kwargs 
+        will be passed to *func*.
+
+        *func* must return an MappedReadInformation object.
+        """
+
+        modified = func(self, *args, **kwargs)
+
+        return modified

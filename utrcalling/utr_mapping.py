@@ -51,6 +51,9 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
 
 def extract_read_information(alignment, interval, version=3):
 
+    def to_string(x):
+        return repr(x)[2:-1]
+
     # get read strand
     read_strand = alignment.iv.strand
 
@@ -65,18 +68,18 @@ def extract_read_information(alignment, interval, version=3):
                 query_from = operation.query_from
             query_to = operation.query_to
     if read_strand == '+':
-        read_sequence = alignment.read.seq[query_from:query_to]
+        read_sequence = to_string(alignment.read.seq[query_from:query_to])
     else:
         if query_from == 0:
-            read_sequence = alignment.read.seq[-query_to:]
+            read_sequence = to_string(alignment.read.seq[-query_to:])
         else:
-            read_sequence = alignment.read.seq[-query_to:-query_from]
+            read_sequence = to_string(alignment.read.seq[-query_to:-query_from])
     # get the read's cell barcode and UMI
-    read_barcode = alignment.read.seq[:16]
+    read_barcode = to_string(alignment.read.seq[:16])
     if version >= 3:
-        read_umi = alignment.read.seq[17:28]
+        read_umi = to_string(alignment.read.seq[17:28])
     if version < 3:
-        read_umi = alignment.read.seq[17:26]
+        read_umi = to_string(alignment.read.seq[17:26])
     else:
         message = f'10x genomics protocol version {version} currently not supported'
         logger.error(message)
