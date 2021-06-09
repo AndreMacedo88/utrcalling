@@ -1,8 +1,6 @@
-import typing
 import gzip
 
 from gtfparse import read_gtf
-from numpy import generic
 
 from .module_log import module_logger
 

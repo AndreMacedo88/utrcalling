@@ -62,11 +62,17 @@ def extract_read_information(alignment, interval, version=3):
 
     # get read sequence
     query_from = None
+    query_to = None
     for operation in alignment.cigar:
         if operation.type in ('M', 'I', '=', 'X'):
             if query_from is None:
                 query_from = operation.query_from
             query_to = operation.query_to
+    if query_from is None:
+        match_fail = f'Read {alignment.read.seq} has no alignment match! \
+        Please filter your alignments before.'
+        logger.error(match_fail)
+        raise RuntimeError(match_fail)
     if read_strand == '+':
         read_sequence = to_string(alignment.read.seq[query_from:query_to])
     else:
@@ -81,9 +87,9 @@ def extract_read_information(alignment, interval, version=3):
     if version < 3:
         read_umi = to_string(alignment.read.seq[17:26])
     else:
-        message = f'10x genomics protocol version {version} currently not supported'
-        logger.error(message)
-        raise RuntimeError(message)
+        version_fail = f'10x genomics protocol version {version} currently not supported'
+        logger.error(version_fail)
+        raise RuntimeError(version_fail)
 
     # get read length
     read_length = len(read_sequence)

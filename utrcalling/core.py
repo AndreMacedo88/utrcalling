@@ -22,19 +22,16 @@ from .utr_reference import (
     extract_feature, prepare_annotations_index, reduce_regions, get_sequences
     )
 from .utr_mapping import generate_utr_intervals, map_reads_to_utr
-from .peak_calling import subset_data, merge_position_counts, filter_positions
+from .peak_calling import subset_data, merge_position_counts, filter_positions, call_peaks
 
 # Set up logging
 logger = module_logger()
 
-def standard_run(utr_annotation, genome, feature, alignments, single_cell_annotation=None):
+def standard_run(utr_annotation, genome, feature, alignments, single_cell_annotation=None, 
+protocol_version=3):
     utr_reference_regions = prepare_utr_reference_regions(utr_annotation, genome, feature)
-    if isinstance(alignments, (list, tuple)):
-        utr_positions_counts = [
-            map_aligned_reads(alignment, utr_reference_regions) for alignment in alignments
-            ]
-    else:
-        utr_positions_counts = map_aligned_reads(alignments, utr_reference_regions)
+    utr_positions_counts = map_aligned_reads(
+        alignments, utr_reference_regions,protocol_version=protocol_version)
     peaks = call_peaks(
         utr_positions_counts, utr_reference_regions, annotations=single_cell_annotation)
     return peaks
@@ -54,24 +51,35 @@ def prepare_utr_reference_regions(gtf, genome, feature):
     sequences = get_sequences(genome, utr_reduced)
     return utr_reduced
 
-def map_aligned_reads(alignment, utr_regions):
+def map_aligned_reads(alignments, utr_regions, protocol_version=3):
     intervals = generate_utr_intervals(utr_regions)
-    read_mappings = map_reads_to_utr(alignment, intervals, read='first')
+
+    if isinstance(alignments, (list, tuple)):
+        read_mappings = [
+            map_reads_to_utr(
+                alignment, intervals, read='first', version=protocol_version) \
+                    for alignment in alignments
+            ]
+    else:
+        read_mappings = map_reads_to_utr(
+            alignments, intervals, read='first', version=protocol_version)
+    
     return read_mappings
 
 def call_peaks(utr_positions_counts, utr_reference_regions, annotations=None):
     if isinstance(utr_positions_counts, list):
         utr_positions_counts = merge_position_counts(utr_positions_counts)
-        # add '-1' and '-2', etc to each sample's cell barcodes
-        # then merge the 2 position counts objects into one
         
     if annotations:
         annotations = pd.read_csv(annotations)
     utr_reference_subset = subset_data(utr_positions_counts, utr_reference_regions)
     filtered_positions = filter_positions(
-        utr_positions_counts, utr_reference_subset, annotations=annotations)
-    return
+        utr_positions_counts)
+    peaks = call_peaks(filtered_positions, annotations=annotations)
+
+    return peaks
 
 
 if __name__ == "__main__":
-    standard_run("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz")
+    # standard_run("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz", protocol_version=2)
+    pass

@@ -10,13 +10,13 @@ logger = module_logger()
 class UtrMappings:
     utr_ids: list[str] = field(default_factory=list)
     _index: int = 0
-    read_start_positions: list[list] = field(default_factory=list)
-    read_strands: list[list] = field(default_factory=list)
-    read_sequences: list[list] = field(default_factory=list)
-    read_barcodes: list[list] = field(default_factory=list)
-    read_umis: list[list] = field(default_factory=list)
-    read_lengths: list[list] = field(default_factory=list)
-    utr_sizes_from_reads: list[list] = field(default_factory=list)
+    read_start_positions: list[list[int]] = field(default_factory=list)
+    read_strands: list[list[int]] = field(default_factory=list)
+    read_sequences: list[list[int]] = field(default_factory=list)
+    read_barcodes: list[list[int]] = field(default_factory=list)
+    read_umis: list[list[int]] = field(default_factory=list)
+    read_lengths: list[list[int]] = field(default_factory=list)
+    utr_sizes_from_reads: list[list[int]] = field(default_factory=list)
 
     # Set up the necessary magic methods.
     # This object should work like a dictionary with extra methods and structure.
