@@ -149,6 +149,9 @@ class MappedReadInformation:
             or self.read_barcodes or self.read_umis or self.read_lengths or \
                 self.utr_sizes_from_reads)
     
+    def __setattr__(self, name, value):
+        self.__dict__[name] = value
+
     def __setitem__(self, key, value):
         return setattr(self, key, value)
     

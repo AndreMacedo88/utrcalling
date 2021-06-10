@@ -22,7 +22,10 @@ from .utr_reference import (
     extract_feature, prepare_annotations_index, reduce_regions, get_sequences
     )
 from .utr_mapping import generate_utr_intervals, map_reads_to_utr
-from .peak_calling import subset_data, merge_position_counts, filter_positions, call_peaks
+from .peak_calling import (
+    subset_data, merge_position_counts, filter_positions, filter_barcodes, 
+    generate_peak_counts
+)
 
 # Set up logging
 logger = module_logger()
@@ -32,7 +35,7 @@ protocol_version=3):
     utr_reference_regions = prepare_utr_reference_regions(utr_annotation, genome, feature)
     utr_positions_counts = map_aligned_reads(
         alignments, utr_reference_regions,protocol_version=protocol_version)
-    peaks = call_peaks(
+    peaks = filter_barcodes(
         utr_positions_counts, utr_reference_regions, annotations=single_cell_annotation)
     return peaks
 
@@ -73,11 +76,11 @@ def call_peaks(utr_positions_counts, utr_reference_regions, annotations=None):
     if annotations:
         annotations = pd.read_csv(annotations)
     utr_reference_subset = subset_data(utr_positions_counts, utr_reference_regions)
-    filtered_positions = filter_positions(
-        utr_positions_counts)
-    peaks = call_peaks(filtered_positions, annotations=annotations)
-
-    return peaks
+    filtered_positions = filter_positions(utr_positions_counts)
+    if annotations is not None:
+        filtered_pos_barcodes = filter_barcodes(filtered_positions, annotations)
+    peak = generate_peak_counts()
+    return
 
 
 if __name__ == "__main__":

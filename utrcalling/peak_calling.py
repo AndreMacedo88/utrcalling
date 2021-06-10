@@ -52,8 +52,8 @@ def filter_positions(utr_positions_counts):
         lambda x: x.filter(filter_func, 1))
     return filtered
 
-def call_peaks(utr_positions_counts, annotations=None):
-    def filter_func(utr, barcodes_real):
+def filter_barcodes(utr_positions_counts, annotations):
+    def filter_and_correct_barcodes(utr, barcodes_real):
         barcodes = utr['read_barcodes']
         if set(barcodes).issubset(barcodes_real):
             return utr
@@ -77,16 +77,25 @@ def call_peaks(utr_positions_counts, annotations=None):
             filtered['read_barcodes'] = real_names
             return filtered
 
-    if annotations:
-        annotations_df = pd.read_csv(annotations)
-        barcodes_real = annotations_df.iloc[:,0].tolist()  # barcodes must be on the first column of file
-        filts = utr_positions_counts.filter(lambda x: x.each(filter_func, barcodes_real))
-    else:
-        filts = None
-    return filts
+    annotations_df = pd.read_csv(annotations)
+    # Note that barcodes must be on the first column of the annotations file:
+    barcodes_real = annotations_df.iloc[:,0].tolist()
+    utr_positions_filtered = utr_positions_counts.filter(
+        lambda x: x.each(filter_and_correct_barcodes, barcodes_real))
+    
+    return utr_positions_filtered
+
+def generate_peak_counts(utr_positions_counts):
+    peaks = pd.DataFrame()
+    for read_info in utr_positions_counts:
+        info = pd.DataFrame.from_dict(read_info.__dict__)
+        info['utr_sizes_from_reads'] = \
+            info.groupby(['read_barcodes', 'read_umis'])['utr_sizes_from_reads'].transform('median')
+        info = info.drop_duplicates()
+    return
 
 
 def cluster(utr_positions_counts):
     y = pdist(utr_positions_counts, metric='cityblock')
     Z = single(y)
-    cutree = cut_tree(Z, height=50)
+    cuttree = cut_tree(Z, height=50)
