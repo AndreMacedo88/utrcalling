@@ -1,14 +1,17 @@
-from scipy.cluster.hierarchy import single, fcluster, cut_tree
-from scipy.spatial.distance import pdist
 import pandas as pd
+import numpy as np
 from rapidfuzz import process, fuzz
+from sklearn.neighbors import KernelDensity
+from scipy.signal import argrelextrema
+import anndata
 
 from .module_log import module_logger
+from .helpers import flatten
 
 # Set up logging
 logger = module_logger()
 
-def merge_position_counts(utr_positions_counts):
+def merge_position_counts(utr_sizes_counts):
     """
     Before calling peaks from position counts, we should merge the datasets to compare,
     so that peaks get called with the pseudo-bulk data from all samples.
@@ -25,7 +28,7 @@ def merge_position_counts(utr_positions_counts):
 
     sample_counter = 1
     barcode_modified_position_counts = []
-    for position_counts in utr_positions_counts:
+    for position_counts in utr_sizes_counts:
             changed = position_counts.filter(
                 lambda x: x.each(add_counter_to_barcode, sample_counter))
             sample_counter += 1
@@ -36,23 +39,23 @@ def merge_position_counts(utr_positions_counts):
 
     return position_counts_merged
 
-def subset_data(utr_positions_counts, utr_reference_regions):
+def subset_data(utr_sizes_counts, utr_reference_regions):
     sub_utr_reference = utr_reference_regions.filter(
-        lambda x: x.name in utr_positions_counts.utr_ids).saveas()
+        lambda x: x.name in utr_sizes_counts.utr_ids).saveas()
     return sub_utr_reference
 
-def filter_positions(utr_positions_counts):
+def filter_positions(utr_sizes_counts):
     def filter_func(x, amount):
         condition_1 = [True if i > amount else False for i in x['utr_sizes_from_reads']]
         # condition_2 = [True if i == amount else False for i in x['read_strands']]
         # condition_final = [all(items) for items in zip(condition_1, condition_2)]
         return condition_1
 
-    filtered = utr_positions_counts.filter(
+    filtered = utr_sizes_counts.filter(
         lambda x: x.filter(filter_func, 1))
     return filtered
 
-def filter_barcodes(utr_positions_counts, annotations):
+def filter_barcodes(utr_sizes_counts, annotations):
     def filter_and_correct_barcodes(utr, barcodes_real):
         barcodes = utr['read_barcodes']
         if set(barcodes).issubset(barcodes_real):
@@ -76,26 +79,104 @@ def filter_barcodes(utr_positions_counts, annotations):
                 filtered[key] = [b for a, b in zip(mask, values) if a]
             filtered['read_barcodes'] = real_names
             return filtered
-
-    annotations_df = pd.read_csv(annotations)
+    if isinstance(annotations, (pd.DataFrame, pd.Series)):
+        annotations_df = annotations
+    else:
+        annotations_df = pd.read_csv(annotations)
     # Note that barcodes must be on the first column of the annotations file:
     barcodes_real = annotations_df.iloc[:,0].tolist()
-    utr_positions_filtered = utr_positions_counts.filter(
+    utr_positions_filtered = utr_sizes_counts.filter(
         lambda x: x.each(filter_and_correct_barcodes, barcodes_real))
     
     return utr_positions_filtered
 
-def generate_peak_counts(utr_positions_counts):
-    peaks = pd.DataFrame()
-    for read_info in utr_positions_counts:
-        info = pd.DataFrame.from_dict(read_info.__dict__)
-        info['utr_sizes_from_reads'] = \
-            info.groupby(['read_barcodes', 'read_umis'])['utr_sizes_from_reads'].transform('median')
+def generate_peak_counts(utr_sizes_counts, annotations=None):
+    # get list of the unique barcodes (cells)
+    cell_barcodes = set(flatten(utr_sizes_counts.read_barcodes))
+    # create containers for the desired data
+    count_matrix = pd.DataFrame(columns=cell_barcodes)
+    peaks_obs = pd.DataFrame()
+    peaks_var = pd.DataFrame()
+    if annotations is not None:
+        if isinstance(annotations, (pd.DataFrame, pd.Series)):
+            annotations_df = annotations
+        else:
+            annotations_df = pd.read_csv(annotations)
+
+    # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
+    for utr in utr_sizes_counts:
+        info = pd.DataFrame.from_dict(utr.__dict__)
+        # similar UMIs refer to the same event (molecule), and so we take the median
+        info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])\
+            ['utr_sizes_from_reads'].transform('median')
         info = info.drop_duplicates()
-    return
+
+        # now we call the utr size peaks based on the distribution of individual UTR sizes
+        info = call_peaks_using_kernel_density_estimator(info)
+
+        # group by each peak size and cell and count the number of each peak each cell has
+        info_grouped_by_peaks = \
+            info.groupby(['peaks', 'read_barcodes'])['peaks'].agg('count')
+        
+        # append this information to the containers created above
+        count = 1
+        for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
+            # generate a new name for each peak. Here, it's UTR name (which is gene name
+            # plus a counter for each transcript UTR) plus a counter for each peak
+            peak_name = f'{utr.utr_name}-{count}'
+            count += 1
+            # update the peak observations table
+            peaks_obs.loc[peak_name, 'utr_size'] = utr_size_at_peak
+            # update the peak count matrix
+            peak_counts = barcodes.droplevel(0)
+            peak_counts.name = peak_name
+            count_matrix = count_matrix.append(peak_counts, ignore_index=False)
+            count_matrix.fillna(0, inplace=True)
+
+    if annotations is not None:
+        peaks_var = pd.DataFrame(data=2, columns=3, index=4)
+
+    return count_matrix, peaks_obs, peaks_var
+
+def call_peaks_using_kernel_density_estimator(utr_sizes_info):
+        utr_sizes_vector = utr_sizes_info['utr_sizes_from_reads'].values.reshape(-1, 1)
+        # fit a kernel density model to predict the peak's ditribution density function
+        kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
+
+        # calculate an appropriate window to check the model
+        minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
+        padding = (maximum_size-minimum_size)*0.1
+        window = np.linspace(minimum_size-padding, maximum_size+padding)
+        # get the model predictions for that window. Specifically, the maxima.
+        evaluation = kde.score_samples(window.reshape(-1,1))
+        minima = argrelextrema(evaluation, np.less)[0]
+        maxima = argrelextrema(evaluation, np.greater)[0]
+
+        # create a container to hold the UTR peak sizes
+        peaks = np.zeros(len(utr_sizes_vector))
+
+        # attribute a peak to each cell according to their UTR sizes and the kde model:
+        # first iterate over the function' minima
+        idx_minimum = 0  # for the unbound warning... change it in the future!
+        for idx_minimum, val in enumerate(window[minima]):
+            # get the maximum upstream that minimum (the peak) and store it
+            max_ = round(window[maxima][idx_minimum])
+            for idx_maximum, cond in enumerate(utr_sizes_vector < val):
+                if cond and peaks[idx_maximum] == 0:
+                    peaks[idx_maximum] = max_
+        # get the last maximum, just downstream the last minimum.
+        try:
+            max_ = round(window[maxima][idx_minimum+1])
+        except IndexError:  # for those cases with just one peak, there will be no minimum
+            # so we take the median as the peak
+            max_ = utr_sizes_info['utr_sizes_from_reads'].median()
+        # attribute the last maximum to those molecules that haven't yet had their 
+        # peaks scored
+        peaks[peaks == 0] = max_
+        # store this info in a new key on the original container
+        utr_sizes_info['peaks'] = peaks
+        return utr_sizes_info
 
 
-def cluster(utr_positions_counts):
-    y = pdist(utr_positions_counts, metric='cityblock')
-    Z = single(y)
-    cuttree = cut_tree(Z, height=50)
+def generate_count_matrix_anndata(count_matrix, obs_, var_):
+    count_matrix_anndata = anndata.AnnData(count_matrix, obs=obs_, var=var_)
