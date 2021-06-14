@@ -42,7 +42,7 @@ def merge_position_counts(utr_sizes_counts):
 def subset_data(utr_sizes_counts, utr_reference_regions):
     sub_utr_reference = utr_reference_regions.filter(
         lambda x: x.name in utr_sizes_counts.utr_ids).saveas()
-    return sub_utr_reference
+    return sub_utr_reference.to_dataframe()
 
 def filter_positions(utr_sizes_counts):
     def filter_func(x, amount):
@@ -95,13 +95,13 @@ def generate_peak_counts(utr_sizes_counts, annotations=None):
     cell_barcodes = set(flatten(utr_sizes_counts.read_barcodes))
     # create containers for the desired data
     count_matrix = pd.DataFrame(columns=cell_barcodes)
-    peaks_obs = pd.DataFrame()
     peaks_var = pd.DataFrame()
+    # open the annotations file
     if annotations is not None:
         if isinstance(annotations, (pd.DataFrame, pd.Series)):
-            annotations_df = annotations
+            pass
         else:
-            annotations_df = pd.read_csv(annotations)
+            annotations = pd.read_csv(annotations)
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
     for utr in utr_sizes_counts:
@@ -126,17 +126,19 @@ def generate_peak_counts(utr_sizes_counts, annotations=None):
             peak_name = f'{utr.utr_name}-{count}'
             count += 1
             # update the peak observations table
-            peaks_obs.loc[peak_name, 'utr_size'] = utr_size_at_peak
+            peaks_var.loc[peak_name, 'utr_size'] = utr_size_at_peak
             # update the peak count matrix
             peak_counts = barcodes.droplevel(0)
             peak_counts.name = peak_name
             count_matrix = count_matrix.append(peak_counts, ignore_index=False)
-            count_matrix.fillna(0, inplace=True)
-
+            count_matrix = count_matrix.fillna(0)
+    count_matrix = count_matrix.T
     if annotations is not None:
-        peaks_var = pd.DataFrame(data=2, columns=3, index=4)
-
-    return count_matrix, peaks_obs, peaks_var
+        peaks_obs = annotations.set_index(annotations.columns[0])
+        peaks_obs = peaks_obs.reindex(index=count_matrix.index)
+        return count_matrix, peaks_obs, peaks_var
+    else:
+        return count_matrix, peaks_var
 
 def call_peaks_using_kernel_density_estimator(utr_sizes_info):
         utr_sizes_vector = utr_sizes_info['utr_sizes_from_reads'].values.reshape(-1, 1)
@@ -180,3 +182,4 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_info):
 
 def generate_count_matrix_anndata(count_matrix, obs_, var_):
     count_matrix_anndata = anndata.AnnData(count_matrix, obs=obs_, var=var_)
+    return count_matrix_anndata

@@ -84,7 +84,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
         filtered_positions, annotations=annotations)
     count_matrix_anndata = generate_count_matrix_anndata(
         peaks_count_matrix, peaks_obs, peaks_var)
-    return
+    return count_matrix_anndata
 
 
 if __name__ == "__main__":
