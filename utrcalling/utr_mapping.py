@@ -1,4 +1,5 @@
 import HTSeq
+from tqdm import tqdm
 
 from .storage import UtrMappings, MappedReadInformation
 from .module_log import module_logger
@@ -9,7 +10,7 @@ logger = module_logger()
 def generate_utr_intervals(utr_regions):
     intervals = dict()
     counter = 0
-    for utr in utr_regions:
+    for utr in tqdm(utr_regions, desc='Generating genomic interval for UTR number'):
         name = utr.name
         if name in intervals.keys():
             counter += 1
@@ -23,7 +24,10 @@ def generate_utr_intervals(utr_regions):
 def map_reads_to_utr(bam, intervals, read='first', version=3):
     bam_file = HTSeq.BAM_Reader(bam)
     utr_mappings = UtrMappings()
-    for name, interval in intervals.items():
+    
+    for name, interval in tqdm(intervals.items(), 
+    desc='Mapping reads to reference UTR number'):
+
         mapped_read_information = MappedReadInformation(utr_name=name)
         for alignment in bam_file[interval]:
             if not alignment.pe_which == read:  # get only one of the 2 paired reads

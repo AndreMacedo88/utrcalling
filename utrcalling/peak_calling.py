@@ -101,7 +101,7 @@ def generate_peak_counts(utr_sizes_counts, annotations=None):
         if isinstance(annotations, (pd.DataFrame, pd.Series)):
             pass
         else:
-            annotations = pd.read_csv(annotations)
+            annotations = pd.read_csv(annotations, engine='c')
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
     for utr in utr_sizes_counts:

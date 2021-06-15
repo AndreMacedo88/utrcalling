@@ -19,11 +19,15 @@ def extract_feature(gtf_file, feature):
     return(utr_df)
 
 def open_gtf(gtf_file):
+    logger.info('Parsing GTF file')
+
     if gtf_file.endswith(".gz"):
         with gzip.open(gtf_file) as f:
             gtf_df = read_gtf(f)
     else:
         gtf_df = read_gtf(gtf_file)
+    
+    logger.info('Finished parsing GTF file')
     return gtf_df
 
 def prepare_annotations_index(annotations_extra):
@@ -39,6 +43,8 @@ def reduce_regions(bed, annotations_index=[], operation_list=[]):
     else:
         operations = operation_list.append('count')
     annotations_index.append(1)
+
+    logger.info('Merging overlapping UTR regions')
     bed_merged = bed.merge(c=annotations_index, o=operations, s=True)
     return bed_merged
 

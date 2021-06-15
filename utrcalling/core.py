@@ -6,10 +6,8 @@ Steps:
 genomic coordinates
 2-
 
-Obs:
-- Final object should be a gene ordered list in a format like GRanges object- use pyranges 
-package. Should be able to reconstruct count matrix, or instead just offer count matrix 
-straight away.
+Observations:
+- Final object should be a count matrix in AnnData format.
 - Output should inherit single cell annotations, as well as gene annotation like the 
 genomic coordinates (GRanges obj) and 3'UTR sequence information.
 """
@@ -28,16 +26,7 @@ from .peak_calling import (
 )
 
 # Set up logging
-logger = module_logger()
-
-def standard_run(utr_annotation, genome, feature, alignments, single_cell_annotation=None, 
-protocol_version=3):
-    utr_reference_regions = prepare_utr_reference_regions(utr_annotation, genome, feature)
-    utr_sizes_counts = map_aligned_reads(
-        alignments, utr_reference_regions,protocol_version=protocol_version)
-    count_matrix_anndata = call_peaks(
-        utr_sizes_counts, utr_reference_regions, annotations=single_cell_annotation)
-    return count_matrix_anndata
+logger = module_logger(store_log=True)
 
 def prepare_utr_reference_regions(gtf, genome, feature):
     # extract 3'UTRs from all the features in the GTF file
@@ -85,8 +74,3 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
     count_matrix_anndata = generate_count_matrix_anndata(
         peaks_count_matrix, peaks_obs, peaks_var)
     return count_matrix_anndata
-
-
-if __name__ == "__main__":
-    # standard_run("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz", protocol_version=2)
-    pass
