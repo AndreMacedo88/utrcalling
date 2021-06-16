@@ -19,18 +19,19 @@ single_cell_annotation=None, protocol_version=3, out="UTR_results.h5ad"):
     protocol_version : int
     out : str
     """
-    # Set up logging
-    logger = module_logger()
 
-    logger.info('Starting preparing utr reference regions')
+    # Set up logging
+    logger = module_logger(disable=False, store_log=True)
+
+    logger.info('Preparing utr reference regions')
     utr_reference_regions = core.prepare_utr_reference_regions(utr_annotation, genome, 
     feature)
 
-    logger.info('Starting mapping aligned reads to reference')
+    logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
         alignments, utr_reference_regions,protocol_version=int(protocol_version))
     
-    logger.info('Starting calling peaks from mapped data')
+    logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, annotations=single_cell_annotation)
     

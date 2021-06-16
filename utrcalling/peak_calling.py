@@ -4,6 +4,11 @@ from rapidfuzz import process, fuzz
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 import anndata
+from functools import partial
+from tqdm import tqdm as std_tqdm
+tqdm = partial(std_tqdm, dynamic_ncols=True)
+from pympler import asizeof
+import psutil
 
 from .module_log import module_logger
 from .helpers import flatten
@@ -11,7 +16,7 @@ from .helpers import flatten
 # Set up logging
 logger = module_logger()
 
-def merge_position_counts(utr_sizes_counts):
+def merge_samples_utr_sizes(utr_sizes):
     """
     Before calling peaks from position counts, we should merge the datasets to compare,
     so that peaks get called with the pseudo-bulk data from all samples.
@@ -26,9 +31,10 @@ def merge_position_counts(utr_sizes_counts):
         x["read_barcodes"] = [f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
         return x
 
+    logger.info("Merging all samples' UTR sizes")
     sample_counter = 1
     barcode_modified_position_counts = []
-    for position_counts in utr_sizes_counts:
+    for position_counts in tqdm(utr_sizes):
             changed = position_counts.filter(
                 lambda x: x.each(add_counter_to_barcode, sample_counter))
             sample_counter += 1
@@ -37,25 +43,32 @@ def merge_position_counts(utr_sizes_counts):
     position_counts_merged = \
         barcode_modified_position_counts[0].merge(barcode_modified_position_counts[1])
 
+    logger.info(f'Size of merged utr sizes object in bytes: \
+        {asizeof.asizeof(position_counts_merged)}\n\n\
+            Memory usage:{psutil.virtual_memory().percent}')
+    
     return position_counts_merged
 
-def subset_data(utr_sizes_counts, utr_reference_regions):
+def subset_reference_data(utr_sizes, utr_reference_regions):
+    logger.info('Subsetting UTR reference data')
     sub_utr_reference = utr_reference_regions.filter(
-        lambda x: x.name in utr_sizes_counts.utr_ids).saveas()
+        lambda x: x.name in utr_sizes.utr_ids).saveas()
     return sub_utr_reference.to_dataframe()
 
-def filter_positions(utr_sizes_counts):
+def filter_utr_sizes(utr_sizes):
+    logger.info('Filtering samples UTR sizes')
     def filter_func(x, amount):
         condition_1 = [True if i > amount else False for i in x['utr_sizes_from_reads']]
         # condition_2 = [True if i == amount else False for i in x['read_strands']]
         # condition_final = [all(items) for items in zip(condition_1, condition_2)]
         return condition_1
 
-    filtered = utr_sizes_counts.filter(
+    filtered = utr_sizes.filter(
         lambda x: x.filter(filter_func, 1))
     return filtered
 
-def filter_barcodes(utr_sizes_counts, annotations):
+def filter_barcodes(utr_sizes, annotations):
+    logger.info('Filtering cell barcodes')
     def filter_and_correct_barcodes(utr, barcodes_real):
         barcodes = utr['read_barcodes']
         if set(barcodes).issubset(barcodes_real):
@@ -85,14 +98,15 @@ def filter_barcodes(utr_sizes_counts, annotations):
         annotations_df = pd.read_csv(annotations)
     # Note that barcodes must be on the first column of the annotations file:
     barcodes_real = annotations_df.iloc[:,0].tolist()
-    utr_positions_filtered = utr_sizes_counts.filter(
+    utr_positions_filtered = utr_sizes.filter(
         lambda x: x.each(filter_and_correct_barcodes, barcodes_real))
     
     return utr_positions_filtered
 
-def generate_peak_counts(utr_sizes_counts, annotations=None):
+def generate_peak_counts(utr_sizes, annotations=None):
+    logger.info('Generating and counting UTR size peaks')
     # get list of the unique barcodes (cells)
-    cell_barcodes = set(flatten(utr_sizes_counts.read_barcodes))
+    cell_barcodes = set(flatten(utr_sizes.read_barcodes))
     # create containers for the desired data
     count_matrix = pd.DataFrame(columns=cell_barcodes)
     peaks_var = pd.DataFrame()
@@ -104,7 +118,7 @@ def generate_peak_counts(utr_sizes_counts, annotations=None):
             annotations = pd.read_csv(annotations, engine='c')
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
-    for utr in utr_sizes_counts:
+    for utr in tqdm(utr_sizes, desc='Calling peaks for UTR number'):
         info = pd.DataFrame.from_dict(utr.__dict__)
         # similar UMIs refer to the same event (molecule), and so we take the median
         info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])\
@@ -181,5 +195,6 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_info):
 
 
 def generate_count_matrix_anndata(count_matrix, obs_, var_):
+    logger.info('Generating Count Matrix')
     count_matrix_anndata = anndata.AnnData(count_matrix, obs=obs_, var=var_)
     return count_matrix_anndata

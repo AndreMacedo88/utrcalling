@@ -21,12 +21,12 @@ from .utr_reference import (
     )
 from .utr_mapping import generate_utr_intervals, map_reads_to_utr
 from .peak_calling import (
-    subset_data, merge_position_counts, filter_positions, filter_barcodes, 
+    subset_reference_data, merge_samples_utr_sizes, filter_utr_sizes, filter_barcodes, 
     generate_peak_counts, generate_count_matrix_anndata
 )
 
 # Set up logging
-logger = module_logger(store_log=True)
+logger = module_logger(disable=False, store_log=True)
 
 def prepare_utr_reference_regions(gtf, genome, feature):
     # extract 3'UTRs from all the features in the GTF file
@@ -40,7 +40,7 @@ def prepare_utr_reference_regions(gtf, genome, feature):
     # find and merge overlapping regions
     utr_reduced = reduce_regions(utr_bed, annotations_index=ann_idx)
     # get the sequences (from the genome file) for each UTR region
-    sequences = get_sequences(genome, utr_reduced)
+    # sequences = get_sequences(genome, utr_reduced)
     return utr_reduced
 
 def map_aligned_reads(alignments, utr_regions, protocol_version=3):
@@ -55,17 +55,17 @@ def map_aligned_reads(alignments, utr_regions, protocol_version=3):
     else:
         read_mappings = map_reads_to_utr(
             alignments, intervals, read='first', version=protocol_version)
-    
+
     return read_mappings
 
 def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
     if isinstance(utr_sizes_counts, list):
-        utr_sizes_counts = merge_position_counts(utr_sizes_counts)
+        utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts)
         
     if annotations is not None:
         annotations = pd.read_csv(annotations)
-    utr_reference_subset = subset_data(utr_sizes_counts, utr_reference_regions)
-    filtered_positions = filter_positions(utr_sizes_counts)
+    utr_reference_subset = subset_reference_data(utr_sizes_counts, utr_reference_regions)
+    filtered_positions = filter_utr_sizes(utr_sizes_counts)
     if annotations is not None:
         filtered_positions = filter_barcodes(filtered_positions, annotations)
     

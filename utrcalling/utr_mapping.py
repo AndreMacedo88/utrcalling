@@ -1,5 +1,9 @@
 import HTSeq
-from tqdm import tqdm
+from functools import partial
+from tqdm import tqdm as std_tqdm
+tqdm = partial(std_tqdm, dynamic_ncols=True)
+from pympler import asizeof
+import psutil
 
 from .storage import UtrMappings, MappedReadInformation
 from .module_log import module_logger
@@ -22,6 +26,7 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 def map_reads_to_utr(bam, intervals, read='first', version=3):
+    logger.info(f'Extracting reads from {bam} and mapping them to the reference UTR')
     bam_file = HTSeq.BAM_Reader(bam)
     utr_mappings = UtrMappings()
     
@@ -51,6 +56,10 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
 
         if mapped_read_information:
             utr_mappings[name] = mapped_read_information
+
+    logger.info(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
+        \n\nMemory usage:{psutil.virtual_memory().percent}')
+
     return utr_mappings
 
 def extract_read_information(alignment, interval, version=3):
