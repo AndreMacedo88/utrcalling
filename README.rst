@@ -16,4 +16,4 @@ Run individual test files
 
 Run all test files at once:
 
-``python -m unittest discover``
+``python utrcalling.py run_tests``

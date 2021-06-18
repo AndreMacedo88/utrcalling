@@ -15,7 +15,6 @@ genomic coordinates (GRanges obj) and 3'UTR sequence information.
 import pandas as pd
 import pybedtools
 
-from .module_log import module_logger
 from .utr_reference import (
     extract_feature, prepare_annotations_index, reduce_regions, get_sequences
     )
@@ -25,8 +24,6 @@ from .peak_calling import (
     generate_peak_counts, generate_count_matrix_anndata
 )
 
-# Set up logging
-logger = module_logger(disable=False, store_log=True)
 
 def prepare_utr_reference_regions(gtf, genome, feature):
     # extract 3'UTRs from all the features in the GTF file
@@ -55,22 +52,29 @@ def map_aligned_reads(alignments, utr_regions, protocol_version=3):
     else:
         read_mappings = map_reads_to_utr(
             alignments, intervals, read='first', version=protocol_version)
-
     return read_mappings
 
 def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
     if isinstance(utr_sizes_counts, list):
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts)
-        
+    
     if annotations is not None:
         annotations = pd.read_csv(annotations)
     utr_reference_subset = subset_reference_data(utr_sizes_counts, utr_reference_regions)
+    
+    del utr_reference_regions  # to save memory
+
     filtered_positions = filter_utr_sizes(utr_sizes_counts)
+
+    del utr_sizes_counts  # to save memory
+
     if annotations is not None:
         filtered_positions = filter_barcodes(filtered_positions, annotations)
-    
     peaks_count_matrix, peaks_obs, peaks_var = generate_peak_counts(
         filtered_positions, annotations=annotations)
+    
+    del filtered_positions  # to save memory
+
     count_matrix_anndata = generate_count_matrix_anndata(
         peaks_count_matrix, peaks_obs, peaks_var)
     return count_matrix_anndata

@@ -3,18 +3,25 @@ from difflib import get_close_matches
 import re
 
 from tests import test_case
-from scripts import run as run_
+import scripts
 
 def run_tests(args=None):
     """
     Runs the test suite for the module.
     """
-    kwargs_new = parse_unknown_args(args, 0)
+    if args:
+        kwargs_new = parse_unknown_args(args, 0)
+    else:
+        kwargs_new={}
     test_case.run_all_tests(**kwargs_new)
 
 def run(args=None):
-    kwargs_new = parse_unknown_args(args, 2, keywords=run_.keyword_args)
-    run_.main(args[0], args[1], **kwargs_new)
+    kwargs_new = parse_unknown_args(args, 2, keywords=scripts.run.keyword_args)
+    scripts.run.main(args[0], args[1], **kwargs_new)
+
+def call_peaks(args=None):
+    kwargs_new = parse_unknown_args(args, 1, keywords=scripts.call_peaks.keyword_args)
+    scripts.call_peaks.main(args[0], **kwargs_new)
 
 def parse_unknown_args(args, n_args, keywords=None):
     # get only the keyword arguments
@@ -55,6 +62,7 @@ def main(process, unknown_arguments, possibilities):
     unknown_arguments : list
     possibilities : list
     """
+    
     close_matches = get_close_matches(process, possibilities, n=3, cutoff=0.6)
     if process not in close_matches:
         if close_matches:
@@ -62,11 +70,12 @@ def main(process, unknown_arguments, possibilities):
         else:
             print(f"Process {process} does ot exist.")
         return
+    
     eval(f"{process}(args={unknown_arguments})")
 
 
 if __name__ == "__main__":
-    list_of_processes = ["run_tests", "run"]
+    list_of_processes = ["run_tests", "run", "call_peaks"]
     # standard_run("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz")
     parser = argparse.ArgumentParser(description="""
     Utility script for easy access to most of the VEnCode scripts and

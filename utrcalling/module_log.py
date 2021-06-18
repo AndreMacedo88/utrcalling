@@ -1,10 +1,12 @@
 import logging
+import os
 from datetime import datetime
 
 def module_logger(disable=False, store_log=False):
     # create logger with the name of the module, or whatever
     module_logger = logging.getLogger("utrcallingtool")
     module_logger.propagate = False
+    
     if disable:
         return module_logger
 
@@ -17,7 +19,7 @@ def module_logger(disable=False, store_log=False):
 
         if store_log:
             # create file handler which logs even debug messages
-            fh = logging.FileHandler(f'{now.strftime("%Y%m%d-%Hh%Mm")}-utrcalling.log')
+            fh = MakeFileHandler(f'logs/{now.strftime("%Y%m%d-%Hh%Mm")}-utrcalling.log')
             fh.setLevel(logging.DEBUG)
             fh.setFormatter(formatter)
             # add the handler to the logger
@@ -31,3 +33,8 @@ def module_logger(disable=False, store_log=False):
         module_logger.addHandler(ch)
         
     return module_logger
+
+class MakeFileHandler(logging.FileHandler):
+    def __init__(self, filename, mode='a', encoding=None, delay=False, errors=None):            
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        logging.FileHandler.__init__(self, filename, mode, encoding, delay, errors)

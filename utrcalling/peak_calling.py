@@ -6,56 +6,61 @@ from scipy.signal import argrelextrema
 import anndata
 from functools import partial
 from tqdm import tqdm as std_tqdm
-tqdm = partial(std_tqdm, dynamic_ncols=True)
-from pympler import asizeof
-import psutil
+tqdm = partial(std_tqdm, dynamic_ncols=True)    
 
 from .module_log import module_logger
 from .helpers import flatten
 
-# Set up logging
-logger = module_logger()
 
 def merge_samples_utr_sizes(utr_sizes):
     """
-    Before calling peaks from position counts, we should merge the datasets to compare,
-    so that peaks get called with the pseudo-bulk data from all samples.
-    If you want to call peaks for a single sample, skip this function
+    Before calling peaks from position counts, we should merge the datasets we want to
+    compare, so that peaks get called with the pseudo-bulk data from all samples.
+    If you want to call peaks for a single sample, skip this function.
 
     Args:
         utr_positions_counts (list): List with the objects containing the position
         counts for each sample.
-    """
     
+    Returns:
+        UtrMappings: The merged datasets.
+    """
+    logger = module_logger()
+
     def add_counter_to_barcode(x, counter):
         x["read_barcodes"] = [f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
         return x
 
     logger.info("Merging all samples' UTR sizes")
+
+    # first we need to change the barcode names of our samples to identify each sample
     sample_counter = 1
-    barcode_modified_position_counts = []
+    barcode_modified_utr_sizes = []
     for position_counts in tqdm(utr_sizes):
             changed = position_counts.filter(
                 lambda x: x.each(add_counter_to_barcode, sample_counter))
             sample_counter += 1
-            barcode_modified_position_counts.append(changed)
-    
-    position_counts_merged = \
-        barcode_modified_position_counts[0].merge(barcode_modified_position_counts[1])
+            barcode_modified_utr_sizes.append(changed)
 
-    logger.info(f'Size of merged utr sizes object in bytes: \
-        {asizeof.asizeof(position_counts_merged)}\n\n\
-            Memory usage:{psutil.virtual_memory().percent}')
-    
+    # Before merging delete some big objects because of memory size issues
+    del utr_sizes  
+    del changed
+
+    # merge the two datasets
+    position_counts_merged = \
+        barcode_modified_utr_sizes[0].merge(barcode_modified_utr_sizes[1])
+
     return position_counts_merged
 
 def subset_reference_data(utr_sizes, utr_reference_regions):
+    logger = module_logger()
     logger.info('Subsetting UTR reference data')
     sub_utr_reference = utr_reference_regions.filter(
         lambda x: x.name in utr_sizes.utr_ids).saveas()
     return sub_utr_reference.to_dataframe()
 
 def filter_utr_sizes(utr_sizes):
+    logger = module_logger()
     logger.info('Filtering samples UTR sizes')
     def filter_func(x, amount):
         condition_1 = [True if i > amount else False for i in x['utr_sizes_from_reads']]
@@ -68,6 +73,7 @@ def filter_utr_sizes(utr_sizes):
     return filtered
 
 def filter_barcodes(utr_sizes, annotations):
+    logger = module_logger()
     logger.info('Filtering cell barcodes')
     def filter_and_correct_barcodes(utr, barcodes_real):
         barcodes = utr['read_barcodes']
@@ -104,6 +110,7 @@ def filter_barcodes(utr_sizes, annotations):
     return utr_positions_filtered
 
 def generate_peak_counts(utr_sizes, annotations=None):
+    logger = module_logger()
     logger.info('Generating and counting UTR size peaks')
     # get list of the unique barcodes (cells)
     cell_barcodes = set(flatten(utr_sizes.read_barcodes))
@@ -155,46 +162,47 @@ def generate_peak_counts(utr_sizes, annotations=None):
         return count_matrix, peaks_var
 
 def call_peaks_using_kernel_density_estimator(utr_sizes_info):
-        utr_sizes_vector = utr_sizes_info['utr_sizes_from_reads'].values.reshape(-1, 1)
-        # fit a kernel density model to predict the peak's ditribution density function
-        kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
+    utr_sizes_vector = utr_sizes_info['utr_sizes_from_reads'].values.reshape(-1, 1)
+    # fit a kernel density model to predict the peak's ditribution density function
+    kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
 
-        # calculate an appropriate window to check the model
-        minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
-        padding = (maximum_size-minimum_size)*0.1
-        window = np.linspace(minimum_size-padding, maximum_size+padding)
-        # get the model predictions for that window. Specifically, the maxima.
-        evaluation = kde.score_samples(window.reshape(-1,1))
-        minima = argrelextrema(evaluation, np.less)[0]
-        maxima = argrelextrema(evaluation, np.greater)[0]
+    # calculate an appropriate window to check the model
+    minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
+    padding = (maximum_size-minimum_size)*0.1
+    window = np.linspace(minimum_size-padding, maximum_size+padding)
+    # get the model predictions for that window. Specifically, the maxima.
+    evaluation = kde.score_samples(window.reshape(-1,1))
+    minima = argrelextrema(evaluation, np.less)[0]
+    maxima = argrelextrema(evaluation, np.greater)[0]
 
-        # create a container to hold the UTR peak sizes
-        peaks = np.zeros(len(utr_sizes_vector))
+    # create a container to hold the UTR peak sizes
+    peaks = np.zeros(len(utr_sizes_vector))
 
-        # attribute a peak to each cell according to their UTR sizes and the kde model:
-        # first iterate over the function' minima
-        idx_minimum = 0  # for the unbound warning... change it in the future!
-        for idx_minimum, val in enumerate(window[minima]):
-            # get the maximum upstream that minimum (the peak) and store it
-            max_ = round(window[maxima][idx_minimum])
-            for idx_maximum, cond in enumerate(utr_sizes_vector < val):
-                if cond and peaks[idx_maximum] == 0:
-                    peaks[idx_maximum] = max_
-        # get the last maximum, just downstream the last minimum.
-        try:
-            max_ = round(window[maxima][idx_minimum+1])
-        except IndexError:  # for those cases with just one peak, there will be no minimum
-            # so we take the median as the peak
-            max_ = utr_sizes_info['utr_sizes_from_reads'].median()
-        # attribute the last maximum to those molecules that haven't yet had their 
-        # peaks scored
-        peaks[peaks == 0] = max_
-        # store this info in a new key on the original container
-        utr_sizes_info['peaks'] = peaks
-        return utr_sizes_info
+    # attribute a peak to each cell according to their UTR sizes and the kde model:
+    # first iterate over the function' minima
+    idx_minimum = 0  # for the unbound warning... change it in the future!
+    for idx_minimum, val in enumerate(window[minima]):
+        # get the maximum upstream that minimum (the peak) and store it
+        max_ = round(window[maxima][idx_minimum])
+        for idx_maximum, cond in enumerate(utr_sizes_vector < val):
+            if cond and peaks[idx_maximum] == 0:
+                peaks[idx_maximum] = max_
+    # get the last maximum, just downstream the last minimum.
+    try:
+        max_ = round(window[maxima][idx_minimum+1])
+    except IndexError:  # for those cases with just one peak, there will be no minimum
+        # so we take the median as the peak
+        max_ = utr_sizes_info['utr_sizes_from_reads'].median()
+    # attribute the last maximum to those molecules that haven't yet had their 
+    # peaks scored
+    peaks[peaks == 0] = max_
+    # store this info in a new key on the original container
+    utr_sizes_info['peaks'] = peaks
+    return utr_sizes_info
 
 
 def generate_count_matrix_anndata(count_matrix, obs_, var_):
+    logger = module_logger()
     logger.info('Generating Count Matrix')
     count_matrix_anndata = anndata.AnnData(count_matrix, obs=obs_, var=var_)
     return count_matrix_anndata

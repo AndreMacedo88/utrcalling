@@ -8,8 +8,6 @@ import psutil
 from .storage import UtrMappings, MappedReadInformation
 from .module_log import module_logger
 
-# Set up logging
-logger = module_logger()
 
 def generate_utr_intervals(utr_regions):
     intervals = dict()
@@ -26,6 +24,7 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 def map_reads_to_utr(bam, intervals, read='first', version=3):
+    logger = module_logger()
     logger.info(f'Extracting reads from {bam} and mapping them to the reference UTR')
     bam_file = HTSeq.BAM_Reader(bam)
     utr_mappings = UtrMappings()
@@ -48,11 +47,11 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
                 interval=interval, version=version)
                 mapped_read_information.read_start_positions.append(read_info[0])
                 mapped_read_information.read_strands.append(read_info[1])
-                mapped_read_information.read_sequences.append(read_info[2])
-                mapped_read_information.read_barcodes.append(read_info[3])
-                mapped_read_information.read_umis.append(read_info[4])
-                mapped_read_information.read_lengths.append(read_info[5])
-                mapped_read_information.utr_sizes_from_reads.append(read_info[6])
+                # mapped_read_information.read_sequences.append(read_info[2])
+                mapped_read_information.read_barcodes.append(read_info[2])
+                mapped_read_information.read_umis.append(read_info[3])
+                mapped_read_information.read_lengths.append(read_info[4])
+                mapped_read_information.utr_sizes_from_reads.append(read_info[5])
 
         if mapped_read_information:
             utr_mappings[name] = mapped_read_information
@@ -63,7 +62,23 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
     return utr_mappings
 
 def extract_read_information(alignment, interval, version=3):
+    """
+    Extracts all the relevant information from matching reads in a HTSeq.Alignment object.
 
+    Args:
+        alignment (HTSeq.Alignment): The read alignment object.
+        interval (HTSeq.GenomicInterval): The UTR interval coordinates.
+        version (int, optional): Version of the 10x protocol used. Defaults to 3.
+
+    Raises:
+        RuntimeError: If the read has no matches.
+        RuntimeError: If the protocol version is not currently supported.
+
+    Returns:
+        tuple: The relevant read information
+    """    
+    logger = module_logger()
+    
     def to_string(x):
         return repr(x)[2:-1]
 
@@ -110,7 +125,7 @@ def extract_read_information(alignment, interval, version=3):
     # get the computed size of the UTR for this molecule
     utr_size = abs(read_start_position - interval.start_d)
 
-    information = read_start_position, read_strand, read_sequence, read_barcode, \
-    read_umi, read_length, utr_size
+    information = read_start_position, read_strand, read_barcode, \
+    read_umi, read_length, utr_size  # , read_sequence
 
     return information

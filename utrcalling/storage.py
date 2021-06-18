@@ -1,10 +1,9 @@
 from dataclasses import dataclass, field, asdict
 from copy import deepcopy, copy
+import pickle
 
 from .module_log import module_logger
 
-# Set up logging
-logger = module_logger()
 
 @dataclass
 class UtrMappings:
@@ -12,22 +11,25 @@ class UtrMappings:
     _index: int = 0
     read_start_positions: list[list[int]] = field(default_factory=list)
     read_strands: list[list[int]] = field(default_factory=list)
-    read_sequences: list[list[int]] = field(default_factory=list)
+    # read_sequences: list[list[int]] = field(default_factory=list)
     read_barcodes: list[list[int]] = field(default_factory=list)
     read_umis: list[list[int]] = field(default_factory=list)
     read_lengths: list[list[int]] = field(default_factory=list)
     utr_sizes_from_reads: list[list[int]] = field(default_factory=list)
 
+    def __postinit__(self):
+        self.logger = module_logger()
+
     # Set up the necessary magic methods.
     # This object should work like a dictionary with extra methods and structure.
-
+    
     def __setattr__(self, name, value):
         self.__dict__[name] = value
         if name not in self.__dataclass_fields__:
             self.utr_ids.append(name)
             self.read_start_positions.append(value.read_start_positions)
             self.read_strands.append(value.read_strands)
-            self.read_sequences.append(value.read_sequences)
+            # self.read_sequences.append(value.read_sequences)
             self.read_barcodes.append(value.read_barcodes)
             self.read_umis.append(value.read_umis)
             self.read_lengths.append(value.read_lengths)
@@ -55,14 +57,14 @@ class UtrMappings:
             del self.utr_ids[idx]
             del self.read_start_positions[idx]
             del self.read_strands[idx]
-            del self.read_sequences[idx]
+            # del self.read_sequences[idx]
             del self.read_barcodes[idx]
             del self.read_umis[idx]
             del self.read_lengths[idx]
             del self.utr_sizes_from_reads[idx]
             del self.__dict__[key]
         except (ValueError, AttributeError, KeyError):
-            logger.error(f'Attribute {key} not found')
+            self.logger.error(f'Attribute {key} not found')
     
     # And set up iteration capabilities
 
@@ -95,6 +97,10 @@ class UtrMappings:
         for attr in self.utr_ids:
             as_dictionary[attr] = asdict(self[attr])
         return as_dictionary
+    
+    def export(self, path):
+        with open(path, 'wb') as file_:
+            pickle.dump(self, file_)
 
     def filter(self, func, *args, **kwargs):
         """
@@ -138,16 +144,19 @@ class MappedReadInformation:
     utr_name: str = ''
     read_start_positions: list[int] = field(default_factory=list)
     read_strands: list[str] = field(default_factory=list)
-    read_sequences: list[str] = field(default_factory=list)
+    # read_sequences: list[str] = field(default_factory=list)
     read_barcodes: list[str] = field(default_factory=list)
     read_umis: list[str] = field(default_factory=list)
     read_lengths: list[int] = field(default_factory=list)
     utr_sizes_from_reads: list[int] = field(default_factory=list)
 
+    def __postinit__(self):
+        self.logger = module_logger()
+
     def __bool__(self):
-        return bool(self.read_start_positions or self.read_strands or self.read_sequences \
+        return bool(self.read_start_positions or self.read_strands \
             or self.read_barcodes or self.read_umis or self.read_lengths or \
-                self.utr_sizes_from_reads)
+                self.utr_sizes_from_reads)  # or self.read_sequences
     
     def __setattr__(self, name, value):
         self.__dict__[name] = value
@@ -162,7 +171,7 @@ class MappedReadInformation:
         try:
             del self.__dict__[key]
         except KeyError:
-            logger.error(f'Attribute {key} not found')
+            self.logger.error(f'Attribute {key} not found')
 
     def copy(self, deep=True):
         if deep:
