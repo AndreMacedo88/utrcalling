@@ -84,7 +84,7 @@ def filter_barcodes(utr_sizes, annotations):
             mask = []
             for barcode in barcodes:
                 match = process.extractOne(
-                    barcode, barcodes_real, scorer=fuzz.WRatio, score_cutoff=90)
+                    barcode, barcodes_real, scorer=fuzz.ratio, score_cutoff=90)
                 if match is not None:
                     real_names.append(match[0])
                     mask.append(True)

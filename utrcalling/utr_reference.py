@@ -32,8 +32,7 @@ def open_gtf(gtf_file):
 def prepare_annotations_index(annotations_extra):
     main = ['seqname', 'start', 'end']
     annotations_columns = main + annotations_extra
-    annotations_index = \
-    [index+1 for index, value in enumerate(annotations_columns) if value not in main]
+    annotations_index = list(range(len(main)+1, len(annotations_columns)+1))
     return annotations_columns, annotations_index
 
 def reduce_regions(bed, annotations_index=[], operation_list=[]):
