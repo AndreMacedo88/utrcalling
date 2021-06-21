@@ -125,7 +125,7 @@ def generate_peak_counts(utr_sizes, annotations=None):
             annotations = pd.read_csv(annotations, engine='c')
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
-    for utr in tqdm(utr_sizes, desc='Calling peaks for UTR number'):
+    for utr in tqdm(utr_sizes, desc='Calling peaks for each UTR'):
         info = pd.DataFrame.from_dict(utr.__dict__)
         # similar UMIs refer to the same event (molecule), and so we take the median
         info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])\
