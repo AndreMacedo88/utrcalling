@@ -16,6 +16,8 @@ def merge_samples_utr_sizes(utr_sizes):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
     compare, so that peaks get called with the pseudo-bulk data from all samples.
+    Merging appends both samples information for each UTR, while discarding UTRs that 
+    only one sample mapped to.
     If you want to call peaks for a single sample, skip this function.
 
     Args:
@@ -109,61 +111,17 @@ def filter_barcodes(utr_sizes, annotations):
     
     return utr_positions_filtered
 
-def generate_peak_counts(utr_sizes, annotations=None):
-    logger = module_logger()
-    logger.info('Generating and counting UTR size peaks')
-    # get list of the unique barcodes (cells)
-    cell_barcodes = set(flatten(utr_sizes.read_barcodes))
-    # create containers for the desired data
-    count_matrix = pd.DataFrame(columns=cell_barcodes)
-    peaks_var = pd.DataFrame()
-    # open the annotations file
-    if annotations is not None:
-        if isinstance(annotations, (pd.DataFrame, pd.Series)):
-            pass
-        else:
-            annotations = pd.read_csv(annotations, engine='c')
+def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
+    """
+    Fit a kernel density model to predict the peak's ditribution density function
 
-    # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
-    for utr in tqdm(utr_sizes, desc='Calling peaks for each UTR'):
-        info = pd.DataFrame.from_dict(utr.__dict__)
-        # similar UMIs refer to the same event (molecule), and so we take the median
-        info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])\
-            ['utr_sizes_from_reads'].transform('median')
-        info = info.drop_duplicates()
+    Args:
+        utr_sizes_vector (np.ndarray): column vector with the UTR sizes to call peaks.
 
-        # now we call the utr size peaks based on the distribution of individual UTR sizes
-        info = call_peaks_using_kernel_density_estimator(info)
-
-        # group by each peak size and cell and count the number of each peak each cell has
-        info_grouped_by_peaks = \
-            info.groupby(['peaks', 'read_barcodes'])['peaks'].agg('count')
-        
-        # append this information to the containers created above
-        count = 1
-        for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
-            # generate a new name for each peak. Here, it's UTR name (which is gene name
-            # plus a counter for each transcript UTR) plus a counter for each peak
-            peak_name = f'{utr.utr_name}-{count}'
-            count += 1
-            # update the peak observations table
-            peaks_var.loc[peak_name, 'utr_size'] = utr_size_at_peak
-            # update the peak count matrix
-            peak_counts = barcodes.droplevel(0)
-            peak_counts.name = peak_name
-            count_matrix = count_matrix.append(peak_counts, ignore_index=False)
-            count_matrix = count_matrix.fillna(0)
-    count_matrix = count_matrix.T
-    if annotations is not None:
-        peaks_obs = annotations.set_index(annotations.columns[0])
-        peaks_obs = peaks_obs.reindex(index=count_matrix.index)
-        return count_matrix, peaks_obs, peaks_var
-    else:
-        return count_matrix, peaks_var
-
-def call_peaks_using_kernel_density_estimator(utr_sizes_info):
-    utr_sizes_vector = utr_sizes_info['utr_sizes_from_reads'].values.reshape(-1, 1)
-    # fit a kernel density model to predict the peak's ditribution density function
+    Returns:
+        np.ndarray: The vector with the peaks.
+    """
+    
     kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
 
     # calculate an appropriate window to check the model
@@ -192,13 +150,70 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_info):
         max_ = round(window[maxima][idx_minimum+1])
     except IndexError:  # for those cases with just one peak, there will be no minimum
         # so we take the median as the peak
-        max_ = utr_sizes_info['utr_sizes_from_reads'].median()
+        max_ = np.median(utr_sizes_vector)
     # attribute the last maximum to those molecules that haven't yet had their 
     # peaks scored
     peaks[peaks == 0] = max_
-    # store this info in a new key on the original container
-    utr_sizes_info['peaks'] = peaks
-    return utr_sizes_info
+    return peaks
+
+def generate_peak_counts(utr_sizes, annotations=None, 
+    func=call_peaks_using_kernel_density_estimator):
+    logger = module_logger()
+    logger.info('Generating and counting UTR size peaks')
+    # get list of the unique barcodes (cells)
+    cell_barcodes = set(flatten(utr_sizes.read_barcodes))
+    # create containers for the desired data
+    count_matrix = pd.DataFrame(columns=cell_barcodes)
+    peaks_var = pd.DataFrame()
+    # open the annotations file
+    if annotations is not None:
+        if isinstance(annotations, (pd.DataFrame, pd.Series)):
+            pass
+        else:
+            annotations = pd.read_csv(annotations, engine='c')
+
+    # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
+    for utr in tqdm(utr_sizes, desc='Calling peaks for each UTR'):
+        info = pd.DataFrame.from_dict(utr.__dict__)
+        # similar UMIs refer to the same event (molecule), and so we take the median
+        info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])\
+            ['utr_sizes_from_reads'].transform('median')
+        info = info.drop_duplicates()
+
+        utr_sizes_vector = info['utr_sizes_from_reads'].values.reshape(-1, 1)
+
+        # now we call the utr size peaks based on the distribution of individual UTR sizes
+        peaks = func(utr_sizes_vector)
+
+        # store this info in a new key on the original container
+        info['peaks'] = peaks
+
+        # group by each peak size and cell and count the number of each peak each cell has
+        info_grouped_by_peaks = \
+            info.groupby(['peaks', 'read_barcodes'])['peaks'].agg('count')
+        
+        # append this information to the containers created above
+        count = 1
+        for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
+            # generate a new name for each peak. Here, it's UTR name (which is gene name
+            # plus a counter for each transcript UTR) plus a counter for each peak
+            peak_name = f'{utr.utr_name}-{count}'
+            count += 1
+            # update the peak observations table
+            peaks_var.loc[peak_name, 'utr_size'] = utr_size_at_peak
+            # update the peak count matrix
+            peak_counts = barcodes.droplevel(0)
+            peak_counts.name = peak_name
+            count_matrix = count_matrix.append(peak_counts, ignore_index=False)
+            count_matrix = count_matrix.fillna(0)
+    count_matrix = count_matrix.T
+    if annotations is not None:
+        peaks_obs = annotations.set_index(annotations.columns[0])
+        peaks_obs = peaks_obs.reindex(index=count_matrix.index)
+        return count_matrix, peaks_obs, peaks_var
+    
+    return count_matrix, peaks_var
+
 
 
 def generate_count_matrix_anndata(count_matrix, obs_, var_):

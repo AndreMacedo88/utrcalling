@@ -178,7 +178,10 @@ class MappedReadInformation:
             return deepcopy(self)
         else:
             return copy(self)
-        
+    
+    def todict(self):
+        return asdict(self)
+
     def filter(self, func, *args, **kwargs):
         filtered = MappedReadInformation()
         filtered['utr_name'] = self.utr_name
