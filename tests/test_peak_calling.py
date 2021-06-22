@@ -4,6 +4,8 @@ from pathlib import Path
 import unittest
 
 import pybedtools
+import pandas as pd
+import numpy as np
 
 # make sure main module gets imported
 file_dir = str(Path(__file__).resolve().parents[1])
@@ -101,3 +103,153 @@ class TestFilterUtrSizes(TestPeakCalling):
             'utr_sizes_from_reads': [798, 798, 798]
             }
         self.assertDictEqual(self.filtered.ENSMUSG00000001036.todict(), dict_true)
+
+
+class TestFilterBarcodes(TestPeakCalling):
+    def setUp(self) -> None:
+        self.merged = peak_calling.merge_samples_utr_sizes(self.mappings)
+        self.annotations = './test_data/vivo_anno.csv'
+        
+    @staticmethod
+    def are_all_barcodes_in_anno(data, annotations):
+        counter = 0
+        control = 0
+        barcodes_real = annotations.CellBarcode
+        for barcodes in data.read_barcodes:
+            control +=1
+            if set(barcodes).issubset(barcodes_real):
+                counter += 1
+        return counter, control
+    
+    def test_before_filter(self):
+        annotations = pd.read_csv(self.annotations)
+        barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
+            self.merged, annotations
+        )
+        self.assertNotEqual(barcodes_in_data, barcodes_in_annotations)
+    
+    def test_filter(self):
+        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations)
+        annotations = pd.read_csv(self.annotations)
+        barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
+            filtered, annotations
+        )
+        self.assertEqual(barcodes_in_data, barcodes_in_annotations)
+    
+    def test_using_annotations_as_dataframe(self):
+        annotations = pd.read_csv(self.annotations)
+        filtered = peak_calling.filter_barcodes(self.merged, annotations=annotations)
+        barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
+            filtered, annotations
+        )
+        self.assertEqual(barcodes_in_data, barcodes_in_annotations)
+
+
+class TestGeneratePeakCounts(TestPeakCalling):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        cls.merged = peak_calling.merge_samples_utr_sizes(cls.mappings)
+        cls.annotations = './test_data/vivo_anno.csv'
+        cls.merged = peak_calling.filter_barcodes(cls.merged, cls.annotations)
+
+
+class TestMatrix(TestGeneratePeakCounts):
+    def setUp(self):
+        self.matrix, _, _ = peak_calling.generate_peak_counts(self.merged, 
+        annotations=self.annotations)
+    
+    def test_length(self):
+        self.assertTupleEqual(self.matrix.shape, (1014, 172))
+
+    def test_matrix_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix)
+        self.assertEqual(non_zeros_count, 1237)
+    
+    def test_matrix_maximum(self):
+        self.assertEqual(np.max(self.matrix.values), 4.0)
+
+
+class TestVar(TestGeneratePeakCounts):
+    def setUp(self):
+        _, self.var, _ = peak_calling.generate_peak_counts(self.merged, 
+        annotations=self.annotations)
+    
+    def test_length(self):
+        self.assertTupleEqual(self.var.shape, (172, 1))
+
+    def test_vars_values_count(self):
+        non_zeros_count = np.count_nonzero(self.var)
+        self.assertEqual(non_zeros_count, 172)
+
+
+class TestObs(TestGeneratePeakCounts):
+    def setUp(self):
+        _, _, self.obs = peak_calling.generate_peak_counts(self.merged, 
+        annotations=self.annotations)
+    
+    def test_length(self):
+        self.assertTupleEqual(self.obs.shape, (1014, 3))
+
+    def test_obs_values_count(self):
+        non_zeros_count = np.count_nonzero(self.obs)
+        self.assertEqual(non_zeros_count, 3042)
+
+
+class TestNoAnno(TestGeneratePeakCounts):
+    def setUp(self):
+        self.matrix, self.var = peak_calling.generate_peak_counts(self.merged, 
+        annotations=None)
+    
+    def test_matrix_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix)
+        self.assertEqual(non_zeros_count, 1237)
+
+    def test_vars_values_count(self):
+        non_zeros_count = np.count_nonzero(self.var)
+        self.assertEqual(non_zeros_count, 172)
+
+class TestAnnoDf(TestGeneratePeakCounts):
+    def setUp(self):
+        annotations = pd.read_csv(self.annotations)
+        self.matrix, self.var, self.obs = peak_calling.generate_peak_counts(self.merged, 
+        annotations=annotations)
+    
+    def test_matrix_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix)
+        self.assertEqual(non_zeros_count, 1237)
+
+    def test_vars_values_count(self):
+        non_zeros_count = np.count_nonzero(self.var)
+        self.assertEqual(non_zeros_count, 172)
+
+    def test_obs_values_count(self):
+        non_zeros_count = np.count_nonzero(self.obs)
+        self.assertEqual(non_zeros_count, 3042)
+
+class TestGenerateCountMatrixAnndata(TestPeakCalling):
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setUpClass()
+        merged = peak_calling.merge_samples_utr_sizes(cls.mappings)
+        annotations = './test_data/vivo_anno.csv'
+        filtered = peak_calling.filter_barcodes(merged, annotations)
+        cls.matrix, cls.var, cls.obs = peak_calling.generate_peak_counts(filtered, 
+        annotations=annotations)
+
+class TestWithObs(TestGenerateCountMatrixAnndata):
+    def setUp(self) -> None:
+        self.matrix_anndata = peak_calling.generate_count_matrix_anndata(
+            self.matrix, self.var, self.obs)
+        
+    def test_matrix_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix_anndata.X)
+        self.assertEqual(non_zeros_count, 1237)
+
+    def test_vars_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix_anndata.var)
+        self.assertEqual(non_zeros_count, 172)
+
+    def test_obs_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix_anndata.obs)
+        self.assertEqual(non_zeros_count, 3042)

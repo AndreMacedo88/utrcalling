@@ -102,7 +102,7 @@ class UtrMappings:
         with open(path, 'wb') as file_:
             pickle.dump(self, file_)
 
-    def filter(self, func, *args, **kwargs):
+    def filter(self, func, track=False, *args, **kwargs):
         """
         Filter features by user-defined function.
 

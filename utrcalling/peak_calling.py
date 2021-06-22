@@ -210,14 +210,13 @@ def generate_peak_counts(utr_sizes, annotations=None,
     if annotations is not None:
         peaks_obs = annotations.set_index(annotations.columns[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
-        return count_matrix, peaks_obs, peaks_var
+        return count_matrix, peaks_var, peaks_obs
     
     return count_matrix, peaks_var
 
 
-
-def generate_count_matrix_anndata(count_matrix, obs_, var_):
+def generate_count_matrix_anndata(count_matrix, var, obs=None):
     logger = module_logger()
     logger.info('Generating Count Matrix')
-    count_matrix_anndata = anndata.AnnData(count_matrix, obs=obs_, var=var_)
+    count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs)
     return count_matrix_anndata
