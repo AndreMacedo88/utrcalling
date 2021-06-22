@@ -136,6 +136,18 @@ class TestFilterBarcodes(TestPeakCalling):
         )
         self.assertEqual(barcodes_in_data, barcodes_in_annotations)
     
+    def test_specific_utr(self):
+        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations)
+        self.assertNotEqual(len(self.merged.ENSMUSG00000025917['read_barcodes']), 
+            len(filtered.ENSMUSG00000025917['read_barcodes']))
+    
+    def test_specific_utr_2(self):
+        barcodes_real = ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1', 'TGCGCAGAGGCATGTG-1',
+            'CGACCTTTCTGCTGCT-2', 'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 
+            'GTGCGGTAGGACAGCT-2', 'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2']
+        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations)
+        self.assertListEqual(filtered.ENSMUSG00000025917['read_barcodes'], barcodes_real)
+    
     def test_using_annotations_as_dataframe(self):
         annotations = pd.read_csv(self.annotations)
         filtered = peak_calling.filter_barcodes(self.merged, annotations=annotations)
