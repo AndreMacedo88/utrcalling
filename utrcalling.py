@@ -66,9 +66,10 @@ def main(process, unknown_arguments, possibilities):
     close_matches = get_close_matches(process, possibilities, n=3, cutoff=0.6)
     if process not in close_matches:
         if close_matches:
-            print(f"Process {process} does ot exist. Did you mean one of the following:\n", "\n ".join(close_matches))
+            matches = '\n '.join(close_matches)
+            print(f"Process {process} does not exist. Did you mean one of the following;\n {matches}")
         else:
-            print(f"Process {process} does ot exist.")
+            print(f"Process {process} does not exist.")
         return
     
     eval(f"{process}(args={unknown_arguments})")

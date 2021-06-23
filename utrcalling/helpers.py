@@ -1,4 +1,5 @@
 from collections.abc import Iterable
+import os
 
 def flatten(l):
     """
@@ -17,3 +18,10 @@ def flatten(l):
             yield from flatten(el)
         else:
             yield el
+
+def get_number_cores():
+    available_cores = len(os.sched_getaffinity(0))
+    cores_to_use = round(available_cores - available_cores*0.1)
+    if cores_to_use == available_cores:
+        cores_to_use = available_cores - 1
+    return cores_to_use

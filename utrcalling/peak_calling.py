@@ -6,10 +6,11 @@ from scipy.signal import argrelextrema
 import anndata
 from functools import partial
 from tqdm import tqdm as std_tqdm
-tqdm = partial(std_tqdm, dynamic_ncols=True)    
+tqdm = partial(std_tqdm, dynamic_ncols=True)
+import joblib
 
 from .module_log import module_logger
-from .helpers import flatten
+from .helpers import flatten, get_number_cores
 
 
 def merge_samples_utr_sizes(utr_sizes):
@@ -119,43 +120,6 @@ def filter_barcodes(utr_sizes, annotations):
         lambda x: x.each(filter_and_correct_barcodes, barcodes_dict))
     return utr_positions_filtered
 
-def filter_barcodes_2(utr_sizes, annotations):
-    logger = module_logger()
-    logger.info('Filtering cell barcodes')
-    def filter_and_correct_barcodes(utr, barcodes_real):
-        barcodes = utr['read_barcodes']
-        if set(barcodes).issubset(barcodes_real):
-            return utr
-        else:
-            real_names = []
-            mask = []
-            for barcode in barcodes:
-                match = process.extractOne(
-                    barcode, barcodes_real, scorer=fuzz.ratio, score_cutoff=90)
-                if match is not None:
-                    real_names.append(match[0])
-                    mask.append(True)
-                else:
-                    mask.append(False)
-
-            filtered = utr.copy(deep=True)
-            for key, values in filtered.__dict__.items():
-                if key == 'utr_name':
-                    continue
-                filtered[key] = [b for a, b in zip(mask, values) if a]
-            filtered['read_barcodes'] = real_names
-            return filtered
-    
-    if isinstance(annotations, (pd.DataFrame, pd.Series)):
-        annotations_df = annotations
-    else:
-        annotations_df = pd.read_csv(annotations)
-    # Note that barcodes must be on the first column of the annotations file:
-    barcodes_real = annotations_df.iloc[:,0].tolist()
-    utr_positions_filtered = utr_sizes.filter(
-        lambda x: x.each(filter_and_correct_barcodes, barcodes_real))
-    return utr_positions_filtered
-
 def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
     """
     Fit a kernel density model to predict the peak's ditribution density function
@@ -202,6 +166,176 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
     return peaks
 
 def generate_peak_counts(utr_sizes, annotations=None, 
+    func=call_peaks_using_kernel_density_estimator):
+
+    logger = module_logger()
+    logger.info('Generating and counting UTR size peaks')
+    # get list of the unique barcodes (cells)
+    cell_barcodes = set(flatten(utr_sizes.read_barcodes))
+    # open the annotations file
+    if annotations is not None:
+        if isinstance(annotations, (pd.DataFrame, pd.Series)):
+            pass
+        else:
+            annotations = pd.read_csv(annotations, engine='c')
+
+    # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
+    cores = get_number_cores()
+    count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
+        joblib.delayed(call_peaks)(utr=utr, func=func, 
+        cell_barcodes=cell_barcodes) for utr in tqdm(
+            utr_sizes, desc='Calling peaks for each UTR')))
+
+    count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False)
+    peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
+
+    count_matrix = count_matrix.T
+    if annotations is not None:
+        peaks_obs = annotations.set_index(annotations.columns[0])
+        peaks_obs = peaks_obs.reindex(index=count_matrix.index)
+        return count_matrix, peaks_var, peaks_obs
+    
+    return count_matrix, peaks_var
+
+def call_peaks(utr, func, cell_barcodes):
+    # create containers to append the data
+    count_matrix = pd.DataFrame(columns=cell_barcodes)
+    peaks_var = pd.DataFrame()
+
+    info = pd.DataFrame.from_dict(utr.__dict__)
+    # similar UMIs refer to the same event (molecule), and so we take the median
+    info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])\
+        ['utr_sizes_from_reads'].transform('median')
+    info = info.drop_duplicates()
+
+    utr_sizes_vector = info['utr_sizes_from_reads'].values.reshape(-1, 1)
+
+    # now we call the utr size peaks based on the distribution of individual UTR sizes
+    peaks = func(utr_sizes_vector)
+
+    # store this info in a new key on the original container
+    info['peaks'] = peaks
+
+    # group by each peak size and cell and count the number of each peak each cell has
+    info_grouped_by_peaks = \
+        info.groupby(['peaks', 'read_barcodes'])['peaks'].agg('count')
+    
+    # append this information to the containers created above
+    count = 1
+    for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
+        # generate a new name for each peak. Here, it's UTR name (which is gene name
+        # plus a counter for each transcript UTR) plus a counter for each peak
+        peak_name = f'{utr.utr_name}-{count}'
+        count += 1
+        # update the peak observations table
+        peaks_var.loc[peak_name, 'utr_size'] = utr_size_at_peak
+        # update the peak count matrix
+        peak_counts = barcodes.droplevel(0)
+        peak_counts.name = peak_name
+        count_matrix = count_matrix.append(peak_counts, ignore_index=False)
+        count_matrix = count_matrix.fillna(0)
+    return count_matrix, peaks_var
+
+def generate_count_matrix_anndata(count_matrix, var, obs=None):
+    logger = module_logger()
+    logger.info('Generating Count Matrix')
+    count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs)
+    return count_matrix_anndata
+
+# LEGACY FUNCTIONS
+
+def filter_barcodes_parallel(utr_sizes, annotations):
+    
+    def filter_and_correct_barcodes(utr, barcodes_dict):
+        barcodes = utr['read_barcodes']
+        
+        new_barcodes = []
+        for barcode in barcodes:
+            new_barcodes.append(barcodes_dict.get(barcode, False))
+
+        filtered = utr.copy(deep=True)
+        for key, values in filtered.__dict__.items():
+            if key == 'utr_name':
+                continue
+            filtered[key] = [b for a, b in zip(new_barcodes, values) if a]
+        filtered['read_barcodes'] = list(filter(None, new_barcodes))
+        return filtered
+    
+    logger = module_logger()
+    logger.info('Filtering cell barcodes')
+
+    if isinstance(annotations, (pd.DataFrame, pd.Series)):
+        annotations_df = annotations
+    else:
+        annotations_df = pd.read_csv(annotations)
+    
+    # Note that barcodes must be on the first column of the annotations file:
+    barcodes_real = annotations_df.iloc[:,0].tolist()
+    barcodes_to_test = set(flatten(utr_sizes.read_barcodes))
+    
+    cores = get_number_cores()
+    barcodes_dict_list = joblib.Parallel(n_jobs=cores)(joblib.delayed(
+        create_barcode_dict)(barcode=barcode, barcodes_real=barcodes_real
+        ) for barcode in barcodes_to_test)
+    
+    barcodes_dict = {k: v for d in barcodes_dict_list if d is not None for k, v in d.items()}
+
+
+    utr_positions_filtered = utr_sizes.filter(
+        lambda x: x.each(filter_and_correct_barcodes, barcodes_dict))
+    return utr_positions_filtered
+
+def create_barcode_dict(barcode, barcodes_real):
+    barcodes_dict = {}
+    if barcode in barcodes_real:
+        barcodes_dict[barcode] = barcode
+    else:
+        match = process.extractOne(
+            barcode, barcodes_real, scorer=fuzz.ratio, score_cutoff=90)
+        if match is not None:
+            barcodes_dict[barcode] = match[0]
+        else:
+            return None
+    return barcodes_dict
+
+def filter_barcodes_3(utr_sizes, annotations):
+    logger = module_logger()
+    logger.info('Filtering cell barcodes')
+    def filter_and_correct_barcodes(utr, barcodes_real):
+        barcodes = utr['read_barcodes']
+        if set(barcodes).issubset(barcodes_real):
+            return utr
+        else:
+            real_names = []
+            mask = []
+            for barcode in barcodes:
+                match = process.extractOne(
+                    barcode, barcodes_real, scorer=fuzz.ratio, score_cutoff=90)
+                if match is not None:
+                    real_names.append(match[0])
+                    mask.append(True)
+                else:
+                    mask.append(False)
+
+            filtered = utr.copy(deep=True)
+            for key, values in filtered.__dict__.items():
+                if key == 'utr_name':
+                    continue
+                filtered[key] = [b for a, b in zip(mask, values) if a]
+            filtered['read_barcodes'] = real_names
+            return filtered
+    
+    if isinstance(annotations, (pd.DataFrame, pd.Series)):
+        annotations_df = annotations
+    else:
+        annotations_df = pd.read_csv(annotations)
+    # Note that barcodes must be on the first column of the annotations file:
+    barcodes_real = annotations_df.iloc[:,0].tolist()
+    utr_positions_filtered = utr_sizes.filter(
+        lambda x: x.each(filter_and_correct_barcodes, barcodes_real))
+    return utr_positions_filtered
+
+def generate_peak_counts_not_parallel(utr_sizes, annotations=None, 
     func=call_peaks_using_kernel_density_estimator):
     
     logger = module_logger()
@@ -259,10 +393,3 @@ def generate_peak_counts(utr_sizes, annotations=None,
         return count_matrix, peaks_var, peaks_obs
     
     return count_matrix, peaks_var
-
-
-def generate_count_matrix_anndata(count_matrix, var, obs=None):
-    logger = module_logger()
-    logger.info('Generating Count Matrix')
-    count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs)
-    return count_matrix_anndata

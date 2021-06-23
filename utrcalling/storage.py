@@ -2,8 +2,10 @@ from dataclasses import dataclass, field, asdict
 from copy import deepcopy, copy
 import pickle
 
-from .module_log import module_logger
+import joblib
 
+from .module_log import module_logger
+from .helpers import get_number_cores
 
 @dataclass
 class UtrMappings:
@@ -102,28 +104,33 @@ class UtrMappings:
         with open(path, 'wb') as file_:
             pickle.dump(self, file_)
 
-    def filter(self, func, track=False, *args, **kwargs):
+    def filter(self, func, *args, **kwargs):
         """
         Filter features by user-defined function.
 
-        Takes a function *func* that is called for each UTR in the
+        Takes a function `func` that is called for each UTR in the
         `UtrMappings` object and returns only those for which the function returns
         True.
 
-        *args and **kwargs are passed directly to *func*.
+        *args and **kwargs are passed to `func`.
 
         Returns a new UtrMappings object.
         """
 
         filtered = UtrMappings()
-        for read_info in iter(self):
-            filtered_info = func(read_info, *args, **kwargs)
-            if filtered_info:
-                if isinstance(filtered_info, MappedReadInformation):
-                    filtered[read_info.utr_name] = filtered_info
-                else:
-                    filtered[read_info.utr_name] = read_info
+
+        cores = get_number_cores()
+        filtered_list = joblib.Parallel(n_jobs=cores)(joblib.delayed(
+            self._filter_parallel)(read_info=read_info, func=func, args=args, 
+            kwargs=kwargs) for read_info in iter(self))
+        
+        for utr_mappings in filtered_list:
+            filtered.append(utr_mappings)
         return filtered
+
+    def append(self, other):
+        for info in other:
+            self[info.utr_name] = info
 
     def merge(self, other):
         def merge_read_info(x, other_):
@@ -137,6 +144,17 @@ class UtrMappings:
             if utr in other.utr_ids:
                 merged[utr] = self[utr].each(merge_read_info, other[utr])
         return merged
+
+    @staticmethod
+    def _filter_parallel(read_info, func, args=None, kwargs=None):
+        filtered = UtrMappings()
+        filtered_info = func(read_info, *args, **kwargs)
+        if filtered_info:
+            if isinstance(filtered_info, MappedReadInformation):
+                filtered[read_info.utr_name] = filtered_info
+            else:
+                filtered[read_info.utr_name] = read_info
+        return filtered
 
 @dataclass
 class MappedReadInformation:
@@ -206,3 +224,29 @@ class MappedReadInformation:
         modified = func(self, *args, **kwargs)
 
         return modified
+
+
+# LEGACY FUNCTIONS
+
+def filter_2(self, func, *args, **kwargs):
+        """
+        Filter features by user-defined function.
+
+        Takes a function *func* that is called for each UTR in the
+        `UtrMappings` object and returns only those for which the function returns
+        True.
+
+        *args and **kwargs are passed directly to *func*.
+
+        Returns a new UtrMappings object.
+        """
+
+        filtered = UtrMappings()
+        for read_info in iter(self):
+            filtered_info = func(read_info, *args, **kwargs)
+            if filtered_info:
+                if isinstance(filtered_info, MappedReadInformation):
+                    filtered[read_info.utr_name] = filtered_info
+                else:
+                    filtered[read_info.utr_name] = read_info
+        return filtered
