@@ -8,8 +8,9 @@ import pybedtools
 from utrcalling import core
 from utrcalling.module_log import module_logger
 
-def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, 
-    out="UTR_results.h5ad"):
+
+def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None,
+         out="UTR_results.h5ad"):
     """
     Gets UTR sizes peak count per cell/sample from UTR sizes counts and UTR annotation 
     files.
@@ -24,7 +25,7 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None,
 
     # Set up logging
     logger = module_logger(disable=False, store_log=True)
-    
+
     if isinstance(utr_sizes_counts, list):
         utr_sizes_counts_open = []
         for file_ in utr_sizes_counts:
@@ -40,13 +41,14 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None,
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts_open, utr_reference_annotations, annotations=single_cell_annotation)
-    
+
     count_matrix_anndata.write(filename=out)
-    
+
     return
 
-keyword_args = {"-c": "--utr_sizes_counts", "-s": "--single_cell_annotation", 
-    "-o": "--out"}
+
+keyword_args = {"-c": "--utr_sizes_counts", "-s": "--single_cell_annotation",
+                "-o": "--out"}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""
@@ -57,27 +59,27 @@ if __name__ == "__main__":
         $ python call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
             -s experiment.csv -o results.h5ad
         """)
-    parser.add_argument("utr_annotation", type=str, 
-        help="GTF file with the genome annotations")
-    
+    parser.add_argument("utr_annotation", type=str,
+                        help="GTF file with the genome annotations")
+
     parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True, help="""
         File, or files with the utr and read infromation. One file per sample should be 
         supplied if downstream applications involve comparisons between the samples.
         The files should be pickle files of a UtrMappings object.
         """)
 
-    parser.add_argument("--single_cell_annotation", "-s", type=str, 
-        help="File with your experiment's information, such as cell barcodes.", 
-        default=None)
+    parser.add_argument("--single_cell_annotation", "-s", type=str,
+                        help="File with your experiment's information, such as cell barcodes.",
+                        default=None)
 
-    parser.add_argument("--out", "-o", type=str, 
-        help="Path or partial path to a folder to store the result files.", 
-        default="UTR_results.h5ad")
+    parser.add_argument("--out", "-o", type=str,
+                        help="Path or partial path to a folder to store the result files.",
+                        default="UTR_results.h5ad")
 
     args = parser.parse_args()
 
     main(args.utr_annotation, args.genome, args.alignments, feature=args.three_prime_utr,
-        single_cell_annotation=args.single_cell_annotation, 
-        protocol_version=args.protocol_version,
-        out=args.out
-        )
+         single_cell_annotation=args.single_cell_annotation,
+         protocol_version=args.protocol_version,
+         out=args.out
+         )

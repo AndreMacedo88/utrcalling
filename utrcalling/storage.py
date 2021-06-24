@@ -7,6 +7,7 @@ import joblib
 from .module_log import module_logger
 from .helpers import get_number_cores
 
+
 @dataclass
 class UtrMappings:
     utr_ids: list[str] = field(default_factory=list)
@@ -24,7 +25,7 @@ class UtrMappings:
 
     # Set up the necessary magic methods.
     # This object should work like a dictionary with extra methods and structure.
-    
+
     def __setattr__(self, name, value):
         self.__dict__[name] = value
         if name not in self.__dataclass_fields__:
@@ -36,7 +37,7 @@ class UtrMappings:
             self.read_umis.append(value.read_umis)
             self.read_lengths.append(value.read_lengths)
             self.utr_sizes_from_reads.append(value.utr_sizes_from_reads)
-    
+
     def __len__(self):
         return len(self.utr_ids)
 
@@ -44,7 +45,7 @@ class UtrMappings:
 
     def __setitem__(self, key, value):
         return setattr(self, key, value)
-    
+
     def __getitem__(self, item):
         if isinstance(item, str):
             return getattr(self, item)
@@ -52,7 +53,7 @@ class UtrMappings:
             return self.utr_ids[item]
         else:
             return [getattr(self, i) for i in item]
-    
+
     def __delitem__(self, key):
         try:
             idx = self.utr_ids.index(key)
@@ -67,19 +68,19 @@ class UtrMappings:
             del self.__dict__[key]
         except (ValueError, AttributeError, KeyError):
             self.logger.error(f'Attribute {key} not found')
-    
+
     # And set up iteration capabilities
 
     def __iter__(self):
-            return deepcopy(self)
-    
+        return deepcopy(self)
+
     def __next__(self):
         if self._index >= len(self.utr_ids):
             raise StopIteration
         else:
             self._index += 1
-            return self[self.utr_ids[self._index-1]]
-    
+            return self[self.utr_ids[self._index - 1]]
+
     # Set up some supporting functions
 
     def head(self, n=1):
@@ -87,7 +88,7 @@ class UtrMappings:
 
     def tail(self, n=1):
         return self.utr_ids[-n:]
-    
+
     def copy(self, deep=True):
         if deep:
             return deepcopy(self)
@@ -99,12 +100,12 @@ class UtrMappings:
         for attr in self.utr_ids:
             as_dictionary[attr] = asdict(self[attr])
         return as_dictionary
-    
+
     def export(self, path):
         with open(path, 'wb') as file_:
             pickle.dump(self, file_)
 
-    def filter(self, func, *args, **kwargs):
+    def filter(self, func, *args, parallel=False, **kwargs):
         """
         Filter features by user-defined function.
 
@@ -116,16 +117,32 @@ class UtrMappings:
 
         Returns a new UtrMappings object.
         """
+        if parallel:
+            filtered = self.filter_parallel(func, *args, *kwargs)
+        else:
+            filtered = self.filter_sequential(func, *args, *kwargs)
+        return filtered
 
+    def filter_parallel(self, func, *args, **kwargs):
         filtered = UtrMappings()
-
         cores = get_number_cores()
         filtered_list = joblib.Parallel(n_jobs=cores)(joblib.delayed(
-            self._filter_parallel)(read_info=read_info, func=func, args=args, 
-            kwargs=kwargs) for read_info in iter(self))
-        
+            self._filter_parallel)(read_info=read_info, func=func, args=args,
+                                   kwargs=kwargs) for read_info in iter(self))
+
         for utr_mappings in filtered_list:
             filtered.append(utr_mappings)
+        return filtered
+
+    def filter_sequential(self, func, *args, **kwargs):
+        filtered = UtrMappings()
+        for read_info in iter(self):
+            filtered_info = func(read_info, *args, **kwargs)
+            if filtered_info:
+                if isinstance(filtered_info, MappedReadInformation):
+                    filtered[read_info.utr_name] = filtered_info
+                else:
+                    filtered[read_info.utr_name] = read_info
         return filtered
 
     def append(self, other):
@@ -156,6 +173,7 @@ class UtrMappings:
                 filtered[read_info.utr_name] = read_info
         return filtered
 
+
 @dataclass
 class MappedReadInformation:
     """Information on the reads that mapped to a reference UTR region."""
@@ -172,19 +190,19 @@ class MappedReadInformation:
         self.logger = module_logger()
 
     def __bool__(self):
-        return bool(self.read_start_positions or self.read_strands \
-            or self.read_barcodes or self.read_umis or self.read_lengths or \
-                self.utr_sizes_from_reads)  # or self.read_sequences
-    
+        return bool(self.read_start_positions or self.read_strands
+                    or self.read_barcodes or self.read_umis or self.read_lengths or
+                    self.utr_sizes_from_reads)  # or self.read_sequences
+
     def __setattr__(self, name, value):
         self.__dict__[name] = value
 
     def __setitem__(self, key, value):
         return setattr(self, key, value)
-    
-    def __getitem__(self,key):
+
+    def __getitem__(self, key):
         return getattr(self, key)
-    
+
     def __delitem__(self, key):
         try:
             del self.__dict__[key]
@@ -196,7 +214,7 @@ class MappedReadInformation:
             return deepcopy(self)
         else:
             return copy(self)
-    
+
     def todict(self):
         return asdict(self)
 
@@ -224,29 +242,3 @@ class MappedReadInformation:
         modified = func(self, *args, **kwargs)
 
         return modified
-
-
-# LEGACY FUNCTIONS
-
-def filter_2(self, func, *args, **kwargs):
-        """
-        Filter features by user-defined function.
-
-        Takes a function *func* that is called for each UTR in the
-        `UtrMappings` object and returns only those for which the function returns
-        True.
-
-        *args and **kwargs are passed directly to *func*.
-
-        Returns a new UtrMappings object.
-        """
-
-        filtered = UtrMappings()
-        for read_info in iter(self):
-            filtered_info = func(read_info, *args, **kwargs)
-            if filtered_info:
-                if isinstance(filtered_info, MappedReadInformation):
-                    filtered[read_info.utr_name] = filtered_info
-                else:
-                    filtered[read_info.utr_name] = read_info
-        return filtered

@@ -1,16 +1,17 @@
+from functools import partial
+
+import joblib
 import pandas as pd
 import numpy as np
 from rapidfuzz import process, fuzz
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 import anndata
-from functools import partial
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
-import joblib
 
-from .module_log import module_logger
 from .helpers import flatten, get_number_cores
+from .module_log import module_logger
 
 
 def merge_samples_utr_sizes(utr_sizes):
@@ -24,14 +25,15 @@ def merge_samples_utr_sizes(utr_sizes):
     Args:
         utr_positions_counts (list): List with the objects containing the position
         counts for each sample.
-    
+
     Returns:
         UtrMappings: The merged datasets.
     """
     logger = module_logger()
 
     def add_counter_to_barcode(x, counter):
-        x["read_barcodes"] = [f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
+        x["read_barcodes"] = [
+            f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
         return x
 
     logger.info("Merging all samples' UTR sizes")
@@ -40,13 +42,13 @@ def merge_samples_utr_sizes(utr_sizes):
     sample_counter = 1
     barcode_modified_utr_sizes = []
     for position_counts in tqdm(utr_sizes):
-            changed = position_counts.filter(
-                lambda x: x.each(add_counter_to_barcode, sample_counter))
-            sample_counter += 1
-            barcode_modified_utr_sizes.append(changed)
+        changed = position_counts.filter(
+            lambda x: x.each(add_counter_to_barcode, sample_counter))
+        sample_counter += 1
+        barcode_modified_utr_sizes.append(changed)
 
     # Before merging delete some big objects because of memory size issues
-    del utr_sizes  
+    del utr_sizes
     del changed
 
     # merge the two datasets
@@ -55,6 +57,7 @@ def merge_samples_utr_sizes(utr_sizes):
 
     return position_counts_merged
 
+
 def subset_reference_data(utr_sizes, utr_reference_regions):
     logger = module_logger()
     logger.info('Subsetting UTR reference data')
@@ -62,11 +65,14 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
         lambda x: x.name in utr_sizes.utr_ids).saveas()
     return sub_utr_reference.to_dataframe()
 
+
 def filter_utr_sizes(utr_sizes):
     logger = module_logger()
     logger.info('Filtering samples UTR sizes')
+
     def filter_func(x, amount):
-        condition_1 = [True if i > amount else False for i in x['utr_sizes_from_reads']]
+        condition_1 = [True if i >
+                       amount else False for i in x['utr_sizes_from_reads']]
         # condition_2 = [True if i == amount else False for i in x['read_strands']]
         # condition_final = [all(items) for items in zip(condition_1, condition_2)]
         return condition_1
@@ -75,11 +81,12 @@ def filter_utr_sizes(utr_sizes):
         lambda x: x.filter(filter_func, 1))
     return filtered
 
-def filter_barcodes(utr_sizes, annotations):
-    
+
+def filter_barcodes(utr_sizes, annotations, parallel=False):
+
     def filter_and_correct_barcodes(utr, barcodes_dict):
         barcodes = utr['read_barcodes']
-        
+
         new_barcodes = []
         for barcode in barcodes:
             new_barcodes.append(barcodes_dict.get(barcode, False))
@@ -91,7 +98,7 @@ def filter_barcodes(utr_sizes, annotations):
             filtered[key] = [b for a, b in zip(new_barcodes, values) if a]
         filtered['read_barcodes'] = list(filter(None, new_barcodes))
         return filtered
-    
+
     logger = module_logger()
     logger.info('Filtering cell barcodes')
 
@@ -99,9 +106,9 @@ def filter_barcodes(utr_sizes, annotations):
         annotations_df = annotations
     else:
         annotations_df = pd.read_csv(annotations)
-    
+
     # Note that barcodes must be on the first column of the annotations file:
-    barcodes_real = annotations_df.iloc[:,0].tolist()
+    barcodes_real = annotations_df.iloc[:, 0].tolist()
     barcodes_to_test = set(flatten(utr_sizes.read_barcodes))
 
     barcodes_dict = {}
@@ -117,8 +124,9 @@ def filter_barcodes(utr_sizes, annotations):
                 continue
 
     utr_positions_filtered = utr_sizes.filter(
-        lambda x: x.each(filter_and_correct_barcodes, barcodes_dict))
+        lambda x: x.each(filter_and_correct_barcodes, barcodes_dict), parallel=parallel)
     return utr_positions_filtered
+
 
 def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
     """
@@ -130,15 +138,15 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
     Returns:
         np.ndarray: The vector with the peaks.
     """
-    
+
     kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
 
     # calculate an appropriate window to check the model
     minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
-    padding = (maximum_size-minimum_size)*0.1
-    window = np.linspace(minimum_size-padding, maximum_size+padding)
+    padding = (maximum_size - minimum_size) * 0.1
+    window = np.linspace(minimum_size - padding, maximum_size + padding)
     # get the model predictions for that window. Specifically, the maxima.
-    evaluation = kde.score_samples(window.reshape(-1,1))
+    evaluation = kde.score_samples(window.reshape(-1, 1))
     minima = argrelextrema(evaluation, np.less)[0]
     maxima = argrelextrema(evaluation, np.greater)[0]
 
@@ -156,17 +164,18 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
                 peaks[idx_maximum] = max_
     # get the last maximum, just downstream the last minimum.
     try:
-        max_ = round(window[maxima][idx_minimum+1])
+        max_ = round(window[maxima][idx_minimum + 1])
     except IndexError:  # for those cases with just one peak, there will be no minimum
         # so we take the median as the peak
         max_ = np.median(utr_sizes_vector)
-    # attribute the last maximum to those molecules that haven't yet had their 
+    # attribute the last maximum to those molecules that haven't yet had their
     # peaks scored
     peaks[peaks == 0] = max_
     return peaks
 
-def generate_peak_counts(utr_sizes, annotations=None, 
-    func=call_peaks_using_kernel_density_estimator):
+
+def generate_peak_counts(utr_sizes, annotations=None,
+                         func=call_peaks_using_kernel_density_estimator):
 
     logger = module_logger()
     logger.info('Generating and counting UTR size peaks')
@@ -182,8 +191,8 @@ def generate_peak_counts(utr_sizes, annotations=None,
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
     cores = get_number_cores()
     count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
-        joblib.delayed(call_peaks)(utr=utr, func=func, 
-        cell_barcodes=cell_barcodes) for utr in tqdm(
+        joblib.delayed(call_peaks)(utr=utr, func=func,
+                                   cell_barcodes=cell_barcodes) for utr in tqdm(
             utr_sizes, desc='Calling peaks for each UTR')))
 
     count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False)
@@ -194,8 +203,9 @@ def generate_peak_counts(utr_sizes, annotations=None,
         peaks_obs = annotations.set_index(annotations.columns[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
         return count_matrix, peaks_var, peaks_obs
-    
+
     return count_matrix, peaks_var
+
 
 def call_peaks(utr, func, cell_barcodes):
     # create containers to append the data
@@ -204,8 +214,8 @@ def call_peaks(utr, func, cell_barcodes):
 
     info = pd.DataFrame.from_dict(utr.__dict__)
     # similar UMIs refer to the same event (molecule), and so we take the median
-    info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])\
-        ['utr_sizes_from_reads'].transform('median')
+    info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])[
+        'utr_sizes_from_reads'].transform('median')
     info = info.drop_duplicates()
 
     utr_sizes_vector = info['utr_sizes_from_reads'].values.reshape(-1, 1)
@@ -219,7 +229,7 @@ def call_peaks(utr, func, cell_barcodes):
     # group by each peak size and cell and count the number of each peak each cell has
     info_grouped_by_peaks = \
         info.groupby(['peaks', 'read_barcodes'])['peaks'].agg('count')
-    
+
     # append this information to the containers created above
     count = 1
     for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
@@ -236,6 +246,7 @@ def call_peaks(utr, func, cell_barcodes):
         count_matrix = count_matrix.fillna(0)
     return count_matrix, peaks_var
 
+
 def generate_count_matrix_anndata(count_matrix, var, obs=None):
     logger = module_logger()
     logger.info('Generating Count Matrix')
@@ -244,6 +255,8 @@ def generate_count_matrix_anndata(count_matrix, var, obs=None):
 
 # LEGACY FUNCTIONS
 
+
+"""
 def filter_barcodes_parallel(utr_sizes, annotations):
     
     def filter_and_correct_barcodes(utr, barcodes_dict):
@@ -393,3 +406,4 @@ def generate_peak_counts_not_parallel(utr_sizes, annotations=None,
         return count_matrix, peaks_var, peaks_obs
     
     return count_matrix, peaks_var
+"""

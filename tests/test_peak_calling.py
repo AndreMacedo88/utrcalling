@@ -20,37 +20,39 @@ class TestPeakCalling(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.utr_regions = pybedtools.BedTool('./test_data/test_bed_merged.bed')
-        intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
+        intervals = utr_mapping.generate_utr_intervals(
+            utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
         cls.mappings = [
-            utr_mapping.map_reads_to_utr(alignment, intervals, 
-            read='first', version=2) for alignment in [alignment_1, alignment_2]
-            ]
-    
+            utr_mapping.map_reads_to_utr(alignment, intervals,
+                                         read='first', version=2) for alignment in [alignment_1, alignment_2]
+        ]
+
 
 class TestMergeSamplesUtrSizes(TestPeakCalling):
     def setUp(self) -> None:
         self.merged = peak_calling.merge_samples_utr_sizes(self.mappings)
-    
+
     def test_details(self):
         details_true = {
-            'utr_name': 'ENSMUSG00000025917', 
-            'read_start_positions': [10024824, 10024829, 10024829, 10024833, 10024602, 
-                10024826, 10024829, 10024829, 10024835, 10024839], 
-            'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'], 
-            'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1', 
-                'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2', 
-                'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2', 
-                'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2'], 
-            'read_umis': ['TGGCTTATA', 'AACGTAACA', 'ACCTCCGGT', 'ACCCGCACT', 
-                'TCACGTGAG', 'TCCTAAATG', 'ATGATCGGT', 'TCCAGGAAT', 'TTTAGAACT', 
-                'GCTAGGACG'], 
-            'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41], 
+            'utr_name': 'ENSMUSG00000025917',
+            'read_start_positions': [10024824, 10024829, 10024829, 10024833, 10024602,
+                                     10024826, 10024829, 10024829, 10024835, 10024839],
+            'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'],
+            'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1',
+                              'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
+                              'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
+                              'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2'],
+            'read_umis': ['TGGCTTATA', 'AACGTAACA', 'ACCTCCGGT', 'ACCCGCACT',
+                          'TCACGTGAG', 'TCCTAAATG', 'ATGATCGGT', 'TCCAGGAAT', 'TTTAGAACT',
+                          'GCTAGGACG'],
+            'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41],
             'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
         }
-        self.assertDictEqual(self.merged.ENSMUSG00000025917.todict(), details_true)
-    
+        self.assertDictEqual(
+            self.merged.ENSMUSG00000025917.todict(), details_true)
+
     def test_length(self):
         self.assertEqual(len(self.merged), 71)
 
@@ -58,25 +60,27 @@ class TestMergeSamplesUtrSizes(TestPeakCalling):
 class TestSubsetReferenceData(TestPeakCalling):
     def setUp(self) -> None:
         merged = peak_calling.merge_samples_utr_sizes(self.mappings)
-        self.subsetted = peak_calling.subset_reference_data(merged, self.utr_regions)
-    
+        self.subsetted = peak_calling.subset_reference_data(
+            merged, self.utr_regions)
+
     def test_number_of_features(self) -> None:
         self.assertEqual(self.subsetted.shape[0], 71)
-    
+
     def test_number_of_fields(self) -> None:
         """
         Number of fields in the annotation BED file should be equal to the optional 
         fields (in variable 'annotations') plus the mandatory fields 'seqname', 'start',
         'end' and finally the count field, that tell us how many features were merged 
         at each new feature (row).
-        """ 
+        """
         self.assertEqual(self.subsetted.shape[1], 8)
-    
+
     def test_values_are_proper(self) -> None:
-        proper_values = ['1', 10024601, 10024978, 'ENSMUSG00000025917', 0.0, '-', 
-        'ENSMUST00000027050', 1]
-        self.assertListEqual(self.subsetted.iloc[0].values.tolist(), proper_values)
-    
+        proper_values = ['1', 10024601, 10024978, 'ENSMUSG00000025917', 0.0, '-',
+                         'ENSMUST00000027050', 1]
+        self.assertListEqual(
+            self.subsetted.iloc[0].values.tolist(), proper_values)
+
     def test_strand_is_correct(self) -> None:
         self.assertEqual(self.subsetted.iloc[0].strand, '-')
 
@@ -84,73 +88,89 @@ class TestSubsetReferenceData(TestPeakCalling):
 class TestFilterUtrSizes(TestPeakCalling):
     def setUp(self) -> None:
         merged = peak_calling.merge_samples_utr_sizes(self.mappings)
-        merged.ENSMUSG00000001036.utr_sizes_from_reads = [1, 798, 1, 798, 1, 798]
+        merged.ENSMUSG00000001036.utr_sizes_from_reads = [
+            1, 798, 1, 798, 1, 798]
         self.filtered = peak_calling.filter_utr_sizes(merged)
 
     def test_number_of_features(self) -> None:
         self.assertEqual(len(self.filtered), 71)
-    
+
     def test_is_filtered(self):
         dict_true = {
             'utr_name': 'ENSMUSG00000001036',
             'read_start_positions': [61518618, 61518618, 61518618],
             'read_strands': ['+', '+', '+'],
             'read_barcodes': ['CTAATGGCATTCGACA-1',
-            'CCCAGTTTCGCTTGTC-1',
-            'TATTACCAGGATTCGG-2'],
+                              'CCCAGTTTCGCTTGTC-1',
+                              'TATTACCAGGATTCGG-2'],
             'read_umis': ['ACCGAGCGT', 'ATGGTAACG', 'GCGATAGGA'],
             'read_lengths': [59, 52, 52],
             'utr_sizes_from_reads': [798, 798, 798]
-            }
-        self.assertDictEqual(self.filtered.ENSMUSG00000001036.todict(), dict_true)
+        }
+        self.assertDictEqual(
+            self.filtered.ENSMUSG00000001036.todict(), dict_true)
 
 
 class TestFilterBarcodes(TestPeakCalling):
     def setUp(self) -> None:
         self.merged = peak_calling.merge_samples_utr_sizes(self.mappings)
         self.annotations = './test_data/vivo_anno.csv'
-        
+
     @staticmethod
     def are_all_barcodes_in_anno(data, annotations):
         counter = 0
         control = 0
         barcodes_real = annotations.CellBarcode
         for barcodes in data.read_barcodes:
-            control +=1
+            control += 1
             if set(barcodes).issubset(barcodes_real):
                 counter += 1
         return counter, control
-    
+
     def test_before_filter(self):
         annotations = pd.read_csv(self.annotations)
         barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
             self.merged, annotations
         )
         self.assertNotEqual(barcodes_in_data, barcodes_in_annotations)
-    
+
     def test_filter(self):
-        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations)
+        filtered = peak_calling.filter_barcodes(
+            self.merged, annotations=self.annotations)
         annotations = pd.read_csv(self.annotations)
         barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
             filtered, annotations
         )
         self.assertEqual(barcodes_in_data, barcodes_in_annotations)
-    
+
     def test_specific_utr(self):
-        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations)
-        self.assertNotEqual(len(self.merged.ENSMUSG00000025917['read_barcodes']), 
-            len(filtered.ENSMUSG00000025917['read_barcodes']))
-    
+        filtered = peak_calling.filter_barcodes(
+            self.merged, annotations=self.annotations)
+        self.assertNotEqual(len(self.merged.ENSMUSG00000025917['read_barcodes']),
+                            len(filtered.ENSMUSG00000025917['read_barcodes']))
+
     def test_specific_utr_2(self):
         barcodes_real = ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1', 'TGCGCAGAGGCATGTG-1',
-            'CGACCTTTCTGCTGCT-2', 'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 
-            'GTGCGGTAGGACAGCT-2', 'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2']
-        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations)
-        self.assertListEqual(filtered.ENSMUSG00000025917['read_barcodes'], barcodes_real)
-    
+                         'CGACCTTTCTGCTGCT-2', 'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2',
+                         'GTGCGGTAGGACAGCT-2', 'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2']
+        filtered = peak_calling.filter_barcodes(
+            self.merged, annotations=self.annotations)
+        self.assertListEqual(
+            filtered.ENSMUSG00000025917['read_barcodes'], barcodes_real)
+
     def test_using_annotations_as_dataframe(self):
         annotations = pd.read_csv(self.annotations)
-        filtered = peak_calling.filter_barcodes(self.merged, annotations=annotations)
+        filtered = peak_calling.filter_barcodes(
+            self.merged, annotations=annotations)
+        barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
+            filtered, annotations
+        )
+        self.assertEqual(barcodes_in_data, barcodes_in_annotations)
+
+    def test_filter_parallel(self):
+        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations,
+                                                parallel=True)
+        annotations = pd.read_csv(self.annotations)
         barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
             filtered, annotations
         )
@@ -168,25 +188,25 @@ class TestGeneratePeakCounts(TestPeakCalling):
 
 class TestMatrix(TestGeneratePeakCounts):
     def setUp(self):
-        self.matrix, _, _ = peak_calling.generate_peak_counts(self.merged, 
-        annotations=self.annotations)
-    
+        self.matrix, _, _ = peak_calling.generate_peak_counts(self.merged,
+                                                              annotations=self.annotations)
+
     def test_length(self):
         self.assertTupleEqual(self.matrix.shape, (1014, 172))
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
         self.assertEqual(non_zeros_count, 1237)
-    
+
     def test_matrix_maximum(self):
         self.assertEqual(np.max(self.matrix.values), 4.0)
 
 
 class TestVar(TestGeneratePeakCounts):
     def setUp(self):
-        _, self.var, _ = peak_calling.generate_peak_counts(self.merged, 
-        annotations=self.annotations)
-    
+        _, self.var, _ = peak_calling.generate_peak_counts(self.merged,
+                                                           annotations=self.annotations)
+
     def test_length(self):
         self.assertTupleEqual(self.var.shape, (172, 1))
 
@@ -197,9 +217,9 @@ class TestVar(TestGeneratePeakCounts):
 
 class TestObs(TestGeneratePeakCounts):
     def setUp(self):
-        _, _, self.obs = peak_calling.generate_peak_counts(self.merged, 
-        annotations=self.annotations)
-    
+        _, _, self.obs = peak_calling.generate_peak_counts(self.merged,
+                                                           annotations=self.annotations)
+
     def test_length(self):
         self.assertTupleEqual(self.obs.shape, (1014, 3))
 
@@ -210,9 +230,9 @@ class TestObs(TestGeneratePeakCounts):
 
 class TestNoAnno(TestGeneratePeakCounts):
     def setUp(self):
-        self.matrix, self.var = peak_calling.generate_peak_counts(self.merged, 
-        annotations=None)
-    
+        self.matrix, self.var = peak_calling.generate_peak_counts(self.merged,
+                                                                  annotations=None)
+
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
         self.assertEqual(non_zeros_count, 1237)
@@ -221,12 +241,13 @@ class TestNoAnno(TestGeneratePeakCounts):
         non_zeros_count = np.count_nonzero(self.var)
         self.assertEqual(non_zeros_count, 172)
 
+
 class TestAnnoDf(TestGeneratePeakCounts):
     def setUp(self):
         annotations = pd.read_csv(self.annotations)
-        self.matrix, self.var, self.obs = peak_calling.generate_peak_counts(self.merged, 
-        annotations=annotations)
-    
+        self.matrix, self.var, self.obs = peak_calling.generate_peak_counts(self.merged,
+                                                                            annotations=annotations)
+
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
         self.assertEqual(non_zeros_count, 1237)
@@ -239,6 +260,7 @@ class TestAnnoDf(TestGeneratePeakCounts):
         non_zeros_count = np.count_nonzero(self.obs)
         self.assertEqual(non_zeros_count, 3042)
 
+
 class TestGenerateCountMatrixAnndata(TestPeakCalling):
     @classmethod
     def setUpClass(cls) -> None:
@@ -246,14 +268,15 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
         merged = peak_calling.merge_samples_utr_sizes(cls.mappings)
         annotations = './test_data/vivo_anno.csv'
         filtered = peak_calling.filter_barcodes(merged, annotations)
-        cls.matrix, cls.var, cls.obs = peak_calling.generate_peak_counts(filtered, 
-        annotations=annotations)
+        cls.matrix, cls.var, cls.obs = peak_calling.generate_peak_counts(filtered,
+                                                                         annotations=annotations)
+
 
 class TestWithObs(TestGenerateCountMatrixAnndata):
     def setUp(self) -> None:
         self.matrix_anndata = peak_calling.generate_count_matrix_anndata(
             self.matrix, self.var, self.obs)
-        
+
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.X)
         self.assertEqual(non_zeros_count, 1237)

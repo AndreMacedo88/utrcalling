@@ -5,6 +5,7 @@ import re
 from tests import test_case
 import scripts
 
+
 def run_tests(args=None):
     """
     Runs the test suite for the module.
@@ -12,24 +13,28 @@ def run_tests(args=None):
     if args:
         kwargs_new = parse_unknown_args(args, 0)
     else:
-        kwargs_new={}
+        kwargs_new = {}
     test_case.run_all_tests(**kwargs_new)
+
 
 def run(args=None):
     kwargs_new = parse_unknown_args(args, 2, keywords=scripts.run.keyword_args)
     scripts.run.main(args[0], args[1], **kwargs_new)
 
+
 def call_peaks(args=None):
-    kwargs_new = parse_unknown_args(args, 1, keywords=scripts.call_peaks.keyword_args)
+    kwargs_new = parse_unknown_args(
+        args, 1, keywords=scripts.call_peaks.keyword_args)
     scripts.call_peaks.main(args[0], **kwargs_new)
+
 
 def parse_unknown_args(args, n_args, keywords=None):
     # get only the keyword arguments
     list_to_parse = args[n_args:]
     # convert short hand arguments to the long form
-    list_to_parse = [keywords[item] if re.match('-[a-zA-Z]', item) else item \
-        for item in list_to_parse]
-    
+    list_to_parse = [keywords[item] if re.match('-[a-zA-Z]', item) else item
+                     for item in list_to_parse]
+
     list_to_parse_new = []
     possible_list = []
     for item in list_to_parse:
@@ -53,6 +58,7 @@ def parse_unknown_args(args, n_args, keywords=None):
     dict_parsed = {item.replace("--", ""): next(iterator) for item in iterator}
     return dict_parsed
 
+
 def main(process, unknown_arguments, possibilities):
     """
     Checks the parameters input by the user and passes them along the pipeline to the correct function.
@@ -62,16 +68,17 @@ def main(process, unknown_arguments, possibilities):
     unknown_arguments : list
     possibilities : list
     """
-    
+
     close_matches = get_close_matches(process, possibilities, n=3, cutoff=0.6)
     if process not in close_matches:
         if close_matches:
             matches = '\n '.join(close_matches)
-            print(f"Process {process} does not exist. Did you mean one of the following;\n {matches}")
+            print(
+                f"Process {process} does not exist. Did you mean one of the following;\n {matches}")
         else:
             print(f"Process {process} does not exist.")
         return
-    
+
     eval(f"{process}(args={unknown_arguments})")
 
 
