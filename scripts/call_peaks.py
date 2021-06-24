@@ -9,7 +9,7 @@ from utrcalling import core
 from utrcalling.module_log import module_logger
 
 
-def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None,
+def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_level='info',
          out="UTR_results.h5ad"):
     """
     Gets UTR sizes peak count per cell/sample from UTR sizes counts and UTR annotation 
@@ -24,7 +24,10 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None,
     """
 
     # Set up logging
-    logger = module_logger(disable=False, store_log=True)
+    logger = module_logger(disable=False, store_log=True, level=log_level)
+
+    for arg, value in locals().items():
+        logger.info(f'Argument {arg}: {value}\n')
 
     if isinstance(utr_sizes_counts, list):
         utr_sizes_counts_open = []
@@ -48,7 +51,7 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None,
 
 
 keyword_args = {"-c": "--utr_sizes_counts", "-s": "--single_cell_annotation",
-                "-o": "--out"}
+                "-l": "--log_level", "-o": "--out"}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""
@@ -72,6 +75,10 @@ if __name__ == "__main__":
                         help="File with your experiment's information, such as cell barcodes.",
                         default=None)
 
+    parser.add_argument("--log_level", "-l", type=str,
+                        help="Level of logging messages to retrieve during the run.",
+                        default="info")
+
     parser.add_argument("--out", "-o", type=str,
                         help="Path or partial path to a folder to store the result files.",
                         default="UTR_results.h5ad")
@@ -80,6 +87,5 @@ if __name__ == "__main__":
 
     main(args.utr_annotation, args.genome, args.alignments, feature=args.three_prime_utr,
          single_cell_annotation=args.single_cell_annotation,
-         protocol_version=args.protocol_version,
-         out=args.out
+         protocol_version=args.protocol_version, out=args.out
          )

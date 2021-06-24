@@ -9,7 +9,7 @@ from utrcalling.module_log import module_logger
 
 def main(utr_annotation, genome, alignments, feature='three_prime_utr',
          single_cell_annotation=None, protocol_version=3, store_intermediate=False,
-         out='UTR_results.h5ad', log_level='info'):
+         log_level='info', out='UTR_results.h5ad'):
     """
     Gets UTR sizes peak counts per cell/sample from input file/s.
 
@@ -64,8 +64,8 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
 
 
 keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--single_cell_annotation",
-                "-p": "--protocol_version", "-i": "--store_intermediate", "-l": "log_level",
-                "-o": "--out"}
+                "-p": "--protocol_version", "-i": "--store_intermediate", 
+                "-l": "--log_level", "-o": "--out"}
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""
@@ -89,20 +89,24 @@ if __name__ == "__main__":
         """)
 
     parser.add_argument("--feature", "-f", type=str,
-                        help="Type of UTR that you want to map. three_prime_utr or five_prime_utr",
+                        help="Type of UTR that you want to map. three_prime_utr or \
+                            five_prime_utr",
                         default='three_prime_utr')
 
     parser.add_argument("--single_cell_annotation", "-s", type=str,
-                        help="File with your experiment's information, such as cell barcodes.",
+                        help="File with your experiment's information, \
+                            such as cell barcodes.",
                         default=None)
 
     parser.add_argument("--protocol_version", "-p", type=int,
-                        help="Version of the 10x protocol used in library preparation.", default=2)
+                        help="Version of the 10x protocol used in library preparation.", 
+                        default=2)
 
     parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
-                        help="If True, stores intermediate files that can be used to run quicker \
-            pipelines later on. Useful if something wrong is happening in later stages \
-                of the pipeline", default=False)
+                        help="If True, stores intermediate files that can be used to \
+                            run quicker pipelines later on. Useful if something wrong \
+                            is happening in later stages of the pipeline", 
+                        default=False)
 
     parser.add_argument("--log_level", "-l", type=str,
                         help="Level of logging messages to retrieve during the run.",

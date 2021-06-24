@@ -60,8 +60,6 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
     if isinstance(utr_sizes_counts, list):
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts)
 
-    if annotations is not None:
-        annotations = pd.read_csv(annotations)
     utr_reference_subset = subset_reference_data(
         utr_sizes_counts, utr_reference_regions)
 
@@ -72,6 +70,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
     del utr_sizes_counts  # to save memory
 
     if annotations is not None:
+        annotations = pd.read_csv(annotations)
         filtered_positions = filter_barcodes(filtered_positions, annotations)
     peaks_count_matrix, peaks_obs, peaks_var = generate_peak_counts(
         filtered_positions, annotations=annotations)
