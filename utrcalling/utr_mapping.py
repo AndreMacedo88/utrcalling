@@ -86,6 +86,15 @@ def extract_read_information(alignment, interval, version=3):
     logger = module_logger()
 
     def to_string(x):
+        """
+        Because HTSeq gives us bytes instead of strings.
+
+        Args:
+            x ([type]): [description]
+
+        Returns:
+            str 
+        """
         return repr(x)[2:-1]
 
     # get read strand
@@ -117,9 +126,9 @@ def extract_read_information(alignment, interval, version=3):
                 alignment.read.seq[-query_to:-query_from])
     # get the read's cell barcode and UMI
     read_barcode = to_string(alignment.read.seq[:16])
-    if version >= 3:
+    if version == 3:
         read_umi = to_string(alignment.read.seq[17:28])
-    if version < 3:
+    elif version == 2:
         read_umi = to_string(alignment.read.seq[17:26])
     else:
         version_fail = f'10x genomics protocol version {version} currently not supported'

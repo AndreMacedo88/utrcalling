@@ -11,24 +11,24 @@ def run_tests(args=None):
     Runs the test suite for the module.
     """
     if args:
-        kwargs_new = parse_unknown_args(args, 0)
+        kwargs_new = _parse_unknown_args(args, 0)
     else:
         kwargs_new = {}
     test_case.run_all_tests(**kwargs_new)
 
 
 def run(args=None):
-    kwargs_new = parse_unknown_args(args, 2, keywords=scripts.run.keyword_args)
+    kwargs_new = _parse_unknown_args(args, 2, keywords=scripts.run.keyword_args)
     scripts.run.main(args[0], args[1], **kwargs_new)
 
 
 def call_peaks(args=None):
-    kwargs_new = parse_unknown_args(
+    kwargs_new = _parse_unknown_args(
         args, 1, keywords=scripts.call_peaks.keyword_args)
     scripts.call_peaks.main(args[0], **kwargs_new)
 
 
-def parse_unknown_args(args, n_args, keywords=None):
+def _parse_unknown_args(args, n_args, keywords=None):
     # get only the keyword arguments
     list_to_parse = args[n_args:]
     # convert short hand arguments to the long form
