@@ -35,7 +35,7 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
     utr_reference_regions = core.prepare_utr_reference_regions(utr_annotation, genome,
                                                                feature)
     if store_intermediate:
-        utr_reference_regions.saveas("utr_reference_regions.bed")
+        utr_reference_regions.to_pickle("utr_reference_regions.pkl")
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')

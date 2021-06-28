@@ -11,7 +11,7 @@ from .storage import UtrMappings, MappedReadInformation
 from .helpers import to_string
 
 
-def generate_utr_intervals(utr_regions):
+def generate_utr_intervals_2(utr_regions):
     intervals = dict()
     counter = 0
     for utr in tqdm(utr_regions, desc='Generating genomic interval for UTR number'):
@@ -22,6 +22,13 @@ def generate_utr_intervals(utr_regions):
         else:
             counter = 0
         intervals[name] = HTSeq.GenomicInterval(utr.chrom, utr.start - 1, utr.stop,
+                                                utr.strand)
+    return intervals
+
+def generate_utr_intervals(utr_regions):
+    intervals = dict()
+    for utr in tqdm(utr_regions.itertuples(), desc='Generating genomic interval for UTR number'):
+        intervals[utr.Index] = HTSeq.GenomicInterval(utr.chrom, utr.start - 1, utr.end,
                                                 utr.strand)
     return intervals
 
@@ -75,11 +82,7 @@ def extract_read_information(alignment, interval, platform):
     Args:
         alignment (HTSeq.Alignment): The read alignment object.
         interval (HTSeq.GenomicInterval): The UTR interval coordinates.
-        platform (int, optional): RNA-seq platform used. Defaults to 10x-version-3.
-
-    Raises:
-        RuntimeError: If the read has no matches.
-        RuntimeError: If the protocol version is not currently supported.
+        platform (utrcalling.Platform): RNA-seq platform used.
 
     Returns:
         tuple: The relevant read information

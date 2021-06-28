@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 import unittest
 
-import pybedtools
+import pandas as pd
 
 # make sure main module gets imported
 file_dir = str(Path(__file__).resolve().parents[1])
@@ -18,7 +18,7 @@ class TestStorage(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        utr_regions = pybedtools.BedTool('./test_data/test_bed_merged.bed')
+        utr_regions = pd.read_pickle('./test_data/test_utr_reference.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         platform = platforms.Platform(platform='10x', version=2)

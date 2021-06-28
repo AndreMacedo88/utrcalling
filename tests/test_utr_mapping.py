@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 import unittest
 
-import pybedtools
+import pandas as pd
 
 # make sure main module gets imported
 file_dir = str(Path(__file__).resolve().parents[1])
@@ -16,7 +16,7 @@ from utrcalling import utr_mapping, platforms
 
 class TestGenerateUtrIntervals(unittest.TestCase):
     def setUp(self) -> None:
-        utr_regions = pybedtools.BedTool('./test_data/test_bed_merged.bed')
+        utr_regions = pd.read_pickle('./test_data/test_utr_reference.pkl')
         self.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
 
@@ -37,7 +37,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        utr_regions = pybedtools.BedTool('./test_data/test_bed_merged.bed')
+        utr_regions = pd.read_pickle('./test_data/test_utr_reference.pkl')
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
         cls.alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
@@ -95,11 +95,11 @@ class TestPlatformsNotSupported(TestMapReadsToUtr):
             platforms.Platform(platform='Zehn_x', version=3)
 
     def test_version_tenx(self):
-        with self.assertRaises(RuntimeError):\
+        with self.assertRaises(RuntimeError):
             platforms.Platform(platform='10x', version=1)
-    
+
     def test_version_smartseq(self):
-        with self.assertRaises(RuntimeError):\
+        with self.assertRaises(RuntimeError):
             platforms.Platform(platform='Smart-seq', version=1)
 
 

@@ -53,5 +53,22 @@ def reduce_regions(bed, annotations_index=[], operation_list=[]):
     return bed_merged
 
 
+def generate_utr_name(utr_bed):
+    utr_bed = utr_bed.to_dataframe()
+    names_list = []
+    counter = 0
+    for row in utr_bed.itertuples():
+        name = row.name
+        if row.name in names_list:
+            counter += 1
+            name = f'{name}_{counter}'
+        else:
+            counter = 0
+        names_list.append(name)
+    utr_bed['utr_name'] = names_list
+    utr_bed = utr_bed.set_index('utr_name')
+    return utr_bed
+
+
 def get_sequences(genome, bed):
     bed.sequence(fi=genome)

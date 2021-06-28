@@ -3,7 +3,6 @@ import sys
 from pathlib import Path
 import unittest
 
-import pybedtools
 import pandas as pd
 import numpy as np
 
@@ -19,7 +18,7 @@ from utrcalling import peak_calling, utr_mapping, platforms
 class TestPeakCalling(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pybedtools.BedTool('./test_data/test_bed_merged.bed')
+        cls.utr_regions = pd.read_pickle('./test_data/test_utr_reference.pkl')
         intervals = utr_mapping.generate_utr_intervals(
             utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
@@ -268,10 +267,13 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
     def setUpClass(cls) -> None:
         super().setUpClass()
         merged = peak_calling.merge_samples_utr_sizes(cls.mappings)
+        subsetted = peak_calling.subset_reference_data(
+            merged, cls.utr_regions)
         annotations = './test_data/vivo_anno.csv'
         filtered = peak_calling.filter_barcodes(merged, annotations)
-        cls.matrix, cls.var, cls.obs = peak_calling.generate_peak_counts(filtered,
-                                                                         annotations=annotations)
+        cls.matrix, var, cls.obs = peak_calling.generate_peak_counts(filtered,
+                                                                     annotations=annotations)
+        cls.var = peak_calling.add_to_peaks_var(var, subsetted)
 
 
 class TestWithObs(TestGenerateCountMatrixAnndata):
@@ -285,7 +287,7 @@ class TestWithObs(TestGenerateCountMatrixAnndata):
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.var)
-        self.assertEqual(non_zeros_count, 172)
+        self.assertEqual(non_zeros_count, 172 * 8)
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.obs)

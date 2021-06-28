@@ -58,12 +58,19 @@ def merge_samples_utr_sizes(utr_sizes):
     return position_counts_merged
 
 
-def subset_reference_data(utr_sizes, utr_reference_regions):
+def subset_reference_data_2(utr_sizes, utr_reference_regions):
     logger = module_logger()
     logger.info('Subsetting UTR reference data')
     sub_utr_reference = utr_reference_regions.filter(
         lambda x: x.name in utr_sizes.utr_ids).saveas()
     return sub_utr_reference.to_dataframe()
+
+
+def subset_reference_data(utr_sizes, utr_reference_regions):
+    logger = module_logger()
+    logger.info('Subsetting UTR reference data')
+    sub_utr_reference = utr_reference_regions.filter(items=utr_sizes.utr_ids, axis=0)
+    return sub_utr_reference
 
 
 def filter_utr_sizes(utr_sizes):
@@ -245,6 +252,17 @@ def call_peaks(utr, func, cell_barcodes):
         count_matrix = count_matrix.append(peak_counts, ignore_index=False)
         count_matrix = count_matrix.fillna(0)
     return count_matrix, peaks_var
+
+
+def add_to_peaks_var(peak_var, annotations):
+    new_peaks_var = pd.DataFrame()
+    for index, utr in annotations.iterrows():
+        peak_var_2 = peak_var[peak_var.index.str.startswith(index)]
+        for index_2, peak in peak_var_2.iterrows():
+            new_row = peak.append(utr, ignore_index=False)
+            new_row.name = index_2
+            new_peaks_var = new_peaks_var.append(new_row, ignore_index=False)
+    return new_peaks_var
 
 
 def generate_count_matrix_anndata(count_matrix, var, obs=None):

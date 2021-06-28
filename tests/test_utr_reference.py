@@ -145,5 +145,38 @@ class TestReduceRegionsExtended(TestReduceRegions):
         self.assertEqual(self.utr_reduced[0].strand, '+')
 
 
+class TestGenerateUtrName(TestReduceRegionsExtended):
+    def setUp(self) -> None:
+        super().setUp()
+        self.utr_reduced = utr_reference.generate_utr_name(self.utr_reduced)
+
+    def test_names_len(self):
+        self.assertEqual(self.utr_reduced.index[2], 'ENSMUSG00000025911_1')
+
+
+    def test_number_of_features(self) -> None:
+        """
+        The test GTF file was generated with 1000 3'UTR regions, plus 1000 random regions.
+        In the end it turned out to have 1016 3'UTR regions.
+        """
+        self.assertEqual(self.utr_reduced.shape[0], 1016)
+
+    def test_number_of_fields(self) -> None:
+        """
+        Number of fields in the annotation BED file should be equal to the optional 
+        fields (in variable 'annotations') plus the mandatory fields 'seqname', 'start',
+        'end' and finally the count field, that tell us how many features were merged 
+        at each new feature (row).
+        """
+        self.assertEqual(self.utr_reduced.shape[1], 9)
+
+    def test_fields_are_proper(self) -> None:
+        proper_fields = ['1', 7160892, 7161063, 'ENSMUSG00000051285', '.', '+',
+                         'ENSMUST00000182675', 'Pcmtd1', 1]
+        self.assertListEqual(self.utr_reduced.iloc[0].values.tolist(), proper_fields)
+
+    def test_strand_is_correct(self) -> None:
+        self.assertEqual(self.utr_reduced.iloc[0].strand, '+')
+
 if __name__ == '__main__':
     unittest.main()

@@ -18,12 +18,13 @@ import pybedtools
 
 from .platforms import Platform
 from .utr_reference import (
-    extract_feature, prepare_annotations_index, reduce_regions, get_sequences
+    generate_utr_name, extract_feature, prepare_annotations_index, reduce_regions,
+    get_sequences, generate_utr_name
 )
 from .utr_mapping import generate_utr_intervals, map_reads_to_utr
 from .peak_calling import (
     subset_reference_data, merge_samples_utr_sizes, filter_utr_sizes, filter_barcodes,
-    generate_peak_counts, generate_count_matrix_anndata
+    generate_peak_counts, add_to_peaks_var, generate_count_matrix_anndata
 )
 
 
@@ -32,7 +33,7 @@ def prepare_utr_reference_regions(gtf, genome, feature):
     utr = extract_feature(gtf, feature)
     # sort by chr and start for bed merge
     utr = utr.sort_values(by=['seqname', 'start'])
-    annotations = ['gene_id', 'score', 'strand', 'transcript_id']
+    annotations = ['gene_id', 'score', 'strand', 'transcript_id', 'gene_name']
     ann_cols, ann_idx = prepare_annotations_index(annotations)
     # Create BedTool obj using the GTF dataframe
     utr_bed = pybedtools.BedTool.from_dataframe(utr, columns=ann_cols)
@@ -40,11 +41,13 @@ def prepare_utr_reference_regions(gtf, genome, feature):
     utr_reduced = reduce_regions(utr_bed, annotations_index=ann_idx)
     # get the sequences (from the genome file) for each UTR region
     # sequences = get_sequences(genome, utr_reduced)
+
+    utr_reduced = generate_utr_name(utr_reduced)
     return utr_reduced
 
 
-def map_aligned_reads(alignments, utr_regions, protocol_platform="10x", 
-    protocol_version=3):
+def map_aligned_reads(alignments, utr_regions, protocol_platform="10x",
+                      protocol_version=3):
     intervals = generate_utr_intervals(utr_regions)
 
     protocol = Platform(protocol_platform, protocol_version)
@@ -80,6 +83,8 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
         filtered_positions, annotations=annotations)
 
     del filtered_positions  # to save memory
+
+    peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)
 
     count_matrix_anndata = generate_count_matrix_anndata(
         peaks_count_matrix, peaks_obs, peaks_var)
