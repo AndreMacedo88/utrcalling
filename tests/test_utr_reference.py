@@ -100,11 +100,11 @@ class TestReduceRegionsStandard(TestReduceRegions):
         'end' and finally the count field, that tell us how many features were merged 
         at each new feature (row).
         """
-        self.assertEqual(self.utr_reduced.field_count(1), 8)
+        self.assertEqual(self.utr_reduced.field_count(1), 7)
 
     def test_fields_are_proper(self) -> None:
         proper_fields = ['1', '7160892', '7161063', 'ENSMUSG00000051285', '.', '+',
-                         'ENSMUST00000182675', '1']
+                         'ENSMUST00000182675']
         self.assertListEqual(self.utr_reduced[0].fields, proper_fields)
 
     def test_strand_is_correct(self) -> None:
@@ -134,11 +134,11 @@ class TestReduceRegionsExtended(TestReduceRegions):
         'end' and finally the count field, that tell us how many features were merged 
         at each new feature (row).
         """
-        self.assertEqual(self.utr_reduced.field_count(1), 9)
+        self.assertEqual(self.utr_reduced.field_count(1), 8)
 
     def test_fields_are_proper(self) -> None:
         proper_fields = ['1', '7160892', '7161063', 'ENSMUSG00000051285', '.', '+',
-                         'ENSMUST00000182675', 'Pcmtd1', '1']
+                         'ENSMUST00000182675', 'Pcmtd1']
         self.assertListEqual(self.utr_reduced[0].fields, proper_fields)
 
     def test_strand_is_correct(self) -> None:
@@ -168,11 +168,11 @@ class TestGenerateUtrName(TestReduceRegionsExtended):
         'end' and finally the count field, that tell us how many features were merged 
         at each new feature (row).
         """
-        self.assertEqual(self.utr_reduced.shape[1], 9)
+        self.assertEqual(self.utr_reduced.shape[1], 8)
 
     def test_fields_are_proper(self) -> None:
         proper_fields = ['1', 7160892, 7161063, 'ENSMUSG00000051285', '.', '+',
-                         'ENSMUST00000182675', 'Pcmtd1', 1]
+                         'ENSMUST00000182675', 'Pcmtd1']
         self.assertListEqual(self.utr_reduced.iloc[0].values.tolist(), proper_fields)
 
     def test_strand_is_correct(self) -> None:

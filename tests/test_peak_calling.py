@@ -18,7 +18,7 @@ from utrcalling import peak_calling, utr_mapping, platforms
 class TestPeakCalling(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_pickle('./test_data/test_utr_reference.pkl')
+        cls.utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
         intervals = utr_mapping.generate_utr_intervals(
             utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
@@ -78,7 +78,7 @@ class TestSubsetReferenceData(TestPeakCalling):
 
     def test_values_are_proper(self) -> None:
         proper_values = ['1', 10024601, 10024978, 'ENSMUSG00000025917', 0.0, '-',
-                         'ENSMUST00000027050', 1]
+                         'ENSMUST00000027050', 'Cops5']
         self.assertListEqual(
             self.subsetted.iloc[0].values.tolist(), proper_values)
 

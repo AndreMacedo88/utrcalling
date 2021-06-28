@@ -43,10 +43,9 @@ def prepare_annotations_index(annotations_extra):
 def reduce_regions(bed, annotations_index=[], operation_list=[]):
     logger = module_logger()
     if not operation_list:
-        operations = ['distinct', ] * len(annotations_index) + ['count']
+        operations = ['distinct', ] * len(annotations_index)
     else:
-        operations = operation_list.append('count')
-    annotations_index.append(1)
+        operations = operation_list
 
     logger.info('Merging overlapping UTR regions')
     bed_merged = bed.merge(c=annotations_index, o=operations, s=True)

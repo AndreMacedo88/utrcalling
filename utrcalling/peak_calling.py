@@ -58,18 +58,11 @@ def merge_samples_utr_sizes(utr_sizes):
     return position_counts_merged
 
 
-def subset_reference_data_2(utr_sizes, utr_reference_regions):
-    logger = module_logger()
-    logger.info('Subsetting UTR reference data')
-    sub_utr_reference = utr_reference_regions.filter(
-        lambda x: x.name in utr_sizes.utr_ids).saveas()
-    return sub_utr_reference.to_dataframe()
-
-
 def subset_reference_data(utr_sizes, utr_reference_regions):
     logger = module_logger()
     logger.info('Subsetting UTR reference data')
-    sub_utr_reference = utr_reference_regions.filter(items=utr_sizes.utr_ids, axis=0)
+    sub_utr_reference = utr_reference_regions.filter(
+        items=utr_sizes.utr_ids, axis=0)
     return sub_utr_reference
 
 

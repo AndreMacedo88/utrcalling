@@ -11,25 +11,11 @@ from .storage import UtrMappings, MappedReadInformation
 from .helpers import to_string
 
 
-def generate_utr_intervals_2(utr_regions):
-    intervals = dict()
-    counter = 0
-    for utr in tqdm(utr_regions, desc='Generating genomic interval for UTR number'):
-        name = utr.name
-        if name in intervals.keys():
-            counter += 1
-            name = f'{name}_{counter}'
-        else:
-            counter = 0
-        intervals[name] = HTSeq.GenomicInterval(utr.chrom, utr.start - 1, utr.stop,
-                                                utr.strand)
-    return intervals
-
 def generate_utr_intervals(utr_regions):
     intervals = dict()
     for utr in tqdm(utr_regions.itertuples(), desc='Generating genomic interval for UTR number'):
         intervals[utr.Index] = HTSeq.GenomicInterval(utr.chrom, utr.start - 1, utr.end,
-                                                utr.strand)
+                                                     utr.strand)
     return intervals
 
 

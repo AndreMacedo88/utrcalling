@@ -16,7 +16,7 @@ from utrcalling import utr_mapping, platforms
 
 class TestGenerateUtrIntervals(unittest.TestCase):
     def setUp(self) -> None:
-        utr_regions = pd.read_pickle('./test_data/test_utr_reference.pkl')
+        utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
         self.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
 
@@ -37,7 +37,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        utr_regions = pd.read_pickle('./test_data/test_utr_reference.pkl')
+        utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
         cls.alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
