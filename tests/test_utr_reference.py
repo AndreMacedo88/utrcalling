@@ -153,7 +153,6 @@ class TestGenerateUtrName(TestReduceRegionsExtended):
     def test_names_len(self):
         self.assertEqual(self.utr_reduced.index[2], 'ENSMUSG00000025911_1')
 
-
     def test_number_of_features(self) -> None:
         """
         The test GTF file was generated with 1000 3'UTR regions, plus 1000 random regions.
@@ -173,10 +172,23 @@ class TestGenerateUtrName(TestReduceRegionsExtended):
     def test_fields_are_proper(self) -> None:
         proper_fields = ['1', 7160892, 7161063, 'ENSMUSG00000051285', '.', '+',
                          'ENSMUST00000182675', 'Pcmtd1']
-        self.assertListEqual(self.utr_reduced.iloc[0].values.tolist(), proper_fields)
+        self.assertListEqual(
+            self.utr_reduced.iloc[0].values.tolist(), proper_fields)
 
     def test_strand_is_correct(self) -> None:
         self.assertEqual(self.utr_reduced.iloc[0].strand, '+')
+
+
+class TestCorrectColumnNames(TestGenerateUtrName):
+    def setUp(self) -> None:
+        super().setUp()
+        self.utr_reduced = utr_reference.correct_column_names(self.utr_reduced)
+
+    def test_column_names(self):
+        proper_names = ['chrom', 'start', 'end', 'name', 'score', 'strand',
+                        'transcript_id', 'gene_name']
+        self.assertListEqual(self.utr_reduced.columns.tolist(), proper_names)
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -69,5 +69,11 @@ def generate_utr_name(utr_bed):
     return utr_bed
 
 
+def correct_column_names(utr_df):
+    utr_df = utr_df.rename(columns={'thickStart': 'transcript_id',
+                                    'thickEnd': 'gene_name'})
+    return utr_df
+
+
 def get_sequences(genome, bed):
     bed.sequence(fi=genome)

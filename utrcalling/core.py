@@ -12,14 +12,13 @@ Observations:
 genomic coordinates (GRanges obj) and 3'UTR sequence information.
 """
 
-from typing import Protocol
 import pandas as pd
 import pybedtools
 
 from .platforms import Platform
 from .utr_reference import (
     generate_utr_name, extract_feature, prepare_annotations_index, reduce_regions,
-    get_sequences, generate_utr_name
+    get_sequences, generate_utr_name, correct_column_names
 )
 from .utr_mapping import generate_utr_intervals, map_reads_to_utr
 from .peak_calling import (
@@ -43,6 +42,7 @@ def prepare_utr_reference_regions(gtf, genome, feature):
     # sequences = get_sequences(genome, utr_reduced)
 
     utr_reduced = generate_utr_name(utr_reduced)
+    utr_reduced = correct_column_names(utr_reduced)
     return utr_reduced
 
 
