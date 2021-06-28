@@ -27,3 +27,17 @@ def get_number_cores():
     if cores_to_use == available_cores:
         cores_to_use = available_cores - 1
     return cores_to_use
+
+
+def to_string(x):
+    """
+    Converts type=bytes to type=str without decoding. 
+    Because HTSeq gives us bytes instead of strings.
+
+    Args:
+        x (bytes): The object in bytes, that in fact represent a string.
+
+    Returns:
+        str 
+    """
+    return repr(x)[2:-1]

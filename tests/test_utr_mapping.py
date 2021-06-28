@@ -11,7 +11,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import utr_mapping
+from utrcalling import utr_mapping, platforms
 
 
 class TestGenerateUtrIntervals(unittest.TestCase):
@@ -42,9 +42,12 @@ class TestMapReadsToUtr(unittest.TestCase):
             utr_regions=utr_regions)
         cls.alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
 
+
+class TestTenxTwo(TestMapReadsToUtr):
     def setUp(self) -> None:
+        platform = platforms.Platform(platform='10x', version=2)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
-                                                     read='first', version=2)
+                                                     platform, read='first')
 
     def test_details(self):
         dict_true = {
@@ -61,3 +64,44 @@ class TestMapReadsToUtr(unittest.TestCase):
 
     def test_length(self):
         self.assertEqual(len(self.mappings), 126)
+
+
+class TestTenxThree(TestMapReadsToUtr):
+    def setUp(self) -> None:
+        platform = platforms.Platform(platform='10x', version=3)
+        self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
+                                                     platform, read='first')
+
+    def test_details(self):
+        dict_true = {
+            'utr_name': 'ENSMUSG00000005804',
+            'read_start_positions': [122748098, 122748088, 122748096],
+            'read_strands': ['-', '-', '-'],
+            'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
+            'read_umis': ['CAACACAAGTT', 'ATCGAGAGTTT', 'CTGAGTATGTT'],
+            'read_lengths': [51, 37, 44],
+            'utr_sizes_from_reads': [1468, 1458, 1466]
+        }
+        self.assertDictEqual(
+            self.mappings.ENSMUSG00000005804.todict(), dict_true)
+
+    def test_length(self):
+        self.assertEqual(len(self.mappings), 126)
+
+
+class TestPlatformsNotSupported(TestMapReadsToUtr):
+    def test_platform(self):
+        with self.assertRaises(RuntimeError):
+            platforms.Platform(platform='Zehn_x', version=3)
+
+    def test_version_tenx(self):
+        with self.assertRaises(RuntimeError):\
+            platforms.Platform(platform='10x', version=1)
+    
+    def test_version_smartseq(self):
+        with self.assertRaises(RuntimeError):\
+            platforms.Platform(platform='Smart-seq', version=1)
+
+
+if __name__ == '__main__':
+    unittest.main()

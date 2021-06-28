@@ -8,6 +8,7 @@ tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 from .module_log import module_logger
 from .storage import UtrMappings, MappedReadInformation
+from .helpers import to_string
 
 
 def generate_utr_intervals(utr_regions):
@@ -25,7 +26,7 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 
-def map_reads_to_utr(bam, intervals, read='first', version=3):
+def map_reads_to_utr(bam, intervals, platform, read='first'):
     logger = module_logger()
     logger.info(
         f'Extracting reads from {bam} and mapping them to the reference UTR')
@@ -47,7 +48,7 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
                 continue
             else:
                 read_info = extract_read_information(alignment=alignment,
-                                                     interval=interval, version=version)
+                                                     interval=interval, platform=platform)
                 mapped_read_information.read_start_positions.append(
                     read_info[0])
                 mapped_read_information.read_strands.append(read_info[1])
@@ -67,14 +68,14 @@ def map_reads_to_utr(bam, intervals, read='first', version=3):
     return utr_mappings
 
 
-def extract_read_information(alignment, interval, version=3):
+def extract_read_information(alignment, interval, platform):
     """
     Extracts all the relevant information from matching reads in a HTSeq.Alignment object.
 
     Args:
         alignment (HTSeq.Alignment): The read alignment object.
         interval (HTSeq.GenomicInterval): The UTR interval coordinates.
-        version (int, optional): Version of the 10x protocol used. Defaults to 3.
+        platform (int, optional): RNA-seq platform used. Defaults to 10x-version-3.
 
     Raises:
         RuntimeError: If the read has no matches.
@@ -84,18 +85,6 @@ def extract_read_information(alignment, interval, version=3):
         tuple: The relevant read information
     """
     logger = module_logger()
-
-    def to_string(x):
-        """
-        Because HTSeq gives us bytes instead of strings.
-
-        Args:
-            x ([type]): [description]
-
-        Returns:
-            str 
-        """
-        return repr(x)[2:-1]
 
     # get read strand
     read_strand = alignment.iv.strand
@@ -124,16 +113,9 @@ def extract_read_information(alignment, interval, version=3):
         else:
             read_sequence = to_string(
                 alignment.read.seq[-query_to:-query_from])
+
     # get the read's cell barcode and UMI
-    read_barcode = to_string(alignment.read.seq[:16])
-    if version == 3:
-        read_umi = to_string(alignment.read.seq[17:28])
-    elif version == 2:
-        read_umi = to_string(alignment.read.seq[17:26])
-    else:
-        version_fail = f'10x genomics protocol version {version} currently not supported'
-        logger.error(version_fail)
-        raise RuntimeError(version_fail)
+    read_umi, read_barcode = platform.get_reads_identity(alignment=alignment)
 
     # get read length
     read_length = len(read_sequence)

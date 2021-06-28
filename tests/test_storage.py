@@ -11,7 +11,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import utr_mapping
+from utrcalling import utr_mapping, platforms
 
 
 class TestStorage(unittest.TestCase):
@@ -21,8 +21,9 @@ class TestStorage(unittest.TestCase):
         utr_regions = pybedtools.BedTool('./test_data/test_bed_merged.bed')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
-        cls.mappings = utr_mapping.map_reads_to_utr(alignment, intervals,
-                                                    read='first', version=2)
+        platform = platforms.Platform(platform='10x', version=2)
+        cls.mappings = utr_mapping.map_reads_to_utr(alignment, intervals, platform,
+                                                    read='first')
 
 
 class TestUtrMappings(TestStorage):
@@ -50,3 +51,7 @@ class TestMappedReadInformation(TestStorage):
         }
         self.assertDictEqual(
             self.mappings.ENSMUSG00000025917.todict(), dict_true)
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -12,9 +12,11 @@ Observations:
 genomic coordinates (GRanges obj) and 3'UTR sequence information.
 """
 
+from typing import Protocol
 import pandas as pd
 import pybedtools
 
+from .platforms import Platform
 from .utr_reference import (
     extract_feature, prepare_annotations_index, reduce_regions, get_sequences
 )
@@ -41,18 +43,20 @@ def prepare_utr_reference_regions(gtf, genome, feature):
     return utr_reduced
 
 
-def map_aligned_reads(alignments, utr_regions, protocol_version=3):
+def map_aligned_reads(alignments, utr_regions, protocol_platform="10x", 
+    protocol_version=3):
     intervals = generate_utr_intervals(utr_regions)
 
+    protocol = Platform(protocol_platform, protocol_version)
     if isinstance(alignments, (list, tuple)):
         read_mappings = [
             map_reads_to_utr(
-                alignment, intervals, read='first', version=protocol_version)
+                alignment, intervals, read='first', platform=protocol)
             for alignment in alignments
         ]
     else:
         read_mappings = map_reads_to_utr(
-            alignments, intervals, read='first', version=protocol_version)
+            alignments, intervals, read='first', platform=protocol)
     return read_mappings
 
 

@@ -143,3 +143,7 @@ class TestReduceRegionsExtended(TestReduceRegions):
 
     def test_strand_is_correct(self) -> None:
         self.assertEqual(self.utr_reduced[0].strand, '+')
+
+
+if __name__ == '__main__':
+    unittest.main()

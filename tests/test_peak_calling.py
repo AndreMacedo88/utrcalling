@@ -13,7 +13,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import peak_calling, utr_mapping
+from utrcalling import peak_calling, utr_mapping, platforms
 
 
 class TestPeakCalling(unittest.TestCase):
@@ -24,9 +24,11 @@ class TestPeakCalling(unittest.TestCase):
             utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
+        platform = platforms.Platform(platform='10x', version=2)
         cls.mappings = [
-            utr_mapping.map_reads_to_utr(alignment, intervals,
-                                         read='first', version=2) for alignment in [alignment_1, alignment_2]
+            utr_mapping.map_reads_to_utr(alignment, intervals, platform,
+                                         read='first') for alignment in [alignment_1,
+                                                                         alignment_2]
         ]
 
 
@@ -288,3 +290,7 @@ class TestWithObs(TestGenerateCountMatrixAnndata):
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.obs)
         self.assertEqual(non_zeros_count, 3042)
+
+
+if __name__ == '__main__':
+    unittest.main()
