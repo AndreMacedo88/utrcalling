@@ -8,7 +8,7 @@ from utrcalling.module_log import module_logger
 
 
 def main(utr_annotation, genome, alignments, feature='three_prime_utr',
-         single_cell_annotation=None, protocol_platform="10x", protocol_version=3, 
+         single_cell_annotation=None, protocol_platform="10x", protocol_version=3,
          store_intermediate=False, log_level='info', out='UTR_results.h5ad'):
     """
     Gets UTR sizes peak counts per cell/sample from input file/s.
@@ -40,8 +40,8 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
-        alignments, utr_reference_regions, protocol_platform=protocol_platform, 
-            protocol_versioon=int(protocol_version))
+        alignments, utr_reference_regions, protocol_platform=protocol_platform,
+        protocol_version=int(protocol_version))
     if store_intermediate:
         filename = "UTR_sizes_counts"
         counter = 1
@@ -63,7 +63,7 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
 
 
 keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--single_cell_annotation",
-                "-p": "--protocol_platform", "-v": "--protocol_version", 
+                "-p": "--protocol_platform", "-v": "--protocol_version",
                 "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
 
 if __name__ == "__main__":
@@ -72,8 +72,8 @@ if __name__ == "__main__":
         Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
         Example on how to use in command-line:
         $ python run.py mus_musculus.gtf mus_musculus.fasta 
-            -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 2 -i False
-            -s experiment.csv -p 2 -o results.h5ad
+            -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2 
+            -i False -s experiment.csv -o results.h5ad
         """)
     parser.add_argument("utr_annotation", type=str,
                         help="GTF file with the genome annotations")
@@ -98,17 +98,17 @@ if __name__ == "__main__":
                         default=None)
 
     parser.add_argument("--protocol_platform", "-p", type=str,
-                        help="Sequencing platform used", 
+                        help="Sequencing platform used",
                         default='10x')
 
     parser.add_argument("--protocol_version", "-v", type=int,
-                        help="Version of the protocol used in library preparation.", 
+                        help="Version of the protocol used in library preparation.",
                         default=2)
 
     parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
                         help="If True, stores intermediate files that can be used to \
                             run quicker pipelines later on. Useful if something wrong \
-                            is happening in later stages of the pipeline", 
+                            is happening in later stages of the pipeline",
                         default=False)
 
     parser.add_argument("--log_level", "-l", type=str,
