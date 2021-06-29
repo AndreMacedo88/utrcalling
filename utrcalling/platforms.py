@@ -45,17 +45,17 @@ class Platform:
     @staticmethod
     def get_reads_identity_tenx_2(alignment):
         read_barcode = to_string(alignment.read.seq[:16])
-        read_umi = to_string(alignment.read.seq[17:26])
+        read_umi = to_string(alignment.read.seq[17:26])  # 10 bp UMI
         return read_umi, read_barcode
 
     @staticmethod
     def get_reads_identity_tenx_3(alignment):
         read_barcode = to_string(alignment.read.seq[:16])
-        read_umi = to_string(alignment.read.seq[17:28])
+        read_umi = to_string(alignment.read.seq[17:28])  # 12 bp UMI
         return read_umi, read_barcode
 
     @staticmethod
     def get_reads_identity_smartseq_3(alignment):
         read_barcode = "test"
-        read_umi = to_string(alignment.read.seq[17:27])
+        read_umi = to_string(alignment.read.seq[17:24])  # 8 bp UMI
         return read_umi, read_barcode
