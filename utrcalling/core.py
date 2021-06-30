@@ -66,6 +66,7 @@ def map_aligned_reads(alignments, utr_regions, protocol_platform="10x",
 def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
     if isinstance(utr_sizes_counts, list):
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts)
+        utr_sizes_counts.export('UTR_sizes_counts_merged.pkl')
 
     utr_reference_subset = subset_reference_data(
         utr_sizes_counts, utr_reference_regions)

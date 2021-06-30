@@ -1,5 +1,6 @@
 import gzip
 
+import pandas as pd
 from gtfparse import read_gtf
 
 from .module_log import module_logger
@@ -53,19 +54,27 @@ def reduce_regions(bed, annotations_index=[], operation_list=[]):
 
 
 def generate_utr_name(utr_bed):
-    utr_bed = utr_bed.to_dataframe()
+    if not isinstance(utr_bed, pd.DataFrame):
+        utr_bed = utr_bed.to_dataframe()
+    
+    # sort by name so that name incrementation is handled correctly later on.
+    utr_bed.sort_values(by=['name', 'start'], inplace=True)
+
     names_list = []
-    counter = 0
+    counter = 1
+    name_previous = ''
     for row in utr_bed.itertuples():
-        name = row.name
-        if row.name in names_list:
+        name_next = row.name
+        if row.name == name_previous:
             counter += 1
-            name = f'{name}_{counter}'
+            name_next = f'{name_next}_{counter}'
         else:
-            counter = 0
-        names_list.append(name)
+            counter = 1
+        names_list.append(name_next)
+        name_previous = name_next
     utr_bed['utr_name'] = names_list
     utr_bed = utr_bed.set_index('utr_name')
+    utr_bed.sort_values(by=['chrom', 'start'], inplace=True)
     return utr_bed
 
 

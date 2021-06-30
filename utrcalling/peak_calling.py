@@ -61,6 +61,17 @@ def merge_samples_utr_sizes(utr_sizes):
 def subset_reference_data(utr_sizes, utr_reference_regions):
     logger = module_logger()
     logger.info('Subsetting UTR reference data')
+
+    # pd.set_option('display.max_rows', 1000)
+    pd.set_option('display.max_columns', 20)
+    logger.debug(len(utr_sizes.utr_ids))
+    logger.debug(len(set(utr_sizes.utr_ids)))
+    logger.debug('______________________________________________________')
+    logger.debug(len(utr_reference_regions.index))
+    logger.debug(utr_reference_regions.index.is_unique)
+    logger.debug(len(utr_reference_regions.loc[utr_reference_regions.index.duplicated(keep=False), :]))
+    logger.debug(utr_reference_regions.loc[utr_reference_regions.index.duplicated(keep=False), :])
+
     sub_utr_reference = utr_reference_regions.filter(
         items=utr_sizes.utr_ids, axis=0)
     return sub_utr_reference

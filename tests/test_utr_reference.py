@@ -151,7 +151,7 @@ class TestGenerateUtrName(TestReduceRegionsExtended):
         self.utr_reduced = utr_reference.generate_utr_name(self.utr_reduced)
 
     def test_names_len(self):
-        self.assertEqual(self.utr_reduced.index[2], 'ENSMUSG00000025911_1')
+        self.assertEqual(self.utr_reduced.index[2], 'ENSMUSG00000025911_2')
 
     def test_number_of_features(self) -> None:
         """
