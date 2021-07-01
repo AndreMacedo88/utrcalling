@@ -65,13 +65,13 @@ def generate_utr_name(utr_bed):
     name_previous = ''
     for row in utr_bed.itertuples():
         name_next = row.name
-        if row.name == name_previous:
+        if name_next == name_previous:
             counter += 1
-            name_next = f'{name_next}_{counter}'
+            name = f'{name_next}_{counter}'
         else:
             counter = 1
-        names_list.append(name_next)
-        name_previous = name_next
+            name = name_previous = name_next
+        names_list.append(name)
     utr_bed['utr_name'] = names_list
     utr_bed = utr_bed.set_index('utr_name')
     utr_bed.sort_values(by=['chrom', 'start'], inplace=True)
