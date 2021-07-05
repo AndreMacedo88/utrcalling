@@ -12,7 +12,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import peak_calling, utr_mapping, platforms
+from utrcalling import peak_calling, utr_mapping, platforms, storage
 
 
 class TestPeakCalling(unittest.TestCase):
@@ -292,6 +292,23 @@ class TestWithObs(TestGenerateCountMatrixAnndata):
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.obs)
         self.assertEqual(non_zeros_count, 3042)
+
+
+class TestCallPeaks():
+    def setUp(self) -> None:
+        st_pos = [20,20,21,50,50,50,70,70,60,55,70,19,49]
+
+        read_information = storage.MappedReadInformation()
+        read_information.read_start_positions.append()
+        read_information.read_strands.append()
+        read_information.read_barcodes.append()
+        read_information.read_umis.append()
+        read_information.read_lengths.append()
+        read_information.utr_sizes_from_reads.append()
+        self.utr = storage.UtrMappings()
+
+        self.func = peak_calling.call_peaks_using_kernel_density_estimator
+
 
 
 if __name__ == '__main__':

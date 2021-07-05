@@ -62,18 +62,9 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
     logger = module_logger()
     logger.info('Subsetting UTR reference data')
 
-    # pd.set_option('display.max_rows', 1000)
-    pd.set_option('display.max_columns', 20)
-    logger.debug(len(utr_sizes.utr_ids))
-    logger.debug(len(set(utr_sizes.utr_ids)))
-    logger.debug('______________________________________________________')
-    logger.debug(len(utr_reference_regions.index))
-    logger.debug(utr_reference_regions.index.is_unique)
-    logger.debug(len(utr_reference_regions.loc[utr_reference_regions.index.duplicated(keep=False), :]))
-    logger.debug(utr_reference_regions.loc[utr_reference_regions.index.duplicated(keep=False), :])
-
     sub_utr_reference = utr_reference_regions.filter(
         items=utr_sizes.utr_ids, axis=0)
+    
     return sub_utr_reference
 
 
@@ -210,6 +201,7 @@ def generate_peak_counts(utr_sizes, annotations=None,
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
     count_matrix = count_matrix.T
+    
     if annotations is not None:
         peaks_obs = annotations.set_index(annotations.columns[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
@@ -259,9 +251,12 @@ def call_peaks(utr, func, cell_barcodes):
 
 
 def add_to_peaks_var(peak_var, annotations):
+    logger = module_logger()
+    logger.info('Adding reference annotations to the final result')
+
     new_peaks_var = pd.DataFrame()
     for index, utr in annotations.iterrows():
-        peak_var_2 = peak_var[peak_var.index.str.startswith(index)]
+        peak_var_2 = peak_var[peak_var.index.str.match(f'{index}(?=[$|-])')]
         for index_2, peak in peak_var_2.iterrows():
             new_row = peak.append(utr, ignore_index=False)
             new_row.name = index_2
@@ -272,6 +267,7 @@ def add_to_peaks_var(peak_var, annotations):
 def generate_count_matrix_anndata(count_matrix, var, obs=None):
     logger = module_logger()
     logger.info('Generating Count Matrix')
+
     count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs)
     return count_matrix_anndata
 

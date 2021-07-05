@@ -6,7 +6,7 @@ import pickle
 import pybedtools
 import pandas as pd
 
-from utrcalling import core
+from utrcalling import core, helpers
 from utrcalling.module_log import module_logger
 
 
@@ -44,12 +44,15 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
     elif utr_annotation.endswith('.bed'):
         utr_reference_annotations = pybedtools.BedTool(utr_annotation)
     else:
-        raise RuntimeError(f'Reference file {utr_annotation} is of a not recognized type')
+        raise RuntimeError(
+            f'Reference file {utr_annotation} is of a not recognized type')
 
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts_open, utr_reference_annotations, annotations=single_cell_annotation)
+
+    helpers.log_metrics_anndata(count_matrix_anndata)
 
     count_matrix_anndata.write(filename=out)
 
@@ -91,7 +94,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.utr_annotation, args.genome, args.alignments, feature=args.three_prime_utr,
+    main(args.utr_annotation, args.utr_sizes_counts,
          single_cell_annotation=args.single_cell_annotation,
-         protocol_version=args.protocol_version, out=args.out
+         log_level=args.log_level,
+         out=args.out
          )

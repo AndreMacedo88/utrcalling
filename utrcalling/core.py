@@ -12,6 +12,7 @@ Observations:
 genomic coordinates (GRanges obj) and 3'UTR sequence information.
 """
 
+from utrcalling.module_log import module_logger
 import pandas as pd
 import pybedtools
 
@@ -64,9 +65,12 @@ def map_aligned_reads(alignments, utr_regions, protocol_platform="10x",
 
 
 def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
-    if isinstance(utr_sizes_counts, list):
+    logger = module_logger()
+    if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts)
-        utr_sizes_counts.export('UTR_sizes_counts_merged.pkl')
+        # utr_sizes_counts.export('UTR_sizes_counts_merged.pkl')
+    elif isinstance(utr_sizes_counts, list):
+        utr_sizes_counts = utr_sizes_counts[0]
 
     utr_reference_subset = subset_reference_data(
         utr_sizes_counts, utr_reference_regions)
@@ -80,13 +84,24 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None):
     if annotations is not None:
         annotations = pd.read_csv(annotations)
         filtered_positions = filter_barcodes(filtered_positions, annotations)
-    peaks_count_matrix, peaks_obs, peaks_var = generate_peak_counts(
+        
+    peaks_count_matrix, peaks_var, peaks_obs = generate_peak_counts(
         filtered_positions, annotations=annotations)
 
     del filtered_positions  # to save memory
 
+    logger.debug(f'len before adding: {len(peaks_var)}')
+    logger.debug(f'Is unique before adding? {peaks_var.index.is_unique}')
+
+    # append some reference information to the new UTR peaks
     peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)
 
+    logger.debug(f'len after adding: {len(peaks_var)}')
+    logger.debug(f'Is unique before adding? {peaks_var.index.is_unique}')
+    logger.debug(f'Not unique: {peaks_var[peaks_var.index.duplicated(keep=False)].index.tolist()}')
+
+    logger.debug(f'Count matrix shape: {peaks_count_matrix.shape}')
+
     count_matrix_anndata = generate_count_matrix_anndata(
-        peaks_count_matrix, peaks_obs, peaks_var)
+        peaks_count_matrix, peaks_var, obs=peaks_obs)
     return count_matrix_anndata

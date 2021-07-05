@@ -1,6 +1,8 @@
 from collections.abc import Iterable
 import os
 
+from utrcalling.module_log import module_logger
+
 
 def flatten(l):
     """
@@ -41,3 +43,11 @@ def to_string(x):
         str 
     """
     return repr(x)[2:-1]
+
+
+def log_metrics_anndata(adata):
+    logger = module_logger()
+    metrics = f'Called {adata.X.shape[1]} peaks '
+    f'in {adata.X.shape[1]} cells'
+    logger.info(metrics)
+    logger.info(adata)

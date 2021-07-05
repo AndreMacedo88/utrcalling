@@ -3,7 +3,7 @@ sys.path.append('../')
 import argparse
 import ast
 
-from utrcalling import core
+from utrcalling import core, helpers
 from utrcalling.module_log import module_logger
 
 
@@ -56,6 +56,8 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, annotations=single_cell_annotation)
+
+    helpers.log_metrics_anndata(count_matrix_anndata)
 
     count_matrix_anndata.write(filename=out)
 
@@ -123,6 +125,9 @@ if __name__ == "__main__":
 
     main(args.utr_annotation, args.genome, args.alignments, feature=args.three_prime_utr,
          single_cell_annotation=args.single_cell_annotation,
+         protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
+         store_intermediate=args.store_intermediate,
+         log_level=args.log_level,
          out=args.out
          )
