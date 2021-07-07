@@ -1,5 +1,6 @@
 from functools import partial
 import pickle
+from statistics import mode
 
 import joblib
 import pandas as pd
@@ -15,7 +16,7 @@ from .helpers import flatten, get_number_cores
 from .module_log import module_logger
 
 
-def merge_samples_utr_sizes(utr_sizes):
+def merge_samples_utr_sizes(utr_sizes, method='intercept'):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
     compare, so that peaks get called with the pseudo-bulk data from all samples.
@@ -39,7 +40,6 @@ def merge_samples_utr_sizes(utr_sizes):
 
     logger.info("Merging all samples' UTR sizes")
 
-    # merge the datasets
     sample_counter = 1
     position_counts_merged = None
     for position_counts in tqdm(utr_sizes):
@@ -47,58 +47,15 @@ def merge_samples_utr_sizes(utr_sizes):
         if isinstance(utr_sizes, str):
             with open(utr_sizes, "rb") as input_file:
                 position_counts = pickle.load(input_file)
-                
+        # add a counter to the barcode to separate samples from different sources
         changed = position_counts.filter(
             lambda x: x.each(add_counter_to_barcode, sample_counter))
+        # merge the datasets
         if position_counts_merged is not None:
-            position_counts_merged = position_counts_merged.merge(changed)
+            position_counts_merged = position_counts_merged.merge(changed, method=method)
         else:
             position_counts_merged = changed
         sample_counter += 1
-
-    return position_counts_merged
-
-
-def merge_samples_utr_sizes_2(utr_sizes):
-    """
-    Before calling peaks from position counts, we should merge the datasets we want to
-    compare, so that peaks get called with the pseudo-bulk data from all samples.
-    Merging appends both samples information for each UTR, while discarding UTRs that 
-    only one sample mapped to.
-    If you want to call peaks for a single sample, skip this function.
-
-    Args:
-        utr_positions_counts (list): List with the objects containing the position
-        counts for each sample.
-
-    Returns:
-        UtrMappings: The merged datasets.
-    """
-    logger = module_logger()
-
-    def add_counter_to_barcode(x, counter):
-        x["read_barcodes"] = [
-            f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
-        return x
-
-    logger.info("Merging all samples' UTR sizes")
-
-    # first we need to change the barcode names of our samples to identify each sample
-    sample_counter = 1
-    barcode_modified_utr_sizes = []
-    for position_counts in tqdm(utr_sizes):
-        changed = position_counts.filter(
-            lambda x: x.each(add_counter_to_barcode, sample_counter))
-        sample_counter += 1
-        barcode_modified_utr_sizes.append(changed)
-
-    # Before merging delete some big objects because of memory size issues
-    del utr_sizes
-    del changed
-
-    # merge the two datasets
-    position_counts_merged = \
-        barcode_modified_utr_sizes[0].merge(barcode_modified_utr_sizes[1])
 
     return position_counts_merged
 
@@ -109,7 +66,7 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
 
     sub_utr_reference = utr_reference_regions.filter(
         items=utr_sizes.utr_ids, axis=0)
-    
+
     return sub_utr_reference
 
 
@@ -246,7 +203,7 @@ def generate_peak_counts(utr_sizes, annotations=None,
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
     count_matrix = count_matrix.T
-    
+
     if annotations is not None:
         peaks_obs = annotations.set_index(annotations.columns[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
@@ -263,7 +220,7 @@ def call_peaks(utr, func, cell_barcodes):
     info = pd.DataFrame.from_dict(utr.__dict__)
     # similar UMIs refer to the same event (molecule), and so we take the median
     info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])[
-        'utr_sizes_from_reads'].transform('median')
+        'utr_sizes_from_reads'].transform(mode)
     info = info.drop_duplicates()
 
     utr_sizes_vector = info['utr_sizes_from_reads'].values.reshape(-1, 1)
@@ -320,6 +277,49 @@ def generate_count_matrix_anndata(count_matrix, var, obs=None):
 
 
 """
+def merge_samples_utr_sizes_2(utr_sizes):
+    "
+    Before calling peaks from position counts, we should merge the datasets we want to
+    compare, so that peaks get called with the pseudo-bulk data from all samples.
+    Merging appends both samples information for each UTR, while discarding UTRs that 
+    only one sample mapped to.
+    If you want to call peaks for a single sample, skip this function.
+
+    Args:
+        utr_positions_counts (list): List with the objects containing the position
+        counts for each sample.
+
+    Returns:
+        UtrMappings: The merged datasets.
+    "
+    logger = module_logger()
+
+    def add_counter_to_barcode(x, counter):
+        x["read_barcodes"] = [
+            f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
+        return x
+
+    logger.info("Merging all samples' UTR sizes")
+
+    # first we need to change the barcode names of our samples to identify each sample
+    sample_counter = 1
+    barcode_modified_utr_sizes = []
+    for position_counts in tqdm(utr_sizes):
+        changed = position_counts.filter(
+            lambda x: x.each(add_counter_to_barcode, sample_counter))
+        sample_counter += 1
+        barcode_modified_utr_sizes.append(changed)
+
+    # Before merging delete some big objects because of memory size issues
+    del utr_sizes
+    del changed
+
+    # merge the two datasets
+    position_counts_merged = \
+        barcode_modified_utr_sizes[0].merge(barcode_modified_utr_sizes[1])
+
+    return position_counts_merged
+
 def filter_barcodes_parallel(utr_sizes, annotations):
     
     def filter_and_correct_barcodes(utr, barcodes_dict):

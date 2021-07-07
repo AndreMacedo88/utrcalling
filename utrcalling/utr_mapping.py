@@ -42,16 +42,19 @@ def map_reads_to_utr(bam, intervals, platform, read='first'):
             else:
                 read_info = extract_read_information(alignment=alignment,
                                                      interval=interval, platform=platform)
-                mapped_read_information.read_start_positions.append(read_info[0])
+                mapped_read_information.read_start_positions.append(
+                    read_info[0])
                 mapped_read_information.read_strands.append(read_info[1])
                 # mapped_read_information.read_sequences.append(read_info[2])
                 mapped_read_information.read_barcodes.append(read_info[2])
                 mapped_read_information.read_umis.append(read_info[3])
                 mapped_read_information.read_lengths.append(read_info[4])
-                mapped_read_information.utr_sizes_from_reads.append(read_info[5])
+                mapped_read_information.utr_sizes_from_reads.append(
+                    read_info[5])
 
         if mapped_read_information:
-            utr_mappings[name] = mapped_read_information
+            mapped_read_information_unique_umis = mapped_read_information.get_unique_umis()
+            utr_mappings[name] = mapped_read_information_unique_umis
 
     logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
         \n\nMemory usage:{psutil.virtual_memory().percent}')

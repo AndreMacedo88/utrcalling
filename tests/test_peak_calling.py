@@ -23,9 +23,9 @@ class TestPeakCalling(unittest.TestCase):
             utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        platform = platforms.Platform(platform='10x', version=2)
+        cls.protocol = platforms.Platform(platform='10x', version=2)
         cls.mappings = [
-            utr_mapping.map_reads_to_utr(alignment, intervals, platform,
+            utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,
                                                                          alignment_2]
         ]
@@ -33,7 +33,8 @@ class TestPeakCalling(unittest.TestCase):
 
 class TestMergeSamplesUtrSizes(TestPeakCalling):
     def setUp(self) -> None:
-        self.merged = peak_calling.merge_samples_utr_sizes(self.mappings)
+        self.merged = peak_calling.merge_samples_utr_sizes(self.mappings,
+                                                           method=self.protocol)
 
     def test_details(self):
         details_true = {
@@ -296,7 +297,7 @@ class TestWithObs(TestGenerateCountMatrixAnndata):
 
 class TestCallPeaks():
     def setUp(self) -> None:
-        st_pos = [20,20,21,50,50,50,70,70,60,55,70,19,49]
+        st_pos = [20, 20, 21, 50, 50, 50, 70, 70, 60, 55, 70, 19, 49]
 
         read_information = storage.MappedReadInformation()
         read_information.read_start_positions.append()
@@ -308,7 +309,6 @@ class TestCallPeaks():
         self.utr = storage.UtrMappings()
 
         self.func = peak_calling.call_peaks_using_kernel_density_estimator
-
 
 
 if __name__ == '__main__':

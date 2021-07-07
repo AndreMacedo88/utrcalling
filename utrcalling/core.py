@@ -19,7 +19,6 @@ import pandas as pd
 import pybedtools
 
 from utrcalling import helpers
-from .platforms import Platform
 from .utr_reference import (
     generate_utr_name, extract_feature, prepare_annotations_index, reduce_regions,
     generate_utr_name, correct_column_names
@@ -31,7 +30,7 @@ from .peak_calling import (
 )
 
 
-def prepare_utr_reference_regions(gtf, feature, genome=''):
+def prepare_utr_reference_regions(gtf, feature, genome='', store=False):
     # extract 3'UTRs from all the features in the GTF file
     utr = extract_feature(gtf, feature)
     # sort by chr and start for bed merge
@@ -47,14 +46,16 @@ def prepare_utr_reference_regions(gtf, feature, genome=''):
 
     utr_reduced = generate_utr_name(utr_reduced)
     utr_reduced = correct_column_names(utr_reduced)
+
+    if store:
+        utr_reduced.to_pickle("utr_reference_regions.pkl")
+
     return utr_reduced
 
 
-def map_aligned_reads(alignments, utr_regions, protocol_platform="10x",
-                      protocol_version=3, store=False):
-    intervals = generate_utr_intervals(utr_regions)
+def map_aligned_reads(alignments, utr_regions, protocol, store=False):
 
-    protocol = Platform(protocol_platform, protocol_version)
+    intervals = generate_utr_intervals(utr_regions)
 
     if store:
         filename = "UTR_sizes_counts"
@@ -82,11 +83,13 @@ def map_aligned_reads(alignments, utr_regions, protocol_platform="10x",
     return read_mappings
 
 
-def call_peaks(utr_sizes_counts, utr_reference_regions, annotations=None, store=False):
+def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
+               annotations=None, store=False):
     logger = module_logger()
 
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
-        utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts)
+        utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
+                                                   method=protocol.merge_method)
         if store:
             directory = './intermediate'
             helpers.check_exists_and_store(directory)

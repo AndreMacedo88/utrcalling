@@ -3,7 +3,7 @@ sys.path.append('../')
 import argparse
 import ast
 
-from utrcalling import core, helpers
+from utrcalling import core, helpers, platforms
 from utrcalling.module_log import module_logger
 
 
@@ -28,25 +28,26 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
     for arg, value in locals().items():
         logger.info(f'Argument {arg}: {value}\n')
 
+    # set up the protocol for this specific run
+    protocol = platforms.Platform(protocol_platform, int(protocol_version))
+
     # get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
     utr_reference_regions = core.prepare_utr_reference_regions(utr_annotation,
-                                                               feature)
-    if store_intermediate:
-        utr_reference_regions.to_pickle("utr_reference_regions.pkl")
+                                                               feature,
+                                                               store=store_intermediate)
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')
     alignments_list = helpers.get_alignment_paths_from_folders(alignments)
     utr_sizes_counts = core.map_aligned_reads(
-        alignments_list, utr_reference_regions, protocol_platform=protocol_platform,
-        protocol_version=int(protocol_version), store=store_intermediate)
+        alignments_list, utr_reference_regions, protocol, store=store_intermediate)
 
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
-        utr_sizes_counts, utr_reference_regions, annotations=single_cell_annotation,
-        store=store_intermediate)
+        utr_sizes_counts, utr_reference_regions, protocol,
+        annotations=single_cell_annotation, store=store_intermediate)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
