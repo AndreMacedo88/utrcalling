@@ -1,4 +1,5 @@
 from functools import partial
+import pickle
 
 import joblib
 import pandas as pd
@@ -15,6 +16,50 @@ from .module_log import module_logger
 
 
 def merge_samples_utr_sizes(utr_sizes):
+    """
+    Before calling peaks from position counts, we should merge the datasets we want to
+    compare, so that peaks get called with the pseudo-bulk data from all samples.
+    Merging appends both samples information for each UTR, while discarding UTRs that 
+    only one sample mapped to.
+    If you want to call peaks for a single sample, skip this function.
+
+    Args:
+        utr_positions_counts (list): List with the objects containing the position
+        counts for each sample.
+
+    Returns:
+        UtrMappings: The merged datasets.
+    """
+    logger = module_logger()
+
+    def add_counter_to_barcode(x, counter):
+        x["read_barcodes"] = [
+            f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
+        return x
+
+    logger.info("Merging all samples' UTR sizes")
+
+    # merge the datasets
+    sample_counter = 1
+    position_counts_merged = None
+    for position_counts in tqdm(utr_sizes):
+
+        if isinstance(utr_sizes, str):
+            with open(utr_sizes, "rb") as input_file:
+                position_counts = pickle.load(input_file)
+                
+        changed = position_counts.filter(
+            lambda x: x.each(add_counter_to_barcode, sample_counter))
+        if position_counts_merged is not None:
+            position_counts_merged = position_counts_merged.merge(changed)
+        else:
+            position_counts_merged = changed
+        sample_counter += 1
+
+    return position_counts_merged
+
+
+def merge_samples_utr_sizes_2(utr_sizes):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
     compare, so that peaks get called with the pseudo-bulk data from all samples.

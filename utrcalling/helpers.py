@@ -1,5 +1,6 @@
 from collections.abc import Iterable
 import os
+from pathlib import Path
 
 from utrcalling.module_log import module_logger
 
@@ -51,3 +52,15 @@ def log_metrics_anndata(adata):
     f'in {adata.X.shape[1]} cells'
     logger.info(metrics)
     logger.info(adata)
+
+
+def get_alignment_paths_from_folders(folders_path):
+    file_list = []
+    for path in Path(folders_path).rglob('*.bam'):
+        file_list.append(os.path.join(folders_path, path))
+    return file_list
+
+
+def check_exists_and_store(folders_path):
+    if not os.path.exists(folders_path):
+        os.makedirs(folders_path)

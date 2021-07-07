@@ -3,6 +3,8 @@ File containing objects and functions specific for each supported sequencing pla
 
 """
 
+from os import read
+
 from .module_log import module_logger
 from .helpers import to_string
 
@@ -26,11 +28,9 @@ class Platform:
                 self.logger.error(version_fail)
                 raise RuntimeError(version_fail)
 
-        elif platform.lower() in ('smart-seq', 'smartseq'):
+        elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
             if version == 3:
-                self.get_reads_identity = self.get_reads_identity_smartseq_3
-            elif version == 2:
-                pass
+                self.get_reads_identity = self.get_reads_identity_smartseq_3_bulk
             else:
                 version_fail = f'Smart-seq protocol version {version} \
                     currently not supported'
@@ -55,7 +55,11 @@ class Platform:
         return read_umi, read_barcode
 
     @staticmethod
-    def get_reads_identity_smartseq_3(alignment):
-        read_barcode = "test"
-        read_umi = to_string(alignment.read.seq[17:24])  # 8 bp UMI
-        return read_umi, read_barcode
+    def get_reads_identity_smartseq_3_bulk(alignment):
+        read_sample_id = 'S'
+
+        read_seq = to_string(alignment.read.name)
+        read_umi = read_seq.split('_')[1]
+        assert(len(read_umi) == 8)  # 8 bp UMI
+
+        return read_umi, read_sample_id

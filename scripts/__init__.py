@@ -1,1 +1,1 @@
-from . import run, call_peaks
+from . import run, call_peaks, run_smart_seq_cap

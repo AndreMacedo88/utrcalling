@@ -18,8 +18,15 @@ def run_tests(args=None):
 
 
 def run(args=None):
-    kwargs_new = _parse_unknown_args(args, 2, keywords=scripts.run.keyword_args)
-    scripts.run.main(args[0], args[1], **kwargs_new)
+    kwargs_new = _parse_unknown_args(
+        args, 1, keywords=scripts.run.keyword_args)
+    scripts.run.main(args[0], **kwargs_new)
+
+
+def run_smart_seq_cap(args=None):
+    kwargs_new = _parse_unknown_args(
+        args, 1, keywords=scripts.run.keyword_args)
+    scripts.run_smart_seq_cap.main(args[0], **kwargs_new)
 
 
 def call_peaks(args=None):
@@ -83,7 +90,7 @@ def main(process, unknown_arguments, possibilities):
 
 
 if __name__ == "__main__":
-    list_of_processes = ["run_tests", "run", "call_peaks"]
+    list_of_processes = ["run_tests", "run", "call_peaks", "run_smart_seq_cap"]
     # standard_run("/mnt/o_drive/andre/projects/3utr/youngNSC/Mus_musculus.GRCm39.104.gtf.gz")
     parser = argparse.ArgumentParser(description="""
     Utility script for easy access to most of the VEnCode scripts and

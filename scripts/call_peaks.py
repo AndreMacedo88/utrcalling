@@ -45,7 +45,7 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
         utr_reference_annotations = pybedtools.BedTool(utr_annotation)
     else:
         raise RuntimeError(
-            f'Reference file {utr_annotation} is of a not recognized type')
+            f'Reference file {utr_annotation} is of a not recognized type.')
 
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')

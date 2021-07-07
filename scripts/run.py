@@ -7,7 +7,7 @@ from utrcalling import core, helpers
 from utrcalling.module_log import module_logger
 
 
-def main(utr_annotation, genome, alignments, feature='three_prime_utr',
+def main(utr_annotation, alignments, feature='three_prime_utr',
          single_cell_annotation=None, protocol_platform="10x", protocol_version=3,
          store_intermediate=False, log_level='info', out='UTR_results.h5ad'):
     """
@@ -15,7 +15,6 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
 
     Args:
         utr_annotation (str): [description]
-        genome (str): [description]
         alignments (str): [description]
         feature (str, optional): [description]. Defaults to 'three_prime_utr'.
         single_cell_annotation (str, optional): [description]. Defaults to None.
@@ -32,8 +31,8 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
 
     # get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
-    utr_reference_regions = core.prepare_utr_reference_regions(utr_annotation, genome,
-                                                               feature)
+    utr_reference_regions = core.prepare_utr_reference_regions(
+        utr_annotation, feature)
     if store_intermediate:
         utr_reference_regions.to_pickle("utr_reference_regions.pkl")
 
@@ -55,7 +54,8 @@ def main(utr_annotation, genome, alignments, feature='three_prime_utr',
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
-        utr_sizes_counts, utr_reference_regions, annotations=single_cell_annotation)
+        utr_sizes_counts, utr_reference_regions, annotations=single_cell_annotation,
+        store=store_intermediate)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
@@ -73,15 +73,12 @@ if __name__ == "__main__":
         Runs the entire UTR calling pipeline.
         Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
         Example on how to use in command-line:
-        $ python run.py mus_musculus.gtf mus_musculus.fasta 
+        $ python run.py mus_musculus.gtf 
             -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2 
             -i False -s experiment.csv -o results.h5ad
         """)
     parser.add_argument("utr_annotation", type=str,
                         help="GTF file with the genome annotations")
-
-    parser.add_argument("genome", type=str,
-                        help="File with the genomic sequences")
 
     parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
         File, or files with the read alignments. One alignment per sample should be 
@@ -123,7 +120,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.utr_annotation, args.genome, args.alignments, feature=args.three_prime_utr,
+    main(args.utr_annotation, args.alignments, feature=args.three_prime_utr,
          single_cell_annotation=args.single_cell_annotation,
          protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
