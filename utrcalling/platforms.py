@@ -54,20 +54,22 @@ class Platform:
             raise RuntimeError(platform_fail)
 
     @staticmethod
-    def get_reads_identity_tenx_2(alignment):
+    def get_reads_identity_tenx_2(alignment, **kwargs):
         read_barcode = to_string(alignment.read.seq[:16])
         read_umi = to_string(alignment.read.seq[17:26])  # 10 bp UMI
         return read_umi, read_barcode
 
     @staticmethod
-    def get_reads_identity_tenx_3(alignment):
+    def get_reads_identity_tenx_3(alignment, **kwargs):
         read_barcode = to_string(alignment.read.seq[:16])
         read_umi = to_string(alignment.read.seq[17:28])  # 12 bp UMI
         return read_umi, read_barcode
 
     @staticmethod
-    def get_reads_identity_smartseq_3_bulk(alignment):
-        read_sample_id = 'S'
+    def get_reads_identity_smartseq_3_bulk(alignment, **kwargs):
+        read_sample_id = kwargs.get('sample', 'S')
+        if read_sample_id is None:
+            read_sample_id = 'S'
 
         read_seq = to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]

@@ -40,8 +40,11 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')
     alignments_list = helpers.get_paths_from_folders(alignments, suffix='.bam')
+    parents = [helpers.get_parent_folders_names_from_file(file_path) for file_path in alignments_list]
+
     utr_sizes_counts = core.map_aligned_reads(
-        alignments_list, utr_reference_regions, protocol, store=store_intermediate)
+        alignments_list, utr_reference_regions, protocol, store=store_intermediate, 
+        samples=parents)
 
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')

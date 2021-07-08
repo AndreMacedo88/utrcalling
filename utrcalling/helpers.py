@@ -65,6 +65,12 @@ def get_paths_from_folders(folders_path, suffix='.bam'):
     return file_list
 
 
+def get_parent_folders_names_from_file(file_path):
+    path = os.path.normpath(file_path)
+    parent = path.split(os.sep)[-2]
+    return parent
+
+
 def check_if_exists_and_mkdir(folders_path):
     if not os.path.exists(folders_path):
         os.makedirs(folders_path)

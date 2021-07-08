@@ -52,31 +52,35 @@ def prepare_utr_reference_regions(gtf, feature, genome='', store=False):
     return utr_reduced
 
 
-def map_aligned_reads(alignments, utr_regions, protocol, store=False):
+def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=None):
 
     intervals = generate_utr_intervals(utr_regions)
 
+    counter = 1
     if store:
         filename = "UTR_sizes_counts"
-        counter = 1
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
     if isinstance(alignments, (list, tuple)):
         read_mappings = []
         for alignment in alignments:
+            if samples is not None:
+                sample = samples[counter - 1]
+            else:
+                sample = samples
             utr_sizes_counts = map_reads_to_utr(
-                alignment, intervals, read='first', platform=protocol)
+                alignment, intervals, read='first', platform=protocol, sample=sample)
             if store:
                 file_path = os.path.join(
                     directory, f'{filename}_{counter}.pkl')
                 utr_sizes_counts.export(file_path)
-                counter += 1
                 read_mappings.append(file_path)
             else:
                 read_mappings.append(utr_sizes_counts)
+            counter += 1
     else:
         read_mappings = map_reads_to_utr(
-            alignments, intervals, read='first', platform=protocol)
+            alignments, intervals, read='first', platform=protocol, sample=samples)
         if store:
             read_mappings.export(os.path.join(directory, f'{filename}.pkl'))
     return read_mappings

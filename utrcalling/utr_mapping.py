@@ -20,7 +20,7 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 
-def map_reads_to_utr(bam, intervals, platform, read='first'):
+def map_reads_to_utr(bam, intervals, platform, read='first', sample=None):
     logger = module_logger()
     logger.info(
         f'Extracting reads from {bam} and mapping them to the reference UTR')
@@ -42,7 +42,9 @@ def map_reads_to_utr(bam, intervals, platform, read='first'):
                 continue
             else:
                 read_info = extract_read_information(alignment=alignment,
-                                                     interval=interval, platform=platform)
+                                                     interval=interval,
+                                                     platform=platform,
+                                                     sample=sample)
                 mapped_read_information.read_start_positions.append(
                     read_info[0])
                 mapped_read_information.read_strands.append(read_info[1])
@@ -63,7 +65,7 @@ def map_reads_to_utr(bam, intervals, platform, read='first'):
     return utr_mappings
 
 
-def extract_read_information(alignment, interval, platform):
+def extract_read_information(alignment, interval, platform, sample=None):
     """
     Extracts all the relevant information from matching reads in a HTSeq.Alignment object.
 
@@ -106,7 +108,8 @@ def extract_read_information(alignment, interval, platform):
                 alignment.read.seq[-query_to:-query_from])
 
     # get the read's cell barcode and UMI
-    read_umi, read_barcode = platform.get_reads_identity(alignment=alignment)
+    read_umi, read_barcode = platform.get_reads_identity(alignment=alignment,
+                                                         sample=sample)
 
     # get read length
     read_length = len(read_sequence)
