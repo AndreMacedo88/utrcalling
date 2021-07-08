@@ -9,11 +9,10 @@ genomic coordinates
 Observations:
 - Final object should be a count matrix in AnnData format.
 - Output should inherit single cell annotations, as well as gene annotation like the 
-genomic coordinates (GRanges obj) and 3'UTR sequence information.
+genomic coordinates and optionally UTR sequence information.
 """
 
 import os
-import pickle
 
 import pandas as pd
 import pybedtools
@@ -61,7 +60,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
         filename = "UTR_sizes_counts"
         counter = 1
         directory = './intermediate'
-        helpers.check_exists_and_store(directory)
+        helpers.check_if_exists_and_mkdir(directory)
     if isinstance(alignments, (list, tuple)):
         read_mappings = []
         for alignment in alignments:
@@ -87,42 +86,54 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
                annotations=None, store=False):
     logger = module_logger()
 
+    # if more than one counts file is provided, they must be merged before peak calling
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
                                                    method=protocol.merge_method)
         if store:
             directory = './intermediate'
-            helpers.check_exists_and_store(directory)
+            helpers.check_if_exists_and_mkdir(directory)
             utr_sizes_counts.export(os.path.join(
                 directory, 'UTR_sizes_counts_merged.pkl'))
     elif isinstance(utr_sizes_counts, list):
         utr_sizes_counts = utr_sizes_counts[0]
-    if isinstance(utr_sizes_counts, str):
-        with open(utr_sizes_counts, "rb") as input_file:
-            utr_sizes_counts = pickle.load(input_file)
 
+    # utr_size_counts can still be a path if merging was not applied
+    utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts, method='pickle')
+
+    # if we are to add the reference data to the results later, we must subset the UTRs
     utr_reference_subset = subset_reference_data(
         utr_sizes_counts, utr_reference_regions)
 
     del utr_reference_regions  # to save memory
 
+    # get only utr sizes bigger than 1bp
     filtered_positions = filter_utr_sizes(utr_sizes_counts)
 
     del utr_sizes_counts  # to save memory
 
+    # if we have a table with a specific set of barcodes/sampleIDs, retain only those
     if annotations is not None:
         annotations = pd.read_csv(annotations)
         filtered_positions = filter_barcodes(filtered_positions, annotations)
 
-    peaks_count_matrix, peaks_var, peaks_obs = generate_peak_counts(
+    # calculate broad peaks based on individual UMI utr sizes
+    peaks_count_matrix, peaks_var_and_obs = generate_peak_counts(
         filtered_positions, annotations=annotations)
 
     del filtered_positions  # to save memory
 
+    if isinstance(peaks_var_and_obs, (tuple, list)):
+        peaks_var = peaks_var_and_obs[0]
+        peaks_obs = peaks_var_and_obs[1]
+    else:
+        peaks_var = peaks_var_and_obs
+        peaks_obs = None
+
     logger.debug(f'len before adding: {len(peaks_var)}')
     logger.debug(f'Is unique before adding? {peaks_var.index.is_unique}')
 
-    # append some reference information to the new UTR peaks
+    # append the reference information to the new UTR peaks
     peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)
 
     logger.debug(f'len after adding: {len(peaks_var)}')
@@ -132,6 +143,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
 
     logger.debug(f'Count matrix shape: {peaks_count_matrix.shape}')
 
+    # merge results and annotations into
     count_matrix_anndata = generate_count_matrix_anndata(
         peaks_count_matrix, peaks_var, obs=peaks_obs)
     return count_matrix_anndata

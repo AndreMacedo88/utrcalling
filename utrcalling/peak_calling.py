@@ -1,5 +1,4 @@
 from functools import partial
-import pickle
 from statistics import mode
 
 import joblib
@@ -12,8 +11,7 @@ import anndata
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
-from .helpers import flatten, get_number_cores
-from .module_log import module_logger
+from utrcalling import helpers, module_log
 
 
 def merge_samples_utr_sizes(utr_sizes, method='intercept'):
@@ -31,7 +29,7 @@ def merge_samples_utr_sizes(utr_sizes, method='intercept'):
     Returns:
         UtrMappings: The merged datasets.
     """
-    logger = module_logger()
+    logger = module_log.module_logger()
 
     def add_counter_to_barcode(x, counter):
         x["read_barcodes"] = [
@@ -43,13 +41,13 @@ def merge_samples_utr_sizes(utr_sizes, method='intercept'):
     sample_counter = 1
     position_counts_merged = None
     for position_counts in tqdm(utr_sizes):
+        # account for those instances where utr_sizes are a list of paths
+        position_counts = helpers.check_if_path_and_open(position_counts, method='pickle')
 
-        if isinstance(utr_sizes, str):
-            with open(utr_sizes, "rb") as input_file:
-                position_counts = pickle.load(input_file)
         # add a counter to the barcode to separate samples from different sources
         changed = position_counts.filter(
             lambda x: x.each(add_counter_to_barcode, sample_counter))
+
         # merge the datasets
         if position_counts_merged is not None:
             position_counts_merged = position_counts_merged.merge(changed, method=method)
@@ -61,7 +59,7 @@ def merge_samples_utr_sizes(utr_sizes, method='intercept'):
 
 
 def subset_reference_data(utr_sizes, utr_reference_regions):
-    logger = module_logger()
+    logger = module_log.module_logger()
     logger.info('Subsetting UTR reference data')
 
     sub_utr_reference = utr_reference_regions.filter(
@@ -70,19 +68,19 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
     return sub_utr_reference
 
 
-def filter_utr_sizes(utr_sizes):
-    logger = module_logger()
+def filter_utr_sizes(utr_sizes, amount=1):
+    logger = module_log.module_logger()
     logger.info('Filtering samples UTR sizes')
 
-    def filter_func(x, amount):
+    def filter_func(x, amount_):
         condition_1 = [True if i >
-                       amount else False for i in x['utr_sizes_from_reads']]
-        # condition_2 = [True if i == amount else False for i in x['read_strands']]
+                       amount_ else False for i in x['utr_sizes_from_reads']]
+        # condition_2 = [True if i == amount_ else False for i in x['read_strands']]
         # condition_final = [all(items) for items in zip(condition_1, condition_2)]
         return condition_1
 
     filtered = utr_sizes.filter(
-        lambda x: x.filter(filter_func, 1))
+        lambda x: x.filter(filter_func, amount))
     return filtered
 
 
@@ -103,7 +101,7 @@ def filter_barcodes(utr_sizes, annotations, parallel=False):
         filtered['read_barcodes'] = list(filter(None, new_barcodes))
         return filtered
 
-    logger = module_logger()
+    logger = module_log.module_logger()
     logger.info('Filtering cell barcodes')
 
     if isinstance(annotations, (pd.DataFrame, pd.Series)):
@@ -113,7 +111,7 @@ def filter_barcodes(utr_sizes, annotations, parallel=False):
 
     # Note that barcodes must be on the first column of the annotations file:
     barcodes_real = annotations_df.iloc[:, 0].tolist()
-    barcodes_to_test = set(flatten(utr_sizes.read_barcodes))
+    barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
 
     barcodes_dict = {}
     for barcode in barcodes_to_test:
@@ -181,10 +179,11 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
 def generate_peak_counts(utr_sizes, annotations=None,
                          func=call_peaks_using_kernel_density_estimator):
 
-    logger = module_logger()
+    logger = module_log.module_logger()
     logger.info('Generating and counting UTR size peaks')
+
     # get list of the unique barcodes (cells)
-    cell_barcodes = set(flatten(utr_sizes.read_barcodes))
+    cell_barcodes = set(helpers.flatten(utr_sizes.read_barcodes))
     # open the annotations file
     if annotations is not None:
         if isinstance(annotations, (pd.DataFrame, pd.Series)):
@@ -193,7 +192,7 @@ def generate_peak_counts(utr_sizes, annotations=None,
             annotations = pd.read_csv(annotations, engine='c')
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
-    cores = get_number_cores()
+    cores = helpers.get_number_cores()
     count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
         joblib.delayed(call_peaks)(utr=utr, func=func,
                                    cell_barcodes=cell_barcodes) for utr in tqdm(
@@ -253,7 +252,7 @@ def call_peaks(utr, func, cell_barcodes):
 
 
 def add_to_peaks_var(peak_var, annotations):
-    logger = module_logger()
+    logger = module_log.module_logger()
     logger.info('Adding reference annotations to the final result')
 
     new_peaks_var = pd.DataFrame()
@@ -267,7 +266,7 @@ def add_to_peaks_var(peak_var, annotations):
 
 
 def generate_count_matrix_anndata(count_matrix, var, obs=None):
-    logger = module_logger()
+    logger = module_log.module_logger()
     logger.info('Generating Count Matrix')
 
     count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs)

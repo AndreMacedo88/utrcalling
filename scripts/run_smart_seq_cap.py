@@ -1,14 +1,14 @@
 import sys
-sys.path.append('../')
 import argparse
 import ast
 
+sys.path.append('../')
 from utrcalling import core, helpers, platforms
 from utrcalling.module_log import module_logger
 
 
 def main(utr_annotation, alignments, feature='five_prime_utr',
-         single_cell_annotation=None, protocol_platform="smart-seq_cap", protocol_version=3,
+         sample_annotation=None, protocol_platform="smart-seq_cap", protocol_version=3,
          store_intermediate=False, log_level='info', out='UTR_results_cap_phospho.h5ad'):
     """
     Gets UTR sizes peak counts per cell/sample from input file/s.
@@ -17,10 +17,10 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
         utr_annotation (str): [description]
         alignments (str): [description]
         feature (str, optional): [description]. Defaults to 'five_prime_utr'.
-        single_cell_annotation (str, optional): [description]. Defaults to None.
+        sample_annotation (str, optional): [description]. Defaults to None.
         protocol_version (int, optional): [description]. Defaults to 3.
         store_intermediate (bool, optional): [description]. Defaults to False.
-        out (str, optional): [description]. Defaults to 'UTR_results.h5ad'.
+        out (str, optional): [description]. Defaults to 'UTR_results_cap_phospho.h5ad'.
     """
 
     # Set up logging
@@ -39,7 +39,7 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')
-    alignments_list = helpers.get_alignment_paths_from_folders(alignments)
+    alignments_list = helpers.get_paths_from_folders(alignments, suffix='.bam')
     utr_sizes_counts = core.map_aligned_reads(
         alignments_list, utr_reference_regions, protocol, store=store_intermediate)
 
@@ -47,7 +47,7 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, protocol,
-        annotations=single_cell_annotation, store=store_intermediate)
+        annotations=sample_annotation, store=store_intermediate)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
@@ -56,7 +56,7 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
     return
 
 
-keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--single_cell_annotation",
+keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--sample_annotation",
                 "-p": "--protocol_platform", "-v": "--protocol_version",
                 "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
 
@@ -65,9 +65,9 @@ if __name__ == "__main__":
         Runs the entire UTR calling pipeline.
         Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
         Example on how to use in command-line:
-        $ python run.py mus_musculus.gtf 
-            -a CAPSeq_bams/ -f five_prime_utr -p smart-seq_cap -v 3 
-            -i False -s experiment.csv -o results.h5ad
+        $ python run_peaks_smart_seq_cap.py mus_musculus.gtf 
+            -a CAPSeq_bams/ -f five_prime_utr -s experiment.csv -p smart-seq_cap -v 3 
+            -i False -o results.h5ad
         """)
     parser.add_argument("utr_annotation", type=str,
                         help="GTF file with the genome annotations")
@@ -83,13 +83,13 @@ if __name__ == "__main__":
                             five_prime_utr",
                         default='five_prime_utr')
 
-    parser.add_argument("--single_cell_annotation", "-s", type=str,
+    parser.add_argument("--sample_annotation", "-s", type=str,
                         help="File with your experiment's information, \
-                            such as cell barcodes.",
+                            such as treatments and time points.",
                         default=None)
 
     parser.add_argument("--protocol_platform", "-p", type=str,
-                        help="Sequencing platform used",
+                        help="Sequencing platform used.",
                         default='smart-seq_cap')
 
     parser.add_argument("--protocol_version", "-v", type=int,
@@ -108,12 +108,12 @@ if __name__ == "__main__":
 
     parser.add_argument("--out", "-o", type=str,
                         help="Path or partial path to a folder to store the result files.",
-                        default="UTR_results.h5ad")
+                        default="UTR_results_cap_phospho.h5ad")
 
     args = parser.parse_args()
 
     main(args.utr_annotation, args.alignments, feature=args.three_prime_utr,
-         single_cell_annotation=args.single_cell_annotation,
+         sample_annotation=args.sample_annotation,
          protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
          store_intermediate=args.store_intermediate,

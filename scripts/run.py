@@ -1,8 +1,8 @@
 import sys
-sys.path.append('../')
 import argparse
 import ast
 
+sys.path.append('../')
 from utrcalling import core, helpers, platforms
 from utrcalling.module_log import module_logger
 
@@ -88,7 +88,7 @@ if __name__ == "__main__":
                         default=None)
 
     parser.add_argument("--protocol_platform", "-p", type=str,
-                        help="Sequencing platform used",
+                        help="Sequencing platform used.",
                         default='10x')
 
     parser.add_argument("--protocol_version", "-v", type=int,

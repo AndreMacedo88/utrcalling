@@ -1,8 +1,12 @@
 from collections.abc import Iterable
 import os
-from pathlib import Path
+import pathlib
+import pickle
 
-from utrcalling.module_log import module_logger
+import pybedtools
+import pandas as pd
+
+from utrcalling import module_log
 
 
 def flatten(l):
@@ -47,20 +51,51 @@ def to_string(x):
 
 
 def log_metrics_anndata(adata):
-    logger = module_logger()
+    logger = module_log.module_logger()
     metrics = f'Called {adata.X.shape[1]} peaks '
     f'in {adata.X.shape[1]} cells'
     logger.info(metrics)
     logger.info(adata)
 
 
-def get_alignment_paths_from_folders(folders_path):
+def get_paths_from_folders(folders_path, suffix='.bam'):
     file_list = []
-    for path in Path(folders_path).rglob('*.bam'):
+    for path in pathlib.Path(folders_path).rglob(f'*{suffix}'):
         file_list.append(os.path.join(folders_path, path))
     return file_list
 
 
-def check_exists_and_store(folders_path):
+def check_if_exists_and_mkdir(folders_path):
     if not os.path.exists(folders_path):
         os.makedirs(folders_path)
+
+
+def check_if_path_and_open(to_check, method='pickle'):
+    if isinstance(to_check, (str, pathlib.PurePath)):
+        if method.lower() == 'pickle':
+            with open(to_check, "rb") as input_file:
+                output = pickle.load(input_file)
+        else:
+            raise RuntimeError(f'Method {method} not implemented yet')
+        return output
+    else:
+        return to_check
+
+
+def load_annotations(annotation_path):
+    if annotation_path.endswith('.pkl'):
+        output = pd.read_pickle(annotation_path)
+    elif annotation_path.endswith('.bed'):
+        output = pybedtools.BedTool(annotation_path)
+    else:
+        raise RuntimeError(
+            f'Annotation file {annotation_path} is of a not recognized type.')
+    return output
+
+
+def check_if_dir_and_list_files(path, suffix='.pkl'):
+    if os.path.isdir(path):
+        file_list = get_paths_from_folders(path, suffix)
+        return file_list
+    else:
+        return path
