@@ -32,7 +32,8 @@ def main(utr_annotation, utr_sizes_counts, sample_annotation=None, log_level='in
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = platforms.Platform(protocol_platform, int(protocol_version))
+    protocol = platforms.Platform(protocol_platform, int(protocol_version),
+                                  merge_method='union')
 
     # load UTR reference file
     utr_reference_annotations = helpers.load_annotations(utr_annotation)
@@ -43,7 +44,7 @@ def main(utr_annotation, utr_sizes_counts, sample_annotation=None, log_level='in
                                                            suffix='.pkl')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_annotations, protocol,
-        annotations=sample_annotation, store=store_intermediate)
+        annotations=sample_annotation, store=store_intermediate, label_samples=True)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 

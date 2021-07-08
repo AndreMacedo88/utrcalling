@@ -14,7 +14,8 @@ tqdm = partial(std_tqdm, dynamic_ncols=True)
 from utrcalling import helpers, module_log
 
 
-def merge_samples_utr_sizes(utr_sizes, method='intercept'):
+def merge_samples_utr_sizes(utr_sizes, method='intercept', label_samples=True,
+                            exclude=[]):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
     compare, so that peaks get called with the pseudo-bulk data from all samples.
@@ -43,16 +44,20 @@ def merge_samples_utr_sizes(utr_sizes, method='intercept'):
     for position_counts in tqdm(utr_sizes):
         # account for those instances where utr_sizes are a list of paths
         position_counts = helpers.check_if_path_and_open(position_counts, method='pickle')
-
-        # add a counter to the barcode to separate samples from different sources
-        changed = position_counts.filter(
-            lambda x: x.each(add_counter_to_barcode, sample_counter))
+        if label_samples:
+            # add a counter to the barcode to separate samples from different sources
+            position_counts_to_merge = position_counts.filter(
+                lambda x: x.each(add_counter_to_barcode, sample_counter))
+        else:
+            position_counts_to_merge = position_counts
 
         # merge the datasets
         if position_counts_merged is not None:
-            position_counts_merged = position_counts_merged.merge(changed, method=method)
+            position_counts_merged = position_counts_merged.merge(
+                position_counts_to_merge, method=method,
+                exclude=exclude)
         else:
-            position_counts_merged = changed
+            position_counts_merged = position_counts_to_merge
         sample_counter += 1
 
     return position_counts_merged

@@ -59,6 +59,36 @@ class TestMergeSamplesUtrSizes(TestPeakCalling):
         self.assertEqual(len(self.merged), 71)
 
 
+class TestMergeSamplesUtrSizesExclude(TestPeakCalling):
+    def setUp(self) -> None:
+        self.merged = peak_calling.merge_samples_utr_sizes(self.mappings,
+                                                           method=self.protocol,
+                                                           exclude=['read_start_positions',
+                                                                    'read_lengths',
+                                                                    'read_strands'])
+
+    def test_details(self):
+        details_true = {
+            'utr_name': 'ENSMUSG00000025917',
+            'read_start_positions': [10024824, 10024829, 10024829, 10024833],
+            'read_strands': ['+', '+', '+', '+'],
+            'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1',
+                              'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
+                              'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
+                              'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2'],
+            'read_umis': ['TGGCTTATA', 'AACGTAACA', 'ACCTCCGGT', 'ACCCGCACT',
+                          'TCACGTGAG', 'TCCTAAATG', 'ATGATCGGT', 'TCCAGGAAT', 'TTTAGAACT',
+                          'GCTAGGACG'],
+            'read_lengths': [46, 50, 48, 46],
+            'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
+        }
+        self.assertDictEqual(
+            self.merged.ENSMUSG00000025917.todict(), details_true)
+
+    def test_length(self):
+        self.assertEqual(len(self.merged), 71)
+
+
 class TestSubsetReferenceData(TestPeakCalling):
     def setUp(self) -> None:
         merged = peak_calling.merge_samples_utr_sizes(self.mappings)

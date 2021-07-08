@@ -83,18 +83,20 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
 
 
 def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
-               annotations=None, store=False):
+               annotations=None, label_samples=True, store=False, exclude_from_merge=[]):
     logger = module_logger()
 
     # if more than one counts file is provided, they must be merged before peak calling
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
-                                                   method=protocol.merge_method)
+                                                   method=protocol.merge_method,
+                                                   label_samples=label_samples,
+                                                   exclude=exclude_from_merge)
         if store:
             directory = './intermediate'
             helpers.check_if_exists_and_mkdir(directory)
             utr_sizes_counts.export(os.path.join(
-                directory, 'UTR_sizes_counts_merged.pkl'))
+                directory, f'UTR_sizes_counts_merged_{protocol.merge_method}.pkl'))
     elif isinstance(utr_sizes_counts, list):
         utr_sizes_counts = utr_sizes_counts[0]
 

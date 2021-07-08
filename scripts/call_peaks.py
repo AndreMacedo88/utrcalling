@@ -40,7 +40,7 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
                                                            suffix='.pkl')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_annotations, protocol,
-        annotations=single_cell_annotation, store=store_intermediate)
+        annotations=single_cell_annotation, store=store_intermediate, label_samples=True)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 

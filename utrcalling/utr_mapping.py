@@ -13,7 +13,8 @@ from .helpers import to_string
 
 def generate_utr_intervals(utr_regions):
     intervals = dict()
-    for utr in tqdm(utr_regions.itertuples(), desc='Generating genomic interval for UTR number'):
+    for utr in tqdm(utr_regions.itertuples(),
+                    desc='Generating genomic interval for UTR number'):
         intervals[utr.Index] = HTSeq.GenomicInterval(utr.chrom, utr.start - 1, utr.end,
                                                      utr.strand)
     return intervals

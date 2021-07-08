@@ -10,7 +10,7 @@ from .helpers import to_string
 
 
 class Platform:
-    def __init__(self, platform, version, merge_method='intercept') -> None:
+    def __init__(self, platform, version, merge_method=None) -> None:
         self.logger = module_logger()
 
         self.get_reads_identity = None
@@ -18,14 +18,20 @@ class Platform:
 
         self.check_platform_and_version(platform=platform, version=version)
 
+        self.logger.info(f'Protocol args:')
+        self.logger.info(f'Get read information function: {self.get_reads_identity}')
+        self.logger.info(f'Position counts merging method: {self.merge_method}')
+
     def check_platform_and_version(self, platform, version):
         if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
             if version == 2:
                 self.get_reads_identity = self.get_reads_identity_tenx_2
-                self.merge_method = 'intercept'
+                if self.merge_method is None:
+                    self.merge_method = 'intercept'
             elif version in (3, 3.1):
                 self.get_reads_identity = self.get_reads_identity_tenx_3
-                self.merge_method = 'intercept'
+                if self.merge_method is None:
+                    self.merge_method = 'intercept'
             else:
                 version_fail = f'10x genomics protocol version {version} currently not supported.'
                 self.logger.error(version_fail)
@@ -34,7 +40,8 @@ class Platform:
         elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
             if version == 3:
                 self.get_reads_identity = self.get_reads_identity_smartseq_3_bulk
-                self.merge_method = 'union'
+                if self.merge_method is None:
+                    self.merge_method = 'union'
             else:
                 version_fail = f'Smart-seq protocol version {version} \
                     currently not supported'

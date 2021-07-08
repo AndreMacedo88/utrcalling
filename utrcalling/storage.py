@@ -5,7 +5,6 @@ from collections import defaultdict
 from statistics import mode
 
 import joblib
-from numpy import median
 
 from .module_log import module_logger
 from .helpers import get_number_cores
@@ -152,18 +151,18 @@ class UtrMappings:
         for info in other:
             self[info.utr_name] = info
 
-    def merge(self, other, method='intercept'):
-        def merge_read_info(x, other_):
+    def merge(self, other, method='intercept', exclude=[]):
+        def merge_read_info(x, other_, exclude=[]):
             for key in x.__dict__.keys():
-                if key != 'utr_name':
+                if key not in ('utr_name', *exclude):
                     x[key].extend(other_[key])
             return x
 
         merged = UtrMappings()
         for utr in self.utr_ids:
             if utr in other.utr_ids:
-                merged[utr] = self[utr].each(merge_read_info, other[utr])
-            elif method=='union':
+                merged[utr] = self[utr].each(merge_read_info, other[utr], exclude=exclude)
+            elif method == 'union':
                 merged[utr] = self[utr]
         return merged
 
@@ -279,7 +278,7 @@ class MappedReadInformation:
                     mode([self.read_lengths[i] for i in real_idx]))
                 utr_sizes_from_reads_append.append(
                     mode([self.utr_sizes_from_reads[i] for i in real_idx]))
-        
+
         filtered['read_start_positions'] = read_start_positions_append
         filtered['read_strands'] = read_strands_append
         filtered['read_barcodes'] = read_barcodes_append
