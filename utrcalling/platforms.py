@@ -3,16 +3,16 @@ File containing objects and functions specific for each supported sequencing pla
 
 """
 
-from .module_log import module_logger
-from .helpers import to_string
+from utrcalling import module_log, helpers
 
 
 class Protocol:
     def __init__(self, platform, version, merge_method=None) -> None:
-        self.logger = module_logger()
+        self.logger = module_log.module_logger()
 
         self.get_reads_identity = None
         self.check_strand_matches = None
+        self.filter_utr_sizes = None
         self.merge_method = merge_method
 
         self._check_platform_and_version(platform=platform, version=version)
@@ -26,6 +26,7 @@ class Protocol:
     def _check_platform_and_version(self, platform, version):
         if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
             self.check_strand_matches = self.check_strand_matches_10x
+            self.filter_utr_sizes = self.filter_utr_sizes_10x
             if self.merge_method is None:
                 self.merge_method = 'intercept'
             if version == 2:
@@ -39,10 +40,11 @@ class Protocol:
 
         elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
             self.check_strand_matches = self.check_strand_matches_smart_seq
+            self.filter_utr_sizes = self.filter_utr_sizes_smart_seq_3_cap
             if self.merge_method is None:
                 self.merge_method = 'union'
             if version == 3:
-                self.get_reads_identity = self.get_reads_identity_smartseq_3_bulk
+                self.get_reads_identity = self.get_reads_identity_smart_seq_3_cap
             else:
                 version_fail = f'Smart-seq protocol version {version} \
                     currently not supported'
@@ -56,23 +58,23 @@ class Protocol:
 
     @staticmethod
     def get_reads_identity_tenx_2(alignment, **_):
-        read_barcode = to_string(alignment.read.seq[:16])
-        read_umi = to_string(alignment.read.seq[17:26])  # 10 bp UMI
+        read_barcode = helpers.to_string(alignment.read.seq[:16])
+        read_umi = helpers.to_string(alignment.read.seq[17:26])  # 10 bp UMI
         return read_umi, read_barcode
 
     @staticmethod
     def get_reads_identity_tenx_3(alignment, **_):
-        read_barcode = to_string(alignment.read.seq[:16])
-        read_umi = to_string(alignment.read.seq[17:28])  # 12 bp UMI
+        read_barcode = helpers.to_string(alignment.read.seq[:16])
+        read_umi = helpers.to_string(alignment.read.seq[17:28])  # 12 bp UMI
         return read_umi, read_barcode
 
     @staticmethod
-    def get_reads_identity_smartseq_3_bulk(alignment, **kwargs):
+    def get_reads_identity_smart_seq_3_cap(alignment, **kwargs):
         read_sample_id = kwargs.get('sample', 'S')
         if read_sample_id is None:
             read_sample_id = 'S'
 
-        read_seq = to_string(alignment.read.name)
+        read_seq = helpers.to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]
         assert(len(read_umi) == 8)  # 8 bp UMI
 
@@ -85,3 +87,22 @@ class Protocol:
     @staticmethod
     def check_strand_matches_smart_seq(read_strand, utr_strand):
         return read_strand == utr_strand
+
+    @staticmethod
+    def filter_utr_sizes_10x(utr_sizes, amount=1):
+
+        def filter_func(x, amount_):
+            condition = [True if i > amount_ else False for i in x['utr_sizes_from_reads']]
+            return condition
+
+        logger = module_log.module_logger()
+        logger.info('Filtering samples UTR sizes')
+        filtered = utr_sizes.filter(
+            lambda x: x.filter(filter_func, amount))
+        return filtered
+
+    @staticmethod
+    def filter_utr_sizes_smart_seq_3_cap(utr_sizes, amount=1):
+        logger = module_log.module_logger()
+        logger.info('For this protocol, no UTR size filtering is performed.')
+        return utr_sizes

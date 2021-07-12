@@ -45,6 +45,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 
 class TestTenxTwo(TestMapReadsToUtr):
     def setUp(self) -> None:
+        self.maxDiff = None
         protocol = platforms.Protocol(platform='10x', version=2)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
@@ -52,22 +53,23 @@ class TestTenxTwo(TestMapReadsToUtr):
     def test_details(self):
         dict_true = {
             'utr_name': 'ENSMUSG00000005804',
-            'read_start_positions': [122748098, 122748088, 122748096],
+            'read_start_positions': [122748098, 122748087, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
             'read_umis': ['CAACACAAG', 'ATCGAGAGT', 'CTGAGTATG'],
             'read_lengths': [51, 37, 44],
-            'utr_sizes_from_reads': [1468, 1458, 1466]
+            'utr_sizes_from_reads': [1468, 1457, 1466]
         }
         self.assertDictEqual(
             self.mappings.ENSMUSG00000005804.todict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(len(self.mappings), 126)
+        self.assertEqual(len(self.mappings), 118)
 
 
 class TestTenxThree(TestMapReadsToUtr):
     def setUp(self) -> None:
+        self.maxDiff = None
         protocol = platforms.Protocol(platform='10x', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
@@ -75,18 +77,18 @@ class TestTenxThree(TestMapReadsToUtr):
     def test_details(self):
         dict_true = {
             'utr_name': 'ENSMUSG00000005804',
-            'read_start_positions': [122748098, 122748088, 122748096],
+            'read_start_positions': [122748098, 122748087, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
             'read_umis': ['CAACACAAGTT', 'ATCGAGAGTTT', 'CTGAGTATGTT'],
             'read_lengths': [51, 37, 44],
-            'utr_sizes_from_reads': [1468, 1458, 1466]
+            'utr_sizes_from_reads': [1468, 1457, 1466]
         }
         self.assertDictEqual(
             self.mappings.ENSMUSG00000005804.todict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(len(self.mappings), 126)
+        self.assertEqual(len(self.mappings), 118)
 
 
 class TestProtocolNotSupported(TestMapReadsToUtr):

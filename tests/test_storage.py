@@ -18,6 +18,7 @@ class TestStorage(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
+        cls.maxDiff = None
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
@@ -41,13 +42,13 @@ class TestMappedReadInformation(TestStorage):
     def test_todict(self):
         dict_true = {
             'utr_name': 'ENSMUSG00000025917',
-            'read_start_positions': [10024824, 10024829, 10024829, 10024833],
+            'read_start_positions': [10024879, 10024880, 10024882, 10024888],
             'read_strands': ['+', '+', '+', '+'],
             'read_barcodes': ['CGTTGGGCAGTCAGAG', 'CCGTGGAGTCTCGTTC',
                               'GTAGTCAAGCTATGCT', 'TGCGCAGAGGCATGTG'],
             'read_umis': ['TGGCTTATA', 'AACGTAACA', 'ACCTCCGGT', 'ACCCGCACT'],
             'read_lengths': [46, 50, 48, 46],
-            'utr_sizes_from_reads': [153, 148, 148, 144]
+            'utr_sizes_from_reads': [98, 97, 95, 89]
         }
         self.assertDictEqual(
             self.mappings.ENSMUSG00000025917.todict(), dict_true)

@@ -24,7 +24,7 @@ from .utr_reference import (
 )
 from .utr_mapping import generate_utr_intervals, map_reads_to_utr, module_logger
 from .peak_calling import (
-    subset_reference_data, merge_samples_utr_sizes, filter_utr_sizes, filter_barcodes,
+    subset_reference_data, merge_samples_utr_sizes, filter_barcodes,
     generate_peak_counts, add_to_peaks_var, generate_count_matrix_anndata
 )
 
@@ -114,7 +114,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     del utr_reference_regions  # to save memory
 
     # get only utr sizes bigger than X bp
-    filtered_positions = filter_utr_sizes(utr_sizes_counts)
+    filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, amount=1)
 
     del utr_sizes_counts  # to save memory
 
