@@ -146,6 +146,10 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
         np.ndarray: The vector with the peaks.
     """
 
+    if len(utr_sizes_vector) <= 3:
+        peaks = np.repeat(round(np.median(utr_sizes_vector)), len(utr_sizes_vector))
+        return peaks
+
     kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
 
     # calculate an appropriate window to check the model
@@ -174,8 +178,9 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
         max_ = round(window[maxima][idx_minimum + 1])
     except IndexError:  # for those cases with just one peak, there will be no minimum
         # so we take the median as the peak
-        max_ = np.median(utr_sizes_vector)
-    # attribute the last maximum to those molecules that haven't yet had their
+        max_ = round(np.median(utr_sizes_vector))
+
+    # place the last maximum in those molecules that haven't yet had their
     # peaks scored
     peaks[peaks == 0] = max_
     return peaks
@@ -200,8 +205,8 @@ def generate_peak_counts(utr_sizes, annotations=None,
     cores = helpers.get_number_cores()
     count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
         joblib.delayed(call_peaks)(utr=utr, func=func,
-                                   cell_barcodes=cell_barcodes) for utr in tqdm(
-            utr_sizes, desc='Calling peaks for each UTR')))
+                                   cell_barcodes=cell_barcodes) for utr in
+        tqdm(utr_sizes, desc='Calling peaks for each UTR')))
 
     count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False)
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
