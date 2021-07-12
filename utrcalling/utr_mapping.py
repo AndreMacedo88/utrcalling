@@ -1,4 +1,5 @@
 from functools import partial
+from typing import Protocol
 
 import psutil
 from pympler import asizeof
@@ -40,11 +41,15 @@ def map_reads_to_utr(bam, intervals, platform, read='first', sample=None):
                 continue
             if alignment.not_primary_alignment:
                 continue
+            if not platform.check_strand_matches(alignment.iv.strand, interval.strand):
+                continue
             else:
                 read_info = extract_read_information(alignment=alignment,
                                                      interval=interval,
                                                      platform=platform,
                                                      sample=sample)
+                if read_info is None:
+                    continue
                 mapped_read_information.read_start_positions.append(
                     read_info[0])
                 mapped_read_information.read_strands.append(read_info[1])
@@ -82,8 +87,8 @@ def extract_read_information(alignment, interval, platform, sample=None):
     # get read strand
     read_strand = alignment.iv.strand
 
-    # get UTR start position (which is the read starting position)
-    read_start_position = alignment.iv.start_d
+    # get the read starting position. THis may, or may not, be the match start position
+    read_start = alignment.iv.start_d
 
     # get read sequence
     query_from = None
@@ -99,13 +104,25 @@ def extract_read_information(alignment, interval, platform, sample=None):
         logger.error(match_fail)
         raise RuntimeError(match_fail)
     if read_strand == '+':
+        # get UTR start position from the first matching base pair from the read
+        read_start_position = read_start + query_from
         read_sequence = to_string(alignment.read.seq[query_from:query_to])
     else:
+        # get UTR start position from the first matching base pair from the read
+        read_start_position = read_start - query_from
         if query_from == 0:
             read_sequence = to_string(alignment.read.seq[-query_to:])
         else:
             read_sequence = to_string(
                 alignment.read.seq[-query_to:-query_from])
+    # if the start of the read is not in the reference UTR region then we discard the read
+    if interval.strand == '+':
+        if not (read_start_position >= interval.start_d and read_start_position <= interval.end_d):
+            return None
+    else:
+        if not (read_start_position <= interval.start_d and read_start_position >= interval.end_d):
+            return None
+
 
     # get the read's cell barcode and UMI
     read_umi, read_barcode = platform.get_reads_identity(alignment=alignment,

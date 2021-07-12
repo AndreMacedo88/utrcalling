@@ -124,16 +124,15 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         filtered_positions = filter_barcodes(filtered_positions, annotations)
 
     # calculate broad peaks based on individual UMI utr sizes
-    peaks_count_matrix, peaks_var_and_obs = generate_peak_counts(
+    peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(
         filtered_positions, annotations=annotations)
 
     del filtered_positions  # to save memory
 
-    if isinstance(peaks_var_and_obs, (tuple, list)):
-        peaks_var = peaks_var_and_obs[0]
+    peaks_var = peaks_var_and_obs[0]
+    if len(peaks_var_and_obs) == 2:
         peaks_obs = peaks_var_and_obs[1]
     else:
-        peaks_var = peaks_var_and_obs
         peaks_obs = None
 
     logger.debug(f'len before adding: {len(peaks_var)}')

@@ -2,6 +2,7 @@ from collections.abc import Iterable
 import os
 import pathlib
 import pickle
+from numpy import isin
 
 import pybedtools
 import pandas as pd
@@ -9,23 +10,23 @@ import pandas as pd
 from utrcalling import module_log
 
 
-def flatten(l):
+def flatten(list_):
     """
     Flattens an irregular list of lists. Works for list-like objects.
 
     Args:
-        l (list): An irregular list of lists, that is, a list that for each index
+        list_ (list): An irregular list of lists, that is, a list that for each index
         might have another list, list of lists, an int, str, etc.
 
     Yields:
         Any: Yields the next element in the list, but flattened 
         (with one nest level removed).
     """
-    for el in l:
-        if isinstance(el, Iterable) and not isinstance(el, (str, bytes)):
-            yield from flatten(el)
+    for element in list_:
+        if isinstance(element, Iterable) and not isinstance(element, (str, bytes)):
+            yield from flatten(element)
         else:
-            yield el
+            yield element
 
 
 def get_number_cores():
@@ -100,6 +101,11 @@ def load_annotations(annotation_path):
 
 
 def check_if_dir_and_list_files(path, suffix='.pkl'):
+    if isinstance(path, (list, tuple)):
+        paths = []
+        for p in path:
+            paths.append(check_if_dir_and_list_files(p, suffix=suffix))
+        return list(flatten(paths))
     if os.path.isdir(path):
         file_list = get_paths_from_folders(path, suffix)
         return file_list

@@ -25,7 +25,6 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
 
     # Set up logging
     logger = module_logger(disable=False, store_log=True, level=log_level)
-
     for arg, value in locals().items():
         logger.info(f'Argument {arg}: {value}\n')
 
@@ -40,13 +39,14 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
-        alignments, utr_reference_regions, protocol, store=store_intermediate)
+        alignments, utr_reference_regions, protocol, store=store_intermediate,
+        samples=None)
 
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, protocol,
-        annotations=single_cell_annotation, store=store_intermediate)
+        annotations=single_cell_annotation, store=store_intermediate, label_samples=True)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
