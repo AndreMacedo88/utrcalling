@@ -164,6 +164,10 @@ class UtrMappings:
                 merged[utr] = self[utr].each(merge_read_info, other[utr], exclude=exclude)
             elif method == 'union':
                 merged[utr] = self[utr]
+        if method == 'union':
+            for other_utr in other.utr_ids:
+                if other_utr not in merged.utr_ids:
+                    merged[utr] = other[other_utr]
         return merged
 
     @staticmethod
