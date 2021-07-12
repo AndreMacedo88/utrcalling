@@ -21,7 +21,7 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 
-def map_reads_to_utr(bam, intervals, platform, read='first', sample=None):
+def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
     logger = module_logger()
     logger.info(
         f'Extracting reads from {bam} and mapping them to the reference UTR')
@@ -41,12 +41,12 @@ def map_reads_to_utr(bam, intervals, platform, read='first', sample=None):
                 continue
             if alignment.not_primary_alignment:
                 continue
-            if not platform.check_strand_matches(alignment.iv.strand, interval.strand):
+            if not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
                 continue
             else:
                 read_info = extract_read_information(alignment=alignment,
                                                      interval=interval,
-                                                     platform=platform,
+                                                     protocol=protocol,
                                                      sample=sample)
                 if read_info is None:
                     continue
@@ -70,14 +70,15 @@ def map_reads_to_utr(bam, intervals, platform, read='first', sample=None):
     return utr_mappings
 
 
-def extract_read_information(alignment, interval, platform, sample=None):
+def extract_read_information(alignment, interval, protocol, sample=None):
     """
     Extracts all the relevant information from matching reads in a HTSeq.Alignment object.
 
     Args:
         alignment (HTSeq.Alignment): The read alignment object.
         interval (HTSeq.GenomicInterval): The UTR interval coordinates.
-        platform (utrcalling.Platform): RNA-seq platform used.
+        protocol (utrcalling.Protocol): Protocol for the UTR calling run, based on
+            the RNA-seq platform used.
 
     Returns:
         tuple: The relevant read information
@@ -123,9 +124,8 @@ def extract_read_information(alignment, interval, platform, sample=None):
         if not (read_start_position <= interval.start_d and read_start_position >= interval.end_d):
             return None
 
-
     # get the read's cell barcode and UMI
-    read_umi, read_barcode = platform.get_reads_identity(alignment=alignment,
+    read_umi, read_barcode = protocol.get_reads_identity(alignment=alignment,
                                                          sample=sample)
 
     # get read length

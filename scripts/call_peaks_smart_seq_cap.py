@@ -32,7 +32,7 @@ def main(utr_annotation, utr_sizes_counts, sample_annotation=None, log_level='in
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = platforms.Platform(protocol_platform, int(protocol_version),
+    protocol = platforms.Protocol(protocol_platform, int(protocol_version),
                                   merge_method='union')
 
     # load UTR reference file

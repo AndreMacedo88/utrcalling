@@ -3,13 +3,11 @@ File containing objects and functions specific for each supported sequencing pla
 
 """
 
-from os import read
-
 from .module_log import module_logger
 from .helpers import to_string
 
 
-class Platform:
+class Protocol:
     def __init__(self, platform, version, merge_method=None) -> None:
         self.logger = module_logger()
 

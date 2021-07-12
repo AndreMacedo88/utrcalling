@@ -45,9 +45,9 @@ class TestMapReadsToUtr(unittest.TestCase):
 
 class TestTenxTwo(TestMapReadsToUtr):
     def setUp(self) -> None:
-        platform = platforms.Platform(platform='10x', version=2)
+        protocol = platforms.Protocol(platform='10x', version=2)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
-                                                     platform, read='first')
+                                                     protocol, read='first')
 
     def test_details(self):
         dict_true = {
@@ -68,9 +68,9 @@ class TestTenxTwo(TestMapReadsToUtr):
 
 class TestTenxThree(TestMapReadsToUtr):
     def setUp(self) -> None:
-        platform = platforms.Platform(platform='10x', version=3)
+        protocol = platforms.Protocol(platform='10x', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
-                                                     platform, read='first')
+                                                     protocol, read='first')
 
     def test_details(self):
         dict_true = {
@@ -89,18 +89,18 @@ class TestTenxThree(TestMapReadsToUtr):
         self.assertEqual(len(self.mappings), 126)
 
 
-class TestPlatformsNotSupported(TestMapReadsToUtr):
+class TestProtocolNotSupported(TestMapReadsToUtr):
     def test_platform(self):
         with self.assertRaises(RuntimeError):
-            platforms.Platform(platform='Zehn_x', version=3)
+            platforms.Protocol(platform='Zehn_x', version=3)
 
     def test_version_tenx(self):
         with self.assertRaises(RuntimeError):
-            platforms.Platform(platform='10x', version=1)
+            platforms.Protocol(platform='10x', version=1)
 
     def test_version_smartseq(self):
         with self.assertRaises(RuntimeError):
-            platforms.Platform(platform='Smart-seq', version=1)
+            platforms.Protocol(platform='Smart-seq', version=1)
 
 
 if __name__ == '__main__':

@@ -29,7 +29,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = platforms.Platform(protocol_platform, int(protocol_version))
+    protocol = platforms.Protocol(protocol_platform, int(protocol_version))
 
     # get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')

@@ -69,7 +69,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=No
             else:
                 sample = samples
             utr_sizes_counts = map_reads_to_utr(
-                alignment, intervals, read='first', platform=protocol, sample=sample)
+                alignment, intervals, read='first', protocol=protocol, sample=sample)
             if store:
                 file_path = os.path.join(
                     directory, f'{filename}_{counter}.pkl')
@@ -80,7 +80,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=No
             counter += 1
     else:
         read_mappings = map_reads_to_utr(
-            alignments, intervals, read='first', platform=protocol, sample=samples)
+            alignments, intervals, read='first', protocol=protocol, sample=samples)
         if store:
             read_mappings.export(os.path.join(directory, f'{filename}.pkl'))
     return read_mappings
@@ -113,7 +113,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
 
     del utr_reference_regions  # to save memory
 
-    # get only utr sizes bigger than 1bp
+    # get only utr sizes bigger than X bp
     filtered_positions = filter_utr_sizes(utr_sizes_counts)
 
     del utr_sizes_counts  # to save memory
@@ -135,18 +135,8 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     else:
         peaks_obs = None
 
-    logger.debug(f'len before adding: {len(peaks_var)}')
-    logger.debug(f'Is unique before adding? {peaks_var.index.is_unique}')
-
     # append the reference information to the new UTR peaks
     peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)
-
-    logger.debug(f'len after adding: {len(peaks_var)}')
-    logger.debug(f'Is unique before adding? {peaks_var.index.is_unique}')
-    logger.debug(
-        f'Not unique: {peaks_var[peaks_var.index.duplicated(keep=False)].index.tolist()}')
-
-    logger.debug(f'Count matrix shape: {peaks_count_matrix.shape}')
 
     # merge results and annotations into
     count_matrix_anndata = generate_count_matrix_anndata(
