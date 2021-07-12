@@ -73,22 +73,6 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
     return sub_utr_reference
 
 
-def filter_utr_sizes(utr_sizes, amount=1):
-    logger = module_log.module_logger()
-    logger.info('Filtering samples UTR sizes')
-
-    def filter_func(x, amount_):
-        condition_1 = [True if i >
-                       amount_ else False for i in x['utr_sizes_from_reads']]
-        # condition_2 = [True if i == amount_ else False for i in x['read_strands']]
-        # condition_final = [all(items) for items in zip(condition_1, condition_2)]
-        return condition_1
-
-    filtered = utr_sizes.filter(
-        lambda x: x.filter(filter_func, amount))
-    return filtered
-
-
 def filter_barcodes(utr_sizes, annotations, parallel=False):
 
     def filter_and_correct_barcodes(utr, barcodes_dict):
@@ -265,14 +249,12 @@ def add_to_peaks_var(peak_var, annotations):
     logger = module_log.module_logger()
     logger.info('Adding reference annotations to the final result')
 
-    new_peaks_var = pd.DataFrame()
-    for index, utr in annotations.iterrows():
-        peak_var_2 = peak_var[peak_var.index.str.match(f'{index}(?=[$|-])')]
-        for index_2, peak in peak_var_2.iterrows():
-            new_row = peak.append(utr, ignore_index=False)
-            new_row.name = index_2
-            new_peaks_var = new_peaks_var.append(new_row, ignore_index=False)
-    return new_peaks_var
+    peak_var_new = peak_var.copy(deep=True)
+    peak_var_new['name'] = peak_var_new.index.str.split(pat=r"_|-").str[0]
+    peak_var_new = peak_var_new.merge(annotations, on='name', how='left')
+    peak_var_new.index = peak_var.index
+
+    return peak_var_new
 
 
 def generate_count_matrix_anndata(count_matrix, var, obs=None):
@@ -286,6 +268,34 @@ def generate_count_matrix_anndata(count_matrix, var, obs=None):
 
 
 """
+def add_to_peaks_var_2(peak_var, annotations):
+    logger = module_log.module_logger()
+    logger.info('Adding reference annotations to the final result')
+
+    new_peaks_var = pd.DataFrame()
+    for index, utr in annotations.iterrows():
+        peak_var_2 = peak_var[peak_var.index.str.match(f'{index}(?=[$|-])')]
+        for index_2, peak in peak_var_2.iterrows():
+            new_row = peak.append(utr, ignore_index=False)
+            new_row.name = index_2
+            new_peaks_var = new_peaks_var.append(new_row, ignore_index=False)
+    return new_peaks_var
+
+def filter_utr_sizes(utr_sizes, amount=1):
+    logger = module_log.module_logger()
+    logger.info('Filtering samples UTR sizes')
+
+    def filter_func(x, amount_):
+        condition_1 = [True if i >
+                       amount_ else False for i in x['utr_sizes_from_reads']]
+        # condition_2 = [True if i == amount_ else False for i in x['read_strands']]
+        # condition_final = [all(items) for items in zip(condition_1, condition_2)]
+        return condition_1
+
+    filtered = utr_sizes.filter(
+        lambda x: x.filter(filter_func, amount))
+    return filtered
+
 def merge_samples_utr_sizes_2(utr_sizes):
     "
     Before calling peaks from position counts, we should merge the datasets we want to
