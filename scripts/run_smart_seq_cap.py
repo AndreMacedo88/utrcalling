@@ -30,7 +30,7 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
 
     # set up the protocol for this specific run
     protocol = platforms.Protocol(protocol_platform, int(protocol_version),
-                                  merge_method='intercept')
+                                  merge_method='union')
 
     # get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
@@ -38,7 +38,7 @@ def main(utr_annotation, alignments, feature='five_prime_utr',
                                                                feature,
                                                                store=store_intermediate)
 
-    # Map to the reference UTR the reads that properly aligned to genome
+    # Map to the reference UTR the reads that properly aligned to the genome
     logger.info('Mapping aligned reads to UTR reference')
     alignments_list = helpers.get_paths_from_folders(alignments, suffix='.bam')
     parents = [helpers.get_parent_folders_names_from_file(

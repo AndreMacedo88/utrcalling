@@ -1,5 +1,7 @@
 from functools import partial
 from statistics import mode
+import warnings
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 import joblib
 import pandas as pd
@@ -70,7 +72,9 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
     sub_utr_reference = utr_reference_regions.filter(
         items=utr_sizes.utr_ids, axis=0)
 
-    return sub_utr_reference
+    sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
+
+    return sub_utr_reference_unique
 
 
 def filter_barcodes(utr_sizes, annotations, parallel=False):
@@ -249,10 +253,15 @@ def add_to_peaks_var(peak_var, annotations):
     logger = module_log.module_logger()
     logger.info('Adding reference annotations to the final result')
 
+    annotations['utr_name'] = annotations.index
+
     peak_var_new = peak_var.copy(deep=True)
-    peak_var_new['name'] = peak_var_new.index.str.split(pat=r"_|-").str[0]
-    peak_var_new = peak_var_new.merge(annotations, on='name', how='left')
-    peak_var_new.index = peak_var.index
+    peak_var_new['utr_name'] = peak_var_new.index.str.split(pat=r"-").str[0]
+
+    peak_var_new = peak_var_new.join(
+        annotations, on='utr_name', how='left', rsuffix='_right')
+
+    peak_var_new = peak_var_new.drop('utr_name_right', axis=1)
 
     return peak_var_new
 

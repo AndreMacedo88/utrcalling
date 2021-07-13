@@ -167,7 +167,7 @@ class UtrMappings:
         if method == 'union':
             for other_utr in other.utr_ids:
                 if other_utr not in merged.utr_ids:
-                    merged[utr] = other[other_utr]
+                    merged[other_utr] = other[other_utr]
         return merged
 
     @staticmethod
