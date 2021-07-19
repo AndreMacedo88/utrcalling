@@ -125,7 +125,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
 
     # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(
-        filtered_positions, annotations=annotations)
+        filtered_positions, annotations=annotations, func=protocol.peak_calling)
 
     del filtered_positions  # to save memory
 

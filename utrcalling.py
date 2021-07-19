@@ -40,6 +40,11 @@ def call_peaks_smart_seq_cap(args=None):
         args, 1, keywords=scripts.call_peaks_smart_seq_cap.keyword_args)
     scripts.call_peaks_smart_seq_cap.main(args[0], **kwargs_new)
 
+def bypass_call_peaks_smart_seq_cap(args=None):
+    kwargs_new = _parse_unknown_args(
+        args, 1, keywords=scripts.bypass_call_peaks_smart_seq_cap.keyword_args)
+    scripts.bypass_call_peaks_smart_seq_cap.main(args[0], **kwargs_new)
+
 
 def _parse_unknown_args(args, n_args, keywords=None):
     # get only the keyword arguments
@@ -97,7 +102,7 @@ def main(process, unknown_arguments, possibilities):
 
 if __name__ == "__main__":
     list_of_processes = ["run_tests", "run", "call_peaks", "run_smart_seq_cap",
-                         'call_peaks_smart_seq_cap']
+                         'call_peaks_smart_seq_cap', 'bypass_call_peaks_smart_seq_cap']
     
     parser = argparse.ArgumentParser(description="""
     Utility script for easy access to most of the VEnCode scripts and

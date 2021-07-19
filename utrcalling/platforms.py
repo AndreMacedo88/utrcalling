@@ -2,18 +2,25 @@
 File containing objects and functions specific for each supported sequencing platform
 
 """
+import numpy as np
+from sklearn.neighbors import KernelDensity
+from scipy.signal import argrelextrema
 
 from utrcalling import module_log, helpers
 
 
 class Protocol:
-    def __init__(self, platform, version, merge_method=None) -> None:
+    def __init__(self, platform, version, merge_method=None, peak_calling=True) -> None:
         self.logger = module_log.module_logger()
 
         self.get_reads_identity = None
         self.check_strand_matches = None
         self.filter_utr_sizes = None
         self.merge_method = merge_method
+        if peak_calling:
+            self.peak_calling = self.call_peaks_using_kernel_density_estimator
+        else:
+            self.peak_calling = self.bypass_calling_peaks
 
         self._check_platform_and_version(platform=platform, version=version)
 
@@ -22,6 +29,7 @@ class Protocol:
         self.logger.info(
             f'Function to check if strand matches: {self.check_strand_matches}\n')
         self.logger.info(f'Position counts merging method: {self.merge_method}\n')
+        self.logger.info(f'Peak calling method: {self.peak_calling}\n')
 
     def _check_platform_and_version(self, platform, version):
         if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
@@ -92,7 +100,8 @@ class Protocol:
     def filter_utr_sizes_10x(utr_sizes, amount=1):
 
         def filter_func(x, amount_):
-            condition = [True if i > amount_ else False for i in x['utr_sizes_from_reads']]
+            condition = [True if i >
+                         amount_ else False for i in x['utr_sizes_from_reads']]
             return condition
 
         logger = module_log.module_logger()
@@ -106,3 +115,58 @@ class Protocol:
         logger = module_log.module_logger()
         logger.info('For this protocol, no UTR size filtering is performed.')
         return utr_sizes
+
+    @staticmethod
+    def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
+        """
+        Fit a kernel density model to predict the peak's ditribution density function
+
+        Args:
+            utr_sizes_vector (np.ndarray): column vector with the UTR sizes to call peaks.
+
+        Returns:
+            np.ndarray: The vector with the peaks.
+        """
+
+        if len(utr_sizes_vector) <= 3:
+            peaks = np.repeat(round(np.median(utr_sizes_vector)), len(utr_sizes_vector))
+            return peaks
+
+        kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
+
+        # calculate an appropriate window to check the model
+        minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
+        padding = (maximum_size - minimum_size) * 0.1
+        window = np.linspace(minimum_size - padding, maximum_size + padding)
+        # get the model predictions for that window. Specifically, the maxima.
+        evaluation = kde.score_samples(window.reshape(-1, 1))
+        minima = argrelextrema(evaluation, np.less)[0]
+        maxima = argrelextrema(evaluation, np.greater)[0]
+
+        # create a container to hold the UTR peak sizes
+        peaks = np.zeros(len(utr_sizes_vector))
+
+        # attribute a peak to each cell according to their UTR sizes and the kde model:
+        # first iterate over the function' minima
+        idx_minimum = 0  # for the unbound warning... change it in the future!
+        for idx_minimum, val in enumerate(window[minima]):
+            # get the maximum upstream that minimum (the peak) and store it
+            max_ = round(window[maxima][idx_minimum])
+            for idx_maximum, cond in enumerate(utr_sizes_vector < val):
+                if cond and peaks[idx_maximum] == 0:
+                    peaks[idx_maximum] = max_
+        # get the last maximum, just downstream the last minimum.
+        try:
+            max_ = round(window[maxima][idx_minimum + 1])
+        except IndexError:  # for those cases with just one peak, there will be no minimum
+            # so we take the median as the peak
+            max_ = round(np.median(utr_sizes_vector))
+
+        # place the last maximum in those molecules that haven't yet had their
+        # peaks scored
+        peaks[peaks == 0] = max_
+        return peaks
+
+    @staticmethod
+    def bypass_calling_peaks(utr_sizes_vector):
+        return utr_sizes_vector

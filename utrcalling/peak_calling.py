@@ -5,15 +5,12 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 import joblib
 import pandas as pd
-import numpy as np
 from rapidfuzz import process, fuzz
-from sklearn.neighbors import KernelDensity
-from scipy.signal import argrelextrema
 import anndata
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
-from utrcalling import helpers, module_log
+from utrcalling import helpers, module_log, platforms
 
 
 def merge_samples_utr_sizes(utr_sizes, method='intercept', label_samples=True,
@@ -123,59 +120,8 @@ def filter_barcodes(utr_sizes, annotations, parallel=False):
     return utr_positions_filtered
 
 
-def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
-    """
-    Fit a kernel density model to predict the peak's ditribution density function
-
-    Args:
-        utr_sizes_vector (np.ndarray): column vector with the UTR sizes to call peaks.
-
-    Returns:
-        np.ndarray: The vector with the peaks.
-    """
-
-    if len(utr_sizes_vector) <= 3:
-        peaks = np.repeat(round(np.median(utr_sizes_vector)), len(utr_sizes_vector))
-        return peaks
-
-    kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
-
-    # calculate an appropriate window to check the model
-    minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
-    padding = (maximum_size - minimum_size) * 0.1
-    window = np.linspace(minimum_size - padding, maximum_size + padding)
-    # get the model predictions for that window. Specifically, the maxima.
-    evaluation = kde.score_samples(window.reshape(-1, 1))
-    minima = argrelextrema(evaluation, np.less)[0]
-    maxima = argrelextrema(evaluation, np.greater)[0]
-
-    # create a container to hold the UTR peak sizes
-    peaks = np.zeros(len(utr_sizes_vector))
-
-    # attribute a peak to each cell according to their UTR sizes and the kde model:
-    # first iterate over the function' minima
-    idx_minimum = 0  # for the unbound warning... change it in the future!
-    for idx_minimum, val in enumerate(window[minima]):
-        # get the maximum upstream that minimum (the peak) and store it
-        max_ = round(window[maxima][idx_minimum])
-        for idx_maximum, cond in enumerate(utr_sizes_vector < val):
-            if cond and peaks[idx_maximum] == 0:
-                peaks[idx_maximum] = max_
-    # get the last maximum, just downstream the last minimum.
-    try:
-        max_ = round(window[maxima][idx_minimum + 1])
-    except IndexError:  # for those cases with just one peak, there will be no minimum
-        # so we take the median as the peak
-        max_ = round(np.median(utr_sizes_vector))
-
-    # place the last maximum in those molecules that haven't yet had their
-    # peaks scored
-    peaks[peaks == 0] = max_
-    return peaks
-
-
 def generate_peak_counts(utr_sizes, annotations=None,
-                         func=call_peaks_using_kernel_density_estimator):
+                         func=platforms.Protocol.call_peaks_using_kernel_density_estimator):
 
     logger = module_log.module_logger()
     logger.info('Generating and counting UTR size peaks')
