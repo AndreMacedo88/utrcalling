@@ -2,7 +2,6 @@ from collections.abc import Iterable
 import os
 import pathlib
 import pickle
-from numpy import isin
 
 import pybedtools
 import pandas as pd
