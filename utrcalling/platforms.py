@@ -151,7 +151,10 @@ class Protocol:
         idx_minimum = 0  # for the unbound warning... change it in the future!
         for idx_minimum, val in enumerate(window[minima]):
             # get the maximum upstream that minimum (the peak) and store it
-            max_ = round(window[maxima][idx_minimum])
+            try:
+                max_ = round(window[maxima][idx_minimum])
+            except IndexError:
+                continue
             for idx_maximum, cond in enumerate(utr_sizes_vector < val):
                 if cond and peaks[idx_maximum] == 0:
                     peaks[idx_maximum] = max_

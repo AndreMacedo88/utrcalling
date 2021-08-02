@@ -293,7 +293,7 @@ class TestWithObs(TestGenerateCountMatrixAnndata):
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.var)
-        self.assertEqual(non_zeros_count, 160 * 8)
+        self.assertEqual(non_zeros_count, 160 * 9)
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.obs)
