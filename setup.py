@@ -27,13 +27,13 @@ with open(metadata_file, "rt") as file:
         raise RuntimeError("Unable to find author string in {}.".format(metadata))
 
 setuptools.setup(
-    name='VEnCode',
+    name='utrcalling',
     version=version,
     description='Package to call peaks in UTRs',
     long_description=readme(),
     author=author,
     author_email='andre.lopes.macedo@gmail.com',
-    url='https://github.com/AndreMacedo88/VEnCode',
+    url='https://github.com/AndreMacedo88/utrcalling',
     packages=setuptools.find_packages(),
     install_requires=[
         "tqdm",
@@ -44,5 +44,10 @@ setuptools.setup(
         "Programming Language :: Python :: 3.9",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
-    ]
+    ],
+    entry_points={
+    'console_scripts': [
+        'utrcalling=utrcalling:change this please!',
+    ],
+},
 )

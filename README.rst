@@ -1,4 +1,4 @@
-utrcalling package
+utrcalling tool
 ##################
 
 Requisites
