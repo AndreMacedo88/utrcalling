@@ -1,6 +1,7 @@
 import sys
 import argparse
 import ast
+import os
 
 sys.path.append('../')
 from utrcalling import core, helpers, platforms
@@ -37,16 +38,25 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         utr_annotation, feature, store=store_intermediate)
 
     # Map to the reference UTR the reads that properly aligned to genome
+
+    if os.path.isdir(alignments):
+        alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
+        samples_names = [helpers.get_parent_folders_names_from_file(
+            file_path) for file_path in alignments]
+    else:
+        samples_names = None
+
     logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
         alignments, utr_reference_regions, protocol, store=store_intermediate,
-        samples=None)
+        samples=samples_names)
 
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, protocol,
-        annotations=single_cell_annotation, store=store_intermediate, label_samples=True)
+        annotations=single_cell_annotation, store=store_intermediate,
+        label_samples=protocol.label_samples)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 

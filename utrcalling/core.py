@@ -108,8 +108,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts, method='pickle')
 
     # if we are to add the reference data to the results later, we must subset the UTRs
-    utr_reference_subset = subset_reference_data(
-        utr_sizes_counts, utr_reference_regions)
+    utr_reference_subset = subset_reference_data(utr_sizes_counts, utr_reference_regions)
 
     del utr_reference_regions  # to save memory
 
@@ -134,17 +133,17 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         peaks_obs = peaks_var_and_obs[1]
     else:
         peaks_obs = None
-    
+
     if store:  # store some data. Useful for debugging or to change annotations.
         directory = './intermediate'
         peaks_count_matrix.to_pickle(os.path.join(
-                directory, f'peaks_count_matrix_{protocol.merge_method}.pkl'))
+            directory, f'peaks_count_matrix_{protocol.merge_method}.pkl'))
         peaks_obs.to_pickle(os.path.join(
-                directory, f'peaks_obs_{protocol.merge_method}.pkl'))
+            directory, f'peaks_obs_{protocol.merge_method}.pkl'))
         peaks_var.to_pickle(os.path.join(
-                directory, f'peaks_var_{protocol.merge_method}.pkl'))
+            directory, f'peaks_var_{protocol.merge_method}.pkl'))
         utr_reference_subset.to_pickle(os.path.join(
-                directory, f'UTR_reference_subset_{protocol.merge_method}.pkl'))
+            directory, f'UTR_reference_subset_{protocol.merge_method}.pkl'))
 
     # append the reference information to the new UTR peaks
     peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)

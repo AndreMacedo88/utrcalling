@@ -2,6 +2,8 @@
 File containing objects and functions specific for each supported sequencing platform
 
 """
+import re
+
 import numpy as np
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
@@ -17,6 +19,7 @@ class Protocol:
         self.check_strand_matches = None
         self.filter_utr_sizes = None
         self.merge_method = merge_method
+        self.label_samples = None
         if peak_calling:
             self.peak_calling = self.call_peaks_using_kernel_density_estimator
         else:
@@ -30,11 +33,15 @@ class Protocol:
             f'Function to check if strand matches: {self.check_strand_matches}\n')
         self.logger.info(f'Position counts merging method: {self.merge_method}\n')
         self.logger.info(f'Peak calling method: {self.peak_calling}\n')
+        self.logger.info(
+            f'Add number to sample names while merging samples? {self.label_samples}\n'
+        )
 
     def _check_platform_and_version(self, platform, version):
         if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
-            self.check_strand_matches = self.check_strand_matches_10x
-            self.filter_utr_sizes = self.filter_utr_sizes_10x
+            self.check_strand_matches = self.check_strand_matches_3prime
+            self.filter_utr_sizes = self.filter_utr_sizes
+            self.label_samples = True
             if self.merge_method is None:
                 self.merge_method = 'intercept'
             if version == 2:
@@ -46,9 +53,24 @@ class Protocol:
                 self.logger.error(version_fail)
                 raise RuntimeError(version_fail)
 
+        elif platform.lower() in ('smart-seq', 'smartseq'):
+            self.check_strand_matches = self.check_strand_matches_3prime
+            self.filter_utr_sizes = self.filter_utr_sizes
+            self.label_samples = False
+            if self.merge_method is None:
+                self.merge_method = 'intercept'
+            if version == 3:
+                self.get_reads_identity = self.get_reads_identity_smart_seq_3
+            else:
+                version_fail = f'Smart-seq protocol version {version} \
+                    currently not supported'
+                self.logger.error(version_fail)
+                raise RuntimeError(version_fail)
+
         elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
-            self.check_strand_matches = self.check_strand_matches_smart_seq
+            self.check_strand_matches = self.check_strand_matches_5prime
             self.filter_utr_sizes = self.filter_utr_sizes_smart_seq_3_cap
+            self.label_samples = False
             if self.merge_method is None:
                 self.merge_method = 'union'
             if version == 3:
@@ -67,20 +89,33 @@ class Protocol:
     @staticmethod
     def get_reads_identity_tenx_2(alignment, **_):
         read_barcode = helpers.to_string(alignment.read.seq[:16])
-        read_umi = helpers.to_string(alignment.read.seq[17:26])  # 10 bp UMI
+        read_umi = helpers.to_string(alignment.read.seq[16:26])  # 10 bp UMI
         return read_umi, read_barcode
 
     @staticmethod
     def get_reads_identity_tenx_3(alignment, **_):
         read_barcode = helpers.to_string(alignment.read.seq[:16])
-        read_umi = helpers.to_string(alignment.read.seq[17:28])  # 12 bp UMI
+        read_umi = helpers.to_string(alignment.read.seq[16:28])  # 12 bp UMI
         return read_umi, read_barcode
+
+    @staticmethod
+    def get_reads_identity_smart_seq_3(alignment, **kwargs):
+        read_sample_id = kwargs.get('sample', 'S')
+        read_umi = helpers.to_string(alignment.read.seq[6:14])  # 8 bp UMI
+
+        """
+        match = re.match(r".*ATTGCGCAATG([NGCAT]{8})",
+                         helpers.to_string(alignment.read.seq))  # 8 bp UMI
+        if match:
+            read_umi = match.group(1)
+        else:
+            read_umi = ''
+        """
+        return read_umi, read_sample_id
 
     @staticmethod
     def get_reads_identity_smart_seq_3_cap(alignment, **kwargs):
         read_sample_id = kwargs.get('sample', 'S')
-        if read_sample_id is None:
-            read_sample_id = 'S'
 
         read_seq = helpers.to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]
@@ -89,15 +124,15 @@ class Protocol:
         return read_umi, read_sample_id
 
     @staticmethod
-    def check_strand_matches_10x(read_strand, utr_strand):
+    def check_strand_matches_3prime(read_strand, utr_strand):
         return read_strand != utr_strand
 
     @staticmethod
-    def check_strand_matches_smart_seq(read_strand, utr_strand):
+    def check_strand_matches_5prime(read_strand, utr_strand):
         return read_strand == utr_strand
 
     @staticmethod
-    def filter_utr_sizes_10x(utr_sizes, amount=1):
+    def filter_utr_sizes(utr_sizes, amount=1):
 
         def filter_func(x, amount_):
             condition = [True if i >

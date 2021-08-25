@@ -16,8 +16,12 @@ def generate_utr_intervals(utr_regions):
     intervals = dict()
     for utr in tqdm(utr_regions.itertuples(),
                     desc='Generating genomic interval for UTR number'):
-        intervals[utr.Index] = HTSeq.GenomicInterval(utr.chrom, utr.start - 1, utr.end,
-                                                     utr.strand)
+        try:
+            intervals[utr.Index] = HTSeq.GenomicInterval(
+                utr.chrom, utr.start - 1, utr.end, utr.strand)
+        except TypeError:
+            intervals[utr.Index] = HTSeq.GenomicInterval(
+                str(utr.chrom), utr.start - 1, utr.end, utr.strand)
     return intervals
 
 
@@ -127,6 +131,8 @@ def extract_read_information(alignment, interval, protocol, sample=None):
     # get the read's cell barcode and UMI
     read_umi, read_barcode = protocol.get_reads_identity(alignment=alignment,
                                                          sample=sample)
+    if not read_umi:  # if the UMI was not found, we discard the read
+        return None
 
     # get read length
     read_length = len(read_sequence)

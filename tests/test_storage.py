@@ -54,5 +54,9 @@ class TestMappedReadInformation(TestStorage):
             self.mappings.ENSMUSG00000025917.todict(), dict_true)
 
 
+class TestMappedReadInformation2(unittest.TestCase):
+    pass
+
+
 if __name__ == '__main__':
     unittest.main()
