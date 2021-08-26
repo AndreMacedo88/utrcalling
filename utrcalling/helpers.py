@@ -2,6 +2,7 @@ from collections.abc import Iterable
 import os
 import pathlib
 import pickle
+from collections import defaultdict
 
 import pybedtools
 import pandas as pd
@@ -110,3 +111,39 @@ def check_if_dir_and_list_files(path, suffix='.pkl'):
         return file_list
     else:
         return path
+
+
+def hamming_distance(a, b):
+    if len(a) != len(b):
+        raise RuntimeError('Hamming distance is valid for only equal length string')
+    distance = sum(x!=y for x,y in zip(a,b))
+
+    return distance
+
+
+def count_duplicates(list_of_strings, hamming=0):
+            dups = defaultdict(list)
+            for i, item in enumerate(list_of_strings):
+                dups[item].append(i)
+
+            if hamming == 0:
+                return dups
+
+            else:
+                hammed = defaultdict(list)
+                dupped_umis_sort = [k for k, _ in sorted(dups.items(), key=len)]
+
+                while len(dupped_umis_sort) > 0:
+                    pivot = dupped_umis_sort[0]
+                    rest = dupped_umis_sort[1:]
+                    hammed[pivot] = dups[pivot]
+                    to_delete = []
+                    for idx, umi in enumerate(rest):
+                        dist = hamming_distance(pivot, umi)
+                        if dist <= 1:
+                            hammed[pivot].extend(dups[umi])
+                            to_delete.append(idx+1)
+                    to_delete.append(0)
+                    to_delete = sorted(to_delete, reverse=True)
+                    for idx2 in to_delete: del dupped_umis_sort[idx2]
+                return hammed

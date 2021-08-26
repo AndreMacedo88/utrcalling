@@ -38,8 +38,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         utr_annotation, feature, store=store_intermediate)
 
     # Map to the reference UTR the reads that properly aligned to genome
-
-    if os.path.isdir(alignments):
+    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
         samples_names = [helpers.get_parent_folders_names_from_file(
             file_path) for file_path in alignments]

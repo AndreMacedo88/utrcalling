@@ -1,13 +1,12 @@
 from dataclasses import dataclass, field, asdict
 from copy import deepcopy, copy
 import pickle
-from collections import defaultdict
-from statistics import mode
+from statistics import median
 
 import joblib
 
 from .module_log import module_logger
-from .helpers import get_number_cores
+from .helpers import get_number_cores, count_duplicates
 
 
 @dataclass
@@ -252,12 +251,6 @@ class MappedReadInformation:
         return modified
 
     def get_unique_umis(self):
-        def count_duplicates(seq):
-            dups = defaultdict(list)
-            for i, item in enumerate(seq):
-                dups[item].append(i)
-            return dups
-
         filtered = MappedReadInformation()
         filtered['utr_name'] = self.utr_name
         read_start_positions_append = []
@@ -270,18 +263,18 @@ class MappedReadInformation:
         duplicates_barcodes = count_duplicates(self.read_barcodes)
         for barcode, idx_barcode in duplicates_barcodes.items():
             read_umis = [self.read_umis[i] for i in idx_barcode]
-            duplicates_umi = count_duplicates(read_umis)
+            duplicates_umi = count_duplicates(read_umis, hamming=1)
             for umi, idx_umis in duplicates_umi.items():
                 real_idx = [idx_barcode[idx] for idx in idx_umis]
                 read_start_positions_append.append(
-                    mode([self.read_start_positions[i] for i in real_idx]))
+                    round(median([self.read_start_positions[i] for i in real_idx])))
                 read_strands_append.append(self.read_strands[real_idx[0]])
                 read_barcodes_append.append(barcode)
                 read_umis_append.append(umi)
                 read_lengths_append.append(
-                    mode([self.read_lengths[i] for i in real_idx]))
+                    round(median([self.read_lengths[i] for i in real_idx])))
                 utr_sizes_from_reads_append.append(
-                    mode([self.utr_sizes_from_reads[i] for i in real_idx]))
+                    round(median([self.utr_sizes_from_reads[i] for i in real_idx])))
 
         filtered['read_start_positions'] = read_start_positions_append
         filtered['read_strands'] = read_strands_append
