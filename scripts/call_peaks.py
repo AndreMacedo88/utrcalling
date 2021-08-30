@@ -66,7 +66,7 @@ if __name__ == "__main__":
                         help="BED or pickle file with the UTR annotations")
 
     parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True, help="""
-        File, or files with the utr and read infromation. One file per sample should be 
+        File, or files with the utr and read information. One file per sample should be 
         supplied if downstream applications involve comparisons between the samples.
         The files should be pickle files of a UtrMappings object.
         """)

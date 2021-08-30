@@ -40,7 +40,7 @@ class Protocol:
     def _check_platform_and_version(self, platform, version):
         if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
             self.check_strand_matches = self.check_strand_matches_3prime
-            self.filter_utr_sizes = self.filter_utr_sizes
+            self.filter_utr_sizes = self._filter_utr_sizes
             self.label_samples = True
             if self.merge_method is None:
                 self.merge_method = 'intercept'
@@ -55,7 +55,7 @@ class Protocol:
 
         elif platform.lower() in ('smart-seq', 'smartseq'):
             self.check_strand_matches = self.check_strand_matches_3prime
-            self.filter_utr_sizes = self.filter_utr_sizes
+            self.filter_utr_sizes = self._filter_utr_sizes
             self.label_samples = False
             if self.merge_method is None:
                 self.merge_method = 'intercept'
@@ -69,7 +69,7 @@ class Protocol:
 
         elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
             self.check_strand_matches = self.check_strand_matches_5prime
-            self.filter_utr_sizes = self.filter_utr_sizes_smart_seq_3_cap
+            self.filter_utr_sizes = self._filter_utr_sizes_smart_seq_3_cap
             self.label_samples = False
             if self.merge_method is None:
                 self.merge_method = 'union'
@@ -132,7 +132,7 @@ class Protocol:
         return read_strand == utr_strand
 
     @staticmethod
-    def filter_utr_sizes(utr_sizes, amount=1):
+    def _filter_utr_sizes(utr_sizes, amount=1):
 
         def filter_func(x, amount_):
             condition = [True if i >
@@ -146,7 +146,7 @@ class Protocol:
         return filtered
 
     @staticmethod
-    def filter_utr_sizes_smart_seq_3_cap(utr_sizes, amount=1):
+    def _filter_utr_sizes_smart_seq_3_cap(utr_sizes, amount=1):
         logger = module_log.module_logger()
         logger.info('For this protocol, no UTR size filtering is performed.')
         return utr_sizes

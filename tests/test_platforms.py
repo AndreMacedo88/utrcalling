@@ -33,7 +33,7 @@ class TestFilterUtrSizes(Test10x):
     def setUp(self) -> None:
         merged = peak_calling.merge_samples_utr_sizes(self.mappings)
         merged.ENSMUSG00000001036.utr_sizes_from_reads = [1, 798, 1, 798, 1, 798]
-        self.filtered = self.protocol.filter_utr_sizes(merged)
+        self.filtered = self.protocol._filter_utr_sizes(merged)
 
     def test_number_of_features(self) -> None:
         self.assertEqual(len(self.filtered), 66)
@@ -68,7 +68,7 @@ class TestSmartSeqCapPhospho(unittest.TestCase):
 class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhospho):
     def setUp(self) -> None:
         self.mappings.ENSMUSG00000023905.utr_sizes_from_reads = [44, 1, 19]
-        self.filtered = self.protocol.filter_utr_sizes(self.mappings)
+        self.filtered = self.protocol._filter_utr_sizes(self.mappings)
 
     def test_number_of_features(self) -> None:
         self.assertEqual(len(self.filtered), 31)
