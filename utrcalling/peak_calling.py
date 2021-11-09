@@ -1,8 +1,13 @@
+import gc
 from functools import partial
+from itertools import count
 from statistics import mode
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
+import pickle
+import os
 
+import numpy as np
 import joblib
 import pandas as pd
 from rapidfuzz import process, fuzz
@@ -142,12 +147,43 @@ def generate_peak_counts(utr_sizes, annotations=None,
                                    cell_barcodes=cell_barcodes) for utr in
         tqdm(utr_sizes, desc='Calling peaks for each UTR')))
 
-    count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False)
+    logger.debug('Finished generating and counting UTR size peaks')
+    del utr_sizes
+    gc.collect()
+
+    """ Un-comment this block if you're having memory issues concatenating the counts
+    pbar = tqdm(total = len(count_matrix_list)+1)
+    count_matrix_list = list(count_matrix_list)
+    columns_ = None
+    index_ = None
+    count_matrix = []
+    while count_matrix_list:
+        to_concat = count_matrix_list.pop(0)
+        if count_matrix:
+            index_ = index_.append(to_concat.index)
+            count_matrix.append(to_concat.to_numpy())
+        else:
+            columns_ = to_concat.columns
+            index_ = to_concat.index
+            count_matrix.append(to_concat.to_numpy())
+        pbar.update(1)
+    pbar.close()
+
+    logger.debug("Stacking the list of numpy arrays")
+    count_matrix = np.vstack(count_matrix)
+
+    logger.debug("Converting the matrix to a pandas DataFrame")
+    count_matrix = pd.DataFrame(count_matrix, columns=columns_, index=index_)
+    """
+
+    count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False, copy=False)
+
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
     count_matrix = count_matrix.T
 
     if annotations is not None:
+        logger.debug('Adding annotations')
         peaks_obs = annotations.set_index(annotations.columns[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
         return count_matrix, peaks_var, peaks_obs
@@ -191,7 +227,8 @@ def call_peaks(utr, func, cell_barcodes):
         peak_counts = barcodes.droplevel(0)
         peak_counts.name = peak_name
         count_matrix = count_matrix.append(peak_counts, ignore_index=False)
-        count_matrix = count_matrix.fillna(0)
+
+    count_matrix = count_matrix.fillna(0)
     return count_matrix, peaks_var
 
 

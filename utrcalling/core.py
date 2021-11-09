@@ -113,20 +113,30 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     del utr_reference_regions  # to save memory
 
     # get only utr sizes bigger than X bp
-    filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, amount=1)
+    #filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, amount=1)
+    filtered_positions = utr_sizes_counts
 
-    del utr_sizes_counts  # to save memory
+    #del utr_sizes_counts  # to save memory
 
     # if we have a table with a specific set of barcodes/sampleIDs, retain only those
     if annotations is not None:
         annotations = pd.read_csv(annotations)
+        '''
         filtered_positions = filter_barcodes(filtered_positions, annotations)
-
+        if store:
+            directory = './intermediate'
+            helpers.check_if_exists_and_mkdir(directory)
+            filtered_positions.export(os.path.join(
+                directory, f'UTR_sizes_counts_merged_filtered_{protocol.merge_method}.pkl'))
+        '''
     # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(
         filtered_positions, annotations=annotations, func=protocol.peak_calling)
 
-    del filtered_positions  # to save memory
+    try:
+        del filtered_positions  # to save memory
+    except NameError:
+        pass
 
     peaks_var = peaks_var_and_obs[0]
     if len(peaks_var_and_obs) == 2:
@@ -135,7 +145,9 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         peaks_obs = None
 
     if store:  # store some data. Useful for debugging or to change annotations.
+        logger.info('Storing intermediate results')
         directory = './intermediate'
+        helpers.check_if_exists_and_mkdir(directory)
         peaks_count_matrix.to_pickle(os.path.join(
             directory, f'peaks_count_matrix_{protocol.merge_method}.pkl'))
         peaks_obs.to_pickle(os.path.join(
