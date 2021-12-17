@@ -4,11 +4,10 @@ from itertools import count
 from statistics import mode
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
-import pickle
-import os
 
 import numpy as np
 import joblib
+from joblib.externals.loky import get_reusable_executor
 import pandas as pd
 from rapidfuzz import process, fuzz
 import anndata
@@ -140,6 +139,15 @@ def generate_peak_counts(utr_sizes, annotations=None,
         else:
             annotations = pd.read_csv(annotations, engine='c')
 
+    """# uncomment this block to generate data in chunks
+    n_chunks = 3
+    chunk = 3
+    logger.debug(f"Dividing the data into {n_chunks} chunks and processing chunk {chunk}")
+    a = list(helpers.split_list(range(len(utr_sizes)), n_chunks))[chunk - 1]
+    slicer = slice(a.start, a.stop, a.step)
+    utr_sizes = utr_sizes[utr_sizes[slicer]]
+    """
+
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
     cores = helpers.get_number_cores()
     count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
@@ -148,35 +156,15 @@ def generate_peak_counts(utr_sizes, annotations=None,
         tqdm(utr_sizes, desc='Calling peaks for each UTR')))
 
     logger.debug('Finished generating and counting UTR size peaks')
+
+    # Free some RAM by deleting biggest variables, collecting the garbage, and shutting
+    # down the multiprocess inactive workers
     del utr_sizes
     gc.collect()
-
-    """ Un-comment this block if you're having memory issues concatenating the counts
-    pbar = tqdm(total = len(count_matrix_list)+1)
-    count_matrix_list = list(count_matrix_list)
-    columns_ = None
-    index_ = None
-    count_matrix = []
-    while count_matrix_list:
-        to_concat = count_matrix_list.pop(0)
-        if count_matrix:
-            index_ = index_.append(to_concat.index)
-            count_matrix.append(to_concat.to_numpy())
-        else:
-            columns_ = to_concat.columns
-            index_ = to_concat.index
-            count_matrix.append(to_concat.to_numpy())
-        pbar.update(1)
-    pbar.close()
-
-    logger.debug("Stacking the list of numpy arrays")
-    count_matrix = np.vstack(count_matrix)
-
-    logger.debug("Converting the matrix to a pandas DataFrame")
-    count_matrix = pd.DataFrame(count_matrix, columns=columns_, index=index_)
-    """
-
+    get_reusable_executor().shutdown(wait=True)
+    
     count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False, copy=False)
+    del count_matrix_list
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
@@ -197,6 +185,7 @@ def call_peaks(utr, func, cell_barcodes):
     peaks_var = pd.DataFrame()
 
     info = pd.DataFrame.from_dict(utr.__dict__)
+
     # similar UMIs refer to the same event (molecule), and so we take the median
     info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])[
         'utr_sizes_from_reads'].transform(mode)

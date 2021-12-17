@@ -147,3 +147,7 @@ def count_duplicates(list_of_strings, hamming=0):
                     to_delete = sorted(to_delete, reverse=True)
                     for idx2 in to_delete: del dupped_umis_sort[idx2]
                 return hammed
+
+def split_list(a, n):
+    k, m = divmod(len(a), n)
+    return (a[i*k+min(i, m):(i+1)*k+min(i+1, m)] for i in range(n))

@@ -207,4 +207,4 @@ class Protocol:
 
     @staticmethod
     def bypass_calling_peaks(utr_sizes_vector):
-        return utr_sizes_vector
+        return np.around(utr_sizes_vector, decimals=0)
