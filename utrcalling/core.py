@@ -113,17 +113,17 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     del utr_reference_regions  # to save memory
 
     # get only utr sizes bigger than X bp
-    #filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, amount=1)
+    filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, amount=1)
     
     # Comment previous line and uncomment next line to bypass filtering utr sizes
-    filtered_positions = utr_sizes_counts
+    #filtered_positions = utr_sizes_counts
 
     del utr_sizes_counts  # to save memory
 
     # if we have a table with a specific set of barcodes/sampleIDs, retain only those
     if annotations is not None:
         annotations = pd.read_csv(annotations)
-       	#filtered_positions = filter_barcodes(filtered_positions, annotations)
+        #filtered_positions = filter_barcodes(filtered_positions, annotations)
 
     # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(

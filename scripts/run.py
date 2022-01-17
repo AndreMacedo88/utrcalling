@@ -42,6 +42,8 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
         samples_names = [helpers.get_parent_folders_names_from_file(
             file_path) for file_path in alignments]
+    elif protocol_platform in ("smartseq", "smart-seq"):
+        samples_names = [file_path.split(".")[0] for file_path in alignments]
     else:
         samples_names = None
 
