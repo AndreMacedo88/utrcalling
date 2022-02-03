@@ -61,6 +61,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=No
         filename = "UTR_sizes_counts"
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
+
     if isinstance(alignments, (list, tuple)):
         read_mappings = []
         for alignment in alignments:
@@ -114,8 +115,8 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
 
     # get only utr sizes bigger than X bp
     filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, amount=1)
-    
-    # Comment previous line and uncomment next line to bypass filtering utr sizes
+
+    # Comment previous line and uncomment next line to bypass filtering utr sizes for debug
     #filtered_positions = utr_sizes_counts
 
     del utr_sizes_counts  # to save memory
@@ -146,12 +147,13 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         helpers.check_if_exists_and_mkdir(directory)
         peaks_count_matrix.to_pickle(os.path.join(
             directory, f'peaks_count_matrix_{protocol.merge_method}.pkl'))
-        peaks_obs.to_pickle(os.path.join(
-            directory, f'peaks_obs_{protocol.merge_method}.pkl'))
         peaks_var.to_pickle(os.path.join(
             directory, f'peaks_var_{protocol.merge_method}.pkl'))
         utr_reference_subset.to_pickle(os.path.join(
             directory, f'UTR_reference_subset_{protocol.merge_method}.pkl'))
+        if annotations is not None:
+            peaks_obs.to_pickle(os.path.join(
+                directory, f'peaks_obs_{protocol.merge_method}.pkl'))
 
     # append the reference information to the new UTR peaks
     peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)

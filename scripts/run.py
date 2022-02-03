@@ -9,7 +9,7 @@ from utrcalling.module_log import module_logger
 
 
 def main(utr_annotation, alignments, feature='three_prime_utr',
-         single_cell_annotation=None, protocol_platform="10x", protocol_version=3,
+         annotations_file=None, protocol_platform="10x", protocol_version=3,
          store_intermediate=False, log_level='info', out='UTR_results.h5ad'):
     """
     Gets UTR sizes peak counts per cell/sample from input file/s.
@@ -18,7 +18,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         utr_annotation (str): [description]
         alignments (str): [description]
         feature (str, optional): [description]. Defaults to 'three_prime_utr'.
-        single_cell_annotation (str, optional): [description]. Defaults to None.
+        annotations_file (str, optional): [description]. Defaults to None.
         protocol_version (int, optional): [description]. Defaults to 3.
         store_intermediate (bool, optional): [description]. Defaults to False.
         out (str, optional): [description]. Defaults to 'UTR_results.h5ad'.
@@ -56,7 +56,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, protocol,
-        annotations=single_cell_annotation, store=store_intermediate,
+        annotations=annotations_file, store=store_intermediate,
         label_samples=protocol.label_samples)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
@@ -66,7 +66,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     return
 
 
-keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--single_cell_annotation",
+keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--annotations_file",
                 "-p": "--protocol_platform", "-v": "--protocol_version",
                 "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
 
@@ -93,7 +93,7 @@ if __name__ == "__main__":
                             five_prime_utr",
                         default='three_prime_utr')
 
-    parser.add_argument("--single_cell_annotation", "-s", type=str,
+    parser.add_argument("--annotations_file", "-s", type=str,
                         help="File with your experiment's information, \
                             such as cell barcodes.",
                         default=None)
@@ -123,7 +123,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.utr_annotation, args.alignments, feature=args.three_prime_utr,
-         single_cell_annotation=args.single_cell_annotation,
+         annotations_file=args.annotations_file,
          protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
          store_intermediate=args.store_intermediate,

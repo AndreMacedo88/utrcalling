@@ -87,6 +87,26 @@ class Protocol:
             raise RuntimeError(platform_fail)
 
     @staticmethod
+    def _filter_utr_sizes(utr_sizes, amount=1):
+
+        def filter_func(x, amount_):
+            condition = [True if i >
+                         amount_ else False for i in x['utr_sizes_from_reads']]
+            return condition
+
+        logger = module_log.module_logger()
+        logger.info('Filtering samples UTR sizes')
+        filtered = utr_sizes.filter(
+            lambda x: x.filter(filter_func, amount))
+        return filtered
+
+    @staticmethod
+    def _filter_utr_sizes_smart_seq_3_cap(utr_sizes, amount=1):
+        logger = module_log.module_logger()
+        logger.info('For this protocol, no UTR size filtering is performed.')
+        return utr_sizes
+
+    @staticmethod
     def get_reads_identity_tenx_2(alignment, **_):
         read_barcode = helpers.to_string(alignment.read.seq[:16])
         read_umi = helpers.to_string(alignment.read.seq[16:26])  # 10 bp UMI
@@ -130,26 +150,6 @@ class Protocol:
     @staticmethod
     def check_strand_matches_5prime(read_strand, utr_strand):
         return read_strand == utr_strand
-
-    @staticmethod
-    def _filter_utr_sizes(utr_sizes, amount=1):
-
-        def filter_func(x, amount_):
-            condition = [True if i >
-                         amount_ else False for i in x['utr_sizes_from_reads']]
-            return condition
-
-        logger = module_log.module_logger()
-        logger.info('Filtering samples UTR sizes')
-        filtered = utr_sizes.filter(
-            lambda x: x.filter(filter_func, amount))
-        return filtered
-
-    @staticmethod
-    def _filter_utr_sizes_smart_seq_3_cap(utr_sizes, amount=1):
-        logger = module_log.module_logger()
-        logger.info('For this protocol, no UTR size filtering is performed.')
-        return utr_sizes
 
     @staticmethod
     def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
