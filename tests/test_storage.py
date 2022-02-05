@@ -11,7 +11,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import utr_mapping, platforms
+from utrcalling import protocols, utr_mapping
 from utrcalling.storage import MappedReadInformation
 
 
@@ -23,7 +23,7 @@ class TestStorage(unittest.TestCase):
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
-        protocol = platforms.Protocol(platform='10x', version=2)
+        protocol = protocols.Protocol(platform='10x', version=2)
         cls.mappings = utr_mapping.map_reads_to_utr(alignment, intervals, protocol,
                                                     read='first')
 

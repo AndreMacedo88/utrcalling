@@ -12,7 +12,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import peak_calling, utr_mapping, platforms, storage
+from utrcalling import peak_calling, protocols, utr_mapping, storage
 
 
 class TestPeakCalling(unittest.TestCase):
@@ -22,7 +22,7 @@ class TestPeakCalling(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = platforms.Protocol(platform='10x', version=2)
+        cls.protocol = protocols.Protocol(platform='10x', version=2)
         cls.mappings = [
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,

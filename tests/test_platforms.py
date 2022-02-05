@@ -11,7 +11,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import platforms, peak_calling, utr_mapping
+from utrcalling import peak_calling, protocols, utr_mapping
 
 
 class Test10x(unittest.TestCase):
@@ -21,7 +21,7 @@ class Test10x(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = platforms.Protocol(platform='10x', version=2)
+        cls.protocol = protocols.Protocol(platform='10x', version=2)
         cls.mappings = [
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,
@@ -60,7 +60,7 @@ class TestSmartSeqCapPhospho(unittest.TestCase):
         cls.utr_regions = pd.read_pickle('./test_data/test_UTR_reference_5prime.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
         alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
-        cls.protocol = platforms.Protocol(platform='smart-seq_cap', version=3)
+        cls.protocol = protocols.Protocol(platform='smart-seq_cap', version=3)
         cls.mappings = \
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol, read='first')
 

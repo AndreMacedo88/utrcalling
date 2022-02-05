@@ -4,7 +4,7 @@ import ast
 import os
 
 sys.path.append('../')
-from utrcalling import core, helpers, platforms
+from utrcalling import core, helpers, protocols
 from utrcalling.module_log import module_logger
 
 
@@ -30,7 +30,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = platforms.Protocol(protocol_platform, int(protocol_version))
+    protocol = protocols.Protocol(protocol_platform, int(protocol_version))
 
     # get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')

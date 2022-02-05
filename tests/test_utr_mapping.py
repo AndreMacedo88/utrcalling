@@ -11,7 +11,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import utr_mapping, platforms
+from utrcalling import protocols, utr_mapping
 
 
 class TestGenerateUtrIntervals(unittest.TestCase):
@@ -46,7 +46,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 class TestTenxTwo(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = platforms.Protocol(platform='10x', version=2)
+        protocol = protocols.Protocol(platform='10x', version=2)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
 
@@ -70,7 +70,7 @@ class TestTenxTwo(TestMapReadsToUtr):
 class TestTenxThree(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = platforms.Protocol(platform='10x', version=3)
+        protocol = protocols.Protocol(platform='10x', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
 
@@ -94,15 +94,15 @@ class TestTenxThree(TestMapReadsToUtr):
 class TestProtocolNotSupported(TestMapReadsToUtr):
     def test_platform(self):
         with self.assertRaises(RuntimeError):
-            platforms.Protocol(platform='Zehn_x', version=3)
+            protocols.Protocol(platform='Zehn_x', version=3)
 
     def test_version_tenx(self):
         with self.assertRaises(RuntimeError):
-            platforms.Protocol(platform='10x', version=1)
+            protocols.Protocol(platform='10x', version=1)
 
     def test_version_smartseq(self):
         with self.assertRaises(RuntimeError):
-            platforms.Protocol(platform='Smart-seq', version=1)
+            protocols.Protocol(platform='Smart-seq', version=1)
 
 
 if __name__ == '__main__':

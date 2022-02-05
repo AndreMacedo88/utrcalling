@@ -14,10 +14,10 @@ import anndata
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
-from utrcalling import helpers, module_log, platforms
+from utrcalling import helpers, module_log, protocols
 
 
-def merge_samples_utr_sizes(utr_sizes, method='intercept', label_samples=True,
+def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True,
                             exclude=[]):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
@@ -125,7 +125,7 @@ def filter_barcodes(utr_sizes, annotations, parallel=False):
 
 
 def generate_peak_counts(utr_sizes, annotations=None,
-                         func=platforms.Protocol.call_peaks_using_kernel_density_estimator):
+                         func=protocols.Protocol.call_peaks_using_kernel_density_estimator):
 
     logger = module_log.module_logger()
     logger.info('Generating and counting UTR size peaks')

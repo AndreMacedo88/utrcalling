@@ -43,7 +43,7 @@ class Protocol:
             self.filter_utr_sizes = self._filter_utr_sizes
             self.label_samples = True
             if self.merge_method is None:
-                self.merge_method = 'intercept'
+                self.merge_method = 'intersection'
             if version == 2:
                 self.get_reads_identity = self.get_reads_identity_tenx_2
             elif version in (3, 3.1):
@@ -58,7 +58,7 @@ class Protocol:
             self.filter_utr_sizes = self._filter_utr_sizes
             self.label_samples = False
             if self.merge_method is None:
-                self.merge_method = 'intercept'
+                self.merge_method = 'intersection'
             if version == 3:
                 self.get_reads_identity = self.get_reads_identity_smart_seq_3
             else:

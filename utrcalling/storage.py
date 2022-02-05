@@ -150,7 +150,7 @@ class UtrMappings:
         for info in other:
             self[info.utr_name] = info
 
-    def merge(self, other, method='intercept', exclude=[]):
+    def merge(self, other, method='intersection', exclude=[]):
         def merge_read_info(x, other_, exclude=[]):
             for key in x.__dict__.keys():
                 if key not in ('utr_name', *exclude):

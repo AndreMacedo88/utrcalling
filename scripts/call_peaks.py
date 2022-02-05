@@ -3,12 +3,12 @@ import argparse
 import ast
 
 sys.path.append('../')
-from utrcalling import core, helpers, platforms, module_log
+from utrcalling import core, helpers, module_log, protocols
 
 
 def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_level='info',
          store_intermediate=False, protocol_platform="10x", protocol_version=2,
-         out="UTR_results.h5ad"):
+         sample_merge_method=None, out="UTR_results.h5ad"):
     """
     Gets UTR sizes peak count per cell/sample from UTR sizes counts and UTR annotation 
     files.
@@ -30,8 +30,10 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = platforms.Protocol(protocol_platform, int(protocol_version))
+    protocol = protocols.Protocol(protocol_platform, int(protocol_version),
+                                  merge_method=sample_merge_method)
 
+    # load UTR reference file
     utr_reference_annotations = helpers.load_annotations(utr_annotation)
 
     # call peaks from the UTR sizes for each molecule
@@ -51,6 +53,7 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
 
 keyword_args = {"-c": "--utr_sizes_counts", "-s": "--single_cell_annotation",
                 "-p": "--protocol_platform", "-v": "--protocol_version",
+                "-m": "--sample_merge_method",
                 "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
 
 if __name__ == "__main__":
@@ -65,8 +68,8 @@ if __name__ == "__main__":
     parser.add_argument("utr_annotation", type=str,
                         help="BED or pickle file with the UTR annotations")
 
-    parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True, 
-        help="""
+    parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True,
+                        help="""
         File, or files with the utr and read information. One file per sample should be 
         supplied if downstream applications involve comparisons between the samples.
         The files should be pickle files of a UtrMappings object.
@@ -83,6 +86,16 @@ if __name__ == "__main__":
     parser.add_argument("--protocol_version", "-v", type=int,
                         help="Version of the protocol used in library preparation.",
                         default=2)
+
+    parser.add_argument("--sample_merge_method", "-m", type=str,
+                        help="""
+                        Method used to deal with different UTR coverage in different
+                        samples. If `union`, then the tool outputs UTRs that are not 
+                        represented by all samples. If `intersection` only the reads that
+                        map to UTRs in common between all samples will be used. Default
+                        depends on the protocol used.
+                        """,
+                        default=None)
 
     parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
                         help="If True, stores intermediate files that can be used to \
@@ -104,6 +117,7 @@ if __name__ == "__main__":
          single_cell_annotation=args.single_cell_annotation,
          protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
+         sample_merge_method=args.sample_merge_method,
          store_intermediate=args.store_intermediate,
          log_level=args.log_level,
          out=args.out
