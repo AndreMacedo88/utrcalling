@@ -52,9 +52,10 @@ def prepare_utr_reference_regions(gtf, feature, store=False):
     return utr_reduced
 
 
-def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=None):
+def map_aligned_reads(alignments, utr_regions, protocol, store=False):
 
     intervals = generate_utr_intervals(utr_regions)
+    sample_names = protocol.sample_names
 
     counter = 1
     if store:
@@ -65,10 +66,10 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=No
     if isinstance(alignments, (list, tuple)):
         read_mappings = []
         for alignment in alignments:
-            if samples is not None:
-                sample = samples[counter - 1]
+            if sample_names is not None:
+                sample = sample_names[counter - 1]
             else:
-                sample = samples
+                sample = sample_names
             utr_sizes_counts = map_reads_to_utr(
                 alignment, intervals, read='first', protocol=protocol, sample=sample)
             if store:
@@ -81,7 +82,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=No
             counter += 1
     else:
         read_mappings = map_reads_to_utr(
-            alignments, intervals, read='first', protocol=protocol, sample=samples)
+            alignments, intervals, read='first', protocol=protocol, sample=sample_names)
         if store:
             read_mappings.export(os.path.join(directory, f'{filename}.pkl'))
     return read_mappings

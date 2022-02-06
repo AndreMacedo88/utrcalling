@@ -26,34 +26,37 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     for arg, value in locals().items():
         logger.info(f'Argument {arg}: {value}\n')
 
-    # set up the protocol for this specific run
-    protocol = protocols.Protocol(protocol_platform, int(protocol_version))
+    # Supply the names of your samples, if applicable:
+    # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.
+    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
+        alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
+        sample_names = [helpers.get_parent_folders_names_from_file(
+            file_path) for file_path in alignments]
+    elif protocol_platform in ("smartseq", "smart-seq"):
+        sample_names = [file_path.split(".")[0].split("/")[1]
+                        for file_path in alignments]
+    else:
+        sample_names = None
 
-    # get UTR reference data from the organisms GTF annotation file
+    # Set up the protocol for this specific run
+    protocol = protocols.Protocol(protocol_platform, int(protocol_version),
+                                  sample_names=sample_names)
+
+    # Get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
     utr_reference_regions = core.prepare_utr_reference_regions(
         utr_annotation, feature, store=True)
 
     # Map to the reference UTR the reads that properly aligned to genome
-    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
-        alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
-        samples_names = [helpers.get_parent_folders_names_from_file(
-            file_path) for file_path in alignments]
-    elif protocol_platform in ("smartseq", "smart-seq"):
-        samples_names = [file_path.split(".")[0].split("/")[1]
-                         for file_path in alignments]
-    else:
-        samples_names = None
 
     logger.info('Mapping aligned reads to UTR reference')
     core.map_aligned_reads(
-        alignments, utr_reference_regions, protocol, store=True,
-        samples=samples_names)
+        alignments, utr_reference_regions, protocol, store=True)
 
     return
 
 
-keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--single_cell_annotation",
+keyword_args = {"-a": "--alignments", "-f": "--feature",
                 "-p": "--protocol_platform", "-v": "--protocol_version",
                 "-l": "--log_level"}
 

@@ -11,6 +11,7 @@ Note:
 3- New protocols should, then, append an elif clause in this function.
 
 """
+
 import re
 from distutils.util import strtobool
 
@@ -24,12 +25,13 @@ from utrcalling import module_log, helpers
 class Protocol:
     def __init__(self,
                  platform, version, merge_method=None, call_peaks=True,
-                 label_samples=None
+                 label_samples=None, sample_names=None
                  ) -> None:
         self.logger = module_log.module_logger()
 
         # Variables that can be supplied directly in init, or modified via specific protocol functions
         self.merge_method = merge_method
+        self.sample_names = sample_names
         self.label_samples = label_samples
         if isinstance(call_peaks, bool):
             self.call_peaks = call_peaks

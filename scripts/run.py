@@ -3,8 +3,8 @@ import argparse
 import ast
 import os
 
-sys.path.append('../')
-sys.path.append('./')
+sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
+sys.path.append('./')  # allows utrcalling to be imported from this script
 from utrcalling import core, helpers, protocols
 from utrcalling.module_log import module_logger
 
@@ -14,7 +14,8 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
          store_intermediate=False, log_level='info',
          sample_merge_method=None, call_peaks=True, out='UTR_results.h5ad'):
     """
-    Gets UTR sizes peak counts per cell/sample from input file/s.
+    Maps reads to UTRs and returns UTR length peak counts per cell/sample from 
+    input file/s.
 
     Args:
         utr_annotation (str): [description]
@@ -31,33 +32,35 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     for arg, value in locals().items():
         logger.info(f'Argument {arg}: {value}\n')
 
-    # set up the protocol for this specific run
+    # Supply the names of your samples, if applicable:
+    # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.
+    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
+        alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
+        sample_names = [helpers.get_parent_folders_names_from_file(
+            file_path) for file_path in alignments]
+    elif protocol_platform in ("smartseq", "smart-seq"):
+        sample_names = [file_path.split(".")[0].split("/")[1]
+                        for file_path in alignments]
+    else:
+        sample_names = None
+
+    # Set up the protocol for this specific run
     protocol = protocols.Protocol(protocol_platform, int(protocol_version),
                                   merge_method=sample_merge_method,
-                                  call_peaks=call_peaks)
+                                  call_peaks=call_peaks, sample_names=sample_names)
 
-    # get UTR reference data from the organisms GTF annotation file
+    # Get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
     utr_reference_regions = core.prepare_utr_reference_regions(
         utr_annotation, feature, store=store_intermediate)
 
     # Map to the reference UTR the reads that properly aligned to genome
-    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
-        alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
-        samples_names = [helpers.get_parent_folders_names_from_file(
-            file_path) for file_path in alignments]
-    elif protocol_platform in ("smartseq", "smart-seq"):
-        samples_names = [file_path.split(".")[0].split("/")[1]
-                         for file_path in alignments]
-    else:
-        samples_names = None
 
     logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
-        alignments, utr_reference_regions, protocol, store=store_intermediate,
-        samples=samples_names)
+        alignments, utr_reference_regions, protocol, store=store_intermediate)
 
-    # call peaks from the UTR sizes for each molecule
+    # Call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, protocol,
