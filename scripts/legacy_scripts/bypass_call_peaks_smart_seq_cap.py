@@ -3,6 +3,7 @@ import argparse
 import ast
 
 sys.path.append('../')
+sys.path.append('./')
 from utrcalling import core, helpers, protocols
 from utrcalling.module_log import module_logger
 
@@ -33,7 +34,7 @@ def main(utr_annotation, utr_sizes_counts, sample_annotation=None, log_level='in
 
     # set up the protocol for this specific run
     protocol = protocols.Protocol(protocol_platform, int(protocol_version),
-                                  merge_method='union', peak_calling=False)
+                                  merge_method='union', call_peaks=False)
 
     # load UTR reference file
     utr_reference_annotations = helpers.load_annotations(utr_annotation)
