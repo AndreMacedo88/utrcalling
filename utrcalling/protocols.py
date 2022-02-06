@@ -1,8 +1,18 @@
 """
-File containing objects and functions specific for each supported sequencing platform
+File containing protocols: objects and functions specific for each supported 
+sequencing platform, version, strategy, etc.
+
+Each protocol should define functions and variables that are expected to be called during
+the run.
+
+Note:
+1- These functions are defined as private functions at the end of this file.
+2- The protocol itself is defined by the `_check_platform_and_version` function.
+3- New protocols should, then, append an elif clause in this function.
 
 """
 import re
+from distutils.util import strtobool
 
 import numpy as np
 from sklearn.neighbors import KernelDensity
@@ -12,19 +22,32 @@ from utrcalling import module_log, helpers
 
 
 class Protocol:
-    def __init__(self, platform, version, merge_method=None, peak_calling=True) -> None:
+    def __init__(self,
+                 platform, version, merge_method=None, call_peaks=True,
+                 label_samples=None
+                 ) -> None:
         self.logger = module_log.module_logger()
 
+        # Variables that can be supplied directly in init, or modified via specific protocol functions
+        self.merge_method = merge_method
+        self.label_samples = label_samples
+        if isinstance(call_peaks, bool):
+            self.call_peaks = call_peaks
+        else:
+            self.call_peaks = bool(strtobool(call_peaks))
+
+        # Objects (functions) to be defined by this class only
         self.get_reads_identity = None
         self.check_strand_matches = None
         self.filter_utr_sizes = None
-        self.merge_method = merge_method
-        self.label_samples = None
-        if peak_calling:
-            self.peak_calling = self.call_peaks_using_kernel_density_estimator
-        else:
-            self.peak_calling = self.bypass_calling_peaks
 
+        # Since we only have one peak calling algorithm so far, we can define it here.
+        if self.call_peaks:
+            self.peak_calling = self._call_peaks_using_kernel_density_estimator
+        else:
+            self.peak_calling = self._bypass_calling_peaks
+
+        # Call the protocol that will define and/or change the objects
         self._check_platform_and_version(platform=platform, version=version)
 
         self.logger.info(f'Protocol args:\n')
@@ -39,28 +62,28 @@ class Protocol:
 
     def _check_platform_and_version(self, platform, version):
         if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
-            self.check_strand_matches = self.check_strand_matches_3prime
+            self.check_strand_matches = self._check_strand_matches_3prime
             self.filter_utr_sizes = self._filter_utr_sizes
             self.label_samples = True
             if self.merge_method is None:
                 self.merge_method = 'intersection'
             if version == 2:
-                self.get_reads_identity = self.get_reads_identity_tenx_2
+                self.get_reads_identity = self._get_reads_identity_tenx_2
             elif version in (3, 3.1):
-                self.get_reads_identity = self.get_reads_identity_tenx_3
+                self.get_reads_identity = self._get_reads_identity_tenx_3
             else:
                 version_fail = f'10x genomics protocol version {version} currently not supported.'
                 self.logger.error(version_fail)
                 raise RuntimeError(version_fail)
 
         elif platform.lower() in ('smart-seq', 'smartseq'):
-            self.check_strand_matches = self.check_strand_matches_3prime
+            self.check_strand_matches = self._check_strand_matches_3prime
             self.filter_utr_sizes = self._filter_utr_sizes
             self.label_samples = False
             if self.merge_method is None:
                 self.merge_method = 'intersection'
             if version == 3:
-                self.get_reads_identity = self.get_reads_identity_smart_seq_3
+                self.get_reads_identity = self._get_reads_identity_smart_seq_3
             else:
                 version_fail = f'Smart-seq protocol version {version} \
                     currently not supported'
@@ -68,24 +91,66 @@ class Protocol:
                 raise RuntimeError(version_fail)
 
         elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
-            self.check_strand_matches = self.check_strand_matches_5prime
+            self.check_strand_matches = self._check_strand_matches_5prime
             self.filter_utr_sizes = self._filter_utr_sizes_smart_seq_3_cap
             self.label_samples = False
             if self.merge_method is None:
                 self.merge_method = 'union'
             if version == 3:
-                self.get_reads_identity = self.get_reads_identity_smart_seq_3_cap
+                self.get_reads_identity = self._get_reads_identity_smart_seq_3_cap
             else:
                 version_fail = f'Smart-seq protocol version {version} \
                     currently not supported'
                 self.logger.error(version_fail)
                 raise RuntimeError(version_fail)
 
+        # Implement any new protocol here, as a new elif clause.
+
         else:
             platform_fail = f'Sequencing platform - {platform} - currently not supported.'
             self.logger.error(platform_fail)
             raise RuntimeError(platform_fail)
 
+    # Implement your private functions below.
+
+    # 1- Methods to get read information from the alignment file:
+    @staticmethod
+    def _get_reads_identity_tenx_2(alignment, **_):
+        read_barcode = helpers.to_string(alignment.read.seq[:16])
+        read_umi = helpers.to_string(alignment.read.seq[16:26])  # 10 bp UMI
+        return read_umi, read_barcode
+
+    @staticmethod
+    def _get_reads_identity_tenx_3(alignment, **_):
+        read_barcode = helpers.to_string(alignment.read.seq[:16])
+        read_umi = helpers.to_string(alignment.read.seq[16:28])  # 12 bp UMI
+        return read_umi, read_barcode
+
+    @staticmethod
+    def _get_reads_identity_smart_seq_3(alignment, **kwargs):
+        read_sample_id = kwargs.get('sample', 'S')
+        read_umi = helpers.to_string(alignment.read.seq[6:14])  # 8 bp UMI
+        return read_umi, read_sample_id
+
+    @staticmethod
+    def _get_reads_identity_smart_seq_3_cap(alignment, **kwargs):
+        read_sample_id = kwargs.get('sample', 'S')
+
+        read_seq = helpers.to_string(alignment.read.name)
+        read_umi = read_seq.split('_')[1]
+        assert(len(read_umi) == 8)  # 8 bp UMI
+
+        return read_umi, read_sample_id
+
+    @staticmethod
+    def _check_strand_matches_3prime(read_strand, utr_strand):
+        return read_strand != utr_strand
+
+    @staticmethod
+    def _check_strand_matches_5prime(read_strand, utr_strand):
+        return read_strand == utr_strand
+
+    # 2- Methods to process UTR sizes:
     @staticmethod
     def _filter_utr_sizes(utr_sizes, amount=1):
 
@@ -106,53 +171,10 @@ class Protocol:
         logger.info('For this protocol, no UTR size filtering is performed.')
         return utr_sizes
 
-    @staticmethod
-    def get_reads_identity_tenx_2(alignment, **_):
-        read_barcode = helpers.to_string(alignment.read.seq[:16])
-        read_umi = helpers.to_string(alignment.read.seq[16:26])  # 10 bp UMI
-        return read_umi, read_barcode
+    # 3- Methods to aggregate individual molecules' UTR sizes to consensus peaks:
 
     @staticmethod
-    def get_reads_identity_tenx_3(alignment, **_):
-        read_barcode = helpers.to_string(alignment.read.seq[:16])
-        read_umi = helpers.to_string(alignment.read.seq[16:28])  # 12 bp UMI
-        return read_umi, read_barcode
-
-    @staticmethod
-    def get_reads_identity_smart_seq_3(alignment, **kwargs):
-        read_sample_id = kwargs.get('sample', 'S')
-        read_umi = helpers.to_string(alignment.read.seq[6:14])  # 8 bp UMI
-
-        """
-        match = re.match(r".*ATTGCGCAATG([NGCAT]{8})",
-                         helpers.to_string(alignment.read.seq))  # 8 bp UMI
-        if match:
-            read_umi = match.group(1)
-        else:
-            read_umi = ''
-        """
-        return read_umi, read_sample_id
-
-    @staticmethod
-    def get_reads_identity_smart_seq_3_cap(alignment, **kwargs):
-        read_sample_id = kwargs.get('sample', 'S')
-
-        read_seq = helpers.to_string(alignment.read.name)
-        read_umi = read_seq.split('_')[1]
-        assert(len(read_umi) == 8)  # 8 bp UMI
-
-        return read_umi, read_sample_id
-
-    @staticmethod
-    def check_strand_matches_3prime(read_strand, utr_strand):
-        return read_strand != utr_strand
-
-    @staticmethod
-    def check_strand_matches_5prime(read_strand, utr_strand):
-        return read_strand == utr_strand
-
-    @staticmethod
-    def call_peaks_using_kernel_density_estimator(utr_sizes_vector):
+    def _call_peaks_using_kernel_density_estimator(utr_sizes_vector):
         """
         Fit a kernel density model to predict the peak's ditribution density function
 
@@ -206,5 +228,5 @@ class Protocol:
         return peaks
 
     @staticmethod
-    def bypass_calling_peaks(utr_sizes_vector):
+    def _bypass_calling_peaks(utr_sizes_vector):
         return np.around(utr_sizes_vector, decimals=0)

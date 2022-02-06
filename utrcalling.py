@@ -23,32 +23,17 @@ def run(args=None):
     scripts.run.main(args[0], **kwargs_new)
 
 
-def run_smart_seq_cap(args=None):
-    kwargs_new = _parse_unknown_args(
-        args, 1, keywords=scripts.run_smart_seq_cap.keyword_args)
-    scripts.run_smart_seq_cap.main(args[0], **kwargs_new)
-
-
 def call_peaks(args=None):
     kwargs_new = _parse_unknown_args(
         args, 1, keywords=scripts.call_peaks.keyword_args)
     scripts.call_peaks.main(args[0], **kwargs_new)
 
 
-def call_peaks_smart_seq_cap(args=None):
-    kwargs_new = _parse_unknown_args(
-        args, 1, keywords=scripts.call_peaks_smart_seq_cap.keyword_args)
-    scripts.call_peaks_smart_seq_cap.main(args[0], **kwargs_new)
-
-def bypass_call_peaks_smart_seq_cap(args=None):
-    kwargs_new = _parse_unknown_args(
-        args, 1, keywords=scripts.bypass_call_peaks_smart_seq_cap.keyword_args)
-    scripts.bypass_call_peaks_smart_seq_cap.main(args[0], **kwargs_new)
-
 def utr_reference_and_mapping(args=None):
     kwargs_new = _parse_unknown_args(
-    args, 1, keywords=scripts.run.keyword_args)
+        args, 1, keywords=scripts.utr_reference_and_mapping.keyword_args)
     scripts.utr_reference_and_mapping.main(args[0], **kwargs_new)
+
 
 def _parse_unknown_args(args, n_args, keywords=None):
     # get only the keyword arguments
@@ -83,7 +68,9 @@ def _parse_unknown_args(args, n_args, keywords=None):
 
 def main(process, unknown_arguments, possibilities):
     """
-    Checks the parameters input by the user and passes them along the pipeline to the correct function.
+    Checks the parameters input by the user and passes them along the pipeline to the 
+    correct function.
+
     Parameters
     ----------
     process : str
@@ -105,12 +92,12 @@ def main(process, unknown_arguments, possibilities):
 
 
 if __name__ == "__main__":
-    list_of_processes = ["run_tests", "run", "call_peaks", "run_smart_seq_cap",
-                         'call_peaks_smart_seq_cap', 'bypass_call_peaks_smart_seq_cap',
-                         'utr_reference_and_mapping']
-    
+    list_of_processes = [
+        "run_tests", "run", "call_peaks", 'utr_reference_and_mapping'
+    ]
+
     parser = argparse.ArgumentParser(description="""
-    Utility script for easy access to most of the VEnCode scripts and
+    Utility script for easy access to most of the utrcalling tool scripts and
     tests. For the list of arguments to use, refer to this module's documentation or 
     check the help for the script you are trying to use, which is located in the 
     scripts folder.
@@ -124,4 +111,5 @@ if __name__ == "__main__":
     parser.add_argument("process", type=str, help="The process/script to run.")
 
     args_, unknown_args = parser.parse_known_args()
+
     main(args_.process, unknown_args, list_of_processes)

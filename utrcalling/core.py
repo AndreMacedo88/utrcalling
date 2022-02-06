@@ -29,7 +29,7 @@ from .peak_calling import (
 )
 
 
-def prepare_utr_reference_regions(gtf, feature, genome='', store=False):
+def prepare_utr_reference_regions(gtf, feature, store=False):
     # extract 3'UTRs from all the features in the GTF file
     utr = extract_feature(gtf, feature)
     # sort by chr and start for bed merge
@@ -88,14 +88,14 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False, samples=No
 
 
 def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
-               annotations=None, label_samples=True, store=False, exclude_from_merge=[]):
+               annotations=None, store=False, exclude_from_merge=[]):
     logger = module_logger()
 
     # if more than one counts file is provided, they must be merged before peak calling
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
                                                    method=protocol.merge_method,
-                                                   label_samples=label_samples,
+                                                   label_samples=protocol.label_samples,
                                                    exclude=exclude_from_merge)
         if store:
             directory = './intermediate'

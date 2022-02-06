@@ -4,13 +4,15 @@ import ast
 import os
 
 sys.path.append('../')
+sys.path.append('./')
 from utrcalling import core, helpers, protocols
 from utrcalling.module_log import module_logger
 
 
 def main(utr_annotation, alignments, feature='three_prime_utr',
          annotations_file=None, protocol_platform="10x", protocol_version=3,
-         store_intermediate=False, log_level='info', out='UTR_results.h5ad'):
+         store_intermediate=False, log_level='info',
+         sample_merge_method=None, call_peaks=True, out='UTR_results.h5ad'):
     """
     Gets UTR sizes peak counts per cell/sample from input file/s.
 
@@ -30,7 +32,9 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = protocols.Protocol(protocol_platform, int(protocol_version))
+    protocol = protocols.Protocol(protocol_platform, int(protocol_version),
+                                  merge_method=sample_merge_method,
+                                  call_peaks=call_peaks)
 
     # get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
@@ -57,8 +61,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_regions, protocol,
-        annotations=annotations_file, store=store_intermediate,
-        label_samples=protocol.label_samples)
+        annotations=annotations_file, store=store_intermediate)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
@@ -67,8 +70,9 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     return
 
 
-keyword_args = {"-a": "--alignments", "-f": "--feature", "-s": "--annotations_file",
+keyword_args = {"-a": "--alignments", "-f": "--feature", "-A": "--annotations_file",
                 "-p": "--protocol_platform", "-v": "--protocol_version",
+                "-m": "--sample_merge_method", "-C": "--call_peaks",
                 "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
 
 if __name__ == "__main__":
@@ -78,7 +82,7 @@ if __name__ == "__main__":
         Example on how to use in command-line:
         $ python run.py mus_musculus.gtf 
             -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2 
-            -i False -s experiment.csv -o results.h5ad
+            -i False -A experiment.csv -o results.h5ad
         """)
     parser.add_argument("utr_annotation", type=str,
                         help="GTF file with the genome annotations")
@@ -94,9 +98,10 @@ if __name__ == "__main__":
                             five_prime_utr",
                         default='three_prime_utr')
 
-    parser.add_argument("--annotations_file", "-s", type=str,
-                        help="File with your experiment's information, \
-                            such as cell barcodes.",
+    parser.add_argument("--annotations_file", "-A", type=str,
+                        help="""
+                        File with your experiment's information, such as cell barcodes.
+                        """,
                         default=None)
 
     parser.add_argument("--protocol_platform", "-p", type=str,
@@ -107,11 +112,30 @@ if __name__ == "__main__":
                         help="Version of the protocol used in library preparation.",
                         default=2)
 
+    parser.add_argument("--sample_merge_method", "-m", type=str,
+                        help="""
+                        Method used to deal with different UTR coverage in different
+                        samples. If `union`, then the tool outputs UTRs that are not 
+                        represented by all samples. If `intersection` only the reads that
+                        map to UTRs in common between all samples will be used. Default
+                        depends on the protocol used.
+                        """,
+                        default=None)
+
     parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
-                        help="If True, stores intermediate files that can be used to \
-                            run quicker pipelines later on. Useful if something wrong \
-                            is happening in later stages of the pipeline",
+                        help="""
+                        If True, stores intermediate files that can be used to 
+                        run quicker pipelines later on. Useful if something wrong 
+                        is happening in later stages of the pipeline.
+                        """,
                         default=False)
+
+    parser.add_argument("--call_peaks", "-C", type=ast.literal_eval,
+                        help="""
+                        If True, aggregates individual molecules' UTR sizes into
+                        consensus peaks.
+                        """,
+                        default=True)
 
     parser.add_argument("--log_level", "-l", type=str,
                         help="Level of logging messages to retrieve during the run.",
@@ -123,11 +147,14 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.utr_annotation, args.alignments, feature=args.three_prime_utr,
+    main(args.utr_annotation, args.alignments,
+         feature=args.three_prime_utr,
          annotations_file=args.annotations_file,
          protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
+         sample_merge_method=args.sample_merge_method,
          store_intermediate=args.store_intermediate,
+         call_peaks=args.call_peaks,
          log_level=args.log_level,
          out=args.out
          )

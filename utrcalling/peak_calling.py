@@ -125,7 +125,7 @@ def filter_barcodes(utr_sizes, annotations, parallel=False):
 
 
 def generate_peak_counts(utr_sizes, annotations=None,
-                         func=protocols.Protocol.call_peaks_using_kernel_density_estimator):
+                         func=protocols.Protocol._call_peaks_using_kernel_density_estimator):
 
     logger = module_log.module_logger()
     logger.info('Generating and counting UTR size peaks')

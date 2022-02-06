@@ -2,7 +2,8 @@ import sys
 import argparse
 import os
 
-sys.path.append('../')
+sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
+sys.path.append('./')  # allows utrcalling to be imported from this script
 from utrcalling import core, helpers, protocols
 from utrcalling.module_log import module_logger
 

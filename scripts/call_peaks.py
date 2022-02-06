@@ -3,12 +3,14 @@ import argparse
 import ast
 
 sys.path.append('../')
-from utrcalling import core, helpers, module_log, protocols
+sys.path.append('./')
+from utrcalling import core, helpers, protocols
+from utrcalling.module_log import module_logger
 
 
-def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_level='info',
+def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='info',
          store_intermediate=False, protocol_platform="10x", protocol_version=2,
-         sample_merge_method=None, out="UTR_results.h5ad"):
+         sample_merge_method=None, call_peaks=True, out="UTR_results.h5ad"):
     """
     Gets UTR sizes peak count per cell/sample from UTR sizes counts and UTR annotation 
     files.
@@ -25,13 +27,14 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
     """
 
     # Set up logging
-    logger = module_log.module_logger(disable=False, store_log=True, level=log_level)
+    logger = module_logger(disable=False, store_log=True, level=log_level)
     for arg, value in locals().items():
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
     protocol = protocols.Protocol(protocol_platform, int(protocol_version),
-                                  merge_method=sample_merge_method)
+                                  merge_method=sample_merge_method,
+                                  call_peaks=call_peaks)
 
     # load UTR reference file
     utr_reference_annotations = helpers.load_annotations(utr_annotation)
@@ -42,7 +45,7 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
                                                            suffix='.pkl')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_annotations, protocol,
-        annotations=single_cell_annotation, store=store_intermediate, label_samples=True)
+        annotations=annotations_file, store=store_intermediate)
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
@@ -51,9 +54,9 @@ def main(utr_annotation, utr_sizes_counts, single_cell_annotation=None, log_leve
     return
 
 
-keyword_args = {"-c": "--utr_sizes_counts", "-s": "--single_cell_annotation",
+keyword_args = {"-c": "--utr_sizes_counts", "-A": "--annotations_file",
                 "-p": "--protocol_platform", "-v": "--protocol_version",
-                "-m": "--sample_merge_method",
+                "-m": "--sample_merge_method", "-C": "--call_peaks",
                 "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
 
 if __name__ == "__main__":
@@ -63,7 +66,7 @@ if __name__ == "__main__":
         Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
         Example on how to use in command-line:
         $ python call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
-            -s experiment.csv -p 10x -v 2 -i True -o results.h5ad
+            -A experiment.csv -p 10x -v 2 -i True -o results.h5ad
         """)
     parser.add_argument("utr_annotation", type=str,
                         help="BED or pickle file with the UTR annotations")
@@ -75,8 +78,10 @@ if __name__ == "__main__":
         The files should be pickle files of a UtrMappings object.
         """)
 
-    parser.add_argument("--single_cell_annotation", "-s", type=str,
-                        help="File with your experiment's information, such as cell barcodes.",
+    parser.add_argument("--annotations_file", "-A", type=str,
+                        help="""
+                        File with your experiment's information, such as cell barcodes.
+                        """,
                         default=None)
 
     parser.add_argument("--protocol_platform", "-p", type=str,
@@ -98,10 +103,19 @@ if __name__ == "__main__":
                         default=None)
 
     parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
-                        help="If True, stores intermediate files that can be used to \
-                            run quicker pipelines later on. Useful if something wrong \
-                            is happening in later stages of the pipeline",
+                        help="""
+                        If True, stores intermediate files that can be used to 
+                        run quicker pipelines later on. Useful if something wrong 
+                        is happening in later stages of the pipeline.
+                        """,
                         default=False)
+
+    parser.add_argument("--call_peaks", "-C", type=ast.literal_eval,
+                        help="""
+                        If True, aggregates individual molecules' UTR sizes into
+                        consensus peaks.
+                        """,
+                        default=True)
 
     parser.add_argument("--log_level", "-l", type=str,
                         help="Level of logging messages to retrieve during the run.",
@@ -114,11 +128,12 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.utr_annotation, args.utr_sizes_counts,
-         single_cell_annotation=args.single_cell_annotation,
+         annotations_file=args.single_cell_annotation,
          protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
          sample_merge_method=args.sample_merge_method,
          store_intermediate=args.store_intermediate,
+         call_peaks=args.call_peaks,
          log_level=args.log_level,
          out=args.out
          )
