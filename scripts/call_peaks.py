@@ -2,8 +2,8 @@ import sys
 import argparse
 import ast
 
-sys.path.append('../')
-sys.path.append('./')
+sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
+sys.path.append('./')  # allows utrcalling to be imported from this script
 from utrcalling import core, helpers, protocols
 from utrcalling.module_log import module_logger
 
@@ -12,8 +12,8 @@ def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='inf
          store_intermediate=False, protocol_platform="10x", protocol_version=2,
          sample_merge_method=None, call_peaks=True, out="UTR_results.h5ad"):
     """
-    Gets UTR sizes peak count per cell/sample from UTR sizes counts and UTR annotation 
-    files.
+    Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
+    annotation files.
 
     Args:
         utr_annotation (str): Path to a .bed file with the utr annotations.
@@ -61,7 +61,7 @@ keyword_args = {"-c": "--utr_sizes_counts", "-A": "--annotations_file",
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="""
-        Gets UTR sizes peak count per cell/sample from UTR sizes counts and UTR 
+        Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
         annotation files.
         Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
         Example on how to use in command-line:
