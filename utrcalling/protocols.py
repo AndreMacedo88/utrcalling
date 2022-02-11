@@ -1,5 +1,5 @@
 """
-File containing protocols: objects and functions specific for each supported 
+File containing protocols: objects and functions specific for each supported
 sequencing platform, version, strategy, etc.
 
 Each protocol should define functions and variables that are expected to be called during
@@ -20,6 +20,28 @@ from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 
 from utrcalling import module_log, helpers
+
+class AbstractProtocol:
+    """
+    Sequencing protocol interface.
+
+    Provides methods for peak calling, fetching label and sample names.
+    """
+
+    merge_method = None
+    label_samples = None
+
+    @staticmethod
+    def get_reads_identity(alignment, **kwargs):
+        raise NotImplementedError
+
+    @staticmethod
+    def filter_utr_sizes(alignment, **kwargs):
+        raise NotImplementedError
+
+    @staticmethod
+    def check_strand_matches(alignment, **kwargs):
+        raise NotImplementedError
 
 
 class Protocol:
@@ -106,7 +128,18 @@ class Protocol:
                 self.logger.error(version_fail)
                 raise RuntimeError(version_fail)
 
+        elif platform.lower() in ("cellranger_vdj", "cr_vdj", "cellranger-vdj", "cr-vdj"):
+            self.check_strand_matches = self._check_strand_matches_5prime
+            self.filter_utr_sizes = self._filter_utr_sizes_smart_seq_3_cap
+            self.label_samples = False
+            if self.merge_method is None:
+                self.merge_method = "intersection"
+            self.get_reads_identity = self._get_reads_identity_cellranger
+
         # Implement any new protocol here, as a new elif clause.
+        # TODO: refactor this whole class. Make individual protocols inherit an
+        # AbstractProtocol that provides the interface needed for a valid
+        # protocol and then define the necessary stuff in each subclass
 
         else:
             platform_fail = f'Sequencing platform - {platform} - currently not supported.'
@@ -115,7 +148,24 @@ class Protocol:
 
     # Implement your private functions below.
 
+
     # 1- Methods to get read information from the alignment file:
+
+    @staticmethod
+    def _get_reads_identity_cellranger(alignment, **_):
+        """
+        Get reads from a cellranger output bam.
+
+        Cellranger bam files contain sam tags with the error-corrected read barcodes and UMIs
+        """
+        read_barcodes = filter(lambda x: x[0] == "CB", alignment.optional_fields)
+        read_umis = filter(lambda x: x[0] == "UB", alignment.optional_fields)
+        # these tags can be duplicated, we only want the first one
+        try:
+            return next(read_umis)[1], next(read_barcodes)[1]
+        except StopIteration:
+            return None, None
+
     @staticmethod
     def _get_reads_identity_tenx_2(alignment, **_):
         read_barcode = helpers.to_string(alignment.read.seq[:16])
