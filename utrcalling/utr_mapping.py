@@ -63,11 +63,11 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                 mapped_read_information.read_lengths.append(read_info[4])
                 mapped_read_information.utr_sizes_from_reads.append(
                     read_info[5])
-        
+
         if mapped_read_information:
             mapped_read_information_unique_umis = mapped_read_information.get_unique_umis()
             utr_mappings[name] = mapped_read_information_unique_umis
-        
+
 
     logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
         \n\nMemory usage:{psutil.virtual_memory().percent}')
@@ -133,6 +133,8 @@ def extract_read_information(alignment, interval, protocol, sample=None):
     read_umi, read_barcode = protocol.get_reads_identity(alignment=alignment,
                                                          sample=sample)
     if not read_umi:  # if the UMI was not found, we discard the read
+        return None
+    if not read_barcode:
         return None
 
     # get read length
