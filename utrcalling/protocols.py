@@ -154,7 +154,7 @@ class Protocol:
     @staticmethod
     def _get_reads_identity_cellranger(alignment, **_):
         """
-        Get reads from a cellranger output bam.
+        Get read UMI and barcode from a cellranger output bam.
 
         Cellranger bam files contain sam tags with the error-corrected read barcodes and UMIs
         """
@@ -168,6 +168,17 @@ class Protocol:
 
     @staticmethod
     def _get_reads_identity_tenx_2(alignment, **_):
+        """
+        Get read UMI and barcode from 10x version 2
+
+        Args:
+            alignment (HTSeq.SAM_Alignment): The genome alignment line with the read 
+            information.
+
+        Returns:
+            tuple: a tuple of strings, containing the the read UMI and barcode in 
+            position 0 and 1, respectively.
+        """        
         read_barcode = helpers.to_string(alignment.read.seq[:16])
         read_umi = helpers.to_string(alignment.read.seq[16:26])  # 10 bp UMI
         return read_umi, read_barcode

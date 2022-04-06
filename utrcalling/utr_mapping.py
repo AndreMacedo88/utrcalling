@@ -93,7 +93,7 @@ def extract_read_information(alignment, interval, protocol, sample=None):
     # get read strand
     read_strand = alignment.iv.strand
 
-    # get the read starting position. THis may, or may not, be the match start position
+    # get the read starting position. This may, or may not, be the match start position
     read_start = alignment.iv.start_d
 
     # get read sequence
