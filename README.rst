@@ -10,7 +10,7 @@ Installing
 ----------
 
 Using pip
-________
+_________
 
 This module is currently not available from PyPi.
 

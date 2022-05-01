@@ -1,6 +1,5 @@
 import setuptools
 import re
-from glob import glob
 from pathlib import Path
 
 
@@ -31,7 +30,7 @@ with open(metadata_file, "rt") as file:
 setuptools.setup(
     name='utrcalling',
     version=version,
-    description='Package to call peaks in UTRs',
+    description='Package to calculate UTR sizes from sequencing reads.',
     long_description=readme(),
     author=author,
     author_email='andre.lopes.macedo@gmail.com',
@@ -56,11 +55,13 @@ setuptools.setup(
     ],
     include_package_data=True,
     classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Science/Research"
         "Programming Language :: Python :: 3.9",
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
     scripts=[x.as_posix() for x in Path("./scripts/").glob("*.py")] + [
-        "utrcalling"
+        "utrcall"
     ]
 )
