@@ -1,11 +1,9 @@
 import gc
 from functools import partial
-from itertools import count
 from statistics import mode
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-import numpy as np
 import joblib
 from joblib.externals.loky import get_reusable_executor
 import pandas as pd
@@ -162,7 +160,7 @@ def generate_peak_counts(utr_sizes, annotations=None,
     del utr_sizes
     gc.collect()
     get_reusable_executor().shutdown(wait=True)
-    
+
     count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False, copy=False)
     del count_matrix_list
 
