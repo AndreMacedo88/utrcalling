@@ -6,7 +6,7 @@ import scanpy as sc
 
 sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
 sys.path.append('./')  # allows utrcalling to be imported from this script
-from utrcalling import peak_calling_anndata as pc
+from main_module import peak_calling_anndata as pc
 
 
 def main(adata_path, out_path, threshold):
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     """,
         epilog="""
     Example use:
-    $ python remove_peaks_below_count_threshold.py adata_old.h5ad adata_filtered.h5ad 10
+    $ remove_peaks_below_count_threshold.py adata_old.h5ad adata_filtered.h5ad -t 10
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 

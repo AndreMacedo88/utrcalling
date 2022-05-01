@@ -19,7 +19,7 @@ import numpy as np
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 
-from utrcalling import module_log, helpers
+from main_module import module_log, helpers
 
 class AbstractProtocol:
     """

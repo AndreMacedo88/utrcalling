@@ -4,7 +4,7 @@ import scanpy as sc
 
 sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
 sys.path.append('./')  # allows utrcalling to be imported from this script
-from utrcalling import peak_calling_anndata as pc
+from main_module import peak_calling_anndata as pc
 
 
 def main(adata_path, out_path, bandwidths):
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     """,
         epilog="""
     Example use:
-    $ python call_peaks_different_bandwidths.py adata.h5ad adata_ -b 1 7 12
+    $ call_peaks_different_bandwidths.py adata.h5ad adata_ -b 1 7 12
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 

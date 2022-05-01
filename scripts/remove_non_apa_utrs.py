@@ -6,12 +6,12 @@ import scanpy as sc
 
 sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
 sys.path.append('./')  # allows utrcalling to be imported from this script
-from utrcalling import utr_sizes_processing as up
+from main_module import anndata_processing as ap
 
 
 def main(adata_path, out_path):
     adata = sc.read_h5ad(adata_path)
-    adata_new = up.potential_apa_events(adata=adata)
+    adata_new = ap.potential_apa_events(adata=adata)
     adata_new.write_h5ad(out_path)
 
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     """,
         epilog="""
     Example use:
-    $ python remove_non_apa_utrs.py adata_old.h5ad adata_new.h5ad
+    $ remove_non_apa_utrs.py adata_old.h5ad adata_new.h5ad
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 

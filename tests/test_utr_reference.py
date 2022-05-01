@@ -12,7 +12,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import utr_reference
+from main_module import utr_reference
 
 
 class TestOpenGtf(unittest.TestCase):

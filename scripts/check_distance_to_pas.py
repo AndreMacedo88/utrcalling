@@ -6,7 +6,7 @@ import pybedtools
 
 sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
 sys.path.append('./')  # allows utrcalling to be imported from this script
-from utrcalling import peak_calling_anndata as pc
+from main_module import peak_calling_anndata as pc
 
 
 def main(adata_path, out_path, genome_path, hamming):
@@ -27,8 +27,8 @@ if __name__ == "__main__":
     """,
         epilog="""
     Example use:
-    $ python check_distance_to_pas.py adata.h5ad distances_to_pas.joblib 
-        Homo_sapiens.GRCh38.dna.primary_assembly.fa -h 0
+    $ check_distance_to_pas.py adata.h5ad distances_to_pas.joblib 
+        Homo_sapiens.GRCh38.dna.primary_assembly.fa -H 0
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser.add_argument("out_path", type=str, help="Path where output will be stored.")
     parser.add_argument("genome_path", type=str,
                         help="Path to a genome file (fasta format).")
-    parser.add_argument("-h", "--hamming", type=int, default=0,
+    parser.add_argument("-H", "--hamming", type=int, default=0,
                         help="""
                         Number of differences to the canonical PAS hexamer (AATAAA)
                         that can be tolerated

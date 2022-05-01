@@ -17,7 +17,7 @@ import os
 import pandas as pd
 import pybedtools
 
-from utrcalling import helpers
+from main_module import helpers
 from .utr_reference import (
     generate_utr_name, extract_feature, prepare_annotations_index, reduce_regions,
     generate_utr_name, correct_column_names

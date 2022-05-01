@@ -12,7 +12,7 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import peak_calling, protocols, utr_mapping, storage
+from main_module import peak_calling, protocols, utr_mapping, storage
 
 
 class TestPeakCalling(unittest.TestCase):

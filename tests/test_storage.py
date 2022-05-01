@@ -11,8 +11,8 @@ sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling import protocols, utr_mapping
-from utrcalling.storage import MappedReadInformation
+from main_module import protocols, utr_mapping
+from main_module.storage import MappedReadInformation
 
 
 class TestStorage(unittest.TestCase):

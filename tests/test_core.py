@@ -1,5 +1,5 @@
 import unittest
-from utrcalling import core
+from main_module import core
 
 
 class TestCore(unittest.TestCase):

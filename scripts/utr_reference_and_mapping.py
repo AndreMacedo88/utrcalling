@@ -4,8 +4,8 @@ import os
 
 sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
 sys.path.append('./')  # allows utrcalling to be imported from this script
-from utrcalling import core, helpers, protocols
-from utrcalling.module_log import module_logger
+from main_module import core, helpers, protocols
+from main_module.module_log import module_logger
 
 
 def main(utr_annotation, alignments, feature='three_prime_utr',
@@ -61,13 +61,17 @@ keyword_args = {"-a": "--alignments", "-f": "--feature",
                 "-l": "--log_level"}
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="""
-        Runs the entire UTR calling pipeline.
-        Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
+    parser = argparse.ArgumentParser(
+        description="""
+        Builds a UTR reference and then maps the supplied reads to generate raw UTR sizes.
+        """,
+        epilog="""
         Example on how to use in command-line:
-        $ python run.py mus_musculus.gtf 
+        $ utr_reference_and_mapping.py mus_musculus.gtf 
             -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2
-        """)
+        """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
     parser.add_argument("utr_annotation", type=str,
                         help="GTF file with the genome annotations")
 

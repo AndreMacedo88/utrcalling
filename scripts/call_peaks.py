@@ -4,8 +4,8 @@ import ast
 
 sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
 sys.path.append('./')  # allows utrcalling to be imported from this script
-from utrcalling import core, helpers, protocols
-from utrcalling.module_log import module_logger
+from main_module import core, helpers, protocols
+from main_module.module_log import module_logger
 
 
 def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='info',
@@ -60,14 +60,20 @@ keyword_args = {"-c": "--utr_sizes_counts", "-A": "--annotations_file",
                 "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="""
+    parser = argparse.ArgumentParser(
+        description="""
         Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
         annotation files.
         Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
+        """,
+        epilog="""
         Example on how to use in command-line:
-        $ python call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
+        $ call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
             -A experiment.csv -p 10x -v 2 -i True -o results.h5ad
-        """)
+        """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
     parser.add_argument("utr_annotation", type=str,
                         help="BED or pickle file with the UTR annotations")
 

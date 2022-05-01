@@ -1,5 +1,7 @@
 import setuptools
 import re
+from glob import glob
+from pathlib import Path
 
 
 def readme():
@@ -10,7 +12,7 @@ def readme():
         return readme_file.read()
 
 
-metadata_file = "utrcalling/_metadata.py"
+metadata_file = "main_module/_metadata.py"
 with open(metadata_file, "rt") as file:
     metadata = file.read()
     version_expression = r"^__version__ = ['\"]([^'\"]*)['\"]"
@@ -36,8 +38,21 @@ setuptools.setup(
     url='https://github.com/AndreMacedo88/utrcalling',
     packages=setuptools.find_packages(),
     install_requires=[
+        "numpy>=1.22.3",
+        "pandas",
+        "scipy",
+        "scikit-learn",
+        "regex",
+        "rapidfuzz",
+        "joblib",
+        "anndata",
+        "scanpy",
+        "gtfparse",
+        "htseq",
+        "pybedtools",
         "tqdm",
-        "numpy",
+        "psutil",
+        "pympler"
     ],
     include_package_data=True,
     classifiers=[
@@ -45,9 +60,7 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    #entry_points={
-    #    'console_scripts': [
-    #        'utrcalling=utrcalling:change this please!',
-    #    ],
-    #},
+    scripts=[x.as_posix() for x in Path("./scripts/").glob("*.py")] + [
+        "utrcalling"
+    ]
 )

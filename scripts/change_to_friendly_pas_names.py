@@ -6,12 +6,12 @@ import scanpy as sc
 
 sys.path.append('../')  # allows utrcalling to be imported from `python utrcalling.py run`
 sys.path.append('./')  # allows utrcalling to be imported from this script
-from utrcalling import utr_sizes_processing as up
+from main_module import anndata_processing as ap
 
 
 def main(adata_path, out_path):
     adata = sc.read_h5ad(adata_path)
-    up.friendly_polya_names(adata=adata, out=out_path)
+    ap.friendly_polya_names(adata=adata, out=out_path)
 
 
 if __name__ == "__main__":
@@ -23,7 +23,7 @@ if __name__ == "__main__":
     """,
         epilog="""
     Example use:
-    $ python change_to_friendly_pas_names.py adata_old.h5ad adata_new_names.h5ad
+    $ change_to_friendly_pas_names.py adata_old.h5ad adata_new_names.h5ad
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
