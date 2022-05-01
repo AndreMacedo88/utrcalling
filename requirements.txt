@@ -1,89 +1,15 @@
-anndata==0.6.22.post1
-asttokens==2.0.5
-autopep8 @ file:///tmp/build/80754af9/autopep8_1620866417880/work
-backcall @ file:///home/ktietz/src/ci/backcall_1611930011877/work
-black==22.1.0
-cached-property @ file:///tmp/build/80754af9/cached-property_1600785575025/work
-certifi==2021.5.30
-chardet==4.0.0
-click==8.0.3
-cycler==0.10.0
-debugpy==1.5.1
-decorator==4.4.2
-dill @ file:///home/conda/feedstock_root/build_artifacts/dill_1623610058511/work
-dnspython==1.16.0
-docopt==0.6.2
-docutils==0.17.1
-executing==0.8.2
-fett==0.3.2
-gtfparse==1.2.1
-h5py @ file:///tmp/build/80754af9/h5py_1622088116664/work
-HTSeq==0.13.5
-idna==2.10
-ipykernel==6.8.0
-ipython==8.0.1
-ipython-genutils @ file:///tmp/build/80754af9/ipython_genutils_1606773439826/work
-jedi @ file:///tmp/build/80754af9/jedi_1606932531272/work
-joblib @ file:///tmp/build/80754af9/joblib_1613502643832/work
-jupyter-client @ file:///tmp/build/80754af9/jupyter_client_1616770841739/work
-jupyter-core @ file:///tmp/build/80754af9/jupyter_core_1612213314396/work
-kiwisolver @ file:///tmp/build/80754af9/kiwisolver_1612281846643/work
-llvmlite==0.36.0
-matplotlib @ file:///tmp/build/80754af9/matplotlib-suite_1613407855456/work
-matplotlib-inline==0.1.3
-mkl-fft==1.3.0
-mkl-random @ file:///tmp/build/80754af9/mkl_random_1618853971975/work
-mkl-service==2.3.0
-multiprocess @ file:///home/conda/feedstock_root/build_artifacts/multiprocess_1604743365978/work
-mypy-extensions==0.4.3
-natsort @ file:///tmp/build/80754af9/natsort_1611692802956/work
-nest-asyncio==1.5.4
-networkx==2.5.1
-numba @ file:///tmp/build/80754af9/numba_1616774250644/work
-numpy==1.20.3
-olefile==0.46
-pandas==1.2.4
-parso==0.7.0
-pathspec==0.9.0
-pexpect @ file:///tmp/build/80754af9/pexpect_1605563209008/work
-pickleshare @ file:///tmp/build/80754af9/pickleshare_1606932040724/work
-Pillow @ file:///tmp/build/80754af9/pillow_1617385572585/work
-platformdirs==2.4.1
-pox @ file:///home/conda/feedstock_root/build_artifacts/pox_1623773830989/work
-ppft @ file:///home/conda/feedstock_root/build_artifacts/ppft_1623774454681/work
-prompt-toolkit @ file:///tmp/build/80754af9/prompt-toolkit_1616415428029/work
-psutil @ file:///tmp/build/80754af9/psutil_1612297992929/work
-ptyprocess @ file:///tmp/build/80754af9/ptyprocess_1609355006118/work/dist/ptyprocess-0.7.0-py2.py3-none-any.whl
-pure-eval==0.2.2
+anndata>=0.8.0
+gtfparse>=1.2.1
+h5py>=3.2.1
+htseq>=0.13.5
+joblib>=1.0.1
+numba>=0.53.1
+numpy>=1.20.3
+pandas>=1.2.4
 pybedtools==0.8.2
-pycodestyle @ file:///tmp/build/80754af9/pycodestyle_1615748559966/work
-Pygments @ file:///tmp/build/80754af9/pygments_1615143339740/work
-pymongo==3.11.4
-Pympler @ file:///tmp/build/80754af9/pympler_1602785470644/work
-pyparsing @ file:///home/linux1/recipes/ci/pyparsing_1610983426697/work
 pysam==0.16.0.1
-python-dateutil @ file:///home/ktietz/src/ci/python-dateutil_1611928101742/work
-python-jsonrpc-server==0.3.4
-pytz @ file:///tmp/build/80754af9/pytz_1612215392582/work
-PyYAML==5.4.1
-pyzmq==20.0.0
-rapidfuzz @ file:///home/conda/feedstock_root/build_artifacts/rapidfuzz_1606758590463/work
-requests==2.25.1
-rstcheck==3.3.1
-scikit-learn @ file:///home/conda/feedstock_root/build_artifacts/scikit-learn_1605985751345/work
-scipy @ file:///tmp/build/80754af9/scipy_1618855955483/work
-sip==4.19.13
-six==1.16.0
-snooty-lextudio==1.11.6
-stack-data==0.1.4
-threadpoolctl @ file:///tmp/tmp79xdzxkt/threadpoolctl-2.1.0-py3-none-any.whl
-toml @ file:///tmp/build/80754af9/toml_1616166611790/work
-tomli==2.0.0
-tornado @ file:///tmp/build/80754af9/tornado_1606942317143/work
-tqdm @ file:///tmp/build/80754af9/tqdm_1615925068909/work
-traitlets==5.1.1
-typing-extensions==4.0.1
-ujson==1.35
-urllib3==1.26.4
-watchdog==1.0.2
-wcwidth @ file:///tmp/build/80754af9/wcwidth_1593447189090/work
+scikit-learn>=0.23.2
+scipy>=1.6.2
+tqdm>=4.59.0
+regex>=2022.04.24
+scanpy>=1.9.1
