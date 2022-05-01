@@ -237,7 +237,7 @@ class Protocol:
     # 3- Methods to aggregate individual molecules' UTR sizes to consensus peaks:
 
     @staticmethod
-    def _call_peaks_using_kernel_density_estimator(utr_sizes_vector):
+    def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=1):
         """
         Fit a kernel density model to predict the peak's ditribution density function
 
@@ -252,12 +252,15 @@ class Protocol:
             peaks = np.repeat(round(np.median(utr_sizes_vector)), len(utr_sizes_vector))
             return peaks
 
-        kde = KernelDensity(kernel='gaussian', bandwidth=1).fit(utr_sizes_vector)
+        if np.ndim(utr_sizes_vector) == 1:
+            utr_sizes_vector = utr_sizes_vector.reshape(-1, 1)
+
+        kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(utr_sizes_vector)
 
         # calculate an appropriate window to check the model
         minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
         padding = (maximum_size - minimum_size) * 0.1
-        window = np.linspace(minimum_size - padding, maximum_size + padding)
+        window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
         # get the model predictions for that window. Specifically, the maxima.
         evaluation = kde.score_samples(window.reshape(-1, 1))
         minima = argrelextrema(evaluation, np.less)[0]
