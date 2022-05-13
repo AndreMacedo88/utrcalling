@@ -1,5 +1,6 @@
 from main_module import helpers
 
+
 def friendly_polya_names(adata, out=''):
     """
     Generates PolyA site names from the gene name and UTR number.
@@ -75,4 +76,6 @@ def potential_apa_events(adata):
         anndata.AnnData: The modified AnnData.
     """
     unique_df = adata.var.groupby('utr_name').nunique()
-    return adata[:, adata.var.utr_name.isin(unique_df[unique_df.pA > 1].index)].copy()
+
+    return adata[:, adata.var.utr_name.isin(
+        unique_df[unique_df.utr_size > 1].index)].copy()
