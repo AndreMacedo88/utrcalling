@@ -3,7 +3,7 @@ import os
 from datetime import datetime
 
 
-def module_logger(disable=False, store_log=False, level='debug'):
+def module_logger(disable=False, store_log=False, level='info'):
     # create logger with the name of the module, or whatever
     module_logger = logging.getLogger("utrcallingtool")
     module_logger.propagate = False
