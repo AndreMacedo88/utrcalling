@@ -1,5 +1,4 @@
 from functools import partial
-from typing import Protocol
 
 import psutil
 from pympler import asizeof

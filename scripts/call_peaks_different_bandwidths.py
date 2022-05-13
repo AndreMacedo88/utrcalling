@@ -28,7 +28,7 @@ if __name__ == "__main__":
     """,
         epilog="""
     Example use:
-    $ call_peaks_different_bandwidths.py adata.h5ad adata_ -b 1 7 12
+    $ call_peaks_different_bandwidths.py adata.h5ad adata -b 1 7 12
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -44,4 +44,4 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    main(args.input_path, args.out_path)
+    main(args.input_path, args.out_path, args.bandwidths)
