@@ -46,9 +46,9 @@ class TestMergeSamplesUtrSizes(TestPeakCalling):
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
                               'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
                               'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2'],
-            'read_umis': ['TGGCTTATA', 'AACGTAACA', 'ACCTCCGGT', 'ACCCGCACT',
-                          'TCACGTGAG', 'TCCTAAATG', 'ATGATCGGT', 'TCCAGGAAT', 'TTTAGAACT',
-                          'GCTAGGACG'],
+            'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT',
+                          'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
+                          'CTTTAGAACT', 'TGCTAGGACG'],
             'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41],
             'utr_sizes_from_reads': [98, 97, 95, 89, 317, 95, 101, 97, 84, 78]
         }
@@ -77,9 +77,9 @@ class TestMergeSamplesUtrSizesExclude(TestPeakCalling):
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
                               'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
                               'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2'],
-            'read_umis': ['TGGCTTATA', 'AACGTAACA', 'ACCTCCGGT', 'ACCCGCACT',
-                          'TCACGTGAG', 'TCCTAAATG', 'ATGATCGGT', 'TCCAGGAAT', 'TTTAGAACT',
-                          'GCTAGGACG'],
+            'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT',
+                          'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
+                          'CTTTAGAACT', 'TGCTAGGACG'],
             'read_lengths': [46, 50, 48, 46],
             'utr_sizes_from_reads': [98, 97, 95, 89, 317, 95, 101, 97, 84, 78]
         }

@@ -47,7 +47,7 @@ class TestMappedReadInformation(TestStorage):
             'read_strands': ['+', '+', '+', '+'],
             'read_barcodes': ['CGTTGGGCAGTCAGAG', 'CCGTGGAGTCTCGTTC',
                               'GTAGTCAAGCTATGCT', 'TGCGCAGAGGCATGTG'],
-            'read_umis': ['TGGCTTATA', 'AACGTAACA', 'ACCTCCGGT', 'ACCCGCACT'],
+            'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT'],
             'read_lengths': [46, 50, 48, 46],
             'utr_sizes_from_reads': [98, 97, 95, 89]
         }
