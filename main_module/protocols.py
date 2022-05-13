@@ -229,7 +229,7 @@ class Protocol:
         return filtered
 
     @staticmethod
-    def _filter_utr_sizes_smart_seq_3_cap(utr_sizes, amount=1):
+    def _filter_utr_sizes_smart_seq_3_cap(utr_sizes, amount=0):
         logger = module_log.module_logger()
         logger.info('For this protocol, no UTR size filtering is performed.')
         return utr_sizes
