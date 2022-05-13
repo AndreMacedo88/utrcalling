@@ -10,6 +10,7 @@ import regex
 import numpy as np
 import math
 from sklearn.neighbors import KernelDensity
+import scipy
 from scipy.signal import argrelextrema
 # import data processing tools
 import pandas as pd
@@ -84,6 +85,14 @@ def peak_call_anndata(adata, method, **kwargs):
     if kwargs.get("bandwidth", 1) == 0:
         print("Using Bandwidth = 0 means no changes were made")
         return adata
+    
+    sparse_adata = False 
+    if scipy.sparse.issparse(adata.X):
+        sparse_adata = True
+        print("Densifying sparse data for further processing")
+        adata.X = adata.X.toarray()
+    
+    new_obs = adata.obs
 
     utrs = adata.var.utr_name.unique()
 
@@ -130,8 +139,15 @@ def peak_call_anndata(adata, method, **kwargs):
         utr_var_new["utr_size"] = peak_sizes_unique
         var_list.append(utr_var_new)
 
+    del adata
+
     var_df = pd.concat(var_list, axis=0).drop("pA", axis=1, errors="ignore")
-    new_adata = ad.AnnData(X=np.hstack(mtx_list), obs=adata.obs, var=var_df)
+    new_adata = ad.AnnData(X=np.hstack(mtx_list), obs=new_obs, var=var_df)
+
+    if sparse_adata:
+        print("Sparsifying data as initially provided.")
+        new_adata.X = scipy.sparse.csr_matrix(new_adata.X)
+
     new_adata = new_adata[new_adata.obs.sort_index().index, :]
     return new_adata
 
@@ -150,7 +166,11 @@ def remove_peaks_below_count(adata, threshold=10):
     Returns:
         ad.AnnData: A filtered AnnData object with UTR peaks counts above the threshold.
     """
-    bigger_than_10 = np.sum(adata.X, axis=0) >= threshold
+
+    bigger_than_10 = adata.X.sum(axis=0) >= threshold
+    if bigger_than_10.ndim > 1:
+        bigger_than_10 = np.asarray(bigger_than_10).reshape(-1)
+    
     x_ = adata.X[:, bigger_than_10]
     var_ = adata.var[bigger_than_10]
 
