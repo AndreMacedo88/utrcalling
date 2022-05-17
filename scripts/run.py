@@ -70,7 +70,11 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
-    count_matrix_anndata.write(filename=out)
+    try:
+        count_matrix_anndata.write(filename=out)
+    except TypeError:
+        count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(str)
+        count_matrix_anndata.write(filename=out)
 
     return
 

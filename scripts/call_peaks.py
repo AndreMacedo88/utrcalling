@@ -49,7 +49,11 @@ def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='inf
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
-    count_matrix_anndata.write(filename=out)
+    try:
+        count_matrix_anndata.write(filename=out)
+    except TypeError:
+        count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(str)
+        count_matrix_anndata.write(filename=out)
 
     return
 
