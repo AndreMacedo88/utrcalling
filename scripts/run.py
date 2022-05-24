@@ -43,6 +43,8 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     elif protocol_platform in ("smartseq", "smart-seq"):
         sample_names = [file_path.split(".")[0].split("/")[1]
                         for file_path in alignments]
+    elif protocol_platform in ("smartseq_cap", "smart-seq_cap"):
+        sample_names = [file_path.split("/")[-2] for file_path in alignments]
     else:
         sample_names = None
 
@@ -162,7 +164,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     main(args.utr_annotation, args.alignments,
-         feature=args.three_prime_utr,
+         feature=args.feature,
          annotations_file=args.annotations_file,
          protocol_platform=args.protocol_platform,
          protocol_version=args.protocol_version,
