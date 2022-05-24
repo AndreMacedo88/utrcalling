@@ -7,7 +7,8 @@ from tqdm import tqdm
 from main_module import helpers
 
 
-def friendly_polya_names(adata, out=''):
+def friendly_polya_names(
+        adata, out='', utr_name_column="utr_name", gene_name_column="gene_name"):
     """
     Generates PolyA site names from the gene name and UTR number.
     It then changes the var_names variable of the AnnData object with those new names.
@@ -31,21 +32,23 @@ def friendly_polya_names(adata, out=''):
     counter = 1
     utr = ""
     for row in adata.var.itertuples():
-        if utr != row.utr_name:
+        utr_name = row[utr_name_column]
+        gene_name = row[gene_name_column]
+        if utr != utr_name:
             counter = 1
-            utr = row.utr_name
+            utr = utr_name
 
         utr_info = utr.split("_")
         if len(utr_info) > 1:
-            if row.gene_name == "nan":
+            if gene_name == "nan":
                 name = f"{utr_info[0]}_UTR{utr_info[1]}_pA{counter}"
             else:
-                name = f"{row.gene_name}_UTR{utr_info[1]}_pA{counter}"
+                name = f"{gene_name}_UTR{utr_info[1]}_pA{counter}"
         else:
-            if row.gene_name == "nan":
+            if gene_name == "nan":
                 name = f"{utr_info[0]}_pA{counter}"
             else:
-                name = f"{row.gene_name}_pA{counter}"
+                name = f"{gene_name}_pA{counter}"
 
         new.append(name)
         counter += 1
@@ -139,7 +142,8 @@ def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
         cell_mean_sizes[utr] = means_and_vars[:, 0]
         cell_var_sizes[utr] = means_and_vars[:, 1]
 
-    var = adata.var[adata.var[utr_name_column].isin(cell_mean_sizes.columns)].iloc[:, 1:-1]
+    var = adata.var[adata.var[utr_name_column].isin(
+        cell_mean_sizes.columns)].iloc[:, 1:-1]
     var = var.drop_duplicates(subset=[utr_name_column])
     var = var.set_index(utr_name_column)
     var['UMIs'] = pd.Series(umis)
