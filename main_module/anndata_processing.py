@@ -32,8 +32,8 @@ def friendly_polya_names(
     counter = 1
     utr = ""
     for row in adata.var.itertuples():
-        utr_name = row[utr_name_column]
-        gene_name = row[gene_name_column]
+        utr_name = getattr(row, utr_name_column)
+        gene_name = getattr(row, gene_name_column)
         if utr != utr_name:
             counter = 1
             utr = utr_name
