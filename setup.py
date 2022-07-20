@@ -51,7 +51,7 @@ setuptools.setup(
         "pybedtools",
         "tqdm",
         "psutil",
-        "pympler"
+        "pympler",
     ],
     include_package_data=True,
     classifiers=[
@@ -63,5 +63,11 @@ setuptools.setup(
     ],
     scripts=[x.as_posix() for x in Path("./scripts/").glob("*.py")] + [
         "utrcall"
-    ]
+    ],
+    entry_points={
+        "console_scripts": [
+            # command = package.module:function
+            "friendly_names=scripts.change_to_friendly_pas_names:main"
+            ],
+    }
 )
