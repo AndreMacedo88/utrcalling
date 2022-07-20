@@ -67,7 +67,8 @@ setuptools.setup(
     entry_points={
         "console_scripts": [
             # command = package.module:function
-            "friendly_names=scripts.change_to_friendly_pas_names:main"
+            "friendly_names=scripts.change_to_friendly_pas_names:main",
+            "subset-experiments=scripts.subset_experiments:main"
             ],
     }
 )

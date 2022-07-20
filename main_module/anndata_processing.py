@@ -151,3 +151,21 @@ def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
     adata = anndata.AnnData(cell_mean_sizes, obs=adata.obs, var=var)
     adata.layers['variance'] = cell_var_sizes
     return adata
+
+def subset_adata(adata, annotations_keep, anno_types):
+    adata_list = []
+
+    for annotation, anno_type in zip(annotations_keep, anno_types):
+        annotation_df = pd.read_csv(annotation, header=True)
+        column_name = annotation_df.columns[0]
+
+        if anno_type == "var":
+            adata_list.append(
+                adata[:, adata.var[column_name] == annotation_df[column_name]])
+        elif anno_type == "obs":
+            adata_list.append(
+                adata[adata.obs[column_name] == annotation_df[column_name], :])
+        else:
+            raise AttributeError(f"Annotation type {anno_type} not supported")
+
+    return adata_list
