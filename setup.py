@@ -61,14 +61,14 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    scripts=[x.as_posix() for x in Path("./scripts/").glob("*.py")] + [
+    scripts=[x.as_posix() for x in Path("./tools/").glob("*.py")] + [
         "utrcall"
     ],
     entry_points={
         "console_scripts": [
             # command = package.module:function
-            "friendly_names=scripts.change_to_friendly_pas_names:main",
-            "subset-experiments=scripts.subset_experiments:main"
+            "friendly_names=tools.change_to_friendly_pas_names:main",
+            "subset-experiments=tools.subset_experiments:main"
             ],
     }
 )
