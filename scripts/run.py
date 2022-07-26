@@ -76,7 +76,18 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         count_matrix_anndata.write(filename=out)
     except TypeError:
         count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(str)
-        count_matrix_anndata.write(filename=out)
+        try:
+            count_matrix_anndata.write(filename=out)
+        except TypeError as e:
+            print(f"""
+Some of your annotations could not be written to a h5ad file.\n
+This could be because their type is ambiguous
+(characters/integers/etc).\n
+To deal with this, either make all annotations columns and re-run the tool,
+or run the tool with the option to output the intermediate files and 
+build your h5ad object from the counts matrix, obs, and var.
+The error message was:\n{e}
+            """)
 
     return
 
