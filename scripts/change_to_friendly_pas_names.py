@@ -9,16 +9,20 @@ sys.path.append('./')  # allows utrcalling to be imported from this script
 from main_module import anndata_processing as ap
 
 
-def friendly_names(adata_path, out_path, utr_name_column, gene_name_column):
-    adata = sc.read_h5ad(adata_path)
+def friendly_names(input_path, out_path, utr_name_column, gene_name_column):
+    adata = sc.read_h5ad(input_path)
     ap.friendly_polya_names(
         adata=adata, out=out_path, utr_name_column=utr_name_column,
         gene_name_column=gene_name_column)
 
 
 def main():
-    args = parser.parse_args()
-    args.func(args)
+    args_all = parser.parse_args()
+
+    args = vars(args_all).copy()
+    del args["func"]
+
+    args_all.func(**args)
 
 
 parser = argparse.ArgumentParser(

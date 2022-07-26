@@ -22,8 +22,12 @@ def subset_experiments(adata_path, annotations_keep, anno_types, out_paths):
 
 
 def main():
-    args = parser.parse_args()
-    args.func(args)
+    args_all = parser.parse_args()
+
+    args = vars(args_all).copy()
+    del args["func"]
+
+    args_all.func(**args)
 
 
 parser = argparse.ArgumentParser(
