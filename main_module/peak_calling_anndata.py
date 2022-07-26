@@ -368,7 +368,11 @@ def _calculate_umi_distance_to_pas(umi_utr_sizes, pas_end, seq_strand):
 
 def _utr_sizes_vector_from_read_counts(counts_arr, sizes_arr):
     counts_sum = np.sum(counts_arr, axis=0)
-    return np.repeat(sizes_arr, counts_sum)
+    try:
+        return np.repeat(sizes_arr, counts_sum)
+    except ValueError:
+        counts_sum = np.ravel(counts_sum)
+        return np.repeat(sizes_arr, counts_sum)
 
 
 def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=1):
