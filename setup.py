@@ -68,7 +68,8 @@ setuptools.setup(
         "console_scripts": [
             # command = package.module:function
             "friendly_names=tools.change_to_friendly_pas_names:main",
-            "subset-experiments=tools.subset_experiments:main"
+            "subset-experiments=tools.subset_experiments:main",
+            "concatenate-experiments=tools.concatenate_experiments:main"
             ],
     }
 )

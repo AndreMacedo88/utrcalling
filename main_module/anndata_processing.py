@@ -172,4 +172,30 @@ def subset_adata(adata, annotations_keep, anno_types):
 
 
 def concatenate_adata(adata_list):
-    return anndata.concat(adata_list, join="outer")
+    # prepare X object
+    adata_df_list = [adata.to_df() for adata in adata_list]
+    for df, adata in zip(adata_df_list, adata_list):
+        df.columns = pd.MultiIndex.from_frame(adata.var[["utr_name", "utr_size"]])
+
+    adata_concat = pd.concat(adata_df_list, join="outer", axis=0, sort=False).fillna(0)
+
+    # prepare var object
+    adatas_var = pd.concat([adata.var for adata in adata_list], axis=0).drop(
+        "utr_size", axis=1).drop_duplicates()
+
+    concat_cols_frame = adata_concat.columns.to_frame().reset_index(drop=True)
+    var_new = pd.merge(concat_cols_frame, adatas_var, on="utr_name", how="left")
+    var_new["polyA"] = var_new["utr_name"] + "-" + \
+        (var_new.groupby("utr_name").cumcount() + 1).astype(str)
+    var_new = var_new.set_index("polyA")
+
+    # final changes to X
+    adata_concat.columns = concat_cols_frame.utr_name + "-" + \
+        (concat_cols_frame.groupby("utr_name").cumcount() + 1).astype(str)
+
+    # prepare obs object
+    obs_new = pd.concat([adata.obs for adata in adata_list], axis=0)
+
+    adata_result = anndata.AnnData(X=adata_concat, obs=obs_new, var=var_new)
+
+    return(adata_result)
