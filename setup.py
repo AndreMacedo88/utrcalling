@@ -11,7 +11,7 @@ def readme():
         return readme_file.read()
 
 
-metadata_file = "main_module/_metadata.py"
+metadata_file = "utrcalling/_metadata.py"
 with open(metadata_file, "rt") as file:
     metadata = file.read()
     version_expression = r"^__version__ = ['\"]([^'\"]*)['\"]"
@@ -67,10 +67,10 @@ setuptools.setup(
     entry_points={
         "console_scripts": [
             # command = package.module:function
-            "friendly_names=tools.change_to_friendly_pas_names:main",
-            "subset-experiments=tools.subset_experiments:main",
-            "concatenate-experiments=tools.concatenate_experiments:main",
-            "utrcalling-runtests=tests.test_case:run_all_tests"
+            "generate-names=utrcalling.tools.generate_utr_names:main",
+            "subset-experiments=utrcalling.tools.subset_experiments:main",
+            "concatenate-experiments=utrcalling.tools.concatenate_experiments:main",
+            "utrcalling-runtests=utrcalling.tests.test_case:run_all_tests"
             ],
     }
 )
