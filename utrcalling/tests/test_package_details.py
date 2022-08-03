@@ -1,8 +1,6 @@
 import unittest
 from contextlib import contextmanager
 
-import utrcalling
-
 
 class TestCase(unittest.TestCase):
     @contextmanager
