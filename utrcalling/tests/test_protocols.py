@@ -1,13 +1,9 @@
 import os
-import sys
 from pathlib import Path
 import unittest
 
 import pandas as pd
 
-# make sure main module gets imported
-file_dir = str(Path(__file__).resolve().parents[1])
-sys.path.append(file_dir)
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
