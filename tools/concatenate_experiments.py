@@ -27,15 +27,11 @@ def main():
 
 parser = argparse.ArgumentParser(
     description="""
-Subsets an experiment file (h5ad), given a list of annotations to match one 
-column of the var or obs.
-The annotation files should be a CSV file with one column, named as in the h5ad file.
-This column should have the values that will subset the h5ad experiment file.
+Concatenates 2 or more files containing raw 3'UTR sizes per UTR.
 """,
     epilog="""
 Example use:
-$ subset-experiments adata.h5ad -a anno_1 anno_2 anno_3 -t var obs var 
-    -o adata_s1.h5ad adata_s2.h5ad adata_s3.h5ad
+$ concatenate-experiments -a adata_1.h5ad adata_2.h5ad adata_3.h5ad -o adata_concat.h5ad
 """,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
