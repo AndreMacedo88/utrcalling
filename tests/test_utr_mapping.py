@@ -56,7 +56,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 class TestTenxTwo(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = protocols.Protocol(platform='10x', version=2)
+        protocol = protocols.protocol(platform='10x', version=2)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
 
@@ -80,7 +80,7 @@ class TestTenxTwo(TestMapReadsToUtr):
 class TestTenxThree(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = protocols.Protocol(platform='10x', version=3)
+        protocol = protocols.protocol(platform='10x', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
 
@@ -103,7 +103,7 @@ class TestTenxThree(TestMapReadsToUtr):
 
 class TestSmartSeq3(TestMapReadsToUtr):
     def setUp(self) -> None:
-        protocol = protocols.Protocol(platform='smartseq', version=3)
+        protocol = protocols.protocol(platform='smartseq', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first',
                                                      sample="test_sample")
@@ -127,7 +127,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
 
 class TestSmartSeq3Cap(TestMapReadsToUtr):
     def setUp(self) -> None:
-        protocol = protocols.Protocol(platform='smart-seq_cap', version=3)
+        protocol = protocols.protocol(platform='smart-seq_cap', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment_cap,
                                                      self.intervals_5prime,
                                                      protocol, read='first',
@@ -152,16 +152,16 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
 
 class TestProtocolNotSupported(TestMapReadsToUtr):
     def test_platform(self):
-        with self.assertRaises(RuntimeError):
-            protocols.Protocol(platform='Zehn_x', version=3)
+        with self.assertRaises(NotImplementedError):
+            protocols.protocol(platform='Zehn_x', version=3)
 
     def test_version_tenx(self):
-        with self.assertRaises(RuntimeError):
-            protocols.Protocol(platform='10x', version=1)
+        with self.assertRaises(NotImplementedError):
+            protocols.protocol(platform='10x', version=1)
 
     def test_version_smartseq(self):
-        with self.assertRaises(RuntimeError):
-            protocols.Protocol(platform='Smart-seq', version=1)
+        with self.assertRaises(NotImplementedError):
+            protocols.protocol(platform='Smart-seq', version=1)
 
 
 if __name__ == '__main__':

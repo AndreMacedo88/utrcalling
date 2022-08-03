@@ -21,7 +21,7 @@ class Test10x(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = protocols.Protocol(platform='10x', version=2)
+        cls.protocol = protocols.protocol(platform='10x', version=2)
         cls.mappings = [
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,
@@ -34,7 +34,7 @@ class TestFilterUtrSizes(Test10x):
         merged = peak_calling.merge_samples_utr_sizes(self.mappings)
         # modify the data to check for successfull filtering. Original was [44, 23, 19].
         merged.ENSMUSG00000001036.utr_sizes_from_reads = [1, 798, 1, 798, 1, 798]
-        self.filtered = self.protocol._filter_utr_sizes(merged)
+        self.filtered = self.protocol.filter_utr_sizes(merged)
 
     def test_number_of_features(self) -> None:
         self.assertEqual(len(self.filtered), 66)
@@ -61,7 +61,7 @@ class TestSmartSeqCapPhospho(unittest.TestCase):
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference_5prime.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
-        cls.protocol = protocols.Protocol(platform='smart-seq_cap', version=3)
+        cls.protocol = protocols.protocol(platform='smart-seq_cap', version=3)
         cls.mappings = utr_mapping.map_reads_to_utr(
             alignment, intervals, cls.protocol, read='first', sample="test_sample")
 

@@ -23,7 +23,7 @@ class TestStorage(unittest.TestCase):
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
-        protocol = protocols.Protocol(platform='10x', version=2)
+        protocol = protocols.protocol(platform='10x', version=2)
         cls.mappings = utr_mapping.map_reads_to_utr(alignment, intervals, protocol,
                                                     read='first')
 

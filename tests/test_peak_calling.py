@@ -22,7 +22,7 @@ class TestPeakCalling(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = protocols.Protocol(platform='10x', version=2)
+        cls.protocol = protocols.protocol(platform='10x', version=2)
         cls.mappings = [
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,

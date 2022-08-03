@@ -32,7 +32,7 @@ def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='inf
         logger.info(f'Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = protocols.Protocol(protocol_platform, int(protocol_version),
+    protocol = protocols.protocol(protocol_platform, int(protocol_version),
                                   merge_method=sample_merge_method,
                                   call_peaks=call_peaks)
 

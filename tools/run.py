@@ -49,7 +49,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         sample_names = None
 
     # Set up the protocol for this specific run
-    protocol = protocols.Protocol(protocol_platform, int(protocol_version),
+    protocol = protocols.protocol(protocol_platform, int(protocol_version),
                                   merge_method=sample_merge_method,
                                   call_peaks=call_peaks, sample_names=sample_names)
 

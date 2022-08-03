@@ -39,7 +39,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         sample_names = None
 
     # Set up the protocol for this specific run
-    protocol = protocols.Protocol(protocol_platform, int(protocol_version),
+    protocol = protocols.protocol(protocol_platform, int(protocol_version),
                                   sample_names=sample_names)
 
     # Get UTR reference data from the organisms GTF annotation file
