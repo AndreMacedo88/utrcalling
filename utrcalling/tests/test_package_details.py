@@ -1,6 +1,6 @@
 import unittest
 from contextlib import contextmanager
-
+from utrcalling.main_module import module_log
 
 class TestCase(unittest.TestCase):
     @contextmanager
@@ -26,4 +26,5 @@ class TestVersion(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(exit=False)
+    module_log.log_end_run("Finished testing")

@@ -42,7 +42,7 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True
 
     sample_counter = 1
     position_counts_merged = None
-    for position_counts in tqdm(utr_sizes):
+    for position_counts in tqdm(utr_sizes, colour="#ffb700", ascii=" ■"):
         # account for those instances where utr_sizes are a list of paths
         position_counts = helpers.check_if_path_and_open(position_counts, method='pickle')
         if label_samples:
@@ -147,13 +147,15 @@ def generate_peak_counts(utr_sizes, annotations=None,
     """
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
+    logger.info("Calling peaks for each UTR")
     cores = helpers.get_number_cores()
+
     count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
         joblib.delayed(call_peaks)(utr=utr, func=func,
                                    cell_barcodes=cell_barcodes) for utr in
-        tqdm(utr_sizes, desc='Calling peaks for each UTR')))
+        tqdm(utr_sizes, colour="#ffb700", ascii=" ■", desc='UTR: ')))
 
-    logger.debug('Finished generating and counting UTR size peaks')
+    logger.info('Finished generating and counting UTR size peaks')
 
     # Free some RAM by deleting biggest variables, collecting the garbage, and shutting
     # down the multiprocess inactive workers
@@ -169,7 +171,7 @@ def generate_peak_counts(utr_sizes, annotations=None,
     count_matrix = count_matrix.T
 
     if annotations is not None:
-        logger.debug('Adding annotations')
+        logger.info('Adding annotations')
         peaks_obs = annotations.set_index(annotations.columns[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
         return count_matrix, peaks_var, peaks_obs

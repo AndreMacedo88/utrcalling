@@ -92,7 +92,7 @@ def potential_apa_events(adata):
 
 def counts_to_percentages(adata, utr_name_column):
 
-    for utr in tqdm(np.unique(adata.var[utr_name_column])):
+    for utr in tqdm(np.unique(adata.var[utr_name_column]), colour="#ffb700", ascii=" ■"):
         data_utr = adata[:, adata.var[utr_name_column] == utr].X
 
         adata[:, adata.var[utr_name_column] == utr].X = np.divide(
@@ -134,7 +134,8 @@ def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
     utrs = adata.var[utr_name_column].unique()
     utr_list, umi_list, mean_and_var_list = zip(*joblib.Parallel(n_jobs=-2)(
         joblib.delayed(compute)(utr=utr) for utr in
-        tqdm(utrs, desc='Calculating mean pA usage per cell per UTR. UTR no: ')))
+        tqdm(utrs, desc='Calculating mean pA usage per cell per UTR. UTR no: ',
+             colour="#ffb700", ascii=" ■")))
 
     # assign the parallelization results properly
     umis = {utr: umi for (utr, umi) in zip(utr_list, umi_list)}

@@ -7,7 +7,7 @@ import pandas as pd
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.main_module import protocols, utr_mapping
+from utrcalling.main_module import protocols, utr_mapping, module_log
 
 
 class TestGenerateUtrIntervals(unittest.TestCase):
@@ -24,7 +24,6 @@ class TestGenerateUtrIntervals(unittest.TestCase):
         """
         correct = ['ENSMUSG00000051285', 7160891, 7161063, '+']
         name, interval = list(self.intervals.items())[0]
-        print(name, interval)
         self.assertListEqual([name, interval.start_d, interval.end_d,
                               interval.strand], correct)
 
@@ -161,4 +160,5 @@ class TestProtocolNotSupported(TestMapReadsToUtr):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(exit=False)
+    module_log.log_end_run("Finished testing")

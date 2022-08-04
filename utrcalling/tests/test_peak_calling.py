@@ -8,7 +8,7 @@ import numpy as np
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.main_module import peak_calling, protocols, utr_mapping, storage
+from utrcalling.main_module import peak_calling, protocols, utr_mapping, storage, module_log
 
 
 class TestPeakCalling(unittest.TestCase):
@@ -313,4 +313,5 @@ class TestCallPeaks():
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(exit=False)
+    module_log.log_end_run("Finished testing")

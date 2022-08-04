@@ -12,9 +12,12 @@ from utrcalling.main_module.helpers import to_string
 
 
 def generate_utr_intervals(utr_regions):
+    logger = module_logger()
     intervals = dict()
-    for utr in tqdm(utr_regions.itertuples(),
-                    desc='Generating genomic interval for UTR number'):
+
+    logger.info('Generating genomic interval for UTR number')
+    utrs = utr_regions.itertuples()
+    for utr in tqdm(utrs, total=len(utr_regions), colour="#ffb700", ascii=" ■", desc="UTR: "):
         try:
             intervals[utr.Index] = HTSeq.GenomicInterval(
                 utr.chrom, utr.start - 1, utr.end, utr.strand)
@@ -28,11 +31,12 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
     logger = module_logger()
     logger.info(
         f'Extracting reads from {bam} and mapping them to the reference UTR')
+
     bam_file = HTSeq.BAM_Reader(bam)
     utr_mappings = UtrMappings()
 
-    for name, interval in tqdm(intervals.items(),
-                               desc='Mapping reads to reference UTR number'):
+    for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
+                               desc="Interval: "):
 
         mapped_read_information = MappedReadInformation(utr_name=name)
         for alignment in bam_file[interval]:
@@ -66,7 +70,6 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
         if mapped_read_information:
             mapped_read_information_unique_umis = mapped_read_information.get_unique_umis()
             utr_mappings[name] = mapped_read_information_unique_umis
-
 
     logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
         \n\nMemory usage:{psutil.virtual_memory().percent}')

@@ -7,7 +7,7 @@ import pandas as pd
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.main_module import protocols, utr_mapping
+from utrcalling.main_module import protocols, utr_mapping, module_log
 from utrcalling.main_module.storage import MappedReadInformation
 
 
@@ -103,4 +103,5 @@ class TestGetUniqueUmis(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(exit=False)
+    module_log.log_end_run("Finished testing")

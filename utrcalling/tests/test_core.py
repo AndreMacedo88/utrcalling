@@ -1,5 +1,5 @@
 import unittest
-from utrcalling.main_module import core
+from utrcalling.main_module import core, module_log
 
 
 class TestCore(unittest.TestCase):
@@ -7,4 +7,5 @@ class TestCore(unittest.TestCase):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(exit=False)
+    module_log.log_end_run("Finished testing")

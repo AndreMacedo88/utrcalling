@@ -52,6 +52,9 @@ setuptools.setup(
         "tqdm",
         "psutil",
         "pympler",
+        "coloredlogs",
+        "verboselogs",
+        "colorama"
     ],
     include_package_data=True,
     classifiers=[
@@ -70,7 +73,7 @@ setuptools.setup(
             "generate-names=utrcalling.tools.generate_utr_names:main",
             "subset-experiments=utrcalling.tools.subset_experiments:main",
             "concatenate-experiments=utrcalling.tools.concatenate_experiments:main",
-            "utrcalling-runtests=utrcalling.tests.test_case:run_all_tests"
+            "utrcalling-runtests=utrcalling.tests.test_case:main"
             ],
     }
 )

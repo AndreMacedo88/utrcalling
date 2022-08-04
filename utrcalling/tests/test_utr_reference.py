@@ -4,11 +4,10 @@ import unittest
 
 import pandas as pd
 import pybedtools
+from utrcalling.main_module import utr_reference, module_log
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
-
-from utrcalling.main_module import utr_reference
 
 
 class TestOpenGtf(unittest.TestCase):
@@ -187,4 +186,5 @@ class TestCorrectColumnNames(TestGenerateUtrName):
 
 
 if __name__ == '__main__':
-    unittest.main()
+    unittest.main(exit=False, verbosity=2)
+    module_log.log_end_run("Finished testing")

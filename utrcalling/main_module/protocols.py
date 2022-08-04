@@ -38,7 +38,7 @@ class CombinedMeta(Meta, ABCMeta):
     Metaclass that inherits from the abstract class module metaclass and the user-defined
     Meta metaclass, that allows logging at the end of protocol initialization.
 
-    This is necessary for use in abstract protocols that want to inherit behaviour from 
+    This is necessary for use in abstract protocols that want to inherit behaviour from
     both those metaclasses.
     """
     pass
@@ -77,13 +77,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     # log the protocol:
     def protocol_log(self):
-        self.logger.info(f'Protocol args:\n')
-        self.logger.info(f'Position counts merging method: {self.merge_method}\n')
-        self.logger.info(f'Call peaks? {self.call_peaks}\n')
-        self.logger.info(f'Peak calling method: {self.peak_calling}\n')
-        self.logger.info(
-            f'Add a number to sample names while merging samples? {self.label_samples}\n'
-        )
+        self.logger.info(f'Protocol:\n' +
+                         f'Position counts merging method: {self.merge_method}\n' +
+                         f'Position counts merging method: {self.merge_method}\n' +
+                         f'Call peaks? {self.call_peaks}\n' +
+                         f'Peak calling method: {self.peak_calling}\n' +
+                         f'Add a number to sample names while merging samples? {self.label_samples}\n'
+                         )
 
     # Methods to get read information from the read alignments
     @staticmethod
@@ -279,7 +279,6 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
         assert(len(read_umi) == 8)  # 8 bp UMI
 
         return read_umi, read_sample_id
-
 
 
 def protocol(platform, version, *args, **kwargs):

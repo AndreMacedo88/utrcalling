@@ -55,7 +55,7 @@ def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='inf
         try:
             count_matrix_anndata.write(filename=out)
         except TypeError as e:
-            print(f"""
+            logger.error(f"""
 Some of your annotations could not be written to a h5ad file.\n
 This could be because their type is ambiguous
 (characters/integers/etc).\n

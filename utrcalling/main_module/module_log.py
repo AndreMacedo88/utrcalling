@@ -1,10 +1,15 @@
-import logging
 import os
+import logging
 from datetime import datetime
+import coloredlogs
+import verboselogs
+from colorama import Fore, Style
 
 
 def module_logger(disable=False, store_log=False, level='info'):
-    # create logger with the name of the module, or whatever
+
+    # create logger with the name of the module
+    verboselogs.install()
     module_logger = logging.getLogger("utrcallingtool")
     module_logger.propagate = False
 
@@ -14,14 +19,15 @@ def module_logger(disable=False, store_log=False, level='info'):
     if not module_logger.handlers:
         now = datetime.now()
 
-        if level.lower() == 'debug':
-            module_logger.setLevel(logging.DEBUG)
-        elif level.lower() == 'info':
+        if level.lower() == 'info':
             module_logger.setLevel(logging.INFO)
+        elif level.lower() == 'debug':
+            module_logger.setLevel(logging.DEBUG)
 
         # create formatter
-        formatter = logging.Formatter(
-            '%(asctime)s - %(levelname)s - %(message)s')
+        format_log = Fore.YELLOW + '║' + Style.RESET_ALL +\
+            ' %(asctime)s %(name)s %(programname)s » %(levelname)s - %(message)s'
+        formatter = logging.Formatter(format_log)
 
         if store_log:
             # create file handler which logs even debug messages
@@ -39,6 +45,11 @@ def module_logger(disable=False, store_log=False, level='info'):
         # add the handler to the logger
         module_logger.addHandler(ch)
 
+        # Make logs prettier
+        coloredlogs.install(level=module_logger.getEffectiveLevel(), logger=module_logger,
+                            fmt=format_log, field_styles=field_styles,
+                            level_styles=level_styles)
+
     return module_logger
 
 
@@ -47,3 +58,19 @@ class MakeFileHandler(logging.FileHandler):
         os.makedirs(os.path.dirname(filename), exist_ok=True)
         logging.FileHandler.__init__(
             self, filename, mode, encoding, delay, errors)
+
+
+field_styles = {'asctime': {'color': 'yellow'}, 'hostname': {'color': 'cyan'},
+                'levelname': {'bold': True, 'color': 'black'}, 'name': {'color': 'magenta'},
+                'programname': {'color': 'blue'}, 'username': {'color': 'green'}}
+
+level_styles = {'critical': {'bold': True, 'color': 'red'}, 'debug': {'color': 'green'},
+                'error': {'color': 'red'}, 'info': {}, 'notice': {'color': 'magenta'},
+                'spam': {'color': 'green', 'faint': True},
+                'success': {'bold': True, 'color': 'green'},
+                'verbose': {'color': 'blue'}, 'warning': {'color': 'yellow'}}
+
+
+def log_end_run(message):
+    logger = module_logger()
+    logger.success(f"End of run: {message}")

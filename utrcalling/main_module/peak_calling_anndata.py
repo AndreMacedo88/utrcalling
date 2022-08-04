@@ -20,6 +20,11 @@ import pybedtools
 # import quality of life tools
 import joblib
 from tqdm import tqdm
+# import internal tools
+from utrcalling.main_module import module_log
+
+# Set up logging
+logger = module_log.module_logger(disable=False, store_log=True, level="debug")
 
 
 def peak_call_anndata_parallel(adata, method, **kwargs):
@@ -64,13 +69,14 @@ def peak_call_anndata_parallel(adata, method, **kwargs):
         return mtx_new.to_numpy(), utr_var_new
 
     if kwargs.get("bandwidth", 1) == 0:
-        print("Using Bandwidth = 0 means no changes were made")
+        logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
 
     utrs = adata.var.utr_name.unique()
 
     parallel_results = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(peak_call)(adata=adata, method=method, utr=utr) for utr in tqdm(utrs)
+        joblib.delayed(peak_call)(adata=adata, method=method, utr=utr) for utr in tqdm(
+            utrs, colour="#ffb700", ascii=" ■")
     )
 
     mtx_list, var_list = list(zip(*parallel_results))
@@ -83,15 +89,15 @@ def peak_call_anndata_parallel(adata, method, **kwargs):
 
 def peak_call_anndata(adata, method, **kwargs):
     if kwargs.get("bandwidth", 1) == 0:
-        print("Using Bandwidth = 0 means no changes were made")
+        logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
-    
-    sparse_adata = False 
+
+    sparse_adata = False
     if scipy.sparse.issparse(adata.X):
         sparse_adata = True
-        print("Densifying sparse data for further processing")
+        logger.info("Densifying sparse data for further processing")
         adata.X = adata.X.toarray()
-    
+
     new_obs = adata.obs
 
     utrs = adata.var.utr_name.unique()
@@ -100,7 +106,8 @@ def peak_call_anndata(adata, method, **kwargs):
     var_list = []
 
     # select the UTR
-    for utr in tqdm(utrs, desc="Calling peaks for UTR: "):
+    logger.info("Calling peaks for each UTR")
+    for utr in tqdm(utrs, colour="#ffb700", ascii=" ■", desc="UTR: "):
         adata_utr = adata[:, adata.var.utr_name == utr]
         gene = adata_utr.var.gene_name[0]
         utr_name = adata_utr.var.utr_name.str.split("_")[0]
@@ -145,7 +152,7 @@ def peak_call_anndata(adata, method, **kwargs):
     new_adata = ad.AnnData(X=np.hstack(mtx_list), obs=new_obs, var=var_df)
 
     if sparse_adata:
-        print("Sparsifying data as initially provided.")
+        logger.info("Sparsifying data as initially provided.")
         new_adata.X = scipy.sparse.csr_matrix(new_adata.X)
 
     new_adata = new_adata[new_adata.obs.sort_index().index, :]
@@ -170,7 +177,7 @@ def remove_peaks_below_count(adata, threshold=10):
     bigger_than_10 = adata.X.sum(axis=0) >= threshold
     if bigger_than_10.ndim > 1:
         bigger_than_10 = np.asarray(bigger_than_10).reshape(-1)
-    
+
     x_ = adata.X[:, bigger_than_10]
     var_ = adata.var[bigger_than_10]
 
@@ -228,7 +235,8 @@ def pas_distance(adata, genome, hamming=1):
     utrs = adata.var.utr_name.unique()
 
     distances_list = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(get_distances_per_utr)(utr=utr) for utr in tqdm(utrs)
+        joblib.delayed(get_distances_per_utr)(utr=utr) for utr in tqdm(
+            utrs, colour="#ffb700", ascii=" ■")
     )
 
     # remove None from the list
@@ -270,8 +278,10 @@ def _score_peak_assignment(adata, hamming=1, return_distances_to_hex=False):
 
     utrs = adata.var.utr_name.unique()
 
+    logger.info("Scoring peaks for each UTR")
     results_per_utr = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(get_distances)(utr=utr) for utr in tqdm(utrs, desc="Scoring peaks for UTR: ")
+        joblib.delayed(get_distances)(utr=utr) for utr in tqdm(utrs, colour="#ffb700",
+                                                               ascii=" ■", desc="UTR: ")
     )
 
     scores = []
