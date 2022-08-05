@@ -6,7 +6,7 @@ import verboselogs
 from colorama import Fore, Style
 
 
-def module_logger(disable=False, store_log=False, level='info'):
+def module_logger(disable=False, store_log=False, level='info', reinstall=False):
 
     # create logger with the name of the module
     verboselogs.install()
@@ -50,6 +50,14 @@ def module_logger(disable=False, store_log=False, level='info'):
                             fmt=format_log, field_styles=field_styles,
                             level_styles=level_styles)
 
+    if reinstall:
+        format_log = Fore.YELLOW + '║' + Style.RESET_ALL +\
+            ' %(asctime)s %(name)s %(programname)s » %(levelname)s - %(message)s'
+
+        coloredlogs.install(level=module_logger.getEffectiveLevel(), logger=module_logger,
+                            fmt=format_log, field_styles=field_styles,
+                            level_styles=level_styles)
+
     return module_logger
 
 
@@ -72,5 +80,5 @@ level_styles = {'critical': {'bold': True, 'color': 'red'}, 'debug': {'color': '
 
 
 def log_end_run(message):
-    logger = module_logger()
-    logger.success(f"End of run: {message}")
+    logger = module_logger(reinstall=True)
+    logger.success(f"End of job: {message}")
