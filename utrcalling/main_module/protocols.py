@@ -78,11 +78,10 @@ class Protocol(ABC, metaclass=CombinedMeta):
     # log the protocol:
     def protocol_log(self):
         self.logger.info(f'Protocol:\n' +
-                         f'Position counts merging method: {self.merge_method}\n' +
-                         f'Position counts merging method: {self.merge_method}\n' +
-                         f'Call peaks? {self.call_peaks}\n' +
-                         f'Peak calling method: {self.peak_calling}\n' +
-                         f'Add a number to sample names while merging samples? {self.label_samples}\n'
+                         f'║ Position counts merging method: {self.merge_method}\n' +
+                         f'║ Call peaks? {self.call_peaks}\n' +
+                         f'║ Peak calling method: {self.peak_calling}\n' +
+                         f'║ Add a number to sample names while merging samples? {self.label_samples}\n'
                          )
 
     # Methods to get read information from the read alignments

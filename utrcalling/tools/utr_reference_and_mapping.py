@@ -21,7 +21,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     # Set up logging
     logger = module_logger(disable=False, store_log=True, level=log_level)
     for arg, value in locals().items():
-        logger.info(f'Argument {arg}: {value}\n')
+        logger.info(f'║ Argument {arg}: {value}\n')
 
     # Supply the names of your samples, if applicable:
     # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.

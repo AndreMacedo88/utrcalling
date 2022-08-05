@@ -26,7 +26,7 @@ def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='inf
     # Set up logging
     logger = module_logger(disable=False, store_log=True, level=log_level)
     for arg, value in locals().items():
-        logger.info(f'Argument {arg}: {value}\n')
+        logger.info(f'║ Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
     protocol = protocols.protocol(protocol_platform, int(protocol_version),
