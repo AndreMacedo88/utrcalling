@@ -6,6 +6,8 @@ For the source see: https://github.com/AndreMacedo88/utrcalling
 
 For detailed documentation see: TODO
 """
+
+import psutil
 from colorama import init, Fore, Style
 
 from utrcalling._metadata import __version__, __author__, __license__
@@ -25,5 +27,12 @@ def show_logo():
 
 
 # Print a header/logo to show that the utrcalling tool has started
-init()
-show_logo()
+# First, prevent joblib instances from printing the header
+
+caller_process = psutil.Process().cmdline()
+
+if any("joblib" in element for element in caller_process):
+    pass
+else:
+    init()
+    show_logo()

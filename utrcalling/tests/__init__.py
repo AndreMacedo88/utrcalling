@@ -1,1 +1,1 @@
-from . import test_case
+from utrcalling.tests import test_case
