@@ -1,4 +1,5 @@
 import os
+import sys
 import argparse
 import unittest
 import logging as log_module
@@ -24,10 +25,12 @@ def run_all_tests(verbosity, logging):
     dir_path = os.path.dirname(os.path.realpath(__file__))
     loader = unittest.TestLoader()  # Initiates the test loader
     # Adds all files starting in 'test' to the suite
-    suite = loader.discover(start_dir=dir_path, pattern='test*.py')
-    unittest.TextTestRunner(verbosity=verbosity).run(
-        suite)  # Runs the test suite
+    suite = loader.discover(start_dir=dir_path, pattern='test_*.py')
+    # Runs the test suite
+    unittest.TextTestRunner(verbosity=verbosity).run(suite)
+
     module_log.log_end_run("Finished testing")
+
 
 def main():
     args_all = parser.parse_args()
