@@ -40,7 +40,7 @@ class TestMapReadsToUtr(unittest.TestCase):
         # test data for 3'UTR
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
-        cls.alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
+        cls.alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_duplicates_sort.bam'
 
         # test data for 5'UTR
         cls.intervals_5prime = utr_mapping.generate_utr_intervals(
@@ -57,7 +57,6 @@ class TestTenxTwo(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'utr_name': 'ENSMUSG00000005804',
             'read_start_positions': [122748098, 122748087, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
@@ -66,10 +65,10 @@ class TestTenxTwo(TestMapReadsToUtr):
             'utr_sizes_from_reads': [1468, 1457, 1466]
         }
         self.assertDictEqual(
-            self.mappings.ENSMUSG00000005804.todict(), dict_true)
+            self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(len(self.mappings), 118)
+        self.assertEqual(self.mappings.shape[0], 118)
 
 
 class TestTenxThree(TestMapReadsToUtr):
@@ -81,7 +80,6 @@ class TestTenxThree(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'utr_name': 'ENSMUSG00000005804',
             'read_start_positions': [122748098, 122748087, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
@@ -90,10 +88,10 @@ class TestTenxThree(TestMapReadsToUtr):
             'utr_sizes_from_reads': [1468, 1457, 1466]
         }
         self.assertDictEqual(
-            self.mappings.ENSMUSG00000005804.todict(), dict_true)
+            self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(len(self.mappings), 118)
+        self.assertEqual(self.mappings.shape[0], 118)
 
 
 class TestSmartSeq3(TestMapReadsToUtr):
@@ -105,7 +103,6 @@ class TestSmartSeq3(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'utr_name': 'ENSMUSG00000005804',
             'read_start_positions': [122748098, 122748087, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['test_sample', 'test_sample', 'test_sample'],
@@ -114,10 +111,10 @@ class TestSmartSeq3(TestMapReadsToUtr):
             'utr_sizes_from_reads': [1468, 1457, 1466]
         }
         self.assertDictEqual(
-            self.mappings.ENSMUSG00000005804.todict(), dict_true)
+            self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(len(self.mappings), 118)
+        self.assertEqual(self.mappings.shape[0], 118)
 
 
 class TestSmartSeq3Cap(TestMapReadsToUtr):
@@ -130,7 +127,6 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'utr_name': 'ENSMUSG00000023905',
             'read_start_positions': [23677423, 23677444, 23677448],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['test_sample', 'test_sample', 'test_sample'],
@@ -139,10 +135,10 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
             'utr_sizes_from_reads': [44, 23, 19]
         }
         self.assertDictEqual(
-            self.mappings.ENSMUSG00000023905.todict(), dict_true)
+            self.mappings.loc["ENSMUSG00000023905"].to_dict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(len(self.mappings), 31)
+        self.assertEqual(self.mappings.shape[0], 31)
 
 
 class TestProtocolNotSupported(TestMapReadsToUtr):
