@@ -70,10 +70,11 @@ setuptools.setup(
     entry_points={
         "console_scripts": [
             # command = package.module:function
+            "utrcalling-runtests=utrcalling.tests.test_case:main",
+            "compute-mean-utr-sizes=utrcalling.tools.compute_mean_utr_sizes:main",
+            "concatenate-experiments=utrcalling.tools.concatenate_experiments:main",
             "generate-names=utrcalling.tools.generate_utr_names:main",
             "subset-experiments=utrcalling.tools.subset_experiments:main",
-            "concatenate-experiments=utrcalling.tools.concatenate_experiments:main",
-            "utrcalling-runtests=utrcalling.tests.test_case:main"
             ],
     }
 )
