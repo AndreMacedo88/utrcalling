@@ -1,9 +1,9 @@
 import os
-import logging
 from datetime import datetime
+import logging
 import coloredlogs
-import verboselogs
 from colorama import Fore, Style
+import verboselogs
 
 
 def module_logger(disable=False, store_log=False, level='info', reinstall=False):

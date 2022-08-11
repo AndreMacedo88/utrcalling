@@ -13,7 +13,6 @@ Note:
 """
 
 from abc import ABC, ABCMeta, abstractmethod
-import re
 from distutils.util import strtobool
 
 import numpy as np
