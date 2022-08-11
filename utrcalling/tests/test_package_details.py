@@ -1,6 +1,6 @@
 import unittest
 from contextlib import contextmanager
-from utrcalling.main_module import module_log
+from utrcalling.core import module_log
 
 class TestCase(unittest.TestCase):
     @contextmanager

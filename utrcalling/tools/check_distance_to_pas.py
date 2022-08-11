@@ -3,7 +3,7 @@ import joblib
 import scanpy as sc
 import pybedtools
 
-from utrcalling.main_module import peak_calling_anndata as pc
+from utrcalling.core import peak_calling_anndata as pc
 
 
 def main(adata_path, out_path, genome_path, hamming):

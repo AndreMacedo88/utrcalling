@@ -2,8 +2,8 @@ import argparse
 import ast
 import os
 
-from utrcalling.main_module import core, helpers, protocols
-from utrcalling.main_module.module_log import module_logger
+from utrcalling.core import core, helpers, protocols
+from utrcalling.core.module_log import module_logger
 
 
 def main(utr_annotation, alignments, feature='three_prime_utr',

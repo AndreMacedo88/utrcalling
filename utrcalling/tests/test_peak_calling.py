@@ -8,7 +8,7 @@ import numpy as np
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.main_module import peak_calling, protocols, utr_mapping, storage, module_log
+from utrcalling.core import peak_calling, protocols, utr_mapping, storage, module_log
 
 
 class TestPeakCalling(unittest.TestCase):

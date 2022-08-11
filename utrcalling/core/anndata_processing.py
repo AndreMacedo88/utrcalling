@@ -4,7 +4,7 @@ import pandas as pd
 import joblib
 import anndata
 from tqdm import tqdm
-from utrcalling.main_module import helpers
+from utrcalling.core import helpers
 
 
 def generate_friendly_utr_size_names(

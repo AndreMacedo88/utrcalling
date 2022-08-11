@@ -12,7 +12,7 @@ import anndata
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
-from utrcalling.main_module import helpers, module_log, protocols
+from utrcalling.core import helpers, module_log, protocols
 
 
 def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True,

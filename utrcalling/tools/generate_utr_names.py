@@ -3,7 +3,7 @@ import argparse
 # import data processing tools
 import scanpy as sc
 # import local tools
-from utrcalling.main_module import anndata_processing as ap
+from utrcalling.core import anndata_processing as ap
 
 
 def generate_names(input_path, out_path, utr_name_column, gene_name_column):

@@ -3,7 +3,7 @@ import argparse
 # import data processing tools
 import scanpy as sc
 # import local tools
-from utrcalling.main_module import anndata_processing as ap
+from utrcalling.core import anndata_processing as ap
 
 
 def subset_experiments(adata_path, annotations_keep, anno_types, out_paths):

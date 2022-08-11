@@ -21,7 +21,7 @@ import pybedtools
 import joblib
 from tqdm import tqdm
 # import internal tools
-from utrcalling.main_module import module_log
+from utrcalling.core import module_log
 
 # Set up logging
 logger = module_log.module_logger(disable=False, store_log=True, level="debug")

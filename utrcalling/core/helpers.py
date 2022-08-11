@@ -7,7 +7,7 @@ from collections import defaultdict
 import pybedtools
 import pandas as pd
 
-from utrcalling.main_module import module_log
+from utrcalling.core import module_log
 
 
 def flatten(list_):

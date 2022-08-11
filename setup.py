@@ -64,9 +64,7 @@ setuptools.setup(
         "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
-    scripts=[x.as_posix() for x in Path("./tools/").glob("*.py")] + [
-        "utrcall"
-    ],
+    scripts=[x.as_posix() for x in Path("./tools/").glob("*.py")],
     entry_points={
         "console_scripts": [
             # command = package.module:function

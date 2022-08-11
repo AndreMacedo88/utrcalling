@@ -3,7 +3,7 @@ import sys
 import argparse
 import unittest
 import logging as log_module
-from utrcalling.main_module import module_log
+from utrcalling.core import module_log
 
 
 def run_all_tests(verbosity, logging):

@@ -2,7 +2,7 @@ import argparse
 import joblib
 import scanpy as sc
 
-from Utrcalling.main_module import peak_calling_anndata as pc
+from Utrcalling.core import peak_calling_anndata as pc
 
 
 def main(adata_path, out_path, bandwidths):

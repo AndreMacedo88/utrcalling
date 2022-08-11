@@ -6,9 +6,9 @@ import HTSeq
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
-from utrcalling.main_module.module_log import module_logger
-from utrcalling.main_module.storage import UtrMappings, MappedReadInformation
-from utrcalling.main_module.helpers import to_string
+from utrcalling.core.module_log import module_logger
+from utrcalling.core.storage import UtrMappings, MappedReadInformation
+from utrcalling.core.helpers import to_string
 
 
 def generate_utr_intervals(utr_regions):

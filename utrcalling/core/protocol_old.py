@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 
-from utrcalling.main_module import module_log, helpers
+from utrcalling.core import module_log, helpers
 
 class Protocol:
     def __init__(self,
