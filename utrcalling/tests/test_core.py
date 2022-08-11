@@ -8,7 +8,7 @@ import pandas as pd
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.main_module import core, module_log, protocols
+from utrcalling.core import core, module_log, protocols
 
 
 class TestMapAlignedReads(unittest.TestCase):
