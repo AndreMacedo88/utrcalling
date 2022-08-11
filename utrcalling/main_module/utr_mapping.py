@@ -49,8 +49,8 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
         utr_sizes_from_reads = []
 
         mapped_read_information = [read_start_positions, read_strands,
-                                  read_barcodes, read_umis,
-                                  read_lengths, utr_sizes_from_reads]
+                                   read_barcodes, read_umis,
+                                   read_lengths, utr_sizes_from_reads]
 
         for alignment in bam_file[interval]:
             if not alignment.pe_which == read:  # get only one of the 2 paired reads
@@ -89,7 +89,8 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                 if umi not in umis_unique:
                     idx_unique.append(idx)
                     umis_unique.append(umi)
-            mapped_read_information = [[element[i] for i in idx_unique] for element in mapped_read_information]
+            mapped_read_information = [[element[i] for i in idx_unique]
+                                       for element in mapped_read_information]
 
             utr_mappings[name] = mapped_read_information
 
@@ -99,56 +100,6 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                  "read_lengths", "utr_sizes_from_reads"])
 
     utr_mappings.index.name = "utr_name"
-
-    logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
-        \n\nMemory usage:{psutil.virtual_memory().percent}')
-
-    return utr_mappings
-
-
-def map_reads_to_utr_old(bam, intervals, protocol, read='first', sample=None):
-    logger = module_logger()
-    logger.info(
-        f'Extracting reads from {bam} and mapping them to the reference UTR')
-
-    bam_file = HTSeq.BAM_Reader(bam)
-    utr_mappings = UtrMappings()
-
-    for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
-                               desc="Interval: "):
-
-        mapped_read_information = MappedReadInformation(utr_name=name)
-        for alignment in bam_file[interval]:
-            if not alignment.pe_which == read:  # get only one of the 2 paired reads
-                continue
-            if not alignment.proper_pair:
-                continue
-            if alignment.pcr_or_optical_duplicate:
-                continue
-            if alignment.not_primary_alignment:
-                continue
-            if not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
-                continue
-            else:
-                read_info = extract_read_information(alignment=alignment,
-                                                     interval=interval,
-                                                     protocol=protocol,
-                                                     sample=sample)
-                if read_info is None:
-                    continue
-                mapped_read_information.read_start_positions.append(
-                    read_info[0])
-                mapped_read_information.read_strands.append(read_info[1])
-                # mapped_read_information.read_sequences.append(read_info[2])
-                mapped_read_information.read_barcodes.append(read_info[2])
-                mapped_read_information.read_umis.append(read_info[3])
-                mapped_read_information.read_lengths.append(read_info[4])
-                mapped_read_information.utr_sizes_from_reads.append(
-                    read_info[5])
-
-        if mapped_read_information:
-            mapped_read_information_unique_umis = mapped_read_information.get_unique_umis()
-            utr_mappings[name] = mapped_read_information_unique_umis
 
     logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
         \n\nMemory usage:{psutil.virtual_memory().percent}')
@@ -210,7 +161,7 @@ def extract_read_information(alignment, interval, protocol, sample=None):
         if not (read_start_position <= interval.start_d and read_start_position >= interval.end_d):
             return None
 
-    # get the read's cell barcode and UMI
+    # get the read's barcode and UMI
     read_umi, read_barcode = protocol.get_reads_identity(alignment=alignment,
                                                          sample=sample)
     if not read_umi:  # if the UMI was not found, we discard the read
@@ -228,3 +179,53 @@ def extract_read_information(alignment, interval, protocol, sample=None):
         read_umi, read_length, utr_size  # , read_sequence
 
     return information
+
+
+def map_reads_to_utr_old(bam, intervals, protocol, read='first', sample=None):
+    logger = module_logger()
+    logger.info(
+        f'Extracting reads from {bam} and mapping them to the reference UTR')
+
+    bam_file = HTSeq.BAM_Reader(bam)
+    utr_mappings = UtrMappings()
+
+    for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
+                               desc="Interval: "):
+
+        mapped_read_information = MappedReadInformation(utr_name=name)
+        for alignment in bam_file[interval]:
+            if not alignment.pe_which == read:  # get only one of the 2 paired reads
+                continue
+            if not alignment.proper_pair:
+                continue
+            if alignment.pcr_or_optical_duplicate:
+                continue
+            if alignment.not_primary_alignment:
+                continue
+            if not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
+                continue
+            else:
+                read_info = extract_read_information(alignment=alignment,
+                                                     interval=interval,
+                                                     protocol=protocol,
+                                                     sample=sample)
+                if read_info is None:
+                    continue
+                mapped_read_information.read_start_positions.append(
+                    read_info[0])
+                mapped_read_information.read_strands.append(read_info[1])
+                # mapped_read_information.read_sequences.append(read_info[2])
+                mapped_read_information.read_barcodes.append(read_info[2])
+                mapped_read_information.read_umis.append(read_info[3])
+                mapped_read_information.read_lengths.append(read_info[4])
+                mapped_read_information.utr_sizes_from_reads.append(
+                    read_info[5])
+
+        if mapped_read_information:
+            mapped_read_information_unique_umis = mapped_read_information.get_unique_umis()
+            utr_mappings[name] = mapped_read_information_unique_umis
+
+    logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
+        \n\nMemory usage:{psutil.virtual_memory().percent}')
+
+    return utr_mappings
