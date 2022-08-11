@@ -144,9 +144,10 @@ def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
         cell_var_sizes[utr] = means_and_vars[:, 1]
 
     var = adata.var[adata.var[utr_name_column].isin(
-        cell_mean_sizes.columns)].iloc[:, 1:-1]
+        cell_mean_sizes.columns)]
     var = var.drop_duplicates(subset=[utr_name_column])
     var = var.set_index(utr_name_column)
+    var = var.drop(labels="utr_size", errors="ignore")
     var['UMIs'] = pd.Series(umis)
 
     adata = anndata.AnnData(cell_mean_sizes, obs=adata.obs, var=var)
