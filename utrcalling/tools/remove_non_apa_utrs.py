@@ -3,7 +3,7 @@ import argparse
 # import data processing tools
 import scanpy as sc
 
-from utrcalling.main_module import anndata_processing as ap
+from utrcalling.core import anndata_processing as ap
 
 
 def main(adata_path, out_path):

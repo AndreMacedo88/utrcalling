@@ -17,13 +17,13 @@ import os
 import pandas as pd
 import pybedtools
 
-from utrcalling.main_module import helpers
-from utrcalling.main_module.utr_reference import (
+from utrcalling.core import helpers
+from utrcalling.core.utr_reference import (
     generate_utr_name, extract_feature, prepare_annotations_index, reduce_regions,
     generate_utr_name, correct_column_names
 )
-from utrcalling.main_module.utr_mapping import generate_utr_intervals, map_reads_to_utr, module_logger
-from utrcalling.main_module.peak_calling import (
+from utrcalling.core.utr_mapping import generate_utr_intervals, map_reads_to_utr, module_logger
+from utrcalling.core.peak_calling import (
     subset_reference_data, merge_samples_utr_sizes, filter_barcodes,
     generate_peak_counts, add_to_peaks_var, generate_count_matrix_anndata
 )

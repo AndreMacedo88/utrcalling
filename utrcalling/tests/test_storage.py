@@ -7,8 +7,8 @@ import pandas as pd
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.main_module import protocols, utr_mapping, module_log
-from utrcalling.main_module.storage import MappedReadInformation
+from utrcalling.core import protocols, utr_mapping, module_log
+from utrcalling.core.storage import MappedReadInformation
 
 
 class TestStorage(unittest.TestCase):

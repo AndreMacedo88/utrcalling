@@ -3,7 +3,7 @@ from pathlib import Path
 import unittest
 
 import pandas as pd
-from utrcalling.main_module import peak_calling, protocols, utr_mapping, module_log
+from utrcalling.core import peak_calling, protocols, utr_mapping, module_log
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))

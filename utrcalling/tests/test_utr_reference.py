@@ -4,7 +4,7 @@ import unittest
 
 import pandas as pd
 import pybedtools
-from utrcalling.main_module import utr_reference, module_log
+from utrcalling.core import utr_reference, module_log
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))

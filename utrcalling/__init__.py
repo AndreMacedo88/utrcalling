@@ -12,12 +12,12 @@ from colorama import init, Fore, Style
 
 from utrcalling._metadata import __version__, __author__, __license__
 
-from utrcalling import main_module
+from utrcalling import core
 from utrcalling import tests
 from utrcalling import tools
 
-from utrcalling.main_module import protocols
-from utrcalling.main_module import storage
+from utrcalling.core import protocols
+from utrcalling.core import storage
 
 
 def show_logo():
