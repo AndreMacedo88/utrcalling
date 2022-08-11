@@ -16,6 +16,7 @@ import os
 
 import pandas as pd
 import pybedtools
+import joblib
 
 from utrcalling.core import helpers
 from utrcalling.core.utr_reference import (
@@ -53,33 +54,40 @@ def prepare_utr_reference_regions(gtf, feature, store=False):
 
 
 def map_aligned_reads(alignments, utr_regions, protocol, store=False):
-
     intervals = generate_utr_intervals(utr_regions)
     sample_names = protocol.sample_names
 
-    counter = 1
     if store:
         filename = "UTR_sizes_counts"
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
 
     if isinstance(alignments, (list, tuple)):
-        read_mappings = []
-        for alignment in alignments:
-            if sample_names is not None:
-                sample = sample_names[counter - 1]
-            else:
-                sample = sample_names
-            utr_sizes_counts = map_reads_to_utr(
-                alignment, intervals, read='first', protocol=protocol, sample=sample)
-            if store:
+        if sample_names is not None:
+            samples = []
+            for counter in range(len(alignments)):
+                samples.append(sample_names[counter])
+            read_mappings = joblib.Parallel(n_jobs=-2)(
+                joblib.delayed(
+                    map_reads_to_utr)(alignment, intervals,
+                                      read="first", protocol=protocol,
+                                      sample=sample
+                                      ) for alignment, sample in zip(alignments, samples))
+        else:
+            samples = sample_names
+            read_mappings = joblib.Parallel(n_jobs=-2)(
+                joblib.delayed(
+                    map_reads_to_utr)(alignment, intervals,
+                                      read="first", protocol=protocol,
+                                      sample=samples
+                                      ) for alignment in alignments)
+
+        if store:
+            for counter, utr_sizes_counts in enumerate(read_mappings):
                 file_path = os.path.join(
-                    directory, f'{filename}_{counter}.pkl')
+                    directory, f'{filename}_{counter + 1}.pkl')
                 utr_sizes_counts.export(file_path)
-                read_mappings.append(file_path)
-            else:
-                read_mappings.append(utr_sizes_counts)
-            counter += 1
+
     else:
         read_mappings = map_reads_to_utr(
             alignments, intervals, read='first', protocol=protocol, sample=sample_names)
