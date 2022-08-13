@@ -68,7 +68,7 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
     return sub_utr_reference_unique
 
 
-def filter_barcodes(utr_sizes, annotations, parallel=False):
+def filter_barcodes(utr_sizes, annotations):
     logger = module_log.module_logger()
     logger.info('Filtering cell barcodes')
 
@@ -78,7 +78,8 @@ def filter_barcodes(utr_sizes, annotations, parallel=False):
         annotations_df = pd.read_csv(annotations)
 
     # Note that barcodes must be on a column with barcode somewhere in its name:
-    barcodes_column_name = annotations_df.columns.str.extract(r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
+    barcodes_column_name = annotations_df.columns.str.extract(
+        r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
     barcodes_real = annotations_df.loc[:, barcodes_column_name[0]].tolist()
 
     barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
@@ -99,52 +100,6 @@ def filter_barcodes(utr_sizes, annotations, parallel=False):
     utr_sizes = utr_sizes_exploded[utr_sizes_exploded.read_barcodes.isin(barcodes_fuzzy)]
     utr_sizes = utr_sizes.groupby(level=0).agg(list)
     return utr_sizes
-
-
-def filter_barcodes_old(utr_sizes, annotations, parallel=False):
-
-    def filter_and_correct_barcodes(utr, barcodes_dict):
-        barcodes = utr['read_barcodes']
-
-        new_barcodes = []
-        for barcode in barcodes:
-            new_barcodes.append(barcodes_dict.get(barcode, False))
-
-        filtered = utr.copy(deep=True)
-        for key, values in filtered.__dict__.items():
-            if key == 'utr_name':
-                continue
-            filtered[key] = [b for a, b in zip(new_barcodes, values) if a]
-        filtered['read_barcodes'] = list(filter(None, new_barcodes))
-        return filtered
-
-    logger = module_log.module_logger()
-    logger.info('Filtering cell barcodes')
-
-    if isinstance(annotations, (pd.DataFrame, pd.Series)):
-        annotations_df = annotations
-    else:
-        annotations_df = pd.read_csv(annotations)
-
-    # Note that barcodes must be on the first column of the annotations file:
-    barcodes_real = annotations_df.iloc[:, 0].tolist()
-    barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
-
-    barcodes_dict = {}
-    for barcode in barcodes_to_test:
-        if barcode in barcodes_real:
-            barcodes_dict[barcode] = barcode
-        else:
-            match = process.extractOne(
-                barcode, barcodes_real, scorer=fuzz.ratio, score_cutoff=90)
-            if match is not None:
-                barcodes_dict[barcode] = match[0]
-            else:
-                continue
-
-    utr_positions_filtered = utr_sizes.filter(
-        lambda x: x.each(filter_and_correct_barcodes, barcodes_dict), parallel=parallel)
-    return utr_positions_filtered
 
 
 def generate_peak_counts(utr_sizes, annotations=None,
@@ -274,6 +229,50 @@ def generate_count_matrix_anndata(count_matrix, var, obs=None):
 # LEGACY FUNCTIONS
 
 """
+def filter_barcodes_old(utr_sizes, annotations, parallel=False):
+
+    def filter_and_correct_barcodes(utr, barcodes_dict):
+        barcodes = utr['read_barcodes']
+
+        new_barcodes = []
+        for barcode in barcodes:
+            new_barcodes.append(barcodes_dict.get(barcode, False))
+
+        filtered = utr.copy(deep=True)
+        for key, values in filtered.__dict__.items():
+            if key == 'utr_name':
+                continue
+            filtered[key] = [b for a, b in zip(new_barcodes, values) if a]
+        filtered['read_barcodes'] = list(filter(None, new_barcodes))
+        return filtered
+
+    logger = module_log.module_logger()
+    logger.info('Filtering cell barcodes')
+
+    if isinstance(annotations, (pd.DataFrame, pd.Series)):
+        annotations_df = annotations
+    else:
+        annotations_df = pd.read_csv(annotations)
+
+    # Note that barcodes must be on the first column of the annotations file:
+    barcodes_real = annotations_df.iloc[:, 0].tolist()
+    barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
+
+    barcodes_dict = {}
+    for barcode in barcodes_to_test:
+        if barcode in barcodes_real:
+            barcodes_dict[barcode] = barcode
+        else:
+            match = process.extractOne(
+                barcode, barcodes_real, scorer=fuzz.ratio, score_cutoff=90)
+            if match is not None:
+                barcodes_dict[barcode] = match[0]
+            else:
+                continue
+
+    utr_positions_filtered = utr_sizes.filter(
+        lambda x: x.each(filter_and_correct_barcodes, barcodes_dict), parallel=parallel)
+    return utr_positions_filtered
 
 def merge_samples_utr_sizes_old(utr_sizes, method='intersection', label_samples=True,
                                 exclude=[]):
