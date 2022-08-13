@@ -55,61 +55,12 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True
     return utr_sizes_merged
 
 
-def merge_samples_utr_sizes_old(utr_sizes, method='intersection', label_samples=True,
-                                exclude=[]):
-    """
-    Before calling peaks from position counts, we should merge the datasets we want to
-    compare, so that peaks get called with the pseudo-bulk data from all samples.
-    Merging appends both samples information for each UTR, while discarding UTRs that 
-    only one sample mapped to.
-    If you want to call peaks for a single sample, skip this function.
-
-    Args:
-        utr_positions_counts (list): List with the objects containing the position
-        counts for each sample.
-
-    Returns:
-        UtrMappings: The merged datasets.
-    """
-    logger = module_log.module_logger()
-
-    def add_counter_to_barcode(x, counter):
-        x["read_barcodes"] = [
-            f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
-        return x
-
-    logger.info("Merging all samples' UTR sizes")
-
-    sample_counter = 1
-    position_counts_merged = None
-    for position_counts in tqdm(utr_sizes, colour="#ffb700", ascii=" ■"):
-        # account for those instances where utr_sizes are a list of paths
-        position_counts = helpers.check_if_path_and_open(position_counts, method='pickle')
-        if label_samples:
-            # add a counter to the barcode to separate samples from different sources
-            position_counts_to_merge = position_counts.filter(
-                lambda x: x.each(add_counter_to_barcode, sample_counter))
-        else:
-            position_counts_to_merge = position_counts
-
-        # merge the datasets
-        if position_counts_merged is not None:
-            position_counts_merged = position_counts_merged.merge(
-                position_counts_to_merge, method=method,
-                exclude=exclude)
-        else:
-            position_counts_merged = position_counts_to_merge
-        sample_counter += 1
-
-    return position_counts_merged
-
-
 def subset_reference_data(utr_sizes, utr_reference_regions):
     logger = module_log.module_logger()
     logger.info('Subsetting UTR reference data')
 
     sub_utr_reference = utr_reference_regions.filter(
-        items=utr_sizes.utr_ids, axis=0)
+        items=utr_sizes.index, axis=0)
 
     sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
 
@@ -285,10 +236,45 @@ def generate_count_matrix_anndata(count_matrix, var, obs=None):
     count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs)
     return count_matrix_anndata
 
+
 # LEGACY FUNCTIONS
 
-
 """
+
+def merge_samples_utr_sizes_old(utr_sizes, method='intersection', label_samples=True,
+                                exclude=[]):
+    logger = module_log.module_logger()
+
+    def add_counter_to_barcode(x, counter):
+        x["read_barcodes"] = [
+            f'{barcode}-{counter}' for barcode in x["read_barcodes"]]
+        return x
+
+    logger.info("Merging all samples' UTR sizes")
+
+    sample_counter = 1
+    position_counts_merged = None
+    for position_counts in tqdm(utr_sizes, colour="#ffb700", ascii=" ■"):
+        # account for those instances where utr_sizes are a list of paths
+        position_counts = helpers.check_if_path_and_open(position_counts, method='pickle')
+        if label_samples:
+            # add a counter to the barcode to separate samples from different sources
+            position_counts_to_merge = position_counts.filter(
+                lambda x: x.each(add_counter_to_barcode, sample_counter))
+        else:
+            position_counts_to_merge = position_counts
+
+        # merge the datasets
+        if position_counts_merged is not None:
+            position_counts_merged = position_counts_merged.merge(
+                position_counts_to_merge, method=method,
+                exclude=exclude)
+        else:
+            position_counts_merged = position_counts_to_merge
+        sample_counter += 1
+
+    return position_counts_merged
+
 def add_to_peaks_var_2(peak_var, annotations):
     logger = module_log.module_logger()
     logger.info('Adding reference annotations to the final result')

@@ -61,13 +61,10 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
 
 class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
     def setUp(self) -> None:
-        print(self.mappings[0].sort_index())
-        print(self.mappings[1].sort_index())
         self.maxDiff = None
         self.merged = peak_calling.merge_samples_utr_sizes(
             copy.deepcopy(self.mappings),
             method=self.protocol_union.merge_method)
-        print(self.merged)
 
     def test_identical_index(self):
         details_true = {
@@ -140,7 +137,7 @@ class TestSubsetReferenceData(TestPeakCalling):
         proper_values = ['1', 10024601, 10024978, 'ENSMUSG00000025917', 0.0, '-',
                          'ENSMUST00000027050', 'Cops5']
         self.assertListEqual(
-            self.subsetted.iloc[0].values.tolist(), proper_values)
+            self.subsetted.loc["ENSMUSG00000025917"].values.tolist(), proper_values)
 
     def test_strand_is_correct(self) -> None:
         self.assertEqual(self.subsetted.iloc[0].strand, '-')
