@@ -18,7 +18,7 @@ class TestMapAlignedReads(unittest.TestCase):
 
         self.alignments_n = 5
         alignments = [
-            './test_data/test_UTRoldNSCgenome_bwt2_102_duplicates_sort.bam',
+            './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam',
         ] * self.alignments_n
 
         self.read_mappings = core.map_aligned_reads(

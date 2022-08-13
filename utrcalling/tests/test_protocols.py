@@ -47,7 +47,8 @@ class TestFilterUtrSizes(Test10x):
             'utr_sizes_from_reads': [798, 798, 798]
         }
         self.assertDictEqual(
-            self.filtered.ENSMUSG00000001036.todict(), dict_true)
+            self.filtered.loc["ENSMUSG00000001036"].to_dict(), dict_true)
+            
 
 
 class TestSmartSeqCapPhospho(unittest.TestCase):
@@ -64,7 +65,7 @@ class TestSmartSeqCapPhospho(unittest.TestCase):
 class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhospho):
     def setUp(self) -> None:
         # modify the data to check for successfull filtering. Original was [44, 23, 19].
-        self.mappings.ENSMUSG00000023905.utr_sizes_from_reads = [44, 1, 19]
+        self.mappings.loc["ENSMUSG00000023905"].utr_sizes_from_reads = [44, 1, 19]
         self.filtered = self.protocol.filter_utr_sizes(self.mappings)
 
     def test_number_of_features(self) -> None:
@@ -83,7 +84,7 @@ class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhospho):
             'utr_sizes_from_reads': [44, 1, 19]
         }
         self.assertDictEqual(
-            self.filtered.ENSMUSG00000023905.todict(), dict_true)
+            self.filtered.loc["ENSMUSG00000023905"].to_dict(), dict_true)
 
 
 if __name__ == '__main__':

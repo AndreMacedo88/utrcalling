@@ -4,6 +4,7 @@ import unittest
 
 import pandas as pd
 import numpy as np
+import copy
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
@@ -18,7 +19,10 @@ class TestPeakCalling(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = protocols.protocol(platform='10x', version=2)
+        cls.protocol = protocols.protocol(platform='10x', version=2,
+                                          merge_method="intersection")
+        cls.protocol_union = protocols.protocol(platform='10x', version=2,
+                                                merge_method="union")
         cls.mappings = [
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,
@@ -26,15 +30,15 @@ class TestPeakCalling(unittest.TestCase):
         ]
 
 
-class TestMergeSamplesUtrSizes(TestPeakCalling):
+class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
     def setUp(self) -> None:
         self.maxDiff = None
-        self.merged = peak_calling.merge_samples_utr_sizes(self.mappings,
-                                                           method=self.protocol)
+        self.merged = peak_calling.merge_samples_utr_sizes(
+            self.mappings,
+            method=self.protocol.merge_method)
 
     def test_details(self):
         details_true = {
-            'utr_name': 'ENSMUSG00000025917',
             'read_start_positions': [10024879, 10024880, 10024882, 10024888, 10024660,
                                      10024882, 10024876, 10024880, 10024893, 10024899],
             'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'],
@@ -49,26 +53,27 @@ class TestMergeSamplesUtrSizes(TestPeakCalling):
             'utr_sizes_from_reads': [98, 97, 95, 89, 317, 95, 101, 97, 84, 78]
         }
         self.assertDictEqual(
-            self.merged.ENSMUSG00000025917.todict(), details_true)
+            self.merged.loc["ENSMUSG00000025917"].to_dict(), details_true)
 
     def test_length(self):
-        self.assertEqual(len(self.merged), 66)
+        self.assertEqual(self.merged.shape[0], 66)
 
 
-class TestMergeSamplesUtrSizesExclude(TestPeakCalling):
+class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
     def setUp(self) -> None:
+        print(self.mappings[0].sort_index())
+        print(self.mappings[1].sort_index())
         self.maxDiff = None
-        self.merged = peak_calling.merge_samples_utr_sizes(self.mappings,
-                                                           method=self.protocol,
-                                                           exclude=['read_start_positions',
-                                                                    'read_lengths',
-                                                                    'read_strands'])
+        self.merged = peak_calling.merge_samples_utr_sizes(
+            copy.deepcopy(self.mappings),
+            method=self.protocol_union.merge_method)
+        print(self.merged)
 
-    def test_details(self):
+    def test_identical_index(self):
         details_true = {
-            'utr_name': 'ENSMUSG00000025917',
-            'read_start_positions': [10024879, 10024880, 10024882, 10024888],
-            'read_strands': ['+', '+', '+', '+'],
+            'read_start_positions': [10024879, 10024880, 10024882, 10024888, 10024660,
+                                     10024882, 10024876, 10024880, 10024893, 10024899],
+            'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'],
             'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1',
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
                               'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
@@ -76,14 +81,41 @@ class TestMergeSamplesUtrSizesExclude(TestPeakCalling):
             'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT',
                           'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
                           'CTTTAGAACT', 'TGCTAGGACG'],
-            'read_lengths': [46, 50, 48, 46],
+            'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41],
             'utr_sizes_from_reads': [98, 97, 95, 89, 317, 95, 101, 97, 84, 78]
         }
         self.assertDictEqual(
-            self.merged.ENSMUSG00000025917.todict(), details_true)
+            self.merged.loc["ENSMUSG00000025917"].to_dict(), details_true)
+
+    def test_index_on_first_df(self):
+        details_true = {
+            'read_start_positions': [136881438],
+            'read_strands': ['+'],
+            'read_barcodes': ['CGAGAAGGTGCAACGA-1'],
+            'read_umis': ['CCCACAGCCA'],
+            'read_lengths': [53],
+            'utr_sizes_from_reads': [5]
+        }
+        self.assertDictEqual(
+            self.merged.loc["ENSMUSG00000115423"].to_dict(), details_true)
+
+    def test_index_on_second_df(self):
+        details_true = {
+            'read_start_positions': [107584044],
+            'read_strands': ['-'],
+            'read_barcodes': ['ACAGCTATCCTTAATC-2'],
+            'read_umis': ['AATAGTCCAT'],
+            'read_lengths': [50],
+            'utr_sizes_from_reads': [192]
+        }
+        self.assertDictEqual(
+            self.merged.loc["ENSMUSG00000079334"].to_dict(), details_true)
 
     def test_length(self):
-        self.assertEqual(len(self.merged), 66)
+        self.assertEqual(
+            self.merged.shape[0], self.mappings[0].index.union(
+                self.mappings[1].index).shape[0]
+        )
 
 
 class TestSubsetReferenceData(TestPeakCalling):
@@ -313,5 +345,5 @@ class TestCallPeaks():
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")

@@ -40,7 +40,7 @@ class TestMapReadsToUtr(unittest.TestCase):
         # test data for 3'UTR
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
-        cls.alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_duplicates_sort.bam'
+        cls.alignment = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
 
         # test data for 5'UTR
         cls.intervals_5prime = utr_mapping.generate_utr_intervals(

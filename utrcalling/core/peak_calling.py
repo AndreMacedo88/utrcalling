@@ -1,5 +1,5 @@
 import gc
-from functools import partial
+from functools import partial, reduce
 from statistics import mode
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
@@ -15,8 +15,48 @@ tqdm = partial(std_tqdm, dynamic_ncols=True)
 from utrcalling.core import helpers, module_log, protocols
 
 
-def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True,
-                            exclude=[]):
+def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True):
+    """
+    Before calling peaks from position counts, we should merge the datasets we want to
+    compare, so that peaks get called with the pseudo-bulk data from all samples.
+    Merging appends both samples information for each UTR. If `method='intersection'`,
+    UTRs that only one sample mapped to will be discarded. If `method='union'`, then
+    a union merge is performed.
+    If you want to call peaks for a single sample, skip this function.
+
+    Args:
+        utr_sizes (list): List with the objects containing the position
+        counts for each sample.
+
+    Returns:
+        pd.Dataframe: An object with the merged datasets.
+    """
+
+    logger = module_log.module_logger()
+
+    if label_samples:
+        for idx, sample in enumerate(utr_sizes):
+            sample.read_barcodes = [
+                [f"{barcode}-{idx+1}" for barcode in barcodes]
+                for barcodes in sample.read_barcodes
+            ]
+
+    logger.info("Merging all samples' UTR sizes")
+    if method == "union":
+        # utr_sizes_merged = utr_sizes[0].add(utr_sizes[1], axis="columns")
+        utr_sizes_merged = pd.concat(utr_sizes)
+        utr_sizes_merged = utr_sizes_merged.groupby(level=0).sum()
+    elif method == "intersection":
+        # utr_sizes_merged = utr_sizes[0].add(utr_sizes[1], axis="columns").dropna(axis=0)
+        utr_sizes_merged = reduce(lambda a, b: (a + b).dropna(axis=0), utr_sizes)
+    else:
+        raise AttributeError(f"Method {method} not supported.")
+
+    return utr_sizes_merged
+
+
+def merge_samples_utr_sizes_old(utr_sizes, method='intersection', label_samples=True,
+                                exclude=[]):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
     compare, so that peaks get called with the pseudo-bulk data from all samples.

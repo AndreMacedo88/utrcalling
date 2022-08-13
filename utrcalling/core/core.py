@@ -105,7 +105,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
                                                    method=protocol.merge_method,
                                                    label_samples=protocol.label_samples,
-                                                   exclude=exclude_from_merge)
+                                                   )
         if store:
             directory = './intermediate'
             helpers.check_if_exists_and_mkdir(directory)
