@@ -1,6 +1,7 @@
 import gc
 from functools import partial, reduce
 from statistics import mode
+import re
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -68,6 +69,39 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
 
 
 def filter_barcodes(utr_sizes, annotations, parallel=False):
+    logger = module_log.module_logger()
+    logger.info('Filtering cell barcodes')
+
+    if isinstance(annotations, (pd.DataFrame, pd.Series)):
+        annotations_df = annotations
+    else:
+        annotations_df = pd.read_csv(annotations)
+
+    # Note that barcodes must be on a column with barcode somewhere in its name:
+    barcodes_column_name = annotations_df.columns.str.extract(r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
+    barcodes_real = annotations_df.loc[:, barcodes_column_name[0]].tolist()
+
+    barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
+
+    barcodes_fuzzy = []
+    for barcode in barcodes_to_test:
+        if barcode in barcodes_real:
+            barcodes_fuzzy.append(barcode)
+        else:
+            match = process.extractOne(
+                barcode, barcodes_real, scorer=fuzz.ratio, score_cutoff=90)
+            if match is not None:
+                barcodes_fuzzy.append(match[0])
+            else:
+                continue
+
+    utr_sizes_exploded = utr_sizes.explode(utr_sizes.columns.to_list())
+    utr_sizes = utr_sizes_exploded[utr_sizes_exploded.read_barcodes.isin(barcodes_fuzzy)]
+    utr_sizes = utr_sizes.groupby(level=0).agg(list)
+    return utr_sizes
+
+
+def filter_barcodes_old(utr_sizes, annotations, parallel=False):
 
     def filter_and_correct_barcodes(utr, barcodes_dict):
         barcodes = utr['read_barcodes']

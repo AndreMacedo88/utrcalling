@@ -117,7 +117,7 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
 
 class TestSubsetReferenceData(TestPeakCalling):
     def setUp(self) -> None:
-        merged = peak_calling.merge_samples_utr_sizes(self.mappings)
+        merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(self.mappings))
         self.subsetted = peak_calling.subset_reference_data(
             merged, self.utr_regions)
 
@@ -145,7 +145,7 @@ class TestSubsetReferenceData(TestPeakCalling):
 
 class TestFilterBarcodes(TestPeakCalling):
     def setUp(self) -> None:
-        self.merged = peak_calling.merge_samples_utr_sizes(self.mappings)
+        self.merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(self.mappings))
         self.annotations = './test_data/vivo_anno.csv'
 
     @staticmethod
@@ -178,8 +178,8 @@ class TestFilterBarcodes(TestPeakCalling):
     def test_specific_utr(self):
         filtered = peak_calling.filter_barcodes(
             self.merged, annotations=self.annotations)
-        self.assertNotEqual(len(self.merged.ENSMUSG00000025917['read_barcodes']),
-                            len(filtered.ENSMUSG00000025917['read_barcodes']))
+        self.assertNotEqual(len(self.merged.loc["ENSMUSG00000025917"]['read_barcodes']),
+                            len(filtered.loc["ENSMUSG00000025917"]['read_barcodes']))
 
     def test_specific_utr_2(self):
         barcodes_real = ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1', 'TGCGCAGAGGCATGTG-1',
@@ -188,7 +188,7 @@ class TestFilterBarcodes(TestPeakCalling):
         filtered = peak_calling.filter_barcodes(
             self.merged, annotations=self.annotations)
         self.assertListEqual(
-            filtered.ENSMUSG00000025917['read_barcodes'], barcodes_real)
+            filtered.loc["ENSMUSG00000025917"]['read_barcodes'], barcodes_real)
 
     def test_using_annotations_as_dataframe(self):
         annotations = pd.read_csv(self.annotations)
