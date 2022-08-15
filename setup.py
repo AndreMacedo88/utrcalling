@@ -42,7 +42,7 @@ setuptools.setup(
         "scipy",
         "scikit-learn",
         "regex",
-        "rapidfuzz",
+        "rapidfuzz>=2.0.0",
         "joblib",
         "anndata",
         "scanpy",

@@ -9,7 +9,45 @@ import copy
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import peak_calling, protocols, utr_mapping, storage, module_log
+from utrcalling.core import peak_calling, protocols, utr_mapping, storage, module_log, helpers
+
+read_start_positions = [[100, 101, 100, 200, 202, 300], [1000, 1100, 1102, 1100, 1200]]
+read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-", "+"]]
+read_barcodes = [["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
+                  "GAAAAAAAAAAAAAAT-2", "GAAAAAAAAAAAAAAT-2",
+                  "AAAAAAAAAAAAAAAG-2", "AAAAAAAAAAAAAAAG-1"],
+                 ["AAAAAAAAAAAAAAAG-1", "AAAAAAAAAAAAAGGG-2",
+                  "AAAAAAAAAAAAAAAT-2", "AAAAAAAAAAAAAATT-1",
+                  "ATATATATATATATAT-1"]]
+
+read_umis = [["CCCCCCCCGG", "CCCCCCCCTT", "CCCCCCCCAA", "CCCCCCCCAA", "CCCCCCCGGC",
+              "CCCCCCCTTC"],
+             ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC", "CTCTCTCTCT"]]
+read_lengths = [[49, 59, 51, 52, 48, 52], [50, 52, 53, 52, 70]]
+utr_sizes_from_reads = [[500, 499, 500, 400, 398, 300], [100, 200, 202, 200, 300]]
+
+DATA_MINIMAL = pd.DataFrame(columns=['read_start_positions', 'read_strands',
+                                     'read_barcodes', 'read_umis', 'read_lengths',
+                                     'utr_sizes_from_reads'],
+                            index=["ENSMUSG00000000001", "ENSMUSG00000000002"],
+                            data=list(
+    zip(
+        read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
+        utr_sizes_from_reads
+    )
+)
+)
+
+ANNO_MINIMAL = pd.DataFrame(columns=["celltype", "barcodes", "cool_annotation"],
+                            data=list(
+    zip(
+        ["A", "B", "A", "C", "B"],
+        ["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAG-1", "GAAAAAAAAAAAAAAT-2",
+         "AAAAAAAAAAAAATTT-1", "AAAAAAAAAAAAAAGG-2"],
+        [2.3, 4.4, 5.0, 2.1, 3.0]
+    )
+)
+)
 
 
 class TestPeakCalling(unittest.TestCase):
@@ -126,9 +164,9 @@ class TestSubsetReferenceData(TestPeakCalling):
 
     def test_number_of_fields(self) -> None:
         """
-        Number of fields in the annotation BED file should be equal to the optional 
+        Number of fields in the annotation BED file should be equal to the optional
         fields (in variable 'annotations') plus the mandatory fields 'seqname', 'start',
-        'end' and finally the count field, that tell us how many features were merged 
+        'end' and finally the count field, that tell us how many features were merged
         at each new feature (row).
         """
         self.assertEqual(self.subsetted.shape[1], 8)
@@ -200,13 +238,39 @@ class TestFilterBarcodes(TestPeakCalling):
         self.assertEqual(barcodes_in_data, barcodes_in_annotations)
 
 
+class TestFilterBarcodesMinimal(unittest.TestCase):
+    def setUp(self) -> None:
+        self.data = copy.deepcopy(DATA_MINIMAL)
+        self.anno = copy.deepcopy(ANNO_MINIMAL)
+        self.filtered = peak_calling.filter_barcodes(self.data, annotations=self.anno)
+        self.barcodes_filtered = list(helpers.flatten(self.filtered.read_barcodes))
+
+    def test_barcodes_in_anno(self):
+        self.assertFalse(
+            [barcode for barcode in self.barcodes_filtered
+             if barcode not in self.anno.barcodes.tolist()]
+        )
+
+    def test_filtered_len(self):
+        self.assertEqual(len(self.barcodes_filtered), 10)
+
+    def test_filtered_id(self):
+        correct = ["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
+                   "GAAAAAAAAAAAAAAT-2", "GAAAAAAAAAAAAAAT-2",
+                   "AAAAAAAAAAAAAAGG-2", "AAAAAAAAAAAAAAAG-1",
+                   "AAAAAAAAAAAAAAAG-1", "AAAAAAAAAAAAAAGG-2",
+                   "GAAAAAAAAAAAAAAT-2", "AAAAAAAAAAAAATTT-1"]
+        self.assertListEqual(correct, self.barcodes_filtered)
+
+
 class TestGeneratePeakCounts(TestPeakCalling):
-    @classmethod
+    @ classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(cls.mappings))
         cls.annotations = './test_data/vivo_anno.csv'
         cls.merged = peak_calling.filter_barcodes(cls.merged, cls.annotations)
+        print(cls.merged.explode(cls.merged.columns.to_list()).shape)
 
 
 class TestMatrix(TestGeneratePeakCounts):
@@ -285,7 +349,7 @@ class TestAnnoDf(TestGeneratePeakCounts):
 
 
 class TestGenerateCountMatrixAnndata(TestPeakCalling):
-    @classmethod
+    @ classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         merged = peak_calling.merge_samples_utr_sizes(cls.mappings)
