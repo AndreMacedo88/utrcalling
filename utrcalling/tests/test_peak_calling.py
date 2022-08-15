@@ -199,21 +199,12 @@ class TestFilterBarcodes(TestPeakCalling):
         )
         self.assertEqual(barcodes_in_data, barcodes_in_annotations)
 
-    def test_filter_parallel(self):
-        filtered = peak_calling.filter_barcodes(self.merged, annotations=self.annotations,
-                                                parallel=True)
-        annotations = pd.read_csv(self.annotations)
-        barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
-            filtered, annotations
-        )
-        self.assertEqual(barcodes_in_data, barcodes_in_annotations)
-
 
 class TestGeneratePeakCounts(TestPeakCalling):
     @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.merged = peak_calling.merge_samples_utr_sizes(cls.mappings)
+        cls.merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(cls.mappings))
         cls.annotations = './test_data/vivo_anno.csv'
         cls.merged = peak_calling.filter_barcodes(cls.merged, cls.annotations)
 

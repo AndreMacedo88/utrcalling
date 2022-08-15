@@ -130,15 +130,16 @@ def generate_peak_counts(utr_sizes, annotations=None,
     logger.info("Calling peaks for each UTR")
     cores = helpers.get_number_cores()
 
+    utr_sizes_iter = utr_sizes.iterrows()
     count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
         joblib.delayed(call_peaks)(utr=utr, func=func,
                                    cell_barcodes=cell_barcodes) for utr in
-        tqdm(utr_sizes, colour="#ffb700", ascii=" ■", desc='UTR: ')))
+        tqdm(utr_sizes_iter, colour="#ffb700", ascii=" ■", desc='UTR: ')))
 
     logger.info('Finished generating and counting UTR size peaks')
 
     # Free some RAM by deleting biggest variables, collecting the garbage, and shutting
-    # down the multiprocess inactive workers
+    # down joblib inactive workers
     del utr_sizes
     gc.collect()
     get_reusable_executor().shutdown(wait=True)
@@ -160,13 +161,15 @@ def generate_peak_counts(utr_sizes, annotations=None,
 
 
 def call_peaks(utr, func, cell_barcodes):
+
     # create containers to append the data
     count_matrix = pd.DataFrame(columns=cell_barcodes)
     peaks_var = pd.DataFrame()
 
-    info = pd.DataFrame.from_dict(utr.__dict__)
+    info = utr[1].to_frame().T
+    info = info.explode(column=info.columns.tolist(), ignore_index=True)
 
-    # similar UMIs refer to the same event (molecule), and so we take the median
+    # similar UMIs refer to the same event (molecule), and so we take the mode
     info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])[
         'utr_sizes_from_reads'].transform(mode)
     info = info.drop_duplicates()
@@ -188,7 +191,7 @@ def call_peaks(utr, func, cell_barcodes):
     for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
         # generate a new name for each peak. Here, it's UTR name (which is gene name
         # plus a counter for each transcript UTR) plus a counter for each peak
-        peak_name = f'{utr.utr_name}-{count}'
+        peak_name = f'{utr[0]}-{count}'
         count += 1
         # update the peak observations table
         peaks_var.loc[peak_name, 'utr_size'] = utr_size_at_peak
@@ -229,6 +232,49 @@ def generate_count_matrix_anndata(count_matrix, var, obs=None):
 # LEGACY FUNCTIONS
 
 """
+
+def call_peaks(utr, func, cell_barcodes):
+
+    # create containers to append the data
+    count_matrix = pd.DataFrame(columns=cell_barcodes)
+    peaks_var = pd.DataFrame()
+
+    info = pd.DataFrame.from_dict(utr.__dict__)
+
+    # similar UMIs refer to the same event (molecule), and so we take the median
+    info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])[
+        'utr_sizes_from_reads'].transform(mode)
+    info = info.drop_duplicates()
+
+    utr_sizes_vector = info['utr_sizes_from_reads'].values.reshape(-1, 1)
+
+    # now we call the utr size peaks based on the distribution of individual UTR sizes
+    peaks = func(utr_sizes_vector)
+
+    # store this info in a new key on the original container
+    info['peaks'] = peaks
+
+    # group by each peak size and cell and count the number of each peak each cell has
+    info_grouped_by_peaks = \
+        info.groupby(['peaks', 'read_barcodes'])['peaks'].agg('count')
+
+    # append this information to the containers created above
+    count = 1
+    for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
+        # generate a new name for each peak. Here, it's UTR name (which is gene name
+        # plus a counter for each transcript UTR) plus a counter for each peak
+        peak_name = f'{utr.utr_name}-{count}'
+        count += 1
+        # update the peak observations table
+        peaks_var.loc[peak_name, 'utr_size'] = utr_size_at_peak
+        # update the peak count matrix
+        peak_counts = barcodes.droplevel(0)
+        peak_counts.name = peak_name
+        count_matrix = count_matrix.append(peak_counts, ignore_index=False)
+
+    count_matrix = count_matrix.fillna(0)
+    return count_matrix, peaks_var
+
 def filter_barcodes_old(utr_sizes, annotations, parallel=False):
 
     def filter_and_correct_barcodes(utr, barcodes_dict):
