@@ -4,6 +4,7 @@ import unittest
 
 import pandas as pd
 import numpy as np
+from numpy import testing as npt
 import copy
 
 # make sure file paths resolve correctly for the test case
@@ -11,35 +12,10 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 
 from utrcalling.core import peak_calling, protocols, utr_mapping, storage, module_log, helpers
 
-read_start_positions = [[100, 101, 100, 200, 202, 300], [1000, 1100, 1102, 1100, 1200]]
-read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-", "+"]]
-read_barcodes = [["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
-                  "GAAAAAAAAAAAAAAT-2", "GAAAAAAAAAAAAAAT-2",
-                  "AAAAAAAAAAAAAAAG-2", "AAAAAAAAAAAAAAAG-1"],
-                 ["AAAAAAAAAAAAAAAG-1", "AAAAAAAAAAAAAGGG-2",
-                  "AAAAAAAAAAAAAAAT-2", "AAAAAAAAAAAAAATT-1",
-                  "ATATATATATATATAT-1"]]
 
-read_umis = [["CCCCCCCCGG", "CCCCCCCCTT", "CCCCCCCCAA", "CCCCCCCCAA", "CCCCCCCGGC",
-              "CCCCCCCTTC"],
-             ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC", "CTCTCTCTCT"]]
-read_lengths = [[49, 59, 51, 52, 48, 52], [50, 52, 53, 52, 70]]
-utr_sizes_from_reads = [[500, 499, 500, 400, 398, 300], [100, 200, 202, 200, 300]]
-
-DATA_MINIMAL = pd.DataFrame(columns=['read_start_positions', 'read_strands',
-                                     'read_barcodes', 'read_umis', 'read_lengths',
-                                     'utr_sizes_from_reads'],
-                            index=["ENSMUSG00000000001", "ENSMUSG00000000002"],
-                            data=list(
-    zip(
-        read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
-        utr_sizes_from_reads
-    )
-)
-)
-
-ANNO_MINIMAL = pd.DataFrame(columns=["celltype", "barcodes", "cool_annotation"],
-                            data=list(
+ANNOTATION = pd.DataFrame(columns=["celltype", "barcodes",
+                                   "cool_annotation"],
+                          data=list(
     zip(
         ["A", "B", "A", "C", "B"],
         ["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAG-1", "GAAAAAAAAAAAAAAT-2",
@@ -48,6 +24,105 @@ ANNO_MINIMAL = pd.DataFrame(columns=["celltype", "barcodes", "cool_annotation"],
     )
 )
 )
+
+
+class DataMinimal:
+    def __init__(self) -> None:
+        read_start_positions = [[100, 101, 100, 200, 202, 300],
+                                [1000, 1100, 1102, 1200, 1200]]
+        read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-", "+"]]
+        read_barcodes = [["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
+                          "GAAAAAAAAAAAAAAT-2", "GAAAAAAAAAAAAAAT-2",
+                          "AAAAAAAAAAAAAAAG-2", "AAAAAAAAAAAAAAAG-1"],
+                         ["AAAAAAAAAAAAAAAG-1", "AAAAAAAAAAAAAGGG-2",
+                         "AAAAAAAAAAAAAAAT-2", "AAAAAAAAAAAAAATT-1",
+                          "ATATATATATATATAT-1"]]
+        read_umis = [
+            ["CCCCCCCCGG", "CCCCCCCCTT", "CCCCCCCCAA", "CCCCCCCCAA", "CCCCCCCGGC",
+             "CCCCCCCTTC"],
+            ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC", "CTCTCTCTCT"]
+        ]
+        read_lengths = [
+            [49, 59, 51, 52, 48, 52],
+            [50, 52, 53, 52, 70]
+        ]
+        utr_sizes_from_reads = [
+            [500, 499, 500, 400, 398, 300],
+            [100, 200, 202, 300, 300]
+        ]
+
+        self._data_minimal = pd.DataFrame(columns=['read_start_positions', 'read_strands',
+                                                   'read_barcodes', 'read_umis',
+                                                   'read_lengths', 'utr_sizes_from_reads'],
+                                          index=["ENSMUSG00000000001",
+                                                 "ENSMUSG00000000002"],
+                                          data=list(
+            zip(
+                read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
+                utr_sizes_from_reads
+            )
+        )
+        )
+
+        self._anno = ANNOTATION
+
+        @property
+        def data_minimal(self):
+            return copy.deepcopy(self._data_minimal)
+
+        @property
+        def anno(self):
+            return copy.deepcopy(self._anno)
+
+
+class DataFiltered:
+    def __init__(self) -> None:
+        read_start_positions = [[100, 101, 100, 200, 202, 300],
+                                [1000, 1100, 1102, 1200]]
+        read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-"]]
+        read_barcodes = [
+            ['AAAAAAAAAAAAAAAA-1', 'AAAAAAAAAAAAAAAA-1',
+             'GAAAAAAAAAAAAAAT-2', 'GAAAAAAAAAAAAAAT-2',
+             'AAAAAAAAAAAAAAGG-2', 'AAAAAAAAAAAAAAAG-1'],
+            ['AAAAAAAAAAAAAAAG-1', 'AAAAAAAAAAAAAAGG-2',
+             'GAAAAAAAAAAAAAAT-2', 'AAAAAAAAAAAAATTT-1']
+        ]
+        read_umis = [
+            ["CCCCCCCCGG", "CCCCCCCCTT", "CCCCCCCCAA", "CCCCCCCCAA", "CCCCCCCGGC",
+             "CCCCCCCTTC"],
+            ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC"]
+        ]
+        read_lengths = [
+            [49, 59, 51, 52, 48, 52],
+            [50, 52, 53, 52]
+        ]
+        utr_sizes_from_reads = [
+            [500, 499, 500, 400, 398, 300],
+            [100, 200, 202, 300]
+        ]
+
+        self._data_filtered = pd.DataFrame(columns=['read_start_positions', 'read_strands',
+                                                    'read_barcodes', 'read_umis',
+                                                    'read_lengths', 'utr_sizes_from_reads'],
+                                           index=["ENSMUSG00000000001",
+                                                  "ENSMUSG00000000002"],
+                                           data=list(
+            zip(
+                read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
+                utr_sizes_from_reads
+            )
+        )
+        )
+
+        self._anno = ANNOTATION
+
+        @property
+        def data_filtered(self):
+            return copy.deepcopy(self._data_filtered)
+
+        @property
+        def anno(self):
+            return copy.deepcopy(self._anno)
 
 
 class TestPeakCalling(unittest.TestCase):
@@ -240,8 +315,9 @@ class TestFilterBarcodes(TestPeakCalling):
 
 class TestFilterBarcodesMinimal(unittest.TestCase):
     def setUp(self) -> None:
-        self.data = copy.deepcopy(DATA_MINIMAL)
-        self.anno = copy.deepcopy(ANNO_MINIMAL)
+        data_minimal = DataMinimal()
+        self.data = data_minimal._data_minimal
+        self.anno = data_minimal._anno
         self.filtered = peak_calling.filter_barcodes(self.data, annotations=self.anno)
         self.barcodes_filtered = list(helpers.flatten(self.filtered.read_barcodes))
 
@@ -270,7 +346,6 @@ class TestGeneratePeakCounts(TestPeakCalling):
         cls.merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(cls.mappings))
         cls.annotations = './test_data/vivo_anno.csv'
         cls.merged = peak_calling.filter_barcodes(cls.merged, cls.annotations)
-        print(cls.merged.explode(cls.merged.columns.to_list()).shape)
 
 
 class TestMatrix(TestGeneratePeakCounts):
@@ -279,14 +354,14 @@ class TestMatrix(TestGeneratePeakCounts):
                                                               annotations=self.annotations)
 
     def test_length(self):
-        self.assertTupleEqual(self.matrix.shape, (695, 160))
+        self.assertTupleEqual(self.matrix.shape, (692, 222))
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
-        self.assertEqual(non_zeros_count, 792)
+        self.assertEqual(non_zeros_count, 794)
 
     def test_matrix_maximum(self):
-        self.assertEqual(np.max(self.matrix.values), 3.0)
+        self.assertEqual(np.max(self.matrix.values), 2)
 
 
 class TestVar(TestGeneratePeakCounts):
@@ -295,11 +370,11 @@ class TestVar(TestGeneratePeakCounts):
                                                            annotations=self.annotations)
 
     def test_length(self):
-        self.assertTupleEqual(self.var.shape, (160, 1))
+        self.assertTupleEqual(self.var.shape, (222, 1))
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.var)
-        self.assertEqual(non_zeros_count, 160)
+        self.assertEqual(non_zeros_count, 222)
 
 
 class TestObs(TestGeneratePeakCounts):
@@ -308,11 +383,11 @@ class TestObs(TestGeneratePeakCounts):
                                                            annotations=self.annotations)
 
     def test_length(self):
-        self.assertTupleEqual(self.obs.shape, (695, 3))
+        self.assertTupleEqual(self.obs.shape, (692, 3))
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.obs)
-        self.assertEqual(non_zeros_count, 2085)
+        self.assertEqual(non_zeros_count, 2076)
 
 
 class TestNoAnno(TestGeneratePeakCounts):
@@ -322,30 +397,116 @@ class TestNoAnno(TestGeneratePeakCounts):
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
-        self.assertEqual(non_zeros_count, 792)
+        self.assertEqual(non_zeros_count, 794)
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.var)
-        self.assertEqual(non_zeros_count, 160)
+        self.assertEqual(non_zeros_count, 222)
 
 
 class TestAnnoDf(TestGeneratePeakCounts):
     def setUp(self):
         annotations = pd.read_csv(self.annotations)
-        self.matrix, self.var, self.obs = peak_calling.generate_peak_counts(self.merged,
-                                                                            annotations=annotations)
+        self.matrix, self.var, self.obs = peak_calling.generate_peak_counts(
+            self.merged,
+            annotations=annotations
+        )
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
-        self.assertEqual(non_zeros_count, 792)
+        self.assertEqual(non_zeros_count, 794)
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.var)
-        self.assertEqual(non_zeros_count, 160)
+        self.assertEqual(non_zeros_count, 222)
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.obs)
-        self.assertEqual(non_zeros_count, 2085)
+        self.assertEqual(non_zeros_count, 2076)
+
+
+class TestGeneratePeakCountsMinimal(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        data_filtered = DataFiltered()
+        cls.data = data_filtered._data_filtered
+        cls.anno = data_filtered._anno
+        cls.protocol = protocols.protocol(platform='10x', version=2,
+                                          merge_method="intersection")
+
+
+class TestMatrixMinimal(TestGeneratePeakCountsMinimal):
+    def setUp(self) -> None:
+        self.matrix, _, _ = peak_calling.generate_peak_counts(
+            self.data,
+            annotations=self.anno,
+            func=self.protocol.peak_calling
+        )
+
+    def test_length(self):
+        self.assertTupleEqual(self.matrix.shape, (5, 6))
+
+    def test_matrix_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix)
+        self.assertEqual(non_zeros_count, 9)
+
+    def test_matrix_maximum(self):
+        self.assertEqual(np.max(self.matrix.values), 2)
+
+    def test_matrix_composition(self):
+        reality = np.array([[0, 0, 2, 0, 0, 0],
+                            [1, 0, 0, 1, 0, 0],
+                            [0, 1, 0, 0, 1, 0],
+                            [0, 0, 0, 0, 0, 1],
+                            [0, 1, 1, 0, 1, 0]])
+        npt.assert_allclose(self.matrix.sort_index().to_numpy(), reality)
+
+
+class TestVarMinimal(TestGeneratePeakCountsMinimal):
+    def setUp(self):
+        _, self.var, _ = peak_calling.generate_peak_counts(
+            self.data,
+            annotations=self.anno,
+            func=self.protocol.peak_calling
+        )
+
+    def test_length(self):
+        self.assertTupleEqual(self.var.shape, (6, 1))
+
+    def test_vars_values_count(self):
+        non_zeros_count = np.count_nonzero(self.var)
+        self.assertEqual(non_zeros_count, 6)
+
+
+class TestObsMinimal(TestGeneratePeakCountsMinimal):
+    def setUp(self):
+        _, _, self.obs = peak_calling.generate_peak_counts(
+            self.data,
+            annotations=self.anno,
+            func=self.protocol.peak_calling
+        )
+
+    def test_length(self):
+        self.assertTupleEqual(self.obs.shape, (5, 2))
+
+    def test_obs_values_count(self):
+        non_zeros_count = np.count_nonzero(self.obs)
+        self.assertEqual(non_zeros_count, 10)
+
+
+class TestNoAnnoMinimal(TestGeneratePeakCountsMinimal):
+    def setUp(self):
+        self.matrix, self.var = peak_calling.generate_peak_counts(
+            self.data, annotations=None, func=self.protocol.peak_calling
+        )
+
+    def test_matrix_values_count(self):
+        non_zeros_count = np.count_nonzero(self.matrix)
+        self.assertEqual(non_zeros_count, 9)
+
+    def test_vars_values_count(self):
+        non_zeros_count = np.count_nonzero(self.var)
+        self.assertEqual(non_zeros_count, 6)
 
 
 class TestGenerateCountMatrixAnndata(TestPeakCalling):
@@ -369,33 +530,17 @@ class TestWithObs(TestGenerateCountMatrixAnndata):
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.X)
-        self.assertEqual(non_zeros_count, 792)
+        self.assertEqual(non_zeros_count, 794)
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.var)
-        self.assertEqual(non_zeros_count, 160 * 9)
+        self.assertEqual(non_zeros_count, 222 * 9)
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.obs)
-        self.assertEqual(non_zeros_count, 2085)
-
-
-class TestCallPeaks():
-    def setUp(self) -> None:
-        st_pos = [20, 20, 21, 50, 50, 50, 70, 70, 60, 55, 70, 19, 49]
-
-        read_information = storage.MappedReadInformation()
-        read_information.read_start_positions.append()
-        read_information.read_strands.append()
-        read_information.read_barcodes.append()
-        read_information.read_umis.append()
-        read_information.read_lengths.append()
-        read_information.utr_sizes_from_reads.append()
-        self.utr = storage.UtrMappings()
-
-        self.func = peak_calling.call_peaks_using_kernel_density_estimator
+        self.assertEqual(non_zeros_count, 692 * 3)
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=False)
+    unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

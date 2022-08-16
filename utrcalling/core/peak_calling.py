@@ -110,7 +110,8 @@ def filter_barcodes(utr_sizes, annotations):
     utr_sizes_exploded = utr_sizes.explode(utr_sizes.columns.to_list())
     utr_sizes_exploded.read_barcodes = utr_sizes_exploded.read_barcodes.replace(
         barcodes_replace)
-    utr_sizes = utr_sizes_exploded[utr_sizes_exploded.read_barcodes.isin(barcodes_correct)]
+    utr_sizes = utr_sizes_exploded[utr_sizes_exploded.read_barcodes.isin(
+        barcodes_correct)]
     utr_sizes = utr_sizes.groupby(level=0).agg(list)
     return utr_sizes
 
@@ -121,8 +122,6 @@ def generate_peak_counts(utr_sizes, annotations=None,
     logger = module_log.module_logger()
     logger.info('Generating and counting UTR size peaks')
 
-    # get list of the unique barcodes (cells)
-    cell_barcodes = set(helpers.flatten(utr_sizes.read_barcodes))
     # open the annotations file
     if annotations is not None:
         if isinstance(annotations, (pd.DataFrame, pd.Series)):
@@ -144,9 +143,8 @@ def generate_peak_counts(utr_sizes, annotations=None,
     cores = helpers.get_number_cores()
 
     utr_sizes_iter = utr_sizes.iterrows()
-    count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=1)(
-        joblib.delayed(call_peaks)(utr=utr, func=func,
-                                   cell_barcodes=cell_barcodes) for utr in
+    count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
+        joblib.delayed(call_peaks)(utr=utr, func=func) for utr in
         tqdm(utr_sizes_iter, colour="#ffb700", ascii=" ■", desc='UTR: ')))
 
     logger.info('Finished generating and counting UTR size peaks')
@@ -157,30 +155,35 @@ def generate_peak_counts(utr_sizes, annotations=None,
     gc.collect()
     get_reusable_executor().shutdown(wait=True)
 
-    count_matrix = pd.concat(count_matrix_list, axis=0, ignore_index=False, copy=False)
+    count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+    count_matrix = count_matrix.fillna(0).astype("int32")
+
     del count_matrix_list
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
-    count_matrix = count_matrix.T
-
     if annotations is not None:
         logger.info('Adding annotations')
-        peaks_obs = annotations.set_index(annotations.columns[0])
+        barcodes_column_name = annotations.columns.str.extract(
+            r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
+
+        peaks_obs = annotations.set_index(barcodes_column_name[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
         return count_matrix, peaks_var, peaks_obs
 
     return count_matrix, peaks_var
 
 
-def call_peaks(utr, func, cell_barcodes):
+def call_peaks(utr, func):
 
     # create containers to append the data
-    count_matrix = pd.DataFrame(columns=cell_barcodes)
+    count_matrix = {}
     peaks_var = pd.DataFrame()
 
     info = utr[1].to_frame().T
     info = info.explode(column=info.columns.tolist(), ignore_index=True)
+    info = info.sort_values(by="utr_sizes_from_reads")
+
     """
     # similar UMIs refer to the same event (molecule), and so we take the mode
     info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])[
@@ -188,39 +191,31 @@ def call_peaks(utr, func, cell_barcodes):
     info = info.drop_duplicates()
     """
 
-    utr_sizes_vector = info['utr_sizes_from_reads'].values.reshape(-1, 1)
+    utr_sizes_vector = info["utr_sizes_from_reads"].values.reshape(-1, 1)
 
     # now we call the utr size peaks based on the distribution of individual UTR sizes
     peaks = func(utr_sizes_vector)
-
     # store this info in a new key on the original container
-    info['peaks'] = peaks
+    info["peaks"] = peaks
     # group by each peak size and cell and count the number of each peak each cell has
     info_grouped_by_peaks = \
-        info.groupby(['peaks', 'read_barcodes'])['peaks'].agg('count')
+        info.groupby(["peaks", "read_barcodes"])["peaks"].agg("count")
 
     # append this information to the containers created above
     count = 1
     for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
-        # print(utr_size_at_peak, barcodes, sep="\n")
         # generate a new name for each peak. Here, it's UTR name (which is gene name
         # plus a counter for each transcript UTR) plus a counter for each peak
         peak_name = f'{utr[0]}-{count}'
         count += 1
         # update the peak observations table
-        peaks_var.loc[peak_name, 'utr_size'] = utr_size_at_peak
+        peaks_var.loc[peak_name, "utr_size"] = utr_size_at_peak
         # update the peak count matrix
-        # print(peaks_var)
         peak_counts = barcodes.droplevel(0)
-        peak_counts.name = peak_name
-        # print(peak_counts)
-        count_matrix = count_matrix.append(peak_counts, ignore_index=False)
-        # print(count_matrix)
+        count_matrix[peak_name] = peak_counts
 
-    count_matrix = count_matrix.fillna(0)
+    count_matrix = pd.DataFrame(count_matrix)
     return count_matrix, peaks_var
-
-# TODO: change the dataframe.appends to list of dicts and then from_records. see https://stackoverflow.com/questions/70837397/good-alternative-to-pandas-append-method-now-that-it-is-being-deprecated
 
 
 def add_to_peaks_var(peak_var, annotations):
