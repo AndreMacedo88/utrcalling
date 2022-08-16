@@ -17,7 +17,6 @@ from utrcalling import tests
 from utrcalling import tools
 
 from utrcalling.core import protocols
-from utrcalling.core import storage
 
 
 def show_logo():

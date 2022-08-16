@@ -11,7 +11,6 @@ from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 from utrcalling.core.module_log import module_logger
-from utrcalling.core.storage import UtrMappings, MappedReadInformation
 from utrcalling.core.helpers import to_string
 
 
@@ -179,53 +178,3 @@ def extract_read_information(alignment, interval, protocol, sample=None):
         read_umi, read_length, utr_size  # , read_sequence
 
     return information
-
-
-def map_reads_to_utr_old(bam, intervals, protocol, read='first', sample=None):
-    logger = module_logger()
-    logger.info(
-        f'Extracting reads from {bam} and mapping them to the reference UTR')
-
-    bam_file = HTSeq.BAM_Reader(bam)
-    utr_mappings = UtrMappings()
-
-    for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
-                               desc="Interval: "):
-
-        mapped_read_information = MappedReadInformation(utr_name=name)
-        for alignment in bam_file[interval]:
-            if not alignment.pe_which == read:  # get only one of the 2 paired reads
-                continue
-            if not alignment.proper_pair:
-                continue
-            if alignment.pcr_or_optical_duplicate:
-                continue
-            if alignment.not_primary_alignment:
-                continue
-            if not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
-                continue
-            else:
-                read_info = extract_read_information(alignment=alignment,
-                                                     interval=interval,
-                                                     protocol=protocol,
-                                                     sample=sample)
-                if read_info is None:
-                    continue
-                mapped_read_information.read_start_positions.append(
-                    read_info[0])
-                mapped_read_information.read_strands.append(read_info[1])
-                # mapped_read_information.read_sequences.append(read_info[2])
-                mapped_read_information.read_barcodes.append(read_info[2])
-                mapped_read_information.read_umis.append(read_info[3])
-                mapped_read_information.read_lengths.append(read_info[4])
-                mapped_read_information.utr_sizes_from_reads.append(
-                    read_info[5])
-
-        if mapped_read_information:
-            mapped_read_information_unique_umis = mapped_read_information.get_unique_umis()
-            utr_mappings[name] = mapped_read_information_unique_umis
-
-    logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
-        \n\nMemory usage:{psutil.virtual_memory().percent}')
-
-    return utr_mappings

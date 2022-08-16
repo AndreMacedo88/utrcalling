@@ -10,7 +10,7 @@ import copy
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import peak_calling, protocols, utr_mapping, storage, module_log, helpers
+from utrcalling.core import peak_calling, protocols, utr_mapping, module_log, helpers
 
 
 ANNOTATION = pd.DataFrame(columns=["celltype", "barcodes",
