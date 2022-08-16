@@ -408,8 +408,9 @@ def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=1):
     # calculate an appropriate window to check the model
     minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
     padding = (maximum_size - minimum_size) * 0.1
-    window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
-    # get the model predictions for that window. Specifically, the maxima.
+    window = np.arange(round(minimum_size - padding),
+                       round(maximum_size + padding) + 1)
+    # get the model predictions for that window. Specifically, the extrema.
     evaluation = kde.score_samples(window.reshape(-1, 1))
     minima = argrelextrema(evaluation, np.less)[0]
     maxima = argrelextrema(evaluation, np.greater)[0]

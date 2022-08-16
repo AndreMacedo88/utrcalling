@@ -127,7 +127,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         padding = (maximum_size - minimum_size) * 0.1
         window = np.arange(round(minimum_size - padding),
                            round(maximum_size + padding) + 1)
-        # get the model predictions for that window. Specifically, the maxima.
+        # get the model predictions for that window. Specifically, the extrema.
         evaluation = kde.score_samples(window.reshape(-1, 1))
         minima = argrelextrema(evaluation, np.less)[0]
         maxima = argrelextrema(evaluation, np.greater)[0]
