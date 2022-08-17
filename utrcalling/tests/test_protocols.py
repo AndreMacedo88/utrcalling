@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 import unittest
+import copy
 
 import pandas as pd
 from utrcalling.core import peak_calling, protocols, utr_mapping, module_log
@@ -16,7 +17,8 @@ class Test10x(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = protocols.protocol(platform='10x', version=2)
+        cls.protocol = protocols.protocol(platform='10x', version=2,
+                                          merge_method="intersection")
         cls.mappings = [
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,
@@ -26,17 +28,19 @@ class Test10x(unittest.TestCase):
 
 class TestFilterUtrSizes(Test10x):
     def setUp(self) -> None:
-        merged = peak_calling.merge_samples_utr_sizes(self.mappings)
-        # modify the data to check for successfull filtering. Original was [44, 23, 19].
-        merged.ENSMUSG00000001036.utr_sizes_from_reads = [1, 798, 1, 798, 1, 798]
-        self.filtered = self.protocol.filter_utr_sizes(merged)
+        merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(self.mappings),
+                                                      method=self.protocol.merge_method)
+
+        # modify the data to check for successfull filtering. 
+        # Original was [772, 756, 751, 753, 811, 751].
+        merged.at["ENSMUSG00000001036", "utr_sizes_from_reads"] = [1, 798, 1, 798, 1, 798]
+        self.filtered = self.protocol.filter_utr_sizes(merged, threshold=1)
 
     def test_number_of_features(self) -> None:
-        self.assertEqual(len(self.filtered), 66)
+        self.assertEqual(self.filtered.shape, (66, 6))
 
     def test_is_filtered(self):
         dict_true = {
-            'utr_name': 'ENSMUSG00000001036',
             'read_start_positions': [61518660, 61518663, 61518665],
             'read_strands': ['+', '+', '+'],
             'read_barcodes': ['CTAATGGCATTCGACA-1',
@@ -48,7 +52,6 @@ class TestFilterUtrSizes(Test10x):
         }
         self.assertDictEqual(
             self.filtered.loc["ENSMUSG00000001036"].to_dict(), dict_true)
-            
 
 
 class TestSmartSeqCapPhospho(unittest.TestCase):
@@ -75,7 +78,6 @@ class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhospho):
     def test_is_filtered(self):
         # For 5'UTRs we don't want filtering by default
         dict_true = {
-            'utr_name': 'ENSMUSG00000023905',
             'read_start_positions': [23677423, 23677444, 23677448],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['test_sample', 'test_sample', 'test_sample'],

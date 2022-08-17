@@ -123,7 +123,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     del utr_reference_regions  # to save memory
 
     # get only utr sizes bigger than X bp
-    filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, amount=1)
+    filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, threshold=1)
 
     # Comment previous line and uncomment next line to bypass filtering utr sizes for debug
     #filtered_positions = utr_sizes_counts

@@ -129,13 +129,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
                            round(maximum_size + padding) + 1)
         # get the model predictions for that window. Specifically, the extrema.
         evaluation = kde.score_samples(window.reshape(-1, 1))
-        minima = argrelextrema(evaluation, np.less_equal, order=1)[0][1:] 
+        minima = argrelextrema(evaluation, np.less_equal, order=1)[0][1:]
         maxima = argrelextrema(evaluation, np.greater_equal, order=1)[0]
-        # Note: [1:] because less_equal always outputs index 0, 
+        # Note: [1:] because less_equal always outputs index 0,
         # since padding guarantees that kde rises until first value.
 
-        minima = [minimum for minimum in minima if minimum-1 not in minima]
-        maxima = [maximum for maximum in maxima if maximum-1 not in maxima]
+        minima = [minimum for minimum in minima if minimum - 1 not in minima]
+        maxima = [maximum for maximum in maxima if maximum - 1 not in maxima]
 
         if minima[0] < maxima[0]:
             raise RuntimeError("First minima is larger than the first maxima. \
@@ -179,18 +179,14 @@ class ProtocolThreePrime(Protocol):
         return read_strand != utr_strand
 
     @staticmethod
-    def filter_utr_sizes(utr_sizes, amount=1):
-
-        def filter_func(x, amount_):
-            condition = [True if i >
-                         amount_ else False for i in x['utr_sizes_from_reads']]
-            return condition
-
-        logger = module_log.module_logger()
-        logger.info('Filtering samples UTR sizes')
-        filtered = utr_sizes.filter(
-            lambda x: x.filter(filter_func, amount))
-        return filtered
+    def filter_utr_sizes(utr_sizes, threshold=1):
+        utr_sizes_exploded = utr_sizes.explode(utr_sizes.columns.to_list(),
+                                               ignore_index=False)
+        utr_sizes_exploded = utr_sizes_exploded[
+            utr_sizes_exploded.utr_sizes_from_reads > threshold
+        ]
+        utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
+        return utr_sizes
 
 
 class ProtocolFivePrime(Protocol):
@@ -202,7 +198,10 @@ class ProtocolFivePrime(Protocol):
     @staticmethod
     def filter_utr_sizes(utr_sizes, **kwargs):
         logger = module_log.module_logger()
-        logger.info("For 5'UTR protocols, no UTR size filtering is performed.")
+        logger.info("""
+        For 5'UTR protocols, no UTR size filtering is performed because transcripts 
+        starting at the beginning of the UTR mean they exhibit a full size 5'UTR.
+        """)
         return utr_sizes
 
 
