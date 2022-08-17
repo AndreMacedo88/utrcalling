@@ -38,7 +38,7 @@ setuptools.setup(
     packages=setuptools.find_packages(),
     install_requires=[
         "numpy>=1.22.3",
-        "pandas",
+        "pandas>=1.3.0",
         "scipy",
         "scikit-learn",
         "regex",

@@ -112,7 +112,7 @@ def filter_barcodes(utr_sizes, annotations):
         barcodes_replace)
     utr_sizes_exploded = utr_sizes_exploded[
         utr_sizes_exploded.read_barcodes.isin(barcodes_correct)
-        ]
+    ]
     utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
     return utr_sizes
 

@@ -105,7 +105,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
         dict_true = {
             'read_start_positions': [122748098, 122748087, 122748096],
             'read_strands': ['-', '-', '-'],
-            'read_barcodes': ['test_sample', 'test_sample', 'test_sample'],
+            'read_barcodes': ['GATGAA', 'TGCGCA', 'GCTGGG'],
             'read_umis': ['ACATTAAC', 'GAGTCCAT', 'TGTACGCA'],
             'read_lengths': [51, 37, 44],
             'utr_sizes_from_reads': [1468, 1457, 1466]

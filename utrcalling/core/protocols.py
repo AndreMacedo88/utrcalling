@@ -219,8 +219,9 @@ class ProtocolTenx3(ProtocolTenx):
 
     @staticmethod
     def get_reads_identity(alignment, **_):
-        read_barcode = helpers.to_string(alignment.read.seq[:16])
-        read_umi = helpers.to_string(alignment.read.seq[16:28])  # 12 bp UMI
+        read_seq = alignment.read.seq
+        read_barcode = helpers.to_string(read_seq[:16])
+        read_umi = helpers.to_string(read_seq[16:28])  # 12 bp UMI
         return read_umi, read_barcode
 
 
@@ -239,8 +240,9 @@ class ProtocolTenx2(ProtocolTenx):
             tuple: a tuple of strings, containing the the read UMI and barcode in 
             position 0 and 1, respectively.
         """
-        read_barcode = helpers.to_string(alignment.read.seq[:16])
-        read_umi = helpers.to_string(alignment.read.seq[16:26])  # 10 bp UMI
+        read_seq = alignment.read.seq
+        read_barcode = helpers.to_string(read_seq[:16])
+        read_umi = helpers.to_string(read_seq[16:26])  # 10 bp UMI
         return read_umi, read_barcode
 
 
@@ -257,10 +259,11 @@ class ProtocolSmartseq(ProtocolThreePrime):
 class ProtocolSmartseq3(ProtocolSmartseq):
 
     @staticmethod
-    def get_reads_identity(alignment, **kwargs):
-        read_sample_id = kwargs.get('sample', 'S')
-        read_umi = helpers.to_string(alignment.read.seq[6:14])  # 8 bp UMI
-        return read_umi, read_sample_id
+    def get_reads_identity(alignment, **_):
+        read_seq = alignment.read.seq
+        read_barcode = helpers.to_string(read_seq[:6])
+        read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
+        return read_umi, read_barcode
 
 
 class ProtocolCapseq(ProtocolFivePrime):

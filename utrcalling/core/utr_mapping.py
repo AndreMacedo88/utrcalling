@@ -128,6 +128,7 @@ def extract_read_information(alignment, interval, protocol, sample=None):
     read_start = alignment.iv.start_d
 
     # get read sequence
+    read_seq = to_string(alignment.read.seq)
     query_from = None
     query_to = None
     for operation in alignment.cigar:
@@ -136,22 +137,23 @@ def extract_read_information(alignment, interval, protocol, sample=None):
                 query_from = operation.query_from
             query_to = operation.query_to
     if query_from is None:
-        match_fail = f'Read {alignment.read.seq} has no alignment match! \
+        match_fail = f'Read {read_seq} has no alignment match! \
         Please filter your alignments before running the tool.'
         logger.error(match_fail)
         raise RuntimeError(match_fail)
+
     if read_strand == '+':
         # get UTR start position from the first matching base pair from the read
         read_start_position = read_start + query_from
-        read_sequence = to_string(alignment.read.seq[query_from:query_to])
+        read_sequence = read_seq[query_from:query_to]
     else:
         # get UTR start position from the first matching base pair from the read
         read_start_position = read_start - query_from
         if query_from == 0:
-            read_sequence = to_string(alignment.read.seq[-query_to:])
+            read_sequence = read_seq[-query_to:]
         else:
-            read_sequence = to_string(
-                alignment.read.seq[-query_to:-query_from])
+            read_sequence = read_seq[-query_to:-query_from]
+
     # if the start of the read is not in the reference UTR region then we discard the read
     if interval.strand == '+':
         if not (read_start_position >= interval.start_d and read_start_position <= interval.end_d):
