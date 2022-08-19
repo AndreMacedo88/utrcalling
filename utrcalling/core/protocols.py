@@ -94,6 +94,11 @@ class Protocol(ABC, metaclass=CombinedMeta):
     def check_strand_matches(alignment, **kwargs):
         pass
 
+    @staticmethod
+    @abstractmethod
+    def get_utr_size_from_read(read_start_position, interval):
+        pass
+
     # Methods to process UTR sizes
     @staticmethod
     @abstractmethod
@@ -188,6 +193,10 @@ class ProtocolThreePrime(Protocol):
         utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
         return utr_sizes
 
+    @staticmethod
+    def get_utr_size_from_read(read_start_position, interval):
+        return abs(read_start_position - interval.start_d)
+
 
 class ProtocolFivePrime(Protocol):
 
@@ -199,10 +208,14 @@ class ProtocolFivePrime(Protocol):
     def filter_utr_sizes(utr_sizes, **kwargs):
         logger = module_log.module_logger()
         logger.info("""
-        For 5'UTR protocols, no UTR size filtering is performed because transcripts 
-        starting at the beginning of the UTR mean they exhibit a full size 5'UTR.
+        For 5'UTR protocols, no UTR size filtering is performed because having transcripts 
+        with 5'UTR size 0 means these transcripts start at the ATG site.
         """)
         return utr_sizes
+
+    @staticmethod
+    def get_utr_size_from_read(read_start_position, interval):
+        return abs(read_start_position - interval.end_d)
 
 
 class ProtocolTenx(ProtocolThreePrime):

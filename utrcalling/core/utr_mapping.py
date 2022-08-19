@@ -186,7 +186,8 @@ def extract_read_information(alignment, interval, protocol, sample=None):
     read_length = len(read_sequence)
 
     # get the computed size of the UTR for this molecule
-    utr_size = abs(read_start_position - interval.start_d)
+    utr_size = protocol.get_utr_size_from_read(read_start_position=read_start_position,
+                                               interval=interval)
 
     information = read_start_position, read_strand, read_barcode, \
         read_umi, read_length, utr_size  # , read_sequence
