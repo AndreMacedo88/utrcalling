@@ -1,10 +1,10 @@
 """
-Run as such:
+To generate a test bam file for smartseq3 protocol, run as below:
 
-$ python generate_test_sam_smartseq3.py > sam_smartseq3_test.sam
-$ samtools view -bS sam_smartseq3_test.sam > sam_smartseq3_test.bam
-$ samtools sort sam_smartseq3_test.bam -o sam_smartseq3_test_sorted.bam
-$ samtools index sam_smartseq3_test_sorted.bam
+$ python generate_test_bam_smartseq3.py > sam_smartseq3_test.sam
+$ samtools view -bS sam_smartseq3_test.sam > smartseq3_test.bam
+$ samtools sort smartseq3_test.bam -o smartseq3_test_sorted.bam
+$ samtools index smartseq3_test_sorted.bam
 
 """
 
@@ -27,8 +27,8 @@ second_reverse_proper_primary = "VH00211:1:AAANLLGHV:2:2510:26658:20102	147	1	14
 
 print("\n".join([
     header,
-    *[first_forward_proper_primary] * 3,
-    *[first_reverse_proper_primary] * 3,
+    first_forward_proper_primary,
+    first_reverse_proper_primary,
     first_forward_unmapped,
     first_reverse_unmapped,
     first_forward_notproper,
