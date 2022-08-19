@@ -1,4 +1,4 @@
-# system tools
+# general tools
 from functools import partial
 import psutil
 from pympler import asizeof
@@ -38,6 +38,15 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
     bam_file = HTSeq.BAM_Reader(bam)
     utr_mappings = dict()
 
+    # mapping statistics:
+    alignments_number = len([al for al in bam_file])
+    read_strand_string = f"Reads not '{read}'"
+    mapping_stats = {"Number of alignments": alignments_number, read_strand_string: 0,
+                     "Alignments not proper pair": 0, "PCR duplicates": 0,
+                     "Alignments not primary alignment": 0,
+                     "Alignments in interval but wrong strand": 0
+                     }
+
     for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
                                desc="Interval: "):
         read_start_positions = []
@@ -53,14 +62,19 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
 
         for alignment in bam_file[interval]:
             if not alignment.pe_which == read:  # get only one of the 2 paired reads
+                mapping_stats[read_strand_string] += 1
                 continue
             if not alignment.proper_pair:
+                mapping_stats["Alignments not proper pair"] += 1
                 continue
             if alignment.pcr_or_optical_duplicate:
+                mapping_stats["PCR duplicates"] += 1
                 continue
             if alignment.not_primary_alignment:
+                mapping_stats["Alignments not primary alignment"] += 1
                 continue
             if not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
+                mapping_stats["Alignments in interval but wrong strand"] += 1
                 continue
             else:
                 read_info = extract_read_information(alignment=alignment,
@@ -100,8 +114,10 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
 
     utr_mappings.index.name = "utr_name"
 
-    logger.debug(f'Size of mapped reads object in bytes: {asizeof.asizeof(utr_mappings)}\
-        \n\nMemory usage:{psutil.virtual_memory().percent}')
+    logger.info("Mapping statistics: %s", mapping_stats)
+    logger.debug("Size of mapped reads object in bytes: %s \nMemory usage: %s",
+                 asizeof.asizeof(utr_mappings),
+                 psutil.virtual_memory().percent)
 
     return utr_mappings
 
@@ -125,7 +141,7 @@ def extract_read_information(alignment, interval, protocol, sample=None):
     read_strand = alignment.iv.strand
 
     # get the read starting position. This may, or may not, be the match start position
-    read_start = alignment.iv.start_d
+    read_start_position = alignment.iv.start_d
 
     # get read sequence
     read_seq = to_string(alignment.read.seq)
@@ -143,12 +159,8 @@ def extract_read_information(alignment, interval, protocol, sample=None):
         raise RuntimeError(match_fail)
 
     if read_strand == '+':
-        # get UTR start position from the first matching base pair from the read
-        read_start_position = read_start + query_from
         read_sequence = read_seq[query_from:query_to]
     else:
-        # get UTR start position from the first matching base pair from the read
-        read_start_position = read_start - query_from
         if query_from == 0:
             read_sequence = read_seq[-query_to:]
         else:
