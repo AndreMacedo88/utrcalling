@@ -26,7 +26,7 @@ ANNOTATION = pd.DataFrame(columns=["celltype", "barcodes",
 )
 
 
-class DataMinimal:
+class DataSynthetic:
     def __init__(self) -> None:
         read_start_positions = [[100, 101, 100, 200, 202, 300],
                                 [1000, 1100, 1102, 1200, 1200]]
@@ -51,7 +51,7 @@ class DataMinimal:
             [100, 200, 202, 300, 300]
         ]
 
-        self._data_minimal = pd.DataFrame(columns=['read_start_positions', 'read_strands',
+        self._data_synthetic = pd.DataFrame(columns=['read_start_positions', 'read_strands',
                                                    'read_barcodes', 'read_umis',
                                                    'read_lengths', 'utr_sizes_from_reads'],
                                           index=["ENSMUSG00000000001",
@@ -67,8 +67,8 @@ class DataMinimal:
         self._anno = ANNOTATION
 
         @property
-        def data_minimal(self):
-            return copy.deepcopy(self._data_minimal)
+        def data_synthetic(self):
+            return copy.deepcopy(self._data_synthetic)
 
         @property
         def anno(self):
@@ -313,11 +313,11 @@ class TestFilterBarcodes(TestPeakCalling):
         self.assertEqual(barcodes_in_data, barcodes_in_annotations)
 
 
-class TestFilterBarcodesMinimal(unittest.TestCase):
+class TestFilterBarcodesSynthetic(unittest.TestCase):
     def setUp(self) -> None:
-        data_minimal = DataMinimal()
-        self.data = data_minimal._data_minimal
-        self.anno = data_minimal._anno
+        data_synthetic = DataSynthetic()
+        self.data = data_synthetic._data_synthetic
+        self.anno = data_synthetic._anno
         self.filtered = peak_calling.filter_barcodes(self.data, annotations=self.anno)
         self.barcodes_filtered = list(helpers.flatten(self.filtered.read_barcodes))
 
@@ -425,7 +425,7 @@ class TestAnnoDf(TestGeneratePeakCounts):
         self.assertEqual(non_zeros_count, 2076)
 
 
-class TestGeneratePeakCountsMinimal(unittest.TestCase):
+class TestGeneratePeakCountsSynthetic(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         data_filtered = DataFiltered()
@@ -435,7 +435,7 @@ class TestGeneratePeakCountsMinimal(unittest.TestCase):
                                           merge_method="intersection")
 
 
-class TestMatrixMinimal(TestGeneratePeakCountsMinimal):
+class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self) -> None:
         self.matrix, _, _ = peak_calling.generate_peak_counts(
             self.data,
@@ -462,7 +462,7 @@ class TestMatrixMinimal(TestGeneratePeakCountsMinimal):
         npt.assert_allclose(self.matrix.sort_index().to_numpy(), reality)
 
 
-class TestVarMinimal(TestGeneratePeakCountsMinimal):
+class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
         _, self.var, _ = peak_calling.generate_peak_counts(
             self.data,
@@ -478,7 +478,7 @@ class TestVarMinimal(TestGeneratePeakCountsMinimal):
         self.assertEqual(non_zeros_count, 6)
 
 
-class TestObsMinimal(TestGeneratePeakCountsMinimal):
+class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
         _, _, self.obs = peak_calling.generate_peak_counts(
             self.data,
@@ -494,7 +494,7 @@ class TestObsMinimal(TestGeneratePeakCountsMinimal):
         self.assertEqual(non_zeros_count, 10)
 
 
-class TestNoAnnoMinimal(TestGeneratePeakCountsMinimal):
+class TestNoAnnoSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
         self.matrix, self.var = peak_calling.generate_peak_counts(
             self.data, annotations=None, func=self.protocol.peak_calling
