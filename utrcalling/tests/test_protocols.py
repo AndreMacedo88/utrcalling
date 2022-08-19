@@ -37,11 +37,11 @@ class TestFilterUtrSizes(Test10x):
         self.filtered = self.protocol.filter_utr_sizes(merged, threshold=1)
 
     def test_number_of_features(self) -> None:
-        self.assertEqual(self.filtered.shape, (66, 6))
+        self.assertEqual(self.filtered.shape, (63, 6))
 
     def test_is_filtered(self):
         dict_true = {
-            'read_start_positions': [61518660, 61518663, 61518665],
+            'read_start_positions': [61518618, 61518618, 61518618],
             'read_strands': ['+', '+', '+'],
             'read_barcodes': ['CTAATGGCATTCGACA-1',
                               'CCCAGTTTCGCTTGTC-1',

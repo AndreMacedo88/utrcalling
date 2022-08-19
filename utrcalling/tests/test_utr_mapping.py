@@ -57,18 +57,18 @@ class TestTenxTwo(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [122748098, 122748087, 122748096],
+            'read_start_positions': [122748098, 122748088, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
             'read_umis': ['TCAACACAAG', 'AATCGAGAGT', 'CCTGAGTATG'],
             'read_lengths': [51, 37, 44],
-            'utr_sizes_from_reads': [1468, 1457, 1466]
+            'utr_sizes_from_reads': [1468, 1458, 1466]
         }
         self.assertDictEqual(
             self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 118)
+        self.assertEqual(self.mappings.shape[0], 110)
 
 
 class TestTenxThree(TestMapReadsToUtr):
@@ -80,18 +80,18 @@ class TestTenxThree(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [122748098, 122748087, 122748096],
+            'read_start_positions': [122748098, 122748088, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
             'read_umis': ['TCAACACAAGTT', 'AATCGAGAGTTT', 'CCTGAGTATGTT'],
             'read_lengths': [51, 37, 44],
-            'utr_sizes_from_reads': [1468, 1457, 1466]
+            'utr_sizes_from_reads': [1468, 1458, 1466]
         }
         self.assertDictEqual(
             self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 118)
+        self.assertEqual(self.mappings.shape[0], 110)
 
 
 class TestSmartSeq3(TestMapReadsToUtr):
@@ -103,18 +103,18 @@ class TestSmartSeq3(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [122748098, 122748087, 122748096],
+            'read_start_positions': [122748098, 122748088, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAA', 'TGCGCA', 'GCTGGG'],
             'read_umis': ['ACATTAAC', 'GAGTCCAT', 'TGTACGCA'],
             'read_lengths': [51, 37, 44],
-            'utr_sizes_from_reads': [1468, 1457, 1466]
+            'utr_sizes_from_reads': [1468, 1458, 1466]
         }
         self.assertDictEqual(
             self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true)
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 118)
+        self.assertEqual(self.mappings.shape[0], 110)
 
 
 class TestSmartSeq3Cap(TestMapReadsToUtr):
@@ -153,6 +153,47 @@ class TestProtocolNotSupported(TestMapReadsToUtr):
     def test_version_smartseq(self):
         with self.assertRaises(NotImplementedError):
             protocols.protocol(platform='Smart-seq', version=1)
+
+
+class TestMapReadsToUtrMinimal(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        utr_regions = {"utr_name": ["UTR1", "UTR1-1", "UTR2", "UTR3", "UTR4"],
+                       "chrom": [1, 1, 1, 1, 1],
+                       "start": [14190, 16400, 184700, 628000, 1200000],
+                       "end": [14500, 16600, 184900, 630000, 1200500],
+                       "name": ["UTR1", "UTR1", "UTR2", "UTR3", "UTR4"],
+                       "score": [0.0] * 5,
+                       "strand": ["+", "-", "-", "+", "-"],
+                       "transcript_id": ["UTR1_t", "UTR1_t", "UTR2_t", "UTR3_t", "UTR4_t"],
+                       "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
+                       }
+        utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
+        cls.intervals = utr_mapping.generate_utr_intervals(
+            utr_regions=utr_regions)
+        cls.alignment = './test_data/smartseq3_test_sorted.bam'
+
+
+class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
+    def setUp(self) -> None:
+        protocol = protocols.protocol(platform='smartseq', version=3)
+        self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
+                                                     protocol, read='first')
+
+    def test_details(self):
+        dict_true = {
+            'read_start_positions': [[14412], [16441]],
+            'read_strands': [['-'], ['+']],
+            'read_barcodes': [['CACTGT'], ['CACTGT']],
+            'read_umis': [['GTGATATG'], ['GGCCACCA']],
+            'read_lengths': [[97], [93]],
+            'utr_sizes_from_reads': [[223], [158]]
+        }
+        self.assertDictEqual(
+            self.mappings.to_dict(orient="list"), dict_true)
+
+    def test_length(self):
+        self.assertEqual(self.mappings.shape[0], 2)
 
 
 if __name__ == '__main__':

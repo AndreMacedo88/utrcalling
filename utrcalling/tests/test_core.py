@@ -26,12 +26,12 @@ class TestMapAlignedReads(unittest.TestCase):
         )
 
         self.true_results_5804 = {
-            'read_start_positions': [122748098, 122748087, 122748096],
+            'read_start_positions': [122748098, 122748088, 122748096],
             'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
             'read_umis': ['TCAACACAAG', 'AATCGAGAGT', 'CCTGAGTATG'],
             'read_lengths': [51, 37, 44],
-            'utr_sizes_from_reads': [1468, 1457, 1466]
+            'utr_sizes_from_reads': [1468, 1458, 1466]
         }
 
     def expect_dict_equal(self, i, first, second, msg=None):

@@ -152,8 +152,8 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
 
     def test_details(self):
         details_true = {
-            'read_start_positions': [10024879, 10024880, 10024882, 10024888, 10024660,
-                                     10024882, 10024876, 10024880, 10024893, 10024899],
+            'read_start_positions': [10024824, 10024829, 10024829, 10024833, 10024602,
+                                     10024826, 10024829, 10024829, 10024835, 10024839],
             'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'],
             'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1',
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
@@ -163,13 +163,13 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
                           'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
                           'CTTTAGAACT', 'TGCTAGGACG'],
             'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41],
-            'utr_sizes_from_reads': [98, 97, 95, 89, 317, 95, 101, 97, 84, 78]
+            'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
         }
         self.assertDictEqual(
             self.merged.loc["ENSMUSG00000025917"].to_dict(), details_true)
 
     def test_length(self):
-        self.assertEqual(self.merged.shape[0], 66)
+        self.assertEqual(self.merged.shape[0], 63)
 
 
 class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
@@ -181,8 +181,8 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
 
     def test_identical_index(self):
         details_true = {
-            'read_start_positions': [10024879, 10024880, 10024882, 10024888, 10024660,
-                                     10024882, 10024876, 10024880, 10024893, 10024899],
+            'read_start_positions': [10024824, 10024829, 10024829, 10024833, 10024602,
+                                     10024826, 10024829, 10024829, 10024835, 10024839],
             'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'],
             'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1',
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
@@ -192,19 +192,19 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
                           'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
                           'CTTTAGAACT', 'TGCTAGGACG'],
             'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41],
-            'utr_sizes_from_reads': [98, 97, 95, 89, 317, 95, 101, 97, 84, 78]
+            'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
         }
         self.assertDictEqual(
             self.merged.loc["ENSMUSG00000025917"].to_dict(), details_true)
 
     def test_index_on_first_df(self):
         details_true = {
-            'read_start_positions': [136881438],
-            'read_strands': ['+'],
-            'read_barcodes': ['CGAGAAGGTGCAACGA-1'],
-            'read_umis': ['CCCACAGCCA'],
-            'read_lengths': [53],
-            'utr_sizes_from_reads': [5]
+            'read_start_positions': [136881390, 136881415],
+            'read_strands': ['+', '+'],
+            'read_barcodes': ['CGAGAAGGTGCAACGA-1', 'CAGTCCTAGAAGGACA-1'],
+            'read_umis': ['CCCACAGCCA', 'TGCCTCACGG'],
+            'read_lengths': [53, 48],
+            'utr_sizes_from_reads': [53, 28]
         }
         self.assertDictEqual(
             self.merged.loc["ENSMUSG00000115423"].to_dict(), details_true)
@@ -235,7 +235,7 @@ class TestSubsetReferenceData(TestPeakCalling):
             merged, self.utr_regions)
 
     def test_number_of_features(self) -> None:
-        self.assertEqual(self.subsetted.shape[0], 66)
+        self.assertEqual(self.subsetted.shape[0], 63)
 
     def test_number_of_fields(self) -> None:
         """
@@ -354,14 +354,14 @@ class TestMatrix(TestGeneratePeakCounts):
                                                               annotations=self.annotations)
 
     def test_length(self):
-        self.assertTupleEqual(self.matrix.shape, (692, 222))
+        self.assertTupleEqual(self.matrix.shape, (670, 173))
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
-        self.assertEqual(non_zeros_count, 794)
+        self.assertEqual(non_zeros_count, 763)
 
     def test_matrix_maximum(self):
-        self.assertEqual(np.max(self.matrix.values), 2)
+        self.assertEqual(np.max(self.matrix.values), 3)
 
 
 class TestVar(TestGeneratePeakCounts):
@@ -370,11 +370,11 @@ class TestVar(TestGeneratePeakCounts):
                                                            annotations=self.annotations)
 
     def test_length(self):
-        self.assertTupleEqual(self.var.shape, (222, 1))
+        self.assertTupleEqual(self.var.shape, (173, 1))
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.var)
-        self.assertEqual(non_zeros_count, 222)
+        self.assertEqual(non_zeros_count, 173)
 
 
 class TestObs(TestGeneratePeakCounts):
@@ -383,11 +383,11 @@ class TestObs(TestGeneratePeakCounts):
                                                            annotations=self.annotations)
 
     def test_length(self):
-        self.assertTupleEqual(self.obs.shape, (692, 3))
+        self.assertTupleEqual(self.obs.shape, (670, 3))
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.obs)
-        self.assertEqual(non_zeros_count, 2076)
+        self.assertEqual(non_zeros_count, 2010)
 
 
 class TestNoAnno(TestGeneratePeakCounts):
@@ -397,11 +397,11 @@ class TestNoAnno(TestGeneratePeakCounts):
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
-        self.assertEqual(non_zeros_count, 794)
+        self.assertEqual(non_zeros_count, 763)
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.var)
-        self.assertEqual(non_zeros_count, 222)
+        self.assertEqual(non_zeros_count, 173)
 
 
 class TestAnnoDf(TestGeneratePeakCounts):
@@ -414,15 +414,15 @@ class TestAnnoDf(TestGeneratePeakCounts):
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix)
-        self.assertEqual(non_zeros_count, 794)
+        self.assertEqual(non_zeros_count, 763)
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.var)
-        self.assertEqual(non_zeros_count, 222)
+        self.assertEqual(non_zeros_count, 173)
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.obs)
-        self.assertEqual(non_zeros_count, 2076)
+        self.assertEqual(non_zeros_count, 2010)
 
 
 class TestGeneratePeakCountsSynthetic(unittest.TestCase):
@@ -530,15 +530,15 @@ class TestWithObs(TestGenerateCountMatrixAnndata):
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.X)
-        self.assertEqual(non_zeros_count, 794)
+        self.assertEqual(non_zeros_count, 763)
 
     def test_vars_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.var)
-        self.assertEqual(non_zeros_count, 222 * 9)
+        self.assertEqual(non_zeros_count, 173 * 9)
 
     def test_obs_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.obs)
-        self.assertEqual(non_zeros_count, 692 * 3)
+        self.assertEqual(non_zeros_count, 670 * 3)
 
 
 if __name__ == '__main__':
