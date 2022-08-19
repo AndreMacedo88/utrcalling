@@ -132,7 +132,7 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
             'read_barcodes': ['test_sample', 'test_sample', 'test_sample'],
             'read_umis': ['CGCCAGGC', 'GACACGAT', 'AAGGGGAC'],
             'read_lengths': [81, 82, 82],
-            'utr_sizes_from_reads': [44, 23, 19]
+            'utr_sizes_from_reads': [4, 25, 29]
         }
         self.assertDictEqual(
             self.mappings.loc["ENSMUSG00000023905"].to_dict(), dict_true)
@@ -188,6 +188,49 @@ class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
             'read_umis': [['GTGATATG'], ['GGCCACCA']],
             'read_lengths': [[97], [93]],
             'utr_sizes_from_reads': [[223], [158]]
+        }
+        self.assertDictEqual(
+            self.mappings.to_dict(orient="list"), dict_true)
+
+    def test_length(self):
+        self.assertEqual(self.mappings.shape[0], 2)
+
+
+class TestMapReadsToUtrMinimalCap(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        utr_regions = {"utr_name": ["UTR1", "UTR2", "UTR2-1", "UTR3", "UTR4"],
+                       "chrom": [1, 1, 1, 1, 1],
+                       "start": [3102600, 3152900, 3154500, 4580000, 4846300],
+                       "end": [3102750, 3153050, 3154600, 4760000, 4846300],
+                       "name": ["UTR1", "UTR2", "UTR2", "UTR3", "UTR4"],
+                       "score": [0.0] * 5,
+                       "strand": ["+", "-", "+", "+", "+"],
+                       "transcript_id": ["UTR1_t", "UTR2_t", "UTR2_t", "UTR3_t", "UTR4_t"],
+                       "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
+                       }
+        utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
+        cls.intervals = utr_mapping.generate_utr_intervals(
+            utr_regions=utr_regions)
+        cls.alignment = './test_data/capseq_test_sorted.bam'
+
+
+class TestSmartSeq3CapMinimal(TestMapReadsToUtrMinimalCap):
+    def setUp(self) -> None:
+        self.maxDiff = None
+        protocol = protocols.protocol(platform='smart-seq_cap', version=3)
+        self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
+                                                     protocol, read='first',
+                                                     sample="Test")
+
+    def test_details(self):
+        dict_true = {
+            'read_start_positions': [[3102682], [3153041]],
+            'read_strands': [['+'], ['-']],
+            'read_barcodes': [['Test'], ['Test']],
+            'read_umis': [['TTGCCACG'], ['TTCAGACG']],
+            'read_lengths': [[80], [81]],
+            'utr_sizes_from_reads': [[68], [143]]
         }
         self.assertDictEqual(
             self.mappings.to_dict(orient="list"), dict_true)
