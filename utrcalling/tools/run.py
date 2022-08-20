@@ -6,7 +6,7 @@ from utrcalling.core import core, helpers, protocols
 from utrcalling.core.module_log import module_logger
 
 
-def main(utr_annotation, alignments, feature='three_prime_utr',
+def run(utr_annotation, alignments, feature='three_prime_utr',
          annotations_file=None, protocol_platform="10x", protocol_version=3,
          store_intermediate=False, log_level='info',
          sample_merge_method=None, call_peaks=True, out='UTR_results.h5ad'):
@@ -35,9 +35,6 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
         alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
         sample_names = [helpers.get_parent_folders_names_from_file(
             file_path) for file_path in alignments]
-    elif protocol_platform in ("smartseq", "smart-seq"):
-        sample_names = [file_path.split(".")[0].split("/")[1]
-                        for file_path in alignments]
     elif protocol_platform in ("smartseq_cap", "smart-seq_cap"):
         sample_names = [file_path.split("/")[-2] for file_path in alignments]
     else:
@@ -87,96 +84,91 @@ The error message was:\n{e}
     return
 
 
-keyword_args = {"-a": "--alignments", "-f": "--feature", "-A": "--annotations_file",
-                "-p": "--protocol_platform", "-v": "--protocol_version",
-                "-m": "--sample_merge_method", "-C": "--call_peaks",
-                "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
+def main():
+    args_all = parser.parse_args()
+
+    args = vars(args_all).copy()
+    del args["func"]
+
+    args_all.func(**args)
+
+
+parser = argparse.ArgumentParser(
+    description="""
+Runs the entire UTR calling pipeline.
+Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
+""",
+    epilog="""
+Example on how to use in command-line:
+$ run.py mus_musculus.gtf 
+    -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2 
+    -i False -A experiment.csv -o results.h5ad
+""",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+
+parser.add_argument("utr_annotation", type=str,
+                    help="GTF file with the genome annotations")
+
+parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
+    File, or files with the read alignments. One alignment per sample should be 
+    supplied if downstream applications involve comparisons between the samples.
+    Alignments must be sorted and have an index file .bai in the same directory
+    """)
+
+parser.add_argument("--feature", "-f", type=str,
+                    help="Type of UTR that you want to map. three_prime_utr or \
+                        five_prime_utr",
+                    default='three_prime_utr')
+
+parser.add_argument("--annotations_file", "-A", type=str,
+                    help="""
+                    File with your experiment's information, such as cell barcodes.
+                    """,
+                    default=None)
+
+parser.add_argument("--protocol_platform", "-p", type=str,
+                    help="Sequencing platform used.",
+                    default='10x')
+
+parser.add_argument("--protocol_version", "-v", type=int,
+                    help="Version of the protocol used in library preparation.",
+                    default=2)
+
+parser.add_argument("--sample_merge_method", "-m", type=str,
+                    help="""
+                    Method used to deal with different UTR coverage in different
+                    samples. If `union`, then the tool outputs UTRs that are not 
+                    represented by all samples. If `intersection` only the reads that
+                    map to UTRs in common between all samples will be used. Default
+                    depends on the protocol used.
+                    """,
+                    default=None)
+
+parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
+                    help="""
+                    If True, stores intermediate files that can be used to 
+                    run quicker pipelines later on. Useful if something wrong 
+                    is happening in later stages of the pipeline.
+                    """,
+                    default=False)
+
+parser.add_argument("--call_peaks", "-C", type=ast.literal_eval,
+                    help="""
+                    If True, aggregates individual molecules' UTR sizes into
+                    consensus peaks.
+                    """,
+                    default=True)
+
+parser.add_argument("--log_level", "-l", type=str,
+                    help="Level of logging messages to retrieve during the run.",
+                    default="info")
+
+parser.add_argument("--out", "-o", type=str,
+                    help="Path or partial path to a folder to store the result files.",
+                    default="UTR_results.h5ad")
+
+# This allows for assigning different parsers to different functions:
+parser.set_defaults(func=run)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="""
-        Runs the entire UTR calling pipeline.
-        Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
-        """,
-        epilog="""
-        Example on how to use in command-line:
-        $ run.py mus_musculus.gtf 
-            -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2 
-            -i False -A experiment.csv -o results.h5ad
-        """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-        
-    parser.add_argument("utr_annotation", type=str,
-                        help="GTF file with the genome annotations")
-
-    parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
-        File, or files with the read alignments. One alignment per sample should be 
-        supplied if downstream applications involve comparisons between the samples.
-        Alignments must be sorted and have an index file .bai in the same directory
-        """)
-
-    parser.add_argument("--feature", "-f", type=str,
-                        help="Type of UTR that you want to map. three_prime_utr or \
-                            five_prime_utr",
-                        default='three_prime_utr')
-
-    parser.add_argument("--annotations_file", "-A", type=str,
-                        help="""
-                        File with your experiment's information, such as cell barcodes.
-                        """,
-                        default=None)
-
-    parser.add_argument("--protocol_platform", "-p", type=str,
-                        help="Sequencing platform used.",
-                        default='10x')
-
-    parser.add_argument("--protocol_version", "-v", type=int,
-                        help="Version of the protocol used in library preparation.",
-                        default=2)
-
-    parser.add_argument("--sample_merge_method", "-m", type=str,
-                        help="""
-                        Method used to deal with different UTR coverage in different
-                        samples. If `union`, then the tool outputs UTRs that are not 
-                        represented by all samples. If `intersection` only the reads that
-                        map to UTRs in common between all samples will be used. Default
-                        depends on the protocol used.
-                        """,
-                        default=None)
-
-    parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
-                        help="""
-                        If True, stores intermediate files that can be used to 
-                        run quicker pipelines later on. Useful if something wrong 
-                        is happening in later stages of the pipeline.
-                        """,
-                        default=False)
-
-    parser.add_argument("--call_peaks", "-C", type=ast.literal_eval,
-                        help="""
-                        If True, aggregates individual molecules' UTR sizes into
-                        consensus peaks.
-                        """,
-                        default=True)
-
-    parser.add_argument("--log_level", "-l", type=str,
-                        help="Level of logging messages to retrieve during the run.",
-                        default="info")
-
-    parser.add_argument("--out", "-o", type=str,
-                        help="Path or partial path to a folder to store the result files.",
-                        default="UTR_results.h5ad")
-
-    args = parser.parse_args()
-
-    main(args.utr_annotation, args.alignments,
-         feature=args.feature,
-         annotations_file=args.annotations_file,
-         protocol_platform=args.protocol_platform,
-         protocol_version=args.protocol_version,
-         sample_merge_method=args.sample_merge_method,
-         store_intermediate=args.store_intermediate,
-         call_peaks=args.call_peaks,
-         log_level=args.log_level,
-         out=args.out
-         )
+    main()

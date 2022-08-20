@@ -30,7 +30,7 @@ with open(metadata_file, "rt") as file:
 setuptools.setup(
     name='utrcalling',
     version=version,
-    description='Package to calculate UTR sizes from sequencing reads.',
+    description='Package with tools to calculate molecule UTR sizes from RNA sequencing reads.',
     long_description=readme(),
     author=author,
     author_email='andre.lopes.macedo@gmail.com',
@@ -68,11 +68,12 @@ setuptools.setup(
     entry_points={
         "console_scripts": [
             # command = package.module:function
+            "utrcalling-run=utrcalling.tools.run:main",
             "utrcalling-runtests=utrcalling.tests.test_case:main",
             "compute-mean-utr-sizes=utrcalling.tools.compute_mean_utr_sizes:main",
             "concatenate-experiments=utrcalling.tools.concatenate_experiments:main",
             "generate-names=utrcalling.tools.generate_utr_names:main",
             "subset-experiments=utrcalling.tools.subset_experiments:main",
-            ],
+        ],
     }
 )
