@@ -1,13 +1,22 @@
 """
-Goal: Calling single cell 3'UTR peaks
-Steps:
-1- Extract the 3'UTR regions of transcripts (from ENSEMBL)
-1.2 - Resolve overlapping transcripts so that every entry stores unique, non-overlapping, 
-genomic coordinates
-2-
+# Goal
+Mapping RNA-seq reads (single cell or bulk) to UTRs.
 
-Observations:
-- Final object should be a count matrix in AnnData format.
+## Secondary goal
+Call consensus peaks based on the distribution of molecule sizes.
+
+# Summary
+This file contains 3 functions for the 3 main steps in this procedure.
+
+## Steps
+1. Extract the UTR regions of transcripts (from ENSEMBL)
+  1.1. Resolve overlapping transcripts so that every entry stores unique, non-overlapping, 
+genomic coordinates
+2. Map the aligned, filtered reads to the UTR regions from step 1.
+3. Clean-up the data and call consensus peaks if required.
+
+# Observations
+- Final object is a count matrix in AnnData format.
 - Output should inherit single cell annotations, as well as gene annotation like the 
 genomic coordinates and optionally UTR sequence information.
 """
@@ -97,7 +106,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
 
 
 def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
-               annotations=None, store=False, exclude_from_merge=[]):
+               annotations=None, store=False):
     logger = module_logger()
 
     # if more than one counts file is provided, they must be merged before peak calling
@@ -125,9 +134,6 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     # get only utr sizes bigger than X bp
     filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, threshold=1)
 
-    # Comment previous line and uncomment next line to bypass filtering utr sizes for debug
-    #filtered_positions = utr_sizes_counts
-
     del utr_sizes_counts  # to save memory
 
     # if we have a table with a specific set of barcodes/sampleIDs, retain only those
@@ -150,7 +156,10 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     else:
         peaks_obs = None
 
-    if store:  # store some data. Useful for debugging or to change annotations.
+    # append the reference information to the new UTR peaks
+    peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)
+
+    if store:  # store the final DFs. Useful for debugging or to change annotations.
         logger.info('Storing intermediate results')
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
@@ -163,9 +172,6 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         if annotations is not None:
             peaks_obs.to_pickle(os.path.join(
                 directory, f'peaks_obs_{protocol.merge_method}.pkl'))
-
-    # append the reference information to the new UTR peaks
-    peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)
 
     # merge results and annotations into
     count_matrix_anndata = generate_count_matrix_anndata(
