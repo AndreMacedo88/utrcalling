@@ -39,9 +39,13 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
     utr_mappings = dict()
 
     # mapping statistics:
-    alignments_number = len([al for al in bam_file])
+
+    # TODO: try to implement the following without busting all RAM and wasting 5 minutes:
+    # alignments_number = len([al for al in bam_file])
+    # "Number of alignments": alignments_number,
+
     read_strand_string = f"Reads not '{read}'"
-    mapping_stats = {"Number of alignments": alignments_number, read_strand_string: 0,
+    mapping_stats = {read_strand_string: 0,
                      "Alignments not proper pair": 0, "PCR duplicates": 0,
                      "Alignments not primary alignment": 0,
                      "Alignments in interval but wrong strand": 0
@@ -60,7 +64,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                                    read_barcodes, read_umis,
                                    read_lengths, utr_sizes_from_reads]
 
-        for alignment in bam_file[interval]:
+        for alignment in bam_file[interval]: # BAM_Reader[GenomicInterval] is a generator
             if not alignment.pe_which == read:  # get only one of the 2 paired reads
                 mapping_stats[read_strand_string] += 1
                 continue
@@ -106,6 +110,8 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                                        for element in mapped_read_information]
 
             utr_mappings[name] = mapped_read_information
+
+    del bam_file
 
     utr_mappings = pd.DataFrame.from_dict(
         utr_mappings, orient="index",

@@ -26,6 +26,7 @@ import os
 import pandas as pd
 import pybedtools
 import joblib
+from tqdm import tqdm
 
 from utrcalling.core import helpers
 from utrcalling.core.utr_reference import (
@@ -72,36 +73,39 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
         helpers.check_if_exists_and_mkdir(directory)
 
     if isinstance(alignments, (list, tuple)):
+        n_cores = -2
         if sample_names is not None:
             samples = []
             for counter in range(len(alignments)):
                 samples.append(sample_names[counter])
-            read_mappings = joblib.Parallel(n_jobs=-2)(
+            read_mappings = joblib.Parallel(n_jobs=n_cores)(
                 joblib.delayed(
                     map_reads_to_utr)(alignment, intervals,
                                       read="first", protocol=protocol,
                                       sample=sample
-                                      ) for alignment, sample in zip(alignments, samples))
+                                      ) for alignment, sample in tqdm(
+                    zip(alignments, samples), colour="#ffb700", ascii=" ■"))
         else:
             samples = sample_names
-            read_mappings = joblib.Parallel(n_jobs=-2)(
+            read_mappings = joblib.Parallel(n_jobs=n_cores)(
                 joblib.delayed(
                     map_reads_to_utr)(alignment, intervals,
                                       read="first", protocol=protocol,
                                       sample=samples
-                                      ) for alignment in alignments)
+                                      ) for alignment in tqdm(
+                    alignments, colour="#ffb700", ascii=" ■"))
 
         if store:
             for counter, utr_sizes_counts in enumerate(read_mappings):
                 file_path = os.path.join(
                     directory, f'{filename}_{counter + 1}.pkl')
-                utr_sizes_counts.export(file_path)
+                utr_sizes_counts.to_pickle(file_path)
 
     else:
         read_mappings = map_reads_to_utr(
             alignments, intervals, read='first', protocol=protocol, sample=sample_names)
         if store:
-            read_mappings.export(os.path.join(directory, f'{filename}.pkl'))
+            read_mappings.to_pickle(os.path.join(directory, f'{filename}.pkl'))
     return read_mappings
 
 
