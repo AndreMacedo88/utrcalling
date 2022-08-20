@@ -5,12 +5,12 @@ import coloredlogs
 from colorama import Fore, Style
 import verboselogs
 
-
+# TODO: module_logger cannot handle storing to a file anymore
 def module_logger(disable=False, store_log=False, level='info', reinstall=False):
 
     # create logger with the name of the module
     verboselogs.install()
-    module_logger = logging.getLogger("utrcallingtool")
+    module_logger = logging.getLogger("utrcalling")
     module_logger.propagate = False
 
     if disable:
