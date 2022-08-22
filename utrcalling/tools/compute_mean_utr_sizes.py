@@ -4,10 +4,11 @@ import argparse
 import scanpy as sc
 # import local tools
 from utrcalling.core import anndata_processing as ap
+from utrcalling.core import helpers
 
 
 def compute_mean_utr_sizes(input_path, out_path, utr_name_column="utr_name"):
-    adata = sc.read_h5ad(input_path)
+    adata = helpers.check_if_path_and_open(input_path, method="h5ad")
 
     adata = ap.compute_cell_means_and_var(adata=adata, utr_name_column=utr_name_column)
 

@@ -6,6 +6,7 @@ from collections import defaultdict
 
 import pybedtools
 import pandas as pd
+import scanpy as sc
 
 from utrcalling.core import module_log
 
@@ -84,6 +85,8 @@ def check_if_path_and_open(to_check, method='pickle'):
                 output = pickle.load(input_file)
         elif method.lower() == "pickle_pandas":
             output = pd.read_pickle(to_check)
+        elif method.lower() == "h5ad":
+            output = sc.read_h5ad(to_check)
         else:
             raise RuntimeError(f'Method {method} not implemented yet')
         return output
