@@ -115,6 +115,10 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
 
     # if more than one counts file is provided, they must be merged before peak calling
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
+        utr_sizes_counts = [
+            helpers.check_if_path_and_open(element, method="pickle_pandas") for element in utr_sizes_counts
+        ]
+
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
                                                    method=protocol.merge_method,
                                                    label_samples=protocol.label_samples,

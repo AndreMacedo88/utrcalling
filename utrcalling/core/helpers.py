@@ -82,6 +82,8 @@ def check_if_path_and_open(to_check, method='pickle'):
         if method.lower() == 'pickle':
             with open(to_check, "rb") as input_file:
                 output = pickle.load(input_file)
+        elif method.lower() == "pickle_pandas":
+            output = pd.read_pickle(to_check)
         else:
             raise RuntimeError(f'Method {method} not implemented yet')
         return output
