@@ -122,7 +122,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         if store:
             directory = './intermediate'
             helpers.check_if_exists_and_mkdir(directory)
-            utr_sizes_counts.export(os.path.join(
+            utr_sizes_counts.to_pickle(os.path.join(
                 directory, f'UTR_sizes_counts_merged_{protocol.merge_method}.pkl'))
     elif isinstance(utr_sizes_counts, list):
         utr_sizes_counts = utr_sizes_counts[0]
