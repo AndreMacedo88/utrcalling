@@ -132,7 +132,8 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
         utr_sizes_counts = utr_sizes_counts[0]
 
     # utr_size_counts can still be a path if merging was not applied
-    utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts, method='pickle')
+    utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts,
+                                                      method='pickle_pandas')
 
     # if we are to add the reference data to the results later, we must subset the UTRs
     utr_reference_subset = subset_reference_data(utr_sizes_counts, utr_reference_regions)

@@ -174,17 +174,20 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     @staticmethod
     def _bypass_calling_peaks(utr_sizes_vector):
-        return np.rint(utr_sizes_vector)
+        if np.issubdtype(utr_sizes_vector.dtype, np.integer):
+            return utr_sizes_vector
+        else:
+            try:
+                return np.rint(utr_sizes_vector)
+            except TypeError:
+                utr_sizes_vector = utr_sizes_vector.astype(float)
+                return np.rint(utr_sizes_vector)
 
 
 class ProtocolThreePrime(Protocol):
 
-    @staticmethod
-    def check_strand_matches(read_strand, utr_strand):
-        return read_strand != utr_strand
-
-    @staticmethod
-    def filter_utr_sizes(utr_sizes, threshold=1):
+    def filter_utr_sizes(self, utr_sizes, threshold=1):
+        self.logger.info(f"Filtering UTR sizes using threshold of {threshold} counts.")
         utr_sizes_exploded = utr_sizes.explode(utr_sizes.columns.to_list(),
                                                ignore_index=False)
         utr_sizes_exploded = utr_sizes_exploded[
@@ -192,6 +195,10 @@ class ProtocolThreePrime(Protocol):
         ]
         utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
         return utr_sizes
+
+    @staticmethod
+    def check_strand_matches(read_strand, utr_strand):
+        return read_strand != utr_strand
 
     @staticmethod
     def get_utr_size_from_read(read_start_position, interval):
