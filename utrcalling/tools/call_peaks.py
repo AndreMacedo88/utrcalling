@@ -5,9 +5,9 @@ from utrcalling.core import core, helpers, protocols
 from utrcalling.core.module_log import module_logger
 
 
-def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='info',
-         store_intermediate=False, protocol_platform="10x", protocol_version=2,
-         sample_merge_method=None, call_peaks=True, out="UTR_results.h5ad"):
+def call_peaks(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='info',
+               store_intermediate=False, protocol_platform="10x", protocol_version=2,
+               sample_merge_method=None, call_peaks=True, out="UTR_results.h5ad"):
     """
     Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
     annotation files.
@@ -24,7 +24,7 @@ def main(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='inf
     """
 
     # Set up logging
-    logger = module_logger(disable=False, store_log=True, level=log_level)
+    logger = module_logger(disable=False, store_log=False, level=log_level)
     for arg, value in locals().items():
         logger.info(f'║ Argument {arg}: {value}\n')
 
@@ -68,92 +68,89 @@ The error message was:\n{e}
     return
 
 
-keyword_args = {"-c": "--utr_sizes_counts", "-A": "--annotations_file",
-                "-p": "--protocol_platform", "-v": "--protocol_version",
-                "-m": "--sample_merge_method", "-C": "--call_peaks",
-                "-i": "--store_intermediate", "-l": "--log_level", "-o": "--out"}
+def main():
+    args_all = parser.parse_args()
+
+    args = vars(args_all).copy()
+    del args["func"]
+
+    args_all.func(**args)
+
+
+parser = argparse.ArgumentParser(
+    description="""
+Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
+annotation files.
+Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
+""",
+    epilog="""
+Example on how to use in command-line:
+$ call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
+    -A experiment.csv -p 10x -v 2 -i True -o results.h5ad
+""",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
+
+parser.add_argument("utr_annotation", type=str,
+                    help="BED or pickle file with the UTR annotations")
+
+parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True,
+                    help="""
+    File, or files with the utr and read information. One file per sample should be 
+    supplied if downstream applications involve comparisons between the samples.
+    The files should be pickle files of a UtrMappings object.
+    """)
+
+parser.add_argument("--annotations_file", "-A", type=str,
+                    help="""
+                    File with your experiment's information, such as cell barcodes.
+                    """,
+                    default=None)
+
+parser.add_argument("--protocol_platform", "-p", type=str,
+                    help="Sequencing platform used.",
+                    default='10x')
+
+parser.add_argument("--protocol_version", "-v", type=int,
+                    help="Version of the protocol used in library preparation.",
+                    default=2)
+
+parser.add_argument("--sample_merge_method", "-m", type=str,
+                    help="""
+                    Method used to deal with different UTR coverage in different
+                    samples. If `union`, then the tool outputs UTRs that are not 
+                    represented by all samples. If `intersection` only the reads that
+                    map to UTRs in common between all samples will be used. Default
+                    depends on the protocol used.
+                    """,
+                    default=None)
+
+parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
+                    help="""
+                    If True, stores intermediate files that can be used to 
+                    run quicker pipelines later on. Useful if something wrong 
+                    is happening in later stages of the pipeline.
+                    """,
+                    default=False)
+
+parser.add_argument("--call_peaks", "-C", type=ast.literal_eval,
+                    help="""
+                    If True, aggregates individual molecules' UTR sizes into
+                    consensus peaks.
+                    """,
+                    default=True)
+
+parser.add_argument("--log_level", "-l", type=str,
+                    help="Level of logging messages to retrieve during the run.",
+                    default="info")
+
+parser.add_argument("--out", "-o", type=str,
+                    help="Path or partial path to a folder to store the result files.",
+                    default="UTR_results.h5ad")
+
+# This allows for assigning different parsers to different functions:
+parser.set_defaults(func=call_peaks)
+
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="""
-        Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
-        annotation files.
-        Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
-        """,
-        epilog="""
-        Example on how to use in command-line:
-        $ call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
-            -A experiment.csv -p 10x -v 2 -i True -o results.h5ad
-        """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
-
-    parser.add_argument("utr_annotation", type=str,
-                        help="BED or pickle file with the UTR annotations")
-
-    parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True,
-                        help="""
-        File, or files with the utr and read information. One file per sample should be 
-        supplied if downstream applications involve comparisons between the samples.
-        The files should be pickle files of a UtrMappings object.
-        """)
-
-    parser.add_argument("--annotations_file", "-A", type=str,
-                        help="""
-                        File with your experiment's information, such as cell barcodes.
-                        """,
-                        default=None)
-
-    parser.add_argument("--protocol_platform", "-p", type=str,
-                        help="Sequencing platform used.",
-                        default='10x')
-
-    parser.add_argument("--protocol_version", "-v", type=int,
-                        help="Version of the protocol used in library preparation.",
-                        default=2)
-
-    parser.add_argument("--sample_merge_method", "-m", type=str,
-                        help="""
-                        Method used to deal with different UTR coverage in different
-                        samples. If `union`, then the tool outputs UTRs that are not 
-                        represented by all samples. If `intersection` only the reads that
-                        map to UTRs in common between all samples will be used. Default
-                        depends on the protocol used.
-                        """,
-                        default=None)
-
-    parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
-                        help="""
-                        If True, stores intermediate files that can be used to 
-                        run quicker pipelines later on. Useful if something wrong 
-                        is happening in later stages of the pipeline.
-                        """,
-                        default=False)
-
-    parser.add_argument("--call_peaks", "-C", type=ast.literal_eval,
-                        help="""
-                        If True, aggregates individual molecules' UTR sizes into
-                        consensus peaks.
-                        """,
-                        default=True)
-
-    parser.add_argument("--log_level", "-l", type=str,
-                        help="Level of logging messages to retrieve during the run.",
-                        default="info")
-
-    parser.add_argument("--out", "-o", type=str,
-                        help="Path or partial path to a folder to store the result files.",
-                        default="UTR_results.h5ad")
-
-    args = parser.parse_args()
-
-    main(args.utr_annotation, args.utr_sizes_counts,
-         annotations_file=args.annotations_file,
-         protocol_platform=args.protocol_platform,
-         protocol_version=args.protocol_version,
-         sample_merge_method=args.sample_merge_method,
-         store_intermediate=args.store_intermediate,
-         call_peaks=args.call_peaks,
-         log_level=args.log_level,
-         out=args.out
-         )
+    main()

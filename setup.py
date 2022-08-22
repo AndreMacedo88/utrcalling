@@ -69,6 +69,7 @@ setuptools.setup(
         "console_scripts": [
             # command = package.module:function
             "utrcalling-run=utrcalling.tools.run:main",
+            "utrcalling-call_peaks=utrcalling.tools.call_peaks:main",
             "utrcalling-runtests=utrcalling.tests.test_case:main",
             "compute-mean-utr-sizes=utrcalling.tools.compute_mean_utr_sizes:main",
             "concatenate-experiments=utrcalling.tools.concatenate_experiments:main",
