@@ -30,11 +30,9 @@ def flatten(list_):
             yield element
 
 
-def get_number_cores():
+def get_number_cores(left_out=1):
     available_cores = len(os.sched_getaffinity(0))
-    cores_to_use = round(available_cores - available_cores * 0.1)
-    if cores_to_use == available_cores:
-        cores_to_use = available_cores - 1
+    cores_to_use = available_cores - left_out
     return cores_to_use
 
 
