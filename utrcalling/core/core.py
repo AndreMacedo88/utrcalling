@@ -8,12 +8,14 @@ Call consensus peaks based on the distribution of molecule sizes.
 # Summary
 This file contains 3 functions for the 3 main steps in this procedure.
 
-## Steps
+## General steps
 1. Extract the UTR regions of transcripts (from ENSEMBL)
-  1.1. Resolve overlapping transcripts so that every entry stores unique, non-overlapping, 
-genomic coordinates
 2. Map the aligned, filtered reads to the UTR regions from step 1.
 3. Clean-up the data and call consensus peaks if required.
+
+## More detailed steps
+1.1. Resolve overlapping transcripts so that every entry stores unique, non-overlapping, 
+genomic coordinates
 
 # Observations
 - Final object is a count matrix in AnnData format.
@@ -86,12 +88,11 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
                                       ) for alignment, sample in tqdm(
                     zip(alignments, samples), colour="#ffb700", ascii=" ■"))
         else:
-            samples = sample_names
             read_mappings = joblib.Parallel(n_jobs=n_cores)(
                 joblib.delayed(
                     map_reads_to_utr)(alignment, intervals,
                                       read="first", protocol=protocol,
-                                      sample=samples
+                                      sample=None
                                       ) for alignment in tqdm(
                     alignments, colour="#ffb700", ascii=" ■"))
 

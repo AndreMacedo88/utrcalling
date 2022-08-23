@@ -40,7 +40,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
 
     # mapping statistics:
 
-    # TODO: try to implement the following without busting all RAM and wasting 5 minutes:
+    # TODO: try to implement the following without using all the RAM or wasting 5 minutes:
     # alignments_number = len([al for al in bam_file])
     # "Number of alignments": alignments_number,
 
