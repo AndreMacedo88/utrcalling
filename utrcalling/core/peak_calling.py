@@ -1,7 +1,7 @@
 import gc
 from functools import partial, reduce
-from statistics import mode
 import re
+import psutil
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -107,14 +107,11 @@ def filter_barcodes(utr_sizes, annotations):
             else:
                 continue
 
-    utr_sizes_exploded = utr_sizes.explode(utr_sizes.columns.to_list())
-    utr_sizes_exploded.read_barcodes = utr_sizes_exploded.read_barcodes.replace(
-        barcodes_replace)
-    utr_sizes_exploded = utr_sizes_exploded[
-        utr_sizes_exploded.read_barcodes.isin(barcodes_correct)
-    ]
-    utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
-    return utr_sizes
+    utr_sizes = utr_sizes.explode(utr_sizes.columns.to_list())
+    utr_sizes.read_barcodes.replace(barcodes_replace, inplace=True)
+    utr_sizes = utr_sizes[utr_sizes.read_barcodes.isin(barcodes_correct)]
+
+    return utr_sizes.groupby(level=0).agg(list)
 
 
 def generate_peak_counts(utr_sizes, annotations=None,
@@ -141,12 +138,13 @@ def generate_peak_counts(utr_sizes, annotations=None,
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
     logger.info("Calling peaks for each UTR")
-    cores = helpers.get_number_cores()
+    cores = helpers.get_number_cores(left_out=2)
 
     utr_sizes_iter = utr_sizes.iterrows()
     count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
-        joblib.delayed(call_peaks)(utr=utr, func=func) for utr in
-        tqdm(utr_sizes_iter, colour="#ffb700", ascii=" ■", desc='UTR: ')))
+        joblib.delayed(call_peaks)(utr=utr, func=func) for utr in tqdm(
+            utr_sizes_iter, total=utr_sizes.shape[0], colour="#ffb700",
+            ascii=" ■", desc='UTR: ')))
 
     logger.info('Finished generating and counting UTR size peaks')
 
@@ -156,18 +154,19 @@ def generate_peak_counts(utr_sizes, annotations=None,
     gc.collect()
     get_reusable_executor().shutdown(wait=True)
 
+    if psutil.virtual_memory().percent > 50:
+        for ct_mtx in count_matrix_list:
+            ct_mtx.astype("int32", copy=False, errors="ignore")
+
     count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+    del count_matrix_list  # Free some RAM
     count_matrix = count_matrix.fillna(0).astype("int32")
 
-    del count_matrix_list
-
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
-
     if annotations is not None:
         logger.info('Adding annotations')
         barcodes_column_name = annotations.columns.str.extract(
             r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
-
         peaks_obs = annotations.set_index(barcodes_column_name[0])
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)
         return count_matrix, peaks_var, peaks_obs
@@ -199,8 +198,7 @@ def call_peaks(utr, func):
     # store this info in a new key on the original container
     info["peaks"] = peaks
     # group by each peak size and cell and count the number of each peak each cell has
-    info_grouped_by_peaks = \
-        info.groupby(["peaks", "read_barcodes"])["peaks"].agg("count")
+    info_grouped_by_peaks = info.groupby(["peaks", "read_barcodes"])["peaks"].agg("count")
 
     # append this information to the containers created above
     count = 1
