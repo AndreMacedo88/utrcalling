@@ -7,11 +7,19 @@ from utrcalling.core import core, helpers, protocols
 from utrcalling.core.module_log import module_logger
 
 
-def run(utr_annotation, alignments, feature='three_prime_utr',
-         annotations_file=None, protocol_platform="10x", protocol_version=3,
-         store_intermediate=False, log_level='info',
-         batch_merge_method=None, raw_sizes=False, label_batches=None,
-         out='UTR_results.h5ad'):
+def run(utr_annotation,
+        alignments,
+        annotations_file=None,
+        batch_merge_method=None,
+        feature='three_prime_utr',
+        protocol_platform="10x",
+        protocol_version=3,
+        label_batches=None,
+        log_level='info',
+        out='UTR_results.h5ad',
+        raw_sizes=False,
+        store_intermediate=False,
+        ):
     """
     Maps reads to UTRs and returns UTR length peak counts per cell/sample/batch from 
     input file/s.
@@ -43,12 +51,14 @@ def run(utr_annotation, alignments, feature='three_prime_utr',
         sample_names = None
 
     # Set up the protocol for this specific run
-    protocol = protocols.protocol(protocol_platform, int(protocol_version),
-                                  merge_method=batch_merge_method,
-                                  call_peaks=not raw_sizes, 
-                                  label_batches=label_batches,
-                                  sample_names=sample_names,
-                                  annotations=annotations_file)
+    protocol = protocols.protocol(
+        protocol_platform,
+        int(protocol_version),
+        merge_method=batch_merge_method,
+        call_peaks=not raw_sizes,
+        label_batches=label_batches,
+        sample_names=sample_names,
+        annotations=annotations_file)
 
     # Get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
@@ -107,7 +117,7 @@ Exports the UTR sizes count matrix to a h5ad file, which you can name with --out
 Example on how to use in command-line:
 $ run.py mus_musculus.gtf 
     -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2 
-    -i False -A experiment.csv -o results.h5ad
+    -i -A experiment.csv -o results.h5ad
 """,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -151,7 +161,7 @@ parser.add_argument("--batch_merge_method", "-m", type=str,
 
 parser.add_argument("--store_intermediate", "-i", action="store_true",
                     help="""
-                    If True, stores intermediate files that can be used to 
+                    Stores intermediate files that can be used to 
                     run quicker pipelines later on. Useful if something wrong 
                     is happening in later stages of the pipeline.
                     """)

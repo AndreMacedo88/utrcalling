@@ -1,3 +1,4 @@
+from __future__ import annotations
 import argparse
 import ast
 
@@ -5,9 +6,18 @@ from utrcalling.core import core, helpers, protocols
 from utrcalling.core.module_log import module_logger
 
 
-def call_peaks(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='info',
-               store_intermediate=False, protocol_platform="10x", protocol_version=2,
-               batch_merge_method=None, call_peaks=True, out="UTR_results.h5ad"):
+def call_peaks(utr_annotation,
+               utr_sizes_counts,
+               annotations_file=None,
+               batch_merge_method=None,
+               protocol_platform="10x",
+               protocol_version=2,
+               label_batches=None,
+               log_level='info',
+               out="UTR_results.h5ad",
+               raw_sizes=False,
+               store_intermediate=False,
+               ):
     """
     Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR 
     annotation files.
@@ -29,9 +39,13 @@ def call_peaks(utr_annotation, utr_sizes_counts, annotations_file=None, log_leve
         logger.info(f'║ Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = protocols.protocol(protocol_platform, int(protocol_version),
-                                  merge_method=batch_merge_method,
-                                  call_peaks=call_peaks)
+    protocol = protocols.protocol(
+        protocol_platform,
+        int(protocol_version),
+        merge_method=batch_merge_method,
+        label_batches=label_batches,
+        call_peaks=not raw_sizes,
+        annotations=annotations_file)
 
     # load UTR reference file
     utr_reference_annotations = helpers.load_annotations(utr_annotation)
@@ -125,18 +139,25 @@ parser.add_argument("--batch_merge_method", "-m", type=str,
                     """,
                     default=None)
 
-parser.add_argument("--store_intermediate", "-i", type=ast.literal_eval,
+parser.add_argument("--store_intermediate", "-i", action="store_true",
                     help="""
-                    If True, stores intermediate files that can be used to 
+                    Stores intermediate files that can be used to 
                     run quicker pipelines later on. Useful if something wrong 
                     is happening in later stages of the pipeline.
-                    """,
-                    default=False)
+                    """)
 
-parser.add_argument("--call_peaks", "-C", type=ast.literal_eval,
+parser.add_argument("--raw_sizes", "-r", action="store_true",
                     help="""
-                    If True, aggregates individual molecules' UTR sizes into
-                    consensus peaks.
+                    Produces a count matrix with the individual UMI UTR sizes, without 
+                    aggregating individual molecules' UTR sizes into consensus peaks.
+                    """)
+
+parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
+                    help="""
+                    If True, gets the batches from the annotation file and labels each
+                    barcode/sample according to the batch. This is prevents aggregation
+                    of the results if barcodes are recycled between batches, or when 
+                    2 samples have the same ID.
                     """,
                     default=True)
 

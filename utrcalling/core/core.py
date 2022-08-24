@@ -43,7 +43,10 @@ from utrcalling.core.peak_calling import (
 )
 
 
-def prepare_utr_reference_regions(gtf, feature, store=False):
+def prepare_utr_reference_regions(gtf,
+                                  feature,
+                                  store=False
+                                  ):
     # extract 3'UTRs from all the features in the GTF file
     utr = extract_feature(gtf, feature)
     # sort by chr and start for bed merge
@@ -66,7 +69,11 @@ def prepare_utr_reference_regions(gtf, feature, store=False):
     return utr_reduced
 
 
-def map_aligned_reads(alignments, utr_regions, protocol, store=False):
+def map_aligned_reads(alignments,
+                      utr_regions,
+                      protocol,
+                      store=False
+                      ):
     intervals = generate_utr_intervals(utr_regions)
     sample_names = protocol.sample_names
 
@@ -111,8 +118,12 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
     return read_mappings
 
 
-def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
-               annotations=None, store=False):
+def call_peaks(utr_sizes_counts,
+               utr_reference_regions,
+               protocol,
+               annotations=None,
+               store=False,
+               ):
     logger = module_logger()
 
     # if more than one counts file is provided, they must be merged before peak calling
