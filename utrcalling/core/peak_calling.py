@@ -35,12 +35,14 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
 
     logger = module_log.module_logger()
 
+    """
     if label_batches:
         for idx, batch in enumerate(utr_sizes):
             batch.read_barcodes = [
                 [f"{barcode}-{idx+1}" for barcode in barcodes]
                 for barcodes in batch.read_barcodes
             ]
+    """
 
     logger.info("Merging all batches' UTR sizes")
     if method == "union":

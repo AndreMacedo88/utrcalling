@@ -61,13 +61,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         self.merge_method = merge_method
         self.sample_names = sample_names
-        self.label_batches = label_batches
+        self.call_peaks = call_peaks
         self.batch_codes = self._batch_codes(annotations=annotations)
 
-        if isinstance(call_peaks, bool):
-            self.call_peaks = call_peaks
+        if isinstance(label_batches, bool) or label_batches is None:
+            self.label_batches = label_batches
         else:
-            self.call_peaks = bool(strtobool(call_peaks))
+            self.label_batches = bool(strtobool(label_batches))
 
         if self.call_peaks:
             if call_peaks_method.lower() == "kde":
