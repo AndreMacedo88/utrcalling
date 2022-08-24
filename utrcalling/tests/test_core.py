@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from pathlib import Path
 import unittest
@@ -12,7 +13,6 @@ from utrcalling.core import core, module_log, protocols
 
 class TestMapAlignedReads(unittest.TestCase):
     def setUp(self) -> None:
-
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
         protocol = protocols.protocol(platform='10x', version=2)
 
@@ -50,6 +50,44 @@ class TestMapAlignedReads(unittest.TestCase):
             )
 
 
+class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.annotations = "./test_data/smartseq3_anno.csv"
+        cls.utr_regions = {"utr_name": ["UTR1", "UTR1-1", "UTR2", "UTR3", "UTR4"],
+                            "chrom": [1, 1, 1, 1, 1],
+                            "start": [14190, 16400, 184700, 628000, 1200000],
+                            "end": [14500, 16600, 184900, 630000, 1200500],
+                            "name": ["UTR1", "UTR1", "UTR2", "UTR3", "UTR4"],
+                            "score": [0.0] * 5,
+                            "strand": ["+", "-", "-", "+", "-"],
+                            "transcript_id": ["UTR1_t", "UTR1_t", "UTR2_t", "UTR3_t", "UTR4_t"],
+                            "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
+                            }
+        cls.utr_regions = pd.DataFrame(cls.utr_regions).set_index("utr_name")
+        cls.protocol = protocols.protocol(platform='smartseq', version=3,
+                                           label_batches=True,
+                                           annotations=cls.annotations)
+        cls.alignments = ['./test_data/smartseq3_test_sorted.bam']
+        cls.mapped = core.map_aligned_reads(
+            alignments=cls.alignments, utr_regions=cls.utr_regions,
+            protocol=cls.protocol, store=False)
+
+
+class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
+    def setUp(self) -> None:
+        self.results = core.call_peaks(
+            utr_sizes_counts=self.mapped,
+            utr_reference_regions=self.utr_regions,
+            protocol=self.protocol,
+            annotations=self.annotations,
+            store=False
+        )
+
+    def test_sad(self):
+        pass
+
+
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")

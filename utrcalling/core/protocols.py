@@ -11,14 +11,17 @@ Note:
 3- New protocols should, then, append an elif clause in this function.
 
 """
-
+# built-in packages
 from abc import ABC, ABCMeta, abstractmethod
 from distutils.util import strtobool
-
+import re
+# data wrangling packages
 import numpy as np
+import pandas as pd
+# stats packages
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
-
+# internal packages
 from utrcalling.core import module_log, helpers
 
 
@@ -52,13 +55,15 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def __init__(self,
                  merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_samples=None, sample_names=None
+                 label_batches=None, sample_names=None, annotations=None
                  ) -> None:
         self.logger = module_log.module_logger()
 
         self.merge_method = merge_method
         self.sample_names = sample_names
-        self.label_samples = label_samples
+        self.label_batches = label_batches
+        self.batch_codes = self._batch_codes(annotations=annotations)
+
         if isinstance(call_peaks, bool):
             self.call_peaks = call_peaks
         else:
@@ -80,7 +85,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
                          f'║ Position counts merging method: {self.merge_method}\n' +
                          f'║ Call peaks? {self.call_peaks}\n' +
                          f'║ Peak calling method: {self.peak_calling}\n' +
-                         f'║ Add a number to sample names while merging samples? {self.label_samples}\n'
+                         f'║ Add a number to batch names while merging batches? {self.label_batches}\n'
                          )
 
     # Methods to get read information from the read alignments
@@ -183,6 +188,23 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 utr_sizes_vector = utr_sizes_vector.astype(float)
                 return np.rint(utr_sizes_vector)
 
+    # set-up methods
+    def _batch_codes(self, annotations):
+        if annotations is not None:
+            annotations = helpers.check_if_path_and_open(annotations, method="csv")
+            try:
+                batches_keys = np.unique(annotations.loc[:, annotations.columns.str.extract(
+                    r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]].values)
+                batches = {batches_keys[i]: i + 1 for i in range(len(batches_keys))}
+            except IndexError as err:
+                msg = f"If you are working with multiple samples/batches, please supply \
+a column for `batch` in the annotation file."
+                self.logger.error(msg)
+                raise err
+            return batches
+        else:
+            return None
+
 
 class ProtocolThreePrime(Protocol):
 
@@ -227,12 +249,12 @@ class ProtocolFivePrime(Protocol):
 
 class ProtocolTenx(ProtocolThreePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_samples=None, sample_names=None) -> None:
-        super().__init__(merge_method, call_peaks, call_peaks_method, label_samples,
-                         sample_names)
+                 label_batches=None, sample_names=None, annotations=None) -> None:
+        super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
+                         sample_names, annotations)
 
-        if self.label_samples is None:
-            self.label_samples = True
+        if self.label_batches is None:
+            self.label_batches = True
 
 
 class ProtocolTenx3(ProtocolTenx):
@@ -268,45 +290,50 @@ class ProtocolTenx2(ProtocolTenx):
 
 class ProtocolSmartseq(ProtocolThreePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_samples=None, sample_names=None) -> None:
-        super().__init__(merge_method, call_peaks, call_peaks_method, label_samples,
-                         sample_names)
+                 label_batches=None, sample_names=None, annotations=None) -> None:
+        super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
+                         sample_names, annotations)
 
-        if self.label_samples is None:
-            self.label_samples = False
+        if self.label_batches is None:
+            self.label_batches = False
 
 
 class ProtocolSmartseq3(ProtocolSmartseq):
 
     @staticmethod
-    def get_reads_identity(alignment, **_):
+    def get_reads_identity(alignment, **kwargs):
+        read_batch_id = kwargs.get('batch', None)
+
         read_seq = alignment.read.seq
-        read_barcode = helpers.to_string(read_seq[:6])
+        if read_batch_id is None:
+            read_barcode = helpers.to_string(read_seq[:6])
+        else:
+            read_barcode = f"{helpers.to_string(read_seq[:6])}-{read_batch_id}"
         read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
         return read_umi, read_barcode
 
 
 class ProtocolCapseq(ProtocolFivePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_samples=None, sample_names=None) -> None:
-        super().__init__(merge_method, call_peaks, call_peaks_method, label_samples,
+                 label_batches=None, sample_names=None) -> None:
+        super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
                          sample_names)
 
-        if self.label_samples is None:
-            self.label_samples = False
+        if self.label_batches is None:
+            self.label_batches = False
 
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
     @staticmethod
     def get_reads_identity(alignment, **kwargs):
-        read_sample_id = kwargs.get('sample', 'S')
+        read_batch_id = kwargs.get('batch', 'S')
 
         read_seq = helpers.to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]
         assert(len(read_umi) == 8)  # 8 bp UMI
 
-        return read_umi, read_sample_id
+        return read_umi, read_batch_id
 
 
 def protocol(platform, version, *args, **kwargs):

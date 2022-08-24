@@ -1,3 +1,4 @@
+from __future__ import annotations
 import os
 from pathlib import Path
 import unittest
@@ -51,7 +52,8 @@ class TestMapReadsToUtr(unittest.TestCase):
 class TestTenxTwo(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = protocols.protocol(platform='10x', version=2)
+        protocol = protocols.protocol(platform='10x', version=2,
+                                      annotations=pd.read_csv("./test_data/vivo_anno.csv"))
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
 
@@ -74,7 +76,8 @@ class TestTenxTwo(TestMapReadsToUtr):
 class TestTenxThree(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = protocols.protocol(platform='10x', version=3)
+        protocol = protocols.protocol(platform='10x', version=3,
+                                      annotations=pd.read_csv("./test_data/vivo_anno.csv"))
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
 
@@ -96,16 +99,16 @@ class TestTenxThree(TestMapReadsToUtr):
 
 class TestSmartSeq3(TestMapReadsToUtr):
     def setUp(self) -> None:
-        protocol = protocols.protocol(platform='smartseq', version=3)
+        protocol = protocols.protocol(platform='smartseq', version=3, label_batches=True,
+                                      annotations="./test_data/smartseq3_anno.csv")
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
-                                                     protocol, read='first',
-                                                     batch=None)
+                                                     protocol, read='first')
 
     def test_details(self):
         dict_true = {
             'read_start_positions': [122748098, 122748088, 122748096],
             'read_strands': ['-', '-', '-'],
-            'read_barcodes': ['GATGAA', 'TGCGCA', 'GCTGGG'],
+            'read_barcodes': ['GATGAA-2', 'TGCGCA-2', 'GCTGGG-2'],
             'read_umis': ['ACATTAAC', 'GAGTCCAT', 'TGTACGCA'],
             'read_lengths': [51, 37, 44],
             'utr_sizes_from_reads': [1468, 1458, 1466]
@@ -241,14 +244,27 @@ class TestSmartSeq3CapMinimal(TestMapReadsToUtrMinimalCap):
 
 class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
     def setUp(self) -> None:
-        protocol = protocols.protocol(platform='smartseq', version=3, label_batches=True)
+        protocol = protocols.protocol(platform='smartseq', version=3, label_batches=True,
+                                      annotations="./test_data/smartseq3_anno.csv")
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first')
 
     def test_details(self):
-        pass
+        dict_true = {
+            'read_start_positions': [[14412], [16441]],
+            'read_strands': [['-'], ['+']],
+            'read_barcodes': [['CACTGT-3'], ['CACTGT-3']],
+            'read_umis': [['GTGATATG'], ['GGCCACCA']],
+            'read_lengths': [[97], [93]],
+            'utr_sizes_from_reads': [[223], [158]]
+        }
+        self.assertDictEqual(
+            self.mappings.to_dict(orient="list"), dict_true)
+
+    def test_length(self):
+        self.assertEqual(self.mappings.shape[0], 2)
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=False)
+    unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

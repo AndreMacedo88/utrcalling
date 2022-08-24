@@ -2,8 +2,8 @@
 from functools import partial
 import psutil
 from pympler import asizeof
+import re
 # data handling tools
-import numpy as np
 import HTSeq
 import pandas as pd
 # QOL tools
@@ -30,10 +30,12 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 
-def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
+def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
     logger = module_logger()
     logger.info(
         f'Extracting reads from {bam} and mapping them to the reference UTR')
+
+    label_batches = protocol.label_batches
 
     bam_file = HTSeq.BAM_Reader(bam)
     utr_mappings = dict()
@@ -50,6 +52,11 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                      "Alignments not primary alignment": 0,
                      "Alignments in interval but wrong strand": 0
                      }
+    if label_batches and batch is None:
+        for record in bam_file:
+            batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*", record.get_sam_line()).group(1)
+            break
+        batch = protocol.batch_codes.get(batch_name, None)
 
     for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
                                desc="Interval: "):
@@ -64,7 +71,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                                    read_barcodes, read_umis,
                                    read_lengths, utr_sizes_from_reads]
 
-        for alignment in bam_file[interval]: # BAM_Reader[GenomicInterval] is a generator
+        for alignment in bam_file[interval]:  # BAM_Reader[GenomicInterval] is a generator
             if not alignment.pe_which == read:  # get only one of the 2 paired reads
                 mapping_stats[read_strand_string] += 1
                 continue
@@ -84,7 +91,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
                 read_info = extract_read_information(alignment=alignment,
                                                      interval=interval,
                                                      protocol=protocol,
-                                                     sample=sample)
+                                                     batch=batch)
                 if read_info is None:
                     continue
                 else:
@@ -128,7 +135,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', sample=None):
     return utr_mappings
 
 
-def extract_read_information(alignment, interval, protocol, sample=None):
+def extract_read_information(alignment, interval, protocol, batch=None):
     """
     Extracts all the relevant information from matching reads in a HTSeq.Alignment object.
 
@@ -182,7 +189,7 @@ def extract_read_information(alignment, interval, protocol, sample=None):
 
     # get the read's barcode and UMI
     read_umi, read_barcode = protocol.get_reads_identity(alignment=alignment,
-                                                         sample=sample)
+                                                         batch=batch)
     if not read_umi:  # if the UMI was not found, we discard the read
         return None
     if not read_barcode:

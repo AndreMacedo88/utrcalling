@@ -78,13 +78,16 @@ def check_if_exists_and_mkdir(folders_path):
 
 def check_if_path_and_open(to_check, method='pickle'):
     if isinstance(to_check, (str, pathlib.PurePath)):
-        if method.lower() == 'pickle':
+        method = method.lower()
+        if method == 'pickle':
             with open(to_check, "rb") as input_file:
                 output = pickle.load(input_file)
-        elif method.lower() == "pickle_pandas":
+        elif method == "pickle_pandas":
             output = pd.read_pickle(to_check)
-        elif method.lower() == "h5ad":
+        elif method == "h5ad":
             output = sc.read_h5ad(to_check)
+        elif method == "csv":
+            output = pd.read_csv(to_check)
         else:
             raise RuntimeError(f'Method {method} not implemented yet')
         return output

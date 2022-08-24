@@ -24,6 +24,7 @@ genomic coordinates and optionally UTR sequence information.
 """
 
 import os
+import re
 
 import pandas as pd
 import pybedtools
@@ -149,6 +150,16 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
     # if we have a table with a specific set of barcodes/sampleIDs, retain only those
     if annotations is not None:
         annotations = pd.read_csv(annotations)
+        if protocol.label_batches:
+            barcodes_column_name = annotations.columns.str.extract(
+                r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0][0]
+            batch_column_name = annotations.columns.str.extract(
+                r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0][0]
+            # rename the barcodes with the batch appended
+            annotations[barcodes_column_name] = \
+                annotations[barcodes_column_name].astype(str) \
+                + "-" \
+                + annotations[batch_column_name].apply(lambda x: protocol.batch_codes[x]).astype(str)
         filtered_positions = filter_barcodes(filtered_positions, annotations)
 
     # calculate broad peaks based on individual UMI utr sizes

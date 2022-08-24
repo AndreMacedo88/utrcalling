@@ -35,7 +35,7 @@ class DataSynthetic:
                           "GAAAAAAAAAAAAAAT-2", "GAAAAAAAAAAAAAAT-2",
                           "AAAAAAAAAAAAAAAG-2", "AAAAAAAAAAAAAAAG-1"],
                          ["AAAAAAAAAAAAAAAG-1", "AAAAAAAAAAAAAGGG-2",
-                         "AAAAAAAAAAAAAAAT-2", "AAAAAAAAAAAAAATT-1",
+                          "AAAAAAAAAAAAAAAT-2", "AAAAAAAAAAAAAATT-1",
                           "ATATATATATATATAT-1"]]
         read_umis = [
             ["CCCCCCCCGG", "CCCCCCCCTT", "CCCCCCCCAA", "CCCCCCCCAA", "CCCCCCCGGC",
@@ -52,11 +52,11 @@ class DataSynthetic:
         ]
 
         self._data_synthetic = pd.DataFrame(columns=['read_start_positions', 'read_strands',
-                                                   'read_barcodes', 'read_umis',
-                                                   'read_lengths', 'utr_sizes_from_reads'],
-                                          index=["ENSMUSG00000000001",
-                                                 "ENSMUSG00000000002"],
-                                          data=list(
+                                                     'read_barcodes', 'read_umis',
+                                                     'read_lengths', 'utr_sizes_from_reads'],
+                                            index=["ENSMUSG00000000001",
+                                                   "ENSMUSG00000000002"],
+                                            data=list(
             zip(
                 read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
                 utr_sizes_from_reads
