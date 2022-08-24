@@ -16,7 +16,7 @@ tqdm = partial(std_tqdm, dynamic_ncols=True)
 from utrcalling.core import helpers, module_log, protocols
 
 
-def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True):
+def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
     compare, so that peaks get called with the pseudo-bulk data from all samples.
@@ -35,14 +35,14 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_samples=True
 
     logger = module_log.module_logger()
 
-    if label_samples:
-        for idx, sample in enumerate(utr_sizes):
-            sample.read_barcodes = [
+    if label_batches:
+        for idx, batch in enumerate(utr_sizes):
+            batch.read_barcodes = [
                 [f"{barcode}-{idx+1}" for barcode in barcodes]
-                for barcodes in sample.read_barcodes
+                for barcodes in batch.read_barcodes
             ]
 
-    logger.info("Merging all samples' UTR sizes")
+    logger.info("Merging all batches' UTR sizes")
     if method == "union":
         # utr_sizes_merged = utr_sizes[0].add(utr_sizes[1], axis="columns")
         utr_sizes_merged = pd.concat(utr_sizes)

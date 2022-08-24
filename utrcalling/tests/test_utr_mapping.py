@@ -18,8 +18,8 @@ class TestGenerateUtrIntervals(unittest.TestCase):
 
     def test_correct_interval(self) -> None:
         """
-        Here we test if the intervals are being generated correctly. Please note that 
-        since GTF files use 0 indexing and BAM files start indexing on 1, when converted 
+        Here we test if the intervals are being generated correctly. Please note that
+        since GTF files use 0 indexing and BAM files start indexing on 1, when converted
         to the HTSeq object the start location will be a smaller number by 1.
         """
         correct = ['ENSMUSG00000051285', 7160891, 7161063, '+']
@@ -99,7 +99,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
         protocol = protocols.protocol(platform='smartseq', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first',
-                                                     sample="test_sample")
+                                                     batch=None)
 
     def test_details(self):
         dict_true = {
@@ -123,7 +123,7 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment_cap,
                                                      self.intervals_5prime,
                                                      protocol, read='first',
-                                                     sample="test_sample")
+                                                     batch="test_sample")
 
     def test_details(self):
         dict_true = {
@@ -221,7 +221,7 @@ class TestSmartSeq3CapMinimal(TestMapReadsToUtrMinimalCap):
         protocol = protocols.protocol(platform='smart-seq_cap', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
                                                      protocol, read='first',
-                                                     sample="Test")
+                                                     batch="Test")
 
     def test_details(self):
         dict_true = {
@@ -239,6 +239,16 @@ class TestSmartSeq3CapMinimal(TestMapReadsToUtrMinimalCap):
         self.assertEqual(self.mappings.shape[0], 2)
 
 
+class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
+    def setUp(self) -> None:
+        protocol = protocols.protocol(platform='smartseq', version=3, label_batches=True)
+        self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
+                                                     protocol, read='first')
+
+    def test_details(self):
+        pass
+
+
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")

@@ -9,9 +9,9 @@ from utrcalling.core.module_log import module_logger
 def run(utr_annotation, alignments, feature='three_prime_utr',
          annotations_file=None, protocol_platform="10x", protocol_version=3,
          store_intermediate=False, log_level='info',
-         sample_merge_method=None, call_peaks=True, out='UTR_results.h5ad'):
+         batch_merge_method=None, call_peaks=True, out='UTR_results.h5ad'):
     """
-    Maps reads to UTRs and returns UTR length peak counts per cell/sample from 
+    Maps reads to UTRs and returns UTR length peak counts per cell/sample/batch from 
     input file/s.
 
     Args:
@@ -29,7 +29,7 @@ def run(utr_annotation, alignments, feature='three_prime_utr',
     for arg, value in locals().items():
         logger.info(f'║ Argument {arg}: {value}\n')
 
-    # Supply the names of your samples, if applicable:
+    # Supply the names of your samples/batches, if applicable:
     # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.
     if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
@@ -42,7 +42,7 @@ def run(utr_annotation, alignments, feature='three_prime_utr',
 
     # Set up the protocol for this specific run
     protocol = protocols.protocol(protocol_platform, int(protocol_version),
-                                  merge_method=sample_merge_method,
+                                  merge_method=batch_merge_method,
                                   call_peaks=call_peaks, sample_names=sample_names)
 
     # Get UTR reference data from the organisms GTF annotation file
@@ -110,8 +110,8 @@ parser.add_argument("utr_annotation", type=str,
                     help="GTF file with the genome annotations")
 
 parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
-    File, or files with the read alignments. One alignment per sample should be 
-    supplied if downstream applications involve comparisons between the samples.
+    File, or files with the read alignments. One alignment per sample/batch should be 
+    supplied if downstream applications involve comparisons between the samples/batches.
     Alignments must be sorted and have an index file .bai in the same directory
     """)
 
@@ -134,12 +134,12 @@ parser.add_argument("--protocol_version", "-v", type=int,
                     help="Version of the protocol used in library preparation.",
                     default=2)
 
-parser.add_argument("--sample_merge_method", "-m", type=str,
+parser.add_argument("--batch_merge_method", "-m", type=str,
                     help="""
                     Method used to deal with different UTR coverage in different
-                    samples. If `union`, then the tool outputs UTRs that are not 
-                    represented by all samples. If `intersection` only the reads that
-                    map to UTRs in common between all samples will be used. Default
+                    samples/batches. If `union`, then the tool outputs UTRs that are not 
+                    represented by all samples/batches. If `intersection` only the reads that
+                    map to UTRs in common between all samples/batches will be used. Default
                     depends on the protocol used.
                     """,
                     default=None)

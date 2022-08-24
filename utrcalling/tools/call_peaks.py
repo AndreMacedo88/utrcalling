@@ -7,9 +7,9 @@ from utrcalling.core.module_log import module_logger
 
 def call_peaks(utr_annotation, utr_sizes_counts, annotations_file=None, log_level='info',
                store_intermediate=False, protocol_platform="10x", protocol_version=2,
-               sample_merge_method=None, call_peaks=True, out="UTR_results.h5ad"):
+               batch_merge_method=None, call_peaks=True, out="UTR_results.h5ad"):
     """
-    Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
+    Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR 
     annotation files.
 
     Args:
@@ -30,7 +30,7 @@ def call_peaks(utr_annotation, utr_sizes_counts, annotations_file=None, log_leve
 
     # set up the protocol for this specific run
     protocol = protocols.protocol(protocol_platform, int(protocol_version),
-                                  merge_method=sample_merge_method,
+                                  merge_method=batch_merge_method,
                                   call_peaks=call_peaks)
 
     # load UTR reference file
@@ -79,7 +79,7 @@ def main():
 
 parser = argparse.ArgumentParser(
     description="""
-Returns UTR length peak counts per cell/sample from UTR length counts and UTR 
+Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR 
 annotation files.
 Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
 """,
@@ -96,8 +96,8 @@ parser.add_argument("utr_annotation", type=str,
 
 parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True,
                     help="""
-    File, or files with the utr and read information. One file per sample should be 
-    supplied if downstream applications involve comparisons between the samples.
+    File, or files with the utr and read information. One file per sample/batch should be 
+    supplied if downstream applications involve comparisons between the samples/batches.
     The files should be pickle files of a UtrMappings object.
     """)
 
@@ -115,12 +115,12 @@ parser.add_argument("--protocol_version", "-v", type=int,
                     help="Version of the protocol used in library preparation.",
                     default=2)
 
-parser.add_argument("--sample_merge_method", "-m", type=str,
+parser.add_argument("--batch_merge_method", "-m", type=str,
                     help="""
                     Method used to deal with different UTR coverage in different
-                    samples. If `union`, then the tool outputs UTRs that are not 
-                    represented by all samples. If `intersection` only the reads that
-                    map to UTRs in common between all samples will be used. Default
+                    batches. If `union`, then the tool outputs UTRs that are not 
+                    represented by all batches. If `intersection` only the reads that
+                    map to UTRs in common between all batches will be used. Default
                     depends on the protocol used.
                     """,
                     default=None)

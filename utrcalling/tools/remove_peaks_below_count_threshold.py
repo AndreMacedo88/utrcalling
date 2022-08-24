@@ -16,7 +16,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="""
     Removes the UTR location peaks that have less than `threshold` counts in
-    the sum of all samples. This effectively curates the peaks, selecting the most common
+    the sum of all cells/samples/batches. This effectively curates the peaks, selecting the most common
     and/or more prone to be true peaks.
     """,
         epilog="""

@@ -62,7 +62,7 @@ class TestSmartSeqCapPhospho(unittest.TestCase):
         alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
         cls.protocol = protocols.protocol(platform='smart-seq_cap', version=3)
         cls.mappings = utr_mapping.map_reads_to_utr(
-            alignment, intervals, cls.protocol, read='first', sample="test_sample")
+            alignment, intervals, cls.protocol, read='first', batch="test_sample")
 
 
 class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhospho):

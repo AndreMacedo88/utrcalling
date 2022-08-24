@@ -84,7 +84,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
                 joblib.delayed(
                     map_reads_to_utr)(alignment, intervals,
                                       read="first", protocol=protocol,
-                                      sample=sample
+                                      batch=sample
                                       ) for alignment, sample in tqdm(
                     zip(alignments, samples), colour="#ffb700", ascii=" ■"))
         else:
@@ -92,7 +92,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
                 joblib.delayed(
                     map_reads_to_utr)(alignment, intervals,
                                       read="first", protocol=protocol,
-                                      sample=None
+                                      batch=None
                                       ) for alignment in tqdm(
                     alignments, colour="#ffb700", ascii=" ■"))
 
@@ -104,7 +104,7 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
 
     else:
         read_mappings = map_reads_to_utr(
-            alignments, intervals, read='first', protocol=protocol, sample=sample_names)
+            alignments, intervals, read='first', protocol=protocol, batch=sample_names)
         if store:
             read_mappings.to_pickle(os.path.join(directory, f'{filename}.pkl'))
     return read_mappings
@@ -122,7 +122,7 @@ def call_peaks(utr_sizes_counts, utr_reference_regions, protocol,
 
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
                                                    method=protocol.merge_method,
-                                                   label_samples=protocol.label_samples,
+                                                   label_batches=protocol.label_batches,
                                                    )
         if store:
             directory = './intermediate'

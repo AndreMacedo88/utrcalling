@@ -9,7 +9,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
          protocol_platform="10x", protocol_version=3,
          log_level='info'):
     """
-    Gets UTR sizes peak counts per cell/sample from input file/s.
+    Gets UTR sizes peak counts per cell/sample/batch from input file/s.
 
     Args:
         utr_annotation (str): [description]
@@ -23,7 +23,7 @@ def main(utr_annotation, alignments, feature='three_prime_utr',
     for arg, value in locals().items():
         logger.info(f'║ Argument {arg}: {value}\n')
 
-    # Supply the names of your samples, if applicable:
+    # Supply the names of your samples/batches, if applicable:
     # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.
     if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
@@ -73,10 +73,10 @@ if __name__ == "__main__":
                         help="GTF file with the genome annotations")
 
     parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
-        File, or files with the read alignments. One alignment per sample should be 
-        supplied if downstream applications involve comparisons between the samples.
-        Alignments must be sorted and have an index file .bai in the same directory
-        """)
+File, or files with the read alignments. One alignment per sample/batch should be 
+supplied if downstream applications involve comparisons between the samples/batches.
+Alignments must be sorted and have an index file .bai in the same directory
+""")
 
     parser.add_argument("--feature", "-f", type=str,
                         help="Type of UTR that you want to map. three_prime_utr or \
