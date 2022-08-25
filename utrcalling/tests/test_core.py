@@ -4,6 +4,7 @@ from pathlib import Path
 import unittest
 
 import pandas as pd
+import anndata as ad
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
@@ -53,28 +54,64 @@ class TestMapAlignedReads(unittest.TestCase):
 class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.annotations = "./test_data/smartseq3_anno.csv"
         cls.utr_regions = {"utr_name": ["UTR1", "UTR1-1", "UTR2", "UTR3", "UTR4"],
-                            "chrom": [1, 1, 1, 1, 1],
-                            "start": [14190, 16400, 184700, 628000, 1200000],
-                            "end": [14500, 16600, 184900, 630000, 1200500],
-                            "name": ["UTR1", "UTR1", "UTR2", "UTR3", "UTR4"],
-                            "score": [0.0] * 5,
-                            "strand": ["+", "-", "-", "+", "-"],
-                            "transcript_id": ["UTR1_t", "UTR1_t", "UTR2_t", "UTR3_t", "UTR4_t"],
-                            "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
-                            }
+                           "chrom": [1, 1, 1, 1, 1],
+                           "start": [14190, 16400, 184700, 628000, 1200000],
+                           "end": [14500, 16600, 184900, 630000, 1200500],
+                           "name": ["UTR1", "UTR1", "UTR2", "UTR3", "UTR4"],
+                           "score": [0.0] * 5,
+                           "strand": ["+", "-", "-", "+", "-"],
+                           "transcript_id": ["UTR1_t", "UTR1_t", "UTR2_t", "UTR3_t", "UTR4_t"],
+                           "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
+                           }
         cls.utr_regions = pd.DataFrame(cls.utr_regions).set_index("utr_name")
-        cls.protocol = protocols.protocol(platform='smartseq', version=3,
-                                           label_batches=True,
-                                           annotations=cls.annotations)
         cls.alignments = ['./test_data/smartseq3_test_sorted.bam']
+        # objects for testing without label_batches
+        cls.annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
+        cls.annotations = cls.annotations.drop_duplicates(subset=["Sample_Barcode"])
+        cls.protocol = protocols.protocol(platform='smartseq', version=3,
+                                          label_batches=False,
+                                          annotations=cls.annotations)
         cls.mapped = core.map_aligned_reads(
             alignments=cls.alignments, utr_regions=cls.utr_regions,
             protocol=cls.protocol, store=False)
+        # objects for testing with label_batches
+        cls.annotations_label = "./test_data/smartseq3_anno.csv"
+        cls.protocol_label = protocols.protocol(platform='smartseq', version=3,
+                                          label_batches=True,
+                                          annotations=cls.annotations_label)
+        cls.mapped_label = core.map_aligned_reads(
+            alignments=cls.alignments, utr_regions=cls.utr_regions,
+            protocol=cls.protocol_label, store=False)
 
 
 class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
+    def setUp(self) -> None:
+        self.results = core.call_peaks(
+            utr_sizes_counts=self.mapped_label,
+            utr_reference_regions=self.utr_regions,
+            protocol=self.protocol_label,
+            annotations=self.annotations_label,
+            store=False
+        )
+
+    def test_is_anndata(self):
+        self.assertIsInstance(self.results, ad.AnnData)
+
+    def test_shape_anndata(self):
+        self.assertTupleEqual(self.results.shape, (1, 2))
+
+    def test_utr_sizes(self):
+        self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
+
+    def test_barcode(self):
+        self.assertEqual(self.results.obs_names[0], "CACTGT-3")
+
+    def test_utr_names(self):
+        self.assertListEqual(self.results.var_names.to_list(), ["UTR1-1", "UTR1-1-1"])
+
+
+class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
     def setUp(self) -> None:
         self.results = core.call_peaks(
             utr_sizes_counts=self.mapped,
@@ -84,8 +121,20 @@ class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
             store=False
         )
 
-    def test_sad(self):
-        pass
+    def test_is_anndata(self):
+        self.assertIsInstance(self.results, ad.AnnData)
+
+    def test_shape_anndata(self):
+        self.assertTupleEqual(self.results.shape, (1, 2))
+
+    def test_utr_sizes(self):
+        self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
+
+    def test_barcode(self):
+        self.assertEqual(self.results.obs_names[0], "CACTGT")
+
+    def test_utr_names(self):
+        self.assertListEqual(self.results.var_names.to_list(), ["UTR1-1", "UTR1-1-1"])
 
 
 if __name__ == '__main__':
