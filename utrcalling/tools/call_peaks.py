@@ -100,7 +100,7 @@ Exports the UTR sizes count matrix to a h5ad file, which you can name with --out
     epilog="""
 Example on how to use in command-line:
 $ call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
-    -A experiment.csv -p 10x -v 2 -i True -o results.h5ad
+    -A experiment.csv -p 10x -v 2 -i -o results.h5ad
 """,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter
 )
@@ -159,7 +159,7 @@ parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
                     of the results if barcodes are recycled between batches, or when 
                     2 samples have the same ID.
                     """,
-                    default=True)
+                    default=None)
 
 parser.add_argument("--log_level", "-l", type=str,
                     help="Level of logging messages to retrieve during the run.",

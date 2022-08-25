@@ -158,9 +158,9 @@ def call_peaks(utr_sizes_counts,
 
     del utr_sizes_counts  # to save memory
 
-    # if we have a table with a specific set of barcodes/sampleIDs, retain only those
+    # if we have a table with a specific set of barcodes/IDs, retain only those ones.
     if annotations is not None:
-        annotations = pd.read_csv(annotations)
+        annotations = helpers.check_if_path_and_open(annotations, method="csv")
         if protocol.label_batches:
             barcodes_column_name = annotations.columns.str.extract(
                 r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0][0]

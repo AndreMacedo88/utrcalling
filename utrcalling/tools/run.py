@@ -179,7 +179,7 @@ parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
                     of the results if barcodes are recycled between batches, or when 
                     2 samples have the same ID.
                     """,
-                    default=True)
+                    default=None)
 
 parser.add_argument("--log_level", "-l", type=str,
                     help="Level of logging messages to retrieve during the run.",

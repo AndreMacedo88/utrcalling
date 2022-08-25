@@ -92,18 +92,25 @@ def filter_barcodes(utr_sizes, annotations):
         if barcode in barcodes_real:
             barcodes_correct.add(barcode)
         else:
-            match = process.extract(
-                barcode, barcodes_real, scorer=distance.Hamming.distance, score_cutoff=1)
+            try:
+                match = process.extract(
+                    barcode, barcodes_real, scorer=distance.Hamming.distance, score_cutoff=1)
+            except ValueError as err:
+                print(f"Error matching sample barcode/ID: {barcode}\n Please check if \
+the barcodes in the annotation file are correct or, if using different batches with \
+similar barcodes/IDs, if all the batches are correctly described in the annotations file."
+                      )
+                raise err
             if match:
                 barcode_correct = [bc[0] for bc in match]
                 for bc in barcode_correct:
-                    try:
+                    try:  # check if the batch is the same between barcodes
                         if barcode.split("-")[1] == bc.split("-")[1]:
                             barcodes_correct.add(bc)
                             barcodes_replace[barcode] = bc
                         else:
                             continue
-                    except IndexError:
+                    except IndexError:  # if working without batches, no need to check
                         barcodes_correct.add(bc)
                         barcodes_replace[barcode] = bc
             else:
@@ -240,7 +247,8 @@ def generate_count_matrix_anndata(count_matrix, var, obs=None):
     logger = module_log.module_logger()
     logger.info('Generating Count Matrix')
 
-    count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs)
+    count_matrix_anndata = anndata.AnnData(count_matrix, var=var, obs=obs,
+                                           dtype=count_matrix.values.dtype)
     return count_matrix_anndata
 
 
