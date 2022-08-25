@@ -25,6 +25,7 @@ genomic coordinates and optionally UTR sequence information.
 
 import os
 import re
+import psutil
 
 import pandas as pd
 import pybedtools
@@ -171,7 +172,22 @@ def call_peaks(utr_sizes_counts,
                 annotations[barcodes_column_name].astype(str) \
                 + "-" \
                 + annotations[batch_column_name].apply(lambda x: protocol.batch_codes[x]).astype(str)
-        filtered_positions = filter_barcodes(filtered_positions, annotations)
+        if psutil.virtual_memory().percent > 20:
+            logger.info(f"Dataset is too large. Splitting in 2 and analysing sequentially")
+            index_half = int(filtered_positions.shape[0] / 2)
+            filtered_positions_list = [
+                filtered_positions.iloc[:index_half, :],
+                filtered_positions.iloc[index_half:, :]
+            ]
+            filtered_positions_list = [
+                filter_barcodes(
+                    positions, annotations=annotations
+                ) for positions in filtered_positions_list
+            ]
+            filtered_positions = pd.concat(filtered_positions_list)
+        else:
+            filtered_positions = filter_barcodes(filtered_positions,
+                                                 annotations=annotations)
 
     # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(

@@ -88,6 +88,23 @@ class Protocol(ABC, metaclass=CombinedMeta):
                          f'║ Add a number to batch names while merging batches? {self.label_batches}\n'
                          )
 
+    # set-up methods
+    def _batch_codes(self, annotations):
+        if annotations is not None:
+            annotations = helpers.check_if_path_and_open(annotations, method="csv")
+            try:
+                batches_keys = np.unique(annotations.loc[:, annotations.columns.str.extract(
+                    r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]].values)
+                batches = {batches_keys[i]: i + 1 for i in range(len(batches_keys))}
+            except IndexError as err:
+                msg = f"If you are working with multiple samples/batches, please supply \
+a column for `batch` in the annotation file."
+                self.logger.error(msg)
+                raise err
+            return batches
+        else:
+            return None
+
     # Methods to get read information from the read alignments
     @staticmethod
     @abstractmethod
@@ -187,23 +204,6 @@ class Protocol(ABC, metaclass=CombinedMeta):
             except TypeError:
                 utr_sizes_vector = utr_sizes_vector.astype(float)
                 return np.rint(utr_sizes_vector)
-
-    # set-up methods
-    def _batch_codes(self, annotations):
-        if annotations is not None:
-            annotations = helpers.check_if_path_and_open(annotations, method="csv")
-            try:
-                batches_keys = np.unique(annotations.loc[:, annotations.columns.str.extract(
-                    r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]].values)
-                batches = {batches_keys[i]: i + 1 for i in range(len(batches_keys))}
-            except IndexError as err:
-                msg = f"If you are working with multiple samples/batches, please supply \
-a column for `batch` in the annotation file."
-                self.logger.error(msg)
-                raise err
-            return batches
-        else:
-            return None
 
 
 class ProtocolThreePrime(Protocol):

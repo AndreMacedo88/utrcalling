@@ -8,7 +8,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 import joblib
 from joblib.externals.loky import get_reusable_executor
 import pandas as pd
-from rapidfuzz import process, fuzz, distance
+from rapidfuzz import process, distance
 import anndata
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
@@ -46,11 +46,9 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
 
     logger.info("Merging all batches' UTR sizes")
     if method == "union":
-        # utr_sizes_merged = utr_sizes[0].add(utr_sizes[1], axis="columns")
         utr_sizes_merged = pd.concat(utr_sizes)
         utr_sizes_merged = utr_sizes_merged.groupby(level=0).sum()
     elif method == "intersection":
-        # utr_sizes_merged = utr_sizes[0].add(utr_sizes[1], axis="columns").dropna(axis=0)
         utr_sizes_merged = reduce(lambda a, b: (a + b).dropna(axis=0), utr_sizes)
     else:
         raise AttributeError(f"Method {method} not supported.")
