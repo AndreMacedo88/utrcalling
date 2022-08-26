@@ -129,7 +129,7 @@ a column for `batch` in the annotation file."
 
     # Methods to aggregate individual molecules' UTR sizes to consensus peaks:
     @staticmethod
-    def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=1):
+    def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=12):
         """
         Fit a kernel density model to predict the peak's ditribution density function
 
