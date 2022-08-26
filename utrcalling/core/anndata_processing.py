@@ -150,7 +150,10 @@ def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
     var = var.drop(labels="utr_size", errors="ignore")
     var['UMIs'] = pd.Series(umis)
 
-    adata = anndata.AnnData(cell_mean_sizes, obs=adata.obs, var=var)
+    adata = anndata.AnnData(cell_mean_sizes,
+                            obs=adata.obs,
+                            var=var,
+                            dtype=cell_mean_sizes.values.dtype)
     adata.layers['variance'] = cell_var_sizes
     return adata
 
