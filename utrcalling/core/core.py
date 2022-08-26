@@ -27,6 +27,7 @@ import os
 import re
 import psutil
 
+import numpy as np
 import pandas as pd
 import pybedtools
 import joblib
@@ -172,19 +173,23 @@ def call_peaks(utr_sizes_counts,
                 annotations[barcodes_column_name].astype(str) \
                 + "-" \
                 + annotations[batch_column_name].apply(lambda x: protocol.batch_codes[x]).astype(str)
-        if psutil.virtual_memory().percent > 20:
-            logger.info(f"Dataset is too large. Splitting in 2 and analysing sequentially")
-            index_half = int(filtered_positions.shape[0] / 2)
-            filtered_positions_list = [
-                filtered_positions.iloc[:index_half, :],
-                filtered_positions.iloc[index_half:, :]
+        if psutil.virtual_memory().percent > 20:  # if there are memory issues
+            logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
+            num, div = filtered_positions.shape[0], 10
+            idx_tenths = np.cumsum([
+                num // div + (1 if x < num % div else 0) for x in range(div)
+            ])
+            idx_mod = np.insert(idx_tenths, 0, 0)
+
+            split_generator = (
+                filtered_positions.iloc[idx_mod[n]:idx_mod[n + 1]] for n in range(len(idx_mod) - 1)
+            )
+
+            filtered_list = [
+                filter_barcodes(pos, annotations=annotations) for pos in split_generator
             ]
-            filtered_positions_list = [
-                filter_barcodes(
-                    positions, annotations=annotations
-                ) for positions in filtered_positions_list
-            ]
-            filtered_positions = pd.concat(filtered_positions_list)
+
+            filtered_positions = pd.concat(filtered_list)
         else:
             filtered_positions = filter_barcodes(filtered_positions,
                                                  annotations=annotations)
