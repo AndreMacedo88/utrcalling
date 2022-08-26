@@ -46,14 +46,14 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
 
     logger.info("Merging all batches' UTR sizes")
     if method == "union":
-        utr_sizes_merged = pd.concat(utr_sizes)
-        utr_sizes_merged = utr_sizes_merged.groupby(level=0).sum()
+        utr_sizes = pd.concat(utr_sizes)
+        utr_sizes = utr_sizes.groupby(level=0).sum()
     elif method == "intersection":
-        utr_sizes_merged = reduce(lambda a, b: (a + b).dropna(axis=0), utr_sizes)
+        utr_sizes = reduce(lambda a, b: (a + b).dropna(axis=0), utr_sizes)
     else:
         raise AttributeError(f"Method {method} not supported.")
 
-    return utr_sizes_merged
+    return utr_sizes
 
 
 def subset_reference_data(utr_sizes, utr_reference_regions):
