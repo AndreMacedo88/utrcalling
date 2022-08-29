@@ -1,10 +1,14 @@
 import warnings
-import numpy as np
-import pandas as pd
+import re
 import joblib
+import numpy as np
+from sklearn.neighbors import KernelDensity
+from scipy.signal import argrelextrema
+import pandas as pd
 import anndata
 from tqdm import tqdm
-from utrcalling.core import helpers
+# import internal tools
+from utrcalling.core import module_log, helpers
 
 
 def generate_friendly_utr_size_names(
@@ -205,3 +209,43 @@ def concatenate_adata(adata_list):
     adata_result = anndata.AnnData(X=adata_concat, obs=obs_new, var=var_new)
 
     return(adata_result)
+
+
+def split_train_test_data(adata, train_fraction, seed):
+    logger = module_log.module_logger()
+
+    try:
+        bins_columns = adata.obs.columns.str.extract(
+            r"(.*umi.*.*bin.*)", flags=re.IGNORECASE).dropna().values[0][0]
+    except IndexError:
+        umis_per_id = np.sum(adata.X, axis=1)
+        # Find optimal number of bins
+        a = umis_per_id.reshape(-1, 1)
+        kde = KernelDensity(kernel='gaussian', bandwidth=max(a) / 10).fit(a)
+        s = np.linspace(min(a), max(a))
+        e = kde.score_samples(s.reshape(-1, 1))
+        mi, _ = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
+        cuts = len(mi) + 1
+
+        logger.info(f"Binning UTRs into {cuts} bins for stratified sampling. "
+                    "Bins can be found in .obs['UMI_bins']")
+
+        umi_bins = pd.qcut(umis_per_id, q=cuts, labels=range(1, cuts + 1))
+        bins_columns = "UMI_bins"
+        adata.obs[bins_columns] = umi_bins
+
+    try:
+        batch_columns = adata.obs.columns.str.extract(
+            r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0][0]
+    except IndexError:
+        batch_columns = False
+
+    obs_train = adata.obs.groupby(
+        [batch_columns, bins_columns], group_keys=False
+    ).apply(lambda x: x.sample(frac=train_fraction, random_state=seed))
+
+    obs_test = adata.obs.drop(labels=obs_train.index, axis=0)
+
+    adata_train = adata[adata.obs_names.isin(obs_train.index), :]
+    adata_test = adata[adata.obs_names.isin(obs_test.index), :]
+    return adata_train, adata_test

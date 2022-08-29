@@ -79,6 +79,7 @@ setuptools.setup(
             "counts-to-percentages=utrcalling.tools.counts_to_percentages:main",
             "concatenate-experiments=utrcalling.tools.concatenate_experiments:main",
             "subset-experiments=utrcalling.tools.subset_experiments:main",
+            "split-train-test=utrcalling.tools.split_train_test:main",
             "estimate-best-bandwidth=utrcalling.tools.estimate_best_bandwidth:main",
             "check-distance-to-pas=utrcalling.tools.check_distance_to_pas:main",
             "call-peaks-different-bandwidths=utrcalling.tools.call_peaks_different_bandwidths:main",

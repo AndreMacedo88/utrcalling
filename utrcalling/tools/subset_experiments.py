@@ -41,7 +41,7 @@ $ subset-experiments adata.h5ad -a anno_1 anno_2 anno_3 -t var obs var
 """,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser.add_argument("adata_path", type=str,
+parser.add_argument("input_path", type=str,
                     help="Path to input AnnData object file (h5ad format).")
 parser.add_argument("--annotations_keep", "-a", nargs="+", type=str, required=True,
                     help="Paths to the annotation files that describe what to subset.")
