@@ -1,16 +1,18 @@
 # import general tools
 import argparse
-# import data processing tools
-import scanpy as sc
-# import local tools
+# import internal tools
 from utrcalling.core import anndata_processing as ap
+from utrcalling.core import helpers
 
 
 def generate_names(input_path, out_path, utr_name_column, gene_name_column):
-    adata = sc.read_h5ad(input_path)
+    adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     ap.friendly_polya_names(
-        adata=adata, out=out_path, utr_name_column=utr_name_column,
-        gene_name_column=gene_name_column)
+        adata=adata,
+        out=out_path,
+        utr_name_column=utr_name_column,
+        gene_name_column=gene_name_column
+    )
 
 
 def main():
@@ -31,7 +33,7 @@ is only present in genes with more than one annotated UTR.
 """,
     epilog="""
 Example use:
-$ generate-names.py adata_old.h5ad adata_new_names.h5ad
+$ generate-names adata_old.h5ad adata_new_names.h5ad
 """,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -50,7 +52,6 @@ parser.add_argument("--gene_name_column", "-g", type=str, help="""
 
 # This allows for assigning different parsers to different functions:
 parser.set_defaults(func=generate_names)
-
 
 if __name__ == "__main__":
     main()

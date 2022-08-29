@@ -1,16 +1,16 @@
 # import general tools
 import argparse
-# import data processing tools
-import scanpy as sc
-# import local tools
+# import internal tools
 from utrcalling.core import anndata_processing as ap
+from utrcalling.core import helpers
 
 
-def subset_experiments(adata_path, annotations_keep, anno_types, out_paths):
+def subset_experiments(input_path, annotations_keep, anno_types, out_paths):
     assert len(out_paths) == len(
-        annotations_keep), f"Number of annotations does not match number of paths to write the output"
+        annotations_keep), "Number of annotations does not match number of paths to "
+    "write the output"
 
-    adata = sc.read_h5ad(adata_path)
+    adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata_list = ap.subset_adata(
         adata=adata, annotations_keep=annotations_keep, anno_types=anno_types)
 

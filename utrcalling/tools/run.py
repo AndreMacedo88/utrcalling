@@ -1,8 +1,8 @@
-from __future__ import annotations
+# import general tools
 import argparse
 import ast
 import os
-
+# import internal tools
 from utrcalling.core import core, helpers, protocols
 from utrcalling.core.module_log import module_logger
 
@@ -66,7 +66,6 @@ def run(utr_annotation,
         utr_annotation, feature, store=store_intermediate)
 
     # Map to the reference UTR the reads that properly aligned to genome
-
     logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
         alignments, utr_reference_regions, protocol, store=store_intermediate)

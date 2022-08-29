@@ -73,10 +73,11 @@ def generate_friendly_utr_size_names(
     return
 
 
-def potential_apa_events(adata):
+def select_alternative_transcription_events(adata):
     """
-    Removes UTRs that have less than 2 pA sites, effectively selecting for alternative
-    poly adenilation (APA) events.
+    Removes UTRs that have less than 2 alternative transcription sites, effectively 
+    selecting alternative poly adenilation (APA) or alternative transcription 
+    initiation (ATI) events.
 
     Args:
         adata (anndata.AnnData): The AnnData object to select APA events.
