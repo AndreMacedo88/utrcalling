@@ -1,4 +1,5 @@
 # import general purpose tools
+from cmath import isnan
 import warnings
 import re
 import joblib
@@ -16,8 +17,8 @@ from tqdm import tqdm
 from utrcalling.core import module_log, helpers
 
 
-def generate_friendly_utr_size_names(
-        adata, out='', utr_name_column="utr_name", gene_name_column="gene_name"):
+def generate_utr_site_names_from_gene_name(
+        adata, utr_name_column="utr_name", gene_name_column="gene_name"):
     """
     Generates names for each distinct UTR size (UTR site) based on the gene name and UTR 
     number.
@@ -28,10 +29,6 @@ def generate_friendly_utr_size_names(
         adata (anndata.AnnData): The AnnData object to change the var_names.
         out (str, optional): The path to write the output.
     """
-
-    if not out:
-        out = 'with_friendly_UTR_size_names.h5ad'
-    out_filepath = helpers.check_file_exists_and_return_unique(out)
 
     adata = adata.copy()
 
@@ -45,18 +42,19 @@ def generate_friendly_utr_size_names(
     for row in adata.var.itertuples():
         utr_name = getattr(row, utr_name_column)
         gene_name = getattr(row, gene_name_column)
+
         if utr != utr_name:
             counter = 1
             utr = utr_name
 
         utr_info = utr.split("_")
         if len(utr_info) > 1:
-            if gene_name == "nan":
+            if pd.isnull(gene_name):
                 name = f"{utr_info[0]}_UTR{utr_info[1]}_site{counter}"
             else:
                 name = f"{gene_name}_UTR{utr_info[1]}_site{counter}"
         else:
-            if gene_name == "nan":
+            if pd.isnull(gene_name):
                 name = f"{utr_info[0]}_site{counter}"
             else:
                 name = f"{gene_name}_site{counter}"
@@ -79,9 +77,7 @@ def generate_friendly_utr_size_names(
     adata.var = adata.var.drop(['UTR_site_named'], axis=1)
     adata.var.index.name = None
 
-    # Write the data to disk
-    adata.write_h5ad(out_filepath)
-    return
+    return adata
 
 
 def select_alternative_transcription_events(adata):
