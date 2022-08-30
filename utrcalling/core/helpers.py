@@ -169,3 +169,12 @@ def count_duplicates(list_of_strings, hamming=0):
 def split_list(a, n):
     k, m = divmod(len(a), n)
     return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
+
+
+def check_file_suffix_and_append_before(path, to_append, suffix):
+    if not suffix.startswith("."):
+        suffix = f".{suffix}"
+    if suffix in path:
+        path = path.replace(suffix, "")
+
+    return f"{path}{to_append}{suffix}"
