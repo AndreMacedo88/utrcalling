@@ -7,7 +7,7 @@ from utrcalling.core import helpers
 
 def generate_names(input_path, out_path, utr_name_column, gene_name_column):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    ap.friendly_polya_names(
+    ap.generate_friendly_utr_size_names(
         adata=adata,
         out=out_path,
         utr_name_column=utr_name_column,

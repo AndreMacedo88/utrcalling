@@ -1,11 +1,16 @@
+# import general purpose tools
 import warnings
 import re
 import joblib
+# import data wrangling tools
 import numpy as np
-from sklearn.neighbors import KernelDensity
-from scipy.signal import argrelextrema
 import pandas as pd
 import anndata
+# import stats tools
+from statsmodels.nonparametric.bandwidths import bw_silverman
+from sklearn.neighbors import KernelDensity
+from scipy.signal import argrelextrema
+# import visualization tools
 from tqdm import tqdm
 # import internal tools
 from utrcalling.core import module_log, helpers
@@ -14,8 +19,10 @@ from utrcalling.core import module_log, helpers
 def generate_friendly_utr_size_names(
         adata, out='', utr_name_column="utr_name", gene_name_column="gene_name"):
     """
-    Generates names for each distinct UTR size based on the gene name and UTR number.
+    Generates names for each distinct UTR size (UTR site) based on the gene name and UTR 
+    number.
     It then changes the var_names variable of the AnnData object with those new names.
+    The old names/IDs are kept in .var['UTR_site']
 
     Args:
         adata (anndata.AnnData): The AnnData object to change the var_names.
@@ -29,9 +36,9 @@ def generate_friendly_utr_size_names(
     adata = adata.copy()
 
     # Keep old var_names in the var layer
-    adata.var['pA'] = adata.var_names
+    adata.var['UTR_site'] = adata.var_names
 
-    # Append pA number termination to gene names, making them pA names
+    # Append UTR_site number termination to gene names, making them UTR_site names
     new = []
     counter = 1
     utr = ""
@@ -45,31 +52,31 @@ def generate_friendly_utr_size_names(
         utr_info = utr.split("_")
         if len(utr_info) > 1:
             if gene_name == "nan":
-                name = f"{utr_info[0]}_UTR{utr_info[1]}_pA{counter}"
+                name = f"{utr_info[0]}_UTR{utr_info[1]}_site{counter}"
             else:
-                name = f"{gene_name}_UTR{utr_info[1]}_pA{counter}"
+                name = f"{gene_name}_UTR{utr_info[1]}_site{counter}"
         else:
             if gene_name == "nan":
-                name = f"{utr_info[0]}_pA{counter}"
+                name = f"{utr_info[0]}_site{counter}"
             else:
-                name = f"{gene_name}_pA{counter}"
+                name = f"{gene_name}_site{counter}"
 
         new.append(name)
         counter += 1
 
-    adata.var['pA_named'] = new
+    adata.var['UTR_site_named'] = new
 
-    # Deal with duplicates in the pA names
-    dups = adata[:, adata.var.pA_named.duplicated(keep='first')].var.pA_named
+    # Deal with duplicates in the UTR site names
+    dups = adata[:, adata.var.UTR_site_named.duplicated(keep='first')].var.UTR_site_named
     for dup in dups:
         counter = 1
-        for row in adata[:, adata.var.pA_named == dup].var.itertuples():
-            adata.var.loc[row.Index, 'pA_named'] = f"{dup}_{counter}"
+        for row in adata[:, adata.var.UTR_site_named == dup].var.itertuples():
+            adata.var.loc[row.Index, 'UTR_site_named'] = f"{dup}_{counter}"
             counter += 1
 
-    # Assign the new pA names to the index, and drop the pA name column and index name
-    adata.var_names = adata.var.pA_named
-    adata.var = adata.var.drop(['pA_named'], axis=1)
+    # Assign the new UTR site names to the index, and drop the UTR site name column and index name
+    adata.var_names = adata.var.UTR_site_named
+    adata.var = adata.var.drop(['UTR_site_named'], axis=1)
     adata.var.index.name = None
 
     # Write the data to disk
@@ -135,11 +142,11 @@ def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
     cell_mean_sizes = pd.DataFrame(index=adata.obs_names)
     cell_var_sizes = pd.DataFrame(index=adata.obs_names)
 
-    # parallelize the calculation of mean pA size per cell per UTR
+    # parallelize the calculation of mean UTR site size per cell per UTR
     utrs = adata.var[utr_name_column].unique()
     utr_list, umi_list, mean_and_var_list = zip(*joblib.Parallel(n_jobs=-2)(
         joblib.delayed(compute)(utr=utr) for utr in
-        tqdm(utrs, desc='Calculating mean pA usage per cell per UTR. UTR no: ',
+        tqdm(utrs, desc='Calculating mean UTR site size per cell per UTR. UTR no: ',
              colour="#ffb700", ascii=" ■")))
 
     # assign the parallelization results properly
@@ -220,8 +227,9 @@ def split_train_test_data(adata, train_fraction, seed):
     except IndexError:
         umis_per_id = np.sum(adata.X, axis=1)
         # Find optimal number of bins
+        kde_bandwidth = bw_silverman(umis_per_id)
         a = umis_per_id.reshape(-1, 1)
-        kde = KernelDensity(kernel='gaussian', bandwidth=max(a) / 10).fit(a)
+        kde = KernelDensity(kernel='gaussian', bandwidth=kde_bandwidth).fit(a)
         s = np.linspace(min(a), max(a))
         e = kde.score_samples(s.reshape(-1, 1))
         mi, _ = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
