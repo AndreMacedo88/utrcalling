@@ -7,12 +7,15 @@ from utrcalling.core import helpers
 
 def generate_names(input_path, out_path, utr_name_column, gene_name_column):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    ap.generate_friendly_utr_size_names(
+    adata = ap.generate_utr_site_names_from_gene_name(
         adata=adata,
-        out=out_path,
         utr_name_column=utr_name_column,
         gene_name_column=gene_name_column
     )
+
+    # Write the data to disk
+    out_filepath = helpers.check_file_exists_and_return_unique(out_path)
+    adata.write_h5ad(out_filepath)
 
 
 def main():
