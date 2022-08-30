@@ -1,18 +1,29 @@
 # import general tools
 import argparse
+
 # import internal tools
 from utrcalling.core import anndata_processing as ap
 from utrcalling.core import helpers
 
 
-def split_train_test(input_path, seed, train_fraction, out_paths):
+def split_train_test(input_path, seed, train_fraction, out_path):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    adata_list = ap.split_train_test_data(adata=adata,
-                                          train_fraction=train_fraction,
-                                          seed=seed)
+    adata_train, adata_test = ap.split_train_test_data(adata=adata,
+                                                       train_fraction=train_fraction,
+                                                       seed=seed)
 
-    for adata_new, out_path in zip(adata_list, out_paths):
-        adata_new.write_h5ad(out_path)
+    path_train = helpers.check_file_suffix_and_append_before(
+        path=out_path,
+        to_append=f"_{adata_train.shape[0]}_samples_train",
+        suffix="h5ad")
+
+    path_test = helpers.check_file_suffix_and_append_before(
+        path=out_path,
+        to_append=f"_{adata_test.shape[0]}_samples_test",
+        suffix="h5ad")
+
+    adata_train.write_h5ad(path_train)
+    adata_test.write_h5ad(path_test)
 
 
 def main():
@@ -42,7 +53,7 @@ parser.add_argument("input_path", type=str,
 parser.add_argument("--seed", "-s", type=int,
                     help="Integer used to set a random seed for reproducibility.",
                     default=None)
-parser.add_argument("--train_fraction", "-t", type=int,
+parser.add_argument("--train_fraction", "-t", type=float,
                     help="Fraction of data to assign as train data.",
                     default=0.75)
 parser.add_argument("--out_path", "-o", type=str,
