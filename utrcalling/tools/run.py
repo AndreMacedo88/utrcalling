@@ -174,7 +174,7 @@ parser.add_argument("--raw_sizes", "-r", action="store_true",
 parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
                     help="""
                     If True, gets the batches from the annotation file and labels each
-                    barcode/sample according to the batch. This is prevents aggregation
+                    barcode/sample according to the batch. This prevents aggregation
                     of the results if barcodes are recycled between batches, or when 
                     2 samples have the same ID.
                     """,

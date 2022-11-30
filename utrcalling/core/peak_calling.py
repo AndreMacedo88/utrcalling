@@ -159,7 +159,10 @@ def generate_peak_counts(utr_sizes, annotations=None,
     # down joblib inactive workers
     del utr_sizes
     gc.collect()
-    get_reusable_executor().shutdown(wait=True)
+    try:
+        get_reusable_executor().shutdown(wait=True)
+    except PermissionError:
+        pass
 
     if psutil.virtual_memory().percent > 50:
         for ct_mtx in count_matrix_list:
