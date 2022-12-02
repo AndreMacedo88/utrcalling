@@ -31,8 +31,8 @@ parser = argparse.ArgumentParser(
     description="""
 Subsets an experiment file (h5ad), given a list of annotations to match one 
 column of the var or obs.
-The annotation files should be a CSV file with one column, named as in the h5ad file.
-This column should have the values that will subset the h5ad experiment file.
+The annotation files' first column will be used to subset the h5ad experiment file.
+Make sure that this column values match the experiment file annotation index.
 """,
     epilog="""
 Example use:
