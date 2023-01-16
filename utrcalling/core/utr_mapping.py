@@ -54,7 +54,8 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
                      }
     if label_batches and batch is None:
         for record in bam_file:
-            batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*", record.get_sam_line()).group(1)
+            batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*",
+                                   record.get_sam_line()).group(1)
             break
         batch = protocol.batch_codes.get(batch_name, None)
 
