@@ -1,1 +1,1 @@
-include ./tests/test_data/*
+include utrcalling/tests/test_data/*
