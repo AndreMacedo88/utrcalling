@@ -57,7 +57,14 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
             batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*",
                                    record.get_sam_line()).group(1)
             break
-        batch = protocol.batch_codes.get(batch_name, None)
+        try:
+            batch = protocol.batch_codes.get(batch_name, None)
+        except AttributeError:
+            logger.warning(
+                f"Batch ID for sample {bam} was not able to be extracted. "
+                f"Please check if this behaviour is intended."
+            )
+            batch = None
 
     for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
                                desc="Interval: "):
