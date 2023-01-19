@@ -6,6 +6,8 @@ from colorama import Fore, Style
 import verboselogs
 
 # TODO: module_logger cannot handle storing to a file anymore
+
+
 def module_logger(disable=False, store_log=False, level='info', reinstall=False):
 
     # create logger with the name of the module
@@ -81,4 +83,4 @@ level_styles = {'critical': {'bold': True, 'color': 'red'}, 'debug': {'color': '
 
 def log_end_run(message):
     logger = module_logger(reinstall=True)
-    logger.success(f"End of job: {message}")
+    logger.success(f"Job ended: {message}")
