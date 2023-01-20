@@ -4,12 +4,12 @@ from pathlib import Path
 import unittest
 
 import pandas as pd
-import pysam
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
 from utrcalling.core import protocols, utr_mapping, module_log
+from test_data import synthetic_data
 
 
 class TestGenerateUtrIntervals(unittest.TestCase):
@@ -271,8 +271,8 @@ class TestMapReadsToUtrSyntheticCap(unittest.TestCase):
     def setUpClass(cls) -> None:
         utr_regions = {"utr_name": ["UTR1", "UTR2", "UTR2-1", "UTR3", "UTR4"],
                        "chrom": [1, 1, 1, 1, 1],
-                       "start": [3102600, 3152900, 3154500, 4580000, 4846300],
-                       "end": [3102750, 3153050, 3154600, 4760000, 4846300],
+                       "start": [3102600, 3340260, 3154500, 3536770, 4846300],
+                       "end": [3102750, 3340670, 3154600, 3536840, 4846300],
                        "name": ["UTR1", "UTR2", "UTR2", "UTR3", "UTR4"],
                        "score": [0.0] * 5,
                        "strand": ["+", "-", "+", "+", "+"],
@@ -282,81 +282,27 @@ class TestMapReadsToUtrSyntheticCap(unittest.TestCase):
         utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
-
-        # set-up the temporary alignment file
-        header = {'HD': {'VN': '1.0'},
-                  'SQ': [{'LN': 1575, 'SN': '1'},
-                         {'LN': 1584, 'SN': '2'}]}
-
-        with pysam.AlignmentFile("temp.bam", "wb", header=header) as outf:
-            a = pysam.AlignedSegment()
-            a.query_name = "VH00211:1:AAAFH3LHV:2:1605:72254:41645"
-            a.query_sequence = ("ATTGCGCAATGTCTGCTCT"
-                                "CTCTTCACTCGCTCAGCAGCCGGCTGACTTGTAAACTCCCCTGGCACTCGGAAGCCAACCCGCCCAAGCCTCCCTGACAC"
-                                )
-            a.flag = 83
-            a.reference_id = 0
-            a.reference_start = 164307182
-            a.mapping_quality = 255
-            a.cigar = ((4, 19), (0, 80),)
-            a.next_reference_id = 0
-            a.next_reference_start = 164302470
-            a.template_length = -4792
-            a.query_qualities = pysam.qualitystring_to_array(
-                ("-CCCCCCCCCCCCCCCCCC"
-                 "CCCC;;C-CC--CCCCCCC---CCCCCC;CCC;CCC;C-C-CCC-;CC;C;CCC;CC;CCCCC;CCCC;CC-C;CCCC-C"
-                 )
-            )
-            a.tags = (("NM", 7),
-                      ("NM", 0))
-
-            b = pysam.AlignedSegment()
-            b.query_name = "VH00211:1:AAAFH3LHV:1:2206:51539:35209"
-            b.query_sequence = ("ATTGCGCAATGCACACGAC"
-                                "AGGCCTTCCGCCGCGTTGATCTTTCGGTTGCTGGTGGCCGTGGGCCGCGCGGTCTACGGTCGGGCTGAAAGACGCGCGCTG"
-                                )
-            b.flag = 99
-            b.reference_id = 0
-            b.reference_start = 166379320
-            b.mapping_quality = 255
-            b.cigar = ((4, 19), (0, 81),)
-            b.next_reference_id = 0
-            b.next_reference_start = 166382204
-            b.template_length = 7366
-            b.query_qualities = pysam.qualitystring_to_array(
-                ("-CCCCCCCCCCC-CCCCCC"
-                 "CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;CCCCCCCCC"
-                 )
-            )
-            b.tags = (("NM", 0),
-                      ("NM", 0))
-            outf.write(a)
-            outf.write(b)
-        cls.alignment = "temp.bam"
-        pysam.index(cls.alignment)
-
-    @classmethod
-    def tearDownClass(cls):
-        os.remove("temp.bam")
-        os.remove("temp.bam.bai")
+        cls.data = synthetic_data.SmartSeqCapSeqBam()
 
 
 class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
     def setUp(self) -> None:
         self.maxDiff = None
         protocol = protocols.protocol(platform='smart-seq_cap', version=3)
-        self.mappings = utr_mapping.map_reads_to_utr(self.alignment, self.intervals,
-                                                     protocol, read='first',
-                                                     batch="Test")
+        with self.data:
+            self.mappings = utr_mapping.map_reads_to_utr(self.data.alignment, self.intervals,
+                                                         protocol, read='first',
+                                                         batch="Test")
+            print(self.mappings)
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [[3102682], [3153041]],
-            'read_strands': [['+'], ['-']],
+            'read_start_positions': [[3340662], [3536771]],
+            'read_strands': [['-'], ['+']],
             'read_barcodes': [['Test'], ['Test']],
-            'read_umis': [['TTGCCACG'], ['TTCAGACG']],
-            'read_lengths': [[80], [81]],
-            'utr_sizes_from_reads': [[68], [143]]
+            'read_umis': [['TCTGCGTG'], ['TTGGCAGG']],
+            'read_lengths': [[82], [82]],
+            'utr_sizes_from_reads': [[404], [69]]
         }
         self.assertDictEqual(
             self.mappings.to_dict(orient="list"), dict_true)

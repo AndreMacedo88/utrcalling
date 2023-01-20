@@ -31,7 +31,7 @@ class TestFilterUtrSizes(Test10x):
         merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(self.mappings),
                                                       method=self.protocol.merge_method)
 
-        # modify the data to check for successfull filtering. 
+        # modify the data to check for successfull filtering.
         # Original was [772, 756, 751, 753, 811, 751].
         merged.at["ENSMUSG00000001036", "utr_sizes_from_reads"] = [1, 798, 1, 798, 1, 798]
         self.filtered = self.protocol.filter_utr_sizes(merged, threshold=1)
@@ -54,18 +54,18 @@ class TestFilterUtrSizes(Test10x):
             self.filtered.loc["ENSMUSG00000001036"].to_dict(), dict_true)
 
 
-class TestSmartSeqCapPhospho(unittest.TestCase):
+class TestSmartSeqCapPhosphoReadname(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference_5prime.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
-        cls.protocol = protocols.protocol(platform='smart-seq_cap', version=3)
+        cls.protocol = protocols.protocol(platform='smart-seq_cap-readname', version=3)
         cls.mappings = utr_mapping.map_reads_to_utr(
             alignment, intervals, cls.protocol, read='first', batch="test_sample")
 
 
-class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhospho):
+class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
     def setUp(self) -> None:
         # modify the data to check for successfull filtering. Original was [44, 23, 19].
         self.mappings.loc["ENSMUSG00000023905"].utr_sizes_from_reads = [44, 1, 19]
