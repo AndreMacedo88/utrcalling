@@ -22,7 +22,7 @@ class SmartSeqCapSeqBam:
             )
             a1.flag = 83  # proper pair, first in pair, reverse strand
             a1.reference_id = 0
-            a1.reference_start = 3340581  # inside the UTR by 9/10bp
+            a1.reference_start = 3340581  # Add 82 to get start. Inside the UTR by 9/10bp
             a1.mapping_quality = 255
             a1.cigar = ((0, 82), (4, 19))
             a1.next_reference_id = 0
