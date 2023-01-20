@@ -237,7 +237,7 @@ class ProtocolFivePrime(Protocol):
     def filter_utr_sizes(utr_sizes, **kwargs):
         logger = module_log.module_logger()
         logger.info("""
-        For 5'UTR protocols, no UTR size filtering is performed because having transcripts 
+        For 5'UTR protocols, no UTR size filtering is performed because having transcripts
         with 5'UTR size 0 means these transcripts start at the ATG site.
         """)
         return utr_sizes
@@ -275,11 +275,11 @@ class ProtocolTenx2(ProtocolTenx):
         Get read UMI and barcode from 10x version 2
 
         Args:
-            alignment (HTSeq.SAM_Alignment): The genome alignment line with the read 
+            alignment (HTSeq.SAM_Alignment): The genome alignment line with the read
             information.
 
         Returns:
-            tuple: a tuple of strings, containing the the read UMI and barcode in 
+            tuple: a tuple of strings, containing the the read UMI and barcode in
             position 0 and 1, respectively.
         """
         read_seq = alignment.read.seq
@@ -329,6 +329,25 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
     def get_reads_identity(alignment, **kwargs):
         read_batch_id = kwargs.get('batch', 'S')
 
+        read_seq = helpers.to_string(alignment.read.seq)
+
+        ss3_regex = "(ATTGCGCAATG)[NGCAT]{8}"
+        umi_match = re.search(ss3_regex, read_seq)
+        if umi_match:
+            read_umi = umi_match.group(0)[11:19]  # 8 bp UMI
+            assert(len(read_umi) == 8)  # 8 bp UMI
+        else:
+            return None, read_batch_id
+
+        return read_umi, read_batch_id
+
+
+class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
+
+    @ staticmethod
+    def get_reads_identity(alignment, **kwargs):
+        read_batch_id = kwargs.get('batch', 'S')
+
         read_seq = helpers.to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]
         assert(len(read_umi) == 8)  # 8 bp UMI
@@ -354,6 +373,11 @@ def protocol(platform, version, *args, **kwargs):
     elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
         if version == 3:
             return ProtocolCapseqSmartseq3(*args, **kwargs)
+        else:
+            raise NotImplementedError(error_message)
+    elif platform.lower() in ('smart-seq_cap-readname', 'smartseq_cap-readname'):
+        if version == 3:
+            return ProtocolCapseqSmartseq3ReadName(*args, **kwargs)
         else:
             raise NotImplementedError(error_message)
     else:

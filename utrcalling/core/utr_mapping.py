@@ -40,18 +40,14 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
     bam_file = HTSeq.BAM_Reader(bam)
     utr_mappings = dict()
 
-    # mapping statistics:
-
-    # TODO: try to implement the following without using all the RAM or wasting 5 minutes:
-    # alignments_number = len([al for al in bam_file])
-    # "Number of alignments": alignments_number,
-
     read_strand_string = f"Reads not '{read}'"
-    mapping_stats = {read_strand_string: 0,
-                     "Alignments not proper pair": 0, "PCR duplicates": 0,
-                     "Alignments not primary alignment": 0,
-                     "Alignments in interval but wrong strand": 0
-                     }
+    mapping_stats = {
+        "Reads mapped to the region of interest": 0,
+        read_strand_string: 0,
+        "Alignments not proper pair": 0, "PCR duplicates": 0,
+        "Alignments not primary alignment": 0,
+        "Alignments in interval but wrong strand": 0
+    }
     if label_batches and batch is None:
         for record in bam_file:
             batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*",
@@ -80,21 +76,17 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
                                    read_lengths, utr_sizes_from_reads]
 
         for alignment in bam_file[interval]:  # BAM_Reader[GenomicInterval] is a generator
+            mapping_stats["Reads mapped to the region of interest"] += 1
             if not alignment.pe_which == read:  # get only one of the 2 paired reads
                 mapping_stats[read_strand_string] += 1
-                continue
-            if not alignment.proper_pair:
+            elif not alignment.proper_pair:
                 mapping_stats["Alignments not proper pair"] += 1
-                continue
-            if alignment.pcr_or_optical_duplicate:
+            elif alignment.pcr_or_optical_duplicate:
                 mapping_stats["PCR duplicates"] += 1
-                continue
-            if alignment.not_primary_alignment:
+            elif alignment.not_primary_alignment:
                 mapping_stats["Alignments not primary alignment"] += 1
-                continue
-            if not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
+            elif not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
                 mapping_stats["Alignments in interval but wrong strand"] += 1
-                continue
             else:
                 read_info = extract_read_information(alignment=alignment,
                                                      interval=interval,
@@ -135,7 +127,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
 
     utr_mappings.index.name = "utr_name"
 
-    logger.info("Mapping statistics: %s", mapping_stats)
+    logger.info("Mapping statistics: %s", mapping_stats)  # most performant method to log
     logger.debug("Size of mapped reads object in bytes: %s \nMemory usage: %s",
                  asizeof.asizeof(utr_mappings),
                  psutil.virtual_memory().percent)
