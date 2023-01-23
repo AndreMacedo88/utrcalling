@@ -45,7 +45,7 @@ def run(utr_annotation,
         alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
         sample_names = [helpers.get_parent_folders_names_from_file(
             file_path) for file_path in alignments]
-    elif protocol_platform in ("smartseq_cap", "smart-seq_cap"):
+    elif protocol_platform in ("smartseq_cap-readname", "smart-seq_cap-readname"):
         sample_names = [file_path.split("/")[-2] for file_path in alignments]
     else:
         sample_names = None
