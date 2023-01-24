@@ -48,9 +48,9 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
         "Alignments not primary alignment": 0,
         "Alignments in interval but wrong strand": 0
     }
-    if label_batches and batch is None:
+    if label_batches and batch is None:  # TODO: make this general
         for record in bam_file:
-            batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*",
+            batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*",  # TODO: make this general
                                    record.get_sam_line()).group(1)
             break
         try:

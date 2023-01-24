@@ -315,9 +315,9 @@ class ProtocolSmartseq3(ProtocolSmartseq):
 
 class ProtocolCapseq(ProtocolFivePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, sample_names=None) -> None:
+                 label_batches=None, sample_names=None, annotations=None) -> None:
         super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
-                         sample_names)
+                         sample_names, annotations)
 
         if self.label_batches is None:
             self.label_batches = False
@@ -328,7 +328,6 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
     @staticmethod
     def get_reads_identity(alignment, **kwargs):
         read_batch_id = kwargs.get('batch', 'S')
-
         read_seq = helpers.to_string(alignment.read.seq)
 
         ss3_regex = "(ATTGCGCAATG)[NGCAT]{8}"
