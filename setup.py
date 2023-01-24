@@ -46,7 +46,7 @@ setuptools.setup(
         "joblib",
         "anndata",
         "scanpy",
-        "gtfparse",
+        "gtfparse>=1.2.1, <2",
         "htseq",
         "pybedtools",
         "tqdm",
