@@ -48,7 +48,8 @@ def run(utr_annotation,
     elif protocol_platform in ("smartseq_cap-readname", "smart-seq_cap-readname"):
         sample_names = [file_path.split("/")[-2] for file_path in alignments]
     else:
-        sample_names = None
+        sample_names = [file_path.split("/")[-1].split(".")[0]
+                        for file_path in alignments]
 
     # Set up the protocol for this specific run
     protocol = protocols.protocol(

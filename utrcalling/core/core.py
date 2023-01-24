@@ -173,6 +173,7 @@ def call_peaks(utr_sizes_counts,
                 annotations[barcodes_column_name].astype(str) \
                 + "-" \
                 + annotations[batch_column_name].apply(lambda x: protocol.batch_codes[x]).astype(str)
+        """
         if psutil.virtual_memory().percent > 20:  # if there are memory issues
             logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
             num, div = filtered_positions.shape[0], 10
@@ -193,7 +194,7 @@ def call_peaks(utr_sizes_counts,
         else:
             filtered_positions = filter_barcodes(filtered_positions,
                                                  annotations=annotations)
-
+        """
     # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(
         filtered_positions, annotations=annotations, func=protocol.peak_calling)
