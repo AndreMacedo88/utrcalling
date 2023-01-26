@@ -11,118 +11,7 @@ import copy
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
 from utrcalling.core import peak_calling, protocols, utr_mapping, module_log, helpers
-
-
-ANNOTATION = pd.DataFrame(columns=["celltype", "barcodes",
-                                   "cool_annotation"],
-                          data=list(
-    zip(
-        ["A", "B", "A", "C", "B"],
-        ["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAG-1", "GAAAAAAAAAAAAAAT-2",
-         "AAAAAAAAAAAAATTT-1", "AAAAAAAAAAAAAAGG-2"],
-        [2.3, 4.4, 5.0, 2.1, 3.0]
-    )
-)
-)
-
-
-class DataSynthetic:
-    def __init__(self) -> None:
-        read_start_positions = [[100, 101, 100, 200, 202, 300],
-                                [1000, 1100, 1102, 1200, 1200]]
-        read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-", "+"]]
-        read_barcodes = [["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
-                          "GAAAAAAAAAAAAAAT-2", "GAAAAAAAAAAAAAAT-2",
-                          "AAAAAAAAAAAAAAAG-2", "AAAAAAAAAAAAAAAG-1"],
-                         ["AAAAAAAAAAAAAAAG-1", "AAAAAAAAAAAAAGGG-2",
-                          "AAAAAAAAAAAAAAAT-2", "AAAAAAAAAAAAAATT-1",
-                          "ATATATATATATATAT-1"]]
-        read_umis = [
-            ["CCCCCCCCGG", "CCCCCCCCTT", "CCCCCCCCAA", "CCCCCCCCAA", "CCCCCCCGGC",
-             "CCCCCCCTTC"],
-            ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC", "CTCTCTCTCT"]
-        ]
-        read_lengths = [
-            [49, 59, 51, 52, 48, 52],
-            [50, 52, 53, 52, 70]
-        ]
-        utr_sizes_from_reads = [
-            [500, 499, 500, 400, 398, 300],
-            [100, 200, 202, 300, 300]
-        ]
-
-        self._data_synthetic = pd.DataFrame(columns=['read_start_positions', 'read_strands',
-                                                     'read_barcodes', 'read_umis',
-                                                     'read_lengths', 'utr_sizes_from_reads'],
-                                            index=["ENSMUSG00000000001",
-                                                   "ENSMUSG00000000002"],
-                                            data=list(
-            zip(
-                read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
-                utr_sizes_from_reads
-            )
-        )
-        )
-
-        self._anno = ANNOTATION
-
-        @property
-        def data_synthetic(self):
-            return copy.deepcopy(self._data_synthetic)
-
-        @property
-        def anno(self):
-            return copy.deepcopy(self._anno)
-
-
-class DataFiltered:
-    def __init__(self) -> None:
-        read_start_positions = [[100, 101, 100, 200, 202, 300],
-                                [1000, 1100, 1102, 1200]]
-        read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-"]]
-        read_barcodes = [
-            ['AAAAAAAAAAAAAAAA-1', 'AAAAAAAAAAAAAAAA-1',
-             'GAAAAAAAAAAAAAAT-2', 'GAAAAAAAAAAAAAAT-2',
-             'AAAAAAAAAAAAAAGG-2', 'AAAAAAAAAAAAAAAG-1'],
-            ['AAAAAAAAAAAAAAAG-1', 'AAAAAAAAAAAAAAGG-2',
-             'GAAAAAAAAAAAAAAT-2', 'AAAAAAAAAAAAATTT-1']
-        ]
-        read_umis = [
-            ["CCCCCCCCGG", "CCCCCCCCTT", "CCCCCCCCAA", "CCCCCCCCAA", "CCCCCCCGGC",
-             "CCCCCCCTTC"],
-            ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC"]
-        ]
-        read_lengths = [
-            [49, 59, 51, 52, 48, 52],
-            [50, 52, 53, 52]
-        ]
-        utr_sizes_from_reads = [
-            [500, 499, 500, 400, 398, 300],
-            [100, 200, 202, 300]
-        ]
-
-        self._data_filtered = pd.DataFrame(columns=['read_start_positions', 'read_strands',
-                                                    'read_barcodes', 'read_umis',
-                                                    'read_lengths', 'utr_sizes_from_reads'],
-                                           index=["ENSMUSG00000000001",
-                                                  "ENSMUSG00000000002"],
-                                           data=list(
-            zip(
-                read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
-                utr_sizes_from_reads
-            )
-        )
-        )
-
-        self._anno = ANNOTATION
-
-        @property
-        def data_filtered(self):
-            return copy.deepcopy(self._data_filtered)
-
-        @property
-        def anno(self):
-            return copy.deepcopy(self._anno)
+from test_data import synthetic_data
 
 
 class TestPeakCalling(unittest.TestCase):
@@ -315,7 +204,7 @@ class TestFilterBarcodes(TestPeakCalling):
 
 class TestFilterBarcodesSynthetic(unittest.TestCase):
     def setUp(self) -> None:
-        data_synthetic = DataSynthetic()
+        data_synthetic = synthetic_data.ThreePrimeBarcoded()
         self.data = data_synthetic._data_synthetic
         self.anno = data_synthetic._anno
         self.filtered = peak_calling.filter_barcodes(self.data, annotations=self.anno)
@@ -428,7 +317,7 @@ class TestAnnoDf(TestGeneratePeakCounts):
 class TestGeneratePeakCountsSynthetic(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        data_filtered = DataFiltered()
+        data_filtered = synthetic_data.ThreePrimeBarcodedFiltered()
         cls.data = data_filtered._data_filtered
         cls.anno = data_filtered._anno
         cls.protocol = protocols.protocol(platform='10x', version=2,
