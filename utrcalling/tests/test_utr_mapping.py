@@ -1,4 +1,3 @@
-from __future__ import annotations
 import os
 from pathlib import Path
 import unittest
@@ -123,7 +122,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
 
 class TestSmartSeq3Cap(TestMapReadsToUtr):
     def setUp(self) -> None:
-        protocol = protocols.protocol(platform='smart-seq_cap', version=3)
+        protocol = protocols.protocol(platform='smart-seq_cap-readname', version=3)
         self.mappings = utr_mapping.map_reads_to_utr(self.alignment_cap,
                                                      self.intervals_5prime,
                                                      protocol, read='first',
