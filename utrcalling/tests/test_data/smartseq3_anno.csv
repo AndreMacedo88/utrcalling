@@ -1,4 +1,4 @@
-ID,Sample_Name,Trio,Member_in_Trio,Sex,Diagnosis,Sample_Barcode,Batch
+Sample_ID,Sample_Name,Trio,Member_in_Trio,Sex,Diagnosis,Sample_Barcode,Batch
 AS-804067-LR-62055,ASD_014,FAM062,Mother,Female,CTRL,GCTACC,ST-K00207:98:HLYCFBBXX
 AS-804069-LR-62055,ASD_020,FAM064,Mother,Female,CTRL,AGCGCT,ST-K00207:98:HLYCFBBXX
 AS-804071-LR-62055,ASD_023,FAM066,Father,Male,CTRL,GTATAG,ST-K00207:98:HLYCFBBXX
