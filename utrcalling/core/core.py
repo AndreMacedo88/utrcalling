@@ -2,24 +2,24 @@
 # Goal
 Mapping RNA-seq reads (single cell or bulk) to UTRs.
 
-## Secondary goal
+# Secondary goal
 Call consensus peaks based on the distribution of molecule sizes.
 
 # Summary
 This file contains 3 functions for the 3 main steps in this procedure.
 
-## General steps
+# General steps
 1. Extract the UTR regions of transcripts (from ENSEMBL)
 2. Map the aligned, filtered reads to the UTR regions from step 1.
 3. Clean-up the data and call consensus peaks if required.
 
-## More detailed steps
-1.1. Resolve overlapping transcripts so that every entry stores unique, non-overlapping, 
+# More detailed steps
+1.1. Resolve overlapping transcripts so that every entry stores unique, non-overlapping,
 genomic coordinates
 
 # Observations
 - Final object is a count matrix in AnnData format.
-- Output should inherit single cell annotations, as well as gene annotation like the 
+- Output should inherit single cell annotations, as well as gene annotation like the
 genomic coordinates and optionally UTR sequence information.
 """
 
@@ -88,8 +88,8 @@ def map_aligned_reads(alignments,
         n_cores = -2
         if sample_names is not None:
             samples = []
-            for counter in range(len(alignments)):
-                samples.append(sample_names[counter])
+            for alignment in alignments:
+                samples.append(sample_names[alignment])
             read_mappings = joblib.Parallel(n_jobs=n_cores)(
                 joblib.delayed(
                     map_reads_to_utr)(alignment, intervals,
@@ -166,14 +166,14 @@ def call_peaks(utr_sizes_counts,
         if protocol.label_batches:
             barcodes_column_name = annotations.columns.str.extract(
                 r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0][0]
-            batch_column_name = annotations.columns.str.extract(
-                r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0][0]
+            sample_column_name = annotations.columns.str.extract(
+                r"(.*sample_id.*)", flags=re.IGNORECASE).dropna().values[0][0]
             # rename the barcodes with the batch appended
             annotations[barcodes_column_name] = \
                 annotations[barcodes_column_name].astype(str) \
                 + "-" \
-                + annotations[batch_column_name].apply(lambda x: protocol.batch_codes[x]).astype(str)
-        """
+                + annotations[sample_column_name].apply(
+                    lambda x: protocol.sample_idx[protocol.sample_names.inverse[x]]).astype(str)
         if psutil.virtual_memory().percent > 20:  # if there are memory issues
             logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
             num, div = filtered_positions.shape[0], 10
@@ -194,7 +194,6 @@ def call_peaks(utr_sizes_counts,
         else:
             filtered_positions = filter_barcodes(filtered_positions,
                                                  annotations=annotations)
-        """
     # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(
         filtered_positions, annotations=annotations, func=protocol.peak_calling)

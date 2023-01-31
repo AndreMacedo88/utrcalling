@@ -91,7 +91,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
                 read_info = extract_read_information(alignment=alignment,
                                                      interval=interval,
                                                      protocol=protocol,
-                                                     batch=batch)
+                                                     bam_name=bam)
                 if read_info is None:
                     continue
                 else:
@@ -135,7 +135,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
     return utr_mappings
 
 
-def extract_read_information(alignment, interval, protocol, batch=None):
+def extract_read_information(alignment, interval, protocol, bam_name):
     """
     Extracts all the relevant information from matching reads in a HTSeq.Alignment object.
 
@@ -189,7 +189,7 @@ def extract_read_information(alignment, interval, protocol, batch=None):
 
     # get the read's barcode and UMI
     read_umi, read_barcode = protocol.get_reads_identity(alignment=alignment,
-                                                         batch=batch)
+                                                         bam_name=bam_name)
     if not read_umi:  # if the UMI was not found, we discard the read
         return None
     if not read_barcode:

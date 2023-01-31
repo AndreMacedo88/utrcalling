@@ -43,6 +43,9 @@ def run(utr_annotation,
     # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.
     if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         alignments = helpers.get_paths_from_folders(alignments, suffix='.bam')
+
+    """
+    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         sample_names = [helpers.get_parent_folders_names_from_file(
             file_path) for file_path in alignments]
     elif protocol_platform in ("smartseq_cap-readname", "smart-seq_cap-readname"):
@@ -50,6 +53,7 @@ def run(utr_annotation,
     else:
         sample_names = [file_path.split("/")[-1].split(".")[0]
                         for file_path in alignments]
+    """
 
     # Set up the protocol for this specific run
     protocol = protocols.protocol(
@@ -58,7 +62,7 @@ def run(utr_annotation,
         merge_method=batch_merge_method,
         call_peaks=not raw_sizes,
         label_batches=label_batches,
-        sample_names=sample_names,
+        alignments=alignments,
         annotations=annotations_file)
 
     # Get UTR reference data from the organisms GTF annotation file

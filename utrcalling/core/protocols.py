@@ -21,6 +21,7 @@ import pandas as pd
 # stats packages
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
+from bidict import bidict
 # internal packages
 from utrcalling.core import module_log, helpers
 
@@ -55,14 +56,17 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def __init__(self,
                  merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, sample_names=None, annotations=None
+                 label_batches=None, alignments=None, annotations=None
                  ) -> None:
         self.logger = module_log.module_logger()
-
+        self.annotations = helpers.check_if_path_and_open(annotations, method="csv")
         self.merge_method = merge_method
-        self.sample_names = sample_names
         self.call_peaks = call_peaks
-        self.batch_codes = self._batch_codes(annotations=annotations)
+        self.sample_names, self.sample_idx = self.get_sample_names(
+            annotations=self.annotations,
+            alignments=alignments
+        )
+        # self.batch_codes = self.get_batch_codes(annotations=self.annotations)
 
         if isinstance(label_batches, bool) or label_batches is None:
             self.label_batches = label_batches
@@ -74,61 +78,137 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 self.peak_calling = self._call_peaks_using_kernel_density_estimator
             else:
                 raise NotImplementedError(
-                    f"Method {call_peaks_method} for calling consensus peaks is not implemented."
+                    (
+                        f"Method {call_peaks_method} for calling consensus peaks is not "
+                        f"implemented."
+                    )
                 )
         else:
             self.peak_calling = self._bypass_calling_peaks
 
     # log the protocol:
     def protocol_log(self):
-        self.logger.info(f'Protocol:\n' +
-                         f'║ Position counts merging method: {self.merge_method}\n' +
-                         f'║ Call peaks? {self.call_peaks}\n' +
-                         f'║ Peak calling method: {self.peak_calling}\n' +
-                         f'║ Add a number to batch names while merging batches? {self.label_batches}\n'
-                         )
+        self.logger.info(
+            f'Protocol:\n' +
+            f'║ Position counts merging method: {self.merge_method}\n' +
+            f'║ Call peaks? {self.call_peaks}\n' +
+            f'║ Peak calling method: {self.peak_calling}\n' +
+            f'║ Add a number to batch names while merging batches? {self.label_batches}\n'
+        )
 
     # set-up methods
-    def _batch_codes(self, annotations):
+    def get_sample_names(self, annotations, alignments):
         if annotations is not None:
-            annotations = helpers.check_if_path_and_open(annotations, method="csv")
+            sample_names_dict = bidict()
+            sample_idx_dict = dict()
+            try:
+                sample_names = annotations.loc[:, annotations.columns.str.extract(
+                    r"(.*sample_id.*)", flags=re.IGNORECASE).values[0]]
+            except IndexError as err:
+                msg = (
+                    f"Please supply a column for `sample_id` in the annotation file. "
+                    f"This column should contain the names of each sample, corresponding "
+                    f"to the name in the bam file."
+                )
+                self.logger.error(msg)
+                raise IndexError(msg) from err
+
+            for idx, sample in enumerate(sample_names.iloc[:, 0]):
+                sample_bam = [bam for bam in alignments if sample in bam]
+                sample_bam_len = len(sample_bam)
+                if sample_bam_len > 1:
+                    msg = (
+                        f"The `sample_id` column in the annotation file should contain "
+                        f"IDs that are uniquely identifiable to the provided alignment "
+                        f"bam files' names."
+                    )
+                    self.logger.error(msg)
+                    raise ValueError(msg)
+                elif sample_bam_len == 0:
+                    msg = (
+                        f"Some samples IDs not found in the provided alignment bam files."
+                        f"The `sample_id` column in the annotation file should contain "
+                        f"IDs that match the provided alignment bam files' names."
+                    )
+                    self.logger.warning(msg)
+                else:
+                    sample_names_dict[sample_bam[0]] = sample
+                    sample_idx_dict[sample_bam[0]] = idx + 1  # to turn to 1-based index
+        return sample_names_dict, sample_idx_dict
+
+    """
+            batches_dict = dict()
+            try:
+                batches_df = annotations.loc[:, [annotations.columns.str.extract(
+                    r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0][0],
+                    sample_names.columns[0]]]
+            except IndexError as err:
+                msg = (
+                    f"If you are working with multiple samples/batches, please supply "
+                    f"a column for `batch` in the annotation file. "
+                    f"This column should contain the batch ID for each sample."
+                )
+                self.logger.error(msg)
+                raise err
+            for idx, row in enumerate(batches_df.itertuples()):
+                try:
+                    batches_dict[sample_names_dict.inverse[row[1]]] = {row[0]: idx}
+                except KeyError:
+                    msg = (
+                        f"Some batches not found for the provided alignment bam files."
+                        f"The annotation file should contain only information for the"
+                        f"supplied data (bam files)."
+                    )
+                    self.logger.warning(msg)
+                    continue
+
+            return sample_names_dict, batches_dict
+        else:
+            return None
+
+    def get_batch_codes(self, annotations):
+        if annotations is not None:
             try:
                 batches_keys = np.unique(annotations.loc[:, annotations.columns.str.extract(
                     r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]].values)
                 batches = {batches_keys[i]: i + 1 for i in range(len(batches_keys))}
             except IndexError as err:
-                msg = f"If you are working with multiple samples/batches, please supply \
-a column for `batch` in the annotation file."
+                msg = (
+                    f"If you are working with multiple samples/batches, please supply "
+                    f"a column for `batch` in the annotation file. "
+                    f"This column should contain the batch ID for each sample."
+                )
                 self.logger.error(msg)
                 raise err
             return batches
         else:
             return None
+    """
 
     # Methods to get read information from the read alignments
-    @staticmethod
-    @abstractmethod
+    @ staticmethod
+    @ abstractmethod
     def get_reads_identity(alignment, **kwargs):
         pass
 
-    @staticmethod
-    @abstractmethod
+    @ staticmethod
+    @ abstractmethod
     def check_strand_matches(alignment, **kwargs):
         pass
 
-    @staticmethod
-    @abstractmethod
+    @ staticmethod
+    @ abstractmethod
     def get_utr_size_from_read(read_start_position, interval):
         pass
 
     # Methods to process UTR sizes
-    @staticmethod
-    @abstractmethod
+    @ staticmethod
+    @ abstractmethod
     def filter_utr_sizes(alignment, **kwargs):
         pass
 
     # Methods to aggregate individual molecules' UTR sizes to consensus peaks:
-    @staticmethod
+    @ staticmethod
     def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=12):
         """
         Fit a kernel density model to predict the peak's ditribution density function
@@ -194,7 +274,7 @@ a column for `batch` in the annotation file."
         peaks[peaks == 0] = max_
         return peaks
 
-    @staticmethod
+    @ staticmethod
     def _bypass_calling_peaks(utr_sizes_vector):
         if np.issubdtype(utr_sizes_vector.dtype, np.integer):
             return utr_sizes_vector
@@ -218,22 +298,22 @@ class ProtocolThreePrime(Protocol):
         utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
         return utr_sizes
 
-    @staticmethod
+    @ staticmethod
     def check_strand_matches(read_strand, utr_strand):
         return read_strand != utr_strand
 
-    @staticmethod
+    @ staticmethod
     def get_utr_size_from_read(read_start_position, interval):
         return abs(read_start_position - interval.start_d)
 
 
 class ProtocolFivePrime(Protocol):
 
-    @staticmethod
+    @ staticmethod
     def check_strand_matches(read_strand, utr_strand):
         return read_strand == utr_strand
 
-    @staticmethod
+    @ staticmethod
     def filter_utr_sizes(utr_sizes, **kwargs):
         logger = module_log.module_logger()
         logger.info("""
@@ -242,16 +322,16 @@ class ProtocolFivePrime(Protocol):
         """)
         return utr_sizes
 
-    @staticmethod
+    @ staticmethod
     def get_utr_size_from_read(read_start_position, interval):
         return abs(read_start_position - interval.end_d)
 
 
 class ProtocolTenx(ProtocolThreePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, sample_names=None, annotations=None) -> None:
+                 label_batches=None, alignments=None, annotations=None) -> None:
         super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
-                         sample_names, annotations)
+                         alignments, annotations)
 
         if self.label_batches is None:
             self.label_batches = True
@@ -259,7 +339,7 @@ class ProtocolTenx(ProtocolThreePrime):
 
 class ProtocolTenx3(ProtocolTenx):
 
-    @staticmethod
+    @ staticmethod
     def get_reads_identity(alignment, **_):
         read_seq = alignment.read.seq
         read_barcode = helpers.to_string(read_seq[:16])
@@ -269,7 +349,7 @@ class ProtocolTenx3(ProtocolTenx):
 
 class ProtocolTenx2(ProtocolTenx):
 
-    @staticmethod
+    @ staticmethod
     def get_reads_identity(alignment, **_):
         """
         Get read UMI and barcode from 10x version 2
@@ -290,9 +370,9 @@ class ProtocolTenx2(ProtocolTenx):
 
 class ProtocolSmartseq(ProtocolThreePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, sample_names=None, annotations=None) -> None:
+                 label_batches=None, alignments=None, annotations=None) -> None:
         super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
-                         sample_names, annotations)
+                         alignments, annotations)
 
         if self.label_batches is None:
             self.label_batches = False
@@ -300,24 +380,24 @@ class ProtocolSmartseq(ProtocolThreePrime):
 
 class ProtocolSmartseq3(ProtocolSmartseq):
 
-    @staticmethod
-    def get_reads_identity(alignment, **kwargs):
-        read_batch_id = kwargs.get('batch', None)
+    def get_reads_identity(self, alignment, **kwargs):
+        bam_name = kwargs.get("bam_name")
+        read_sample_idx = self.sample_idx[bam_name]
 
         read_seq = alignment.read.seq
-        if read_batch_id is None:
+        if read_sample_idx is None:
             read_barcode = helpers.to_string(read_seq[:6])
         else:
-            read_barcode = f"{helpers.to_string(read_seq[:6])}-{read_batch_id}"
+            read_barcode = f"{helpers.to_string(read_seq[:6])}-{read_sample_idx}"
         read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
         return read_umi, read_barcode
 
 
 class ProtocolCapseq(ProtocolFivePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, sample_names=None, annotations=None) -> None:
+                 label_batches=None, alignments=None, annotations=None) -> None:
         super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
-                         sample_names, annotations)
+                         alignments, annotations)
 
         if self.label_batches is None:
             self.label_batches = False
@@ -325,7 +405,7 @@ class ProtocolCapseq(ProtocolFivePrime):
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
-    @staticmethod
+    @ staticmethod
     def get_reads_identity(alignment, **kwargs):
         read_batch_id = kwargs.get('batch', 'S')
         read_seq = helpers.to_string(alignment.read.seq)
