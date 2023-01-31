@@ -65,21 +65,23 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
                            "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
                            }
         cls.utr_regions = pd.DataFrame(cls.utr_regions).set_index("utr_name")
-        cls.alignments = ['./test_data/smartseq3_test_sorted.bam']
+        cls.alignments = ['./test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam']
         # objects for testing without label_batches
-        cls.annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
+        annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
+        cls.annotations = annotations.query("Sample_ID=='AS-740066-LR-59119'")
         cls.annotations = cls.annotations.drop_duplicates(subset=["Sample_Barcode"])
         cls.protocol = protocols.protocol(platform='smartseq', version=3,
                                           label_batches=False,
-                                          annotations=cls.annotations)
+                                          annotations=cls.annotations,
+                                          alignments=cls.alignments)
         cls.mapped = core.map_aligned_reads(
             alignments=cls.alignments, utr_regions=cls.utr_regions,
             protocol=cls.protocol, store=False)
         # objects for testing with label_batches
-        cls.annotations_label = "./test_data/smartseq3_anno.csv"
         cls.protocol_label = protocols.protocol(platform='smartseq', version=3,
-                                          label_batches=True,
-                                          annotations=cls.annotations_label)
+                                                label_batches=True,
+                                                annotations=cls.annotations,
+                                                alignments=cls.alignments)
         cls.mapped_label = core.map_aligned_reads(
             alignments=cls.alignments, utr_regions=cls.utr_regions,
             protocol=cls.protocol_label, store=False)
@@ -91,7 +93,7 @@ class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
             utr_sizes_counts=self.mapped_label,
             utr_reference_regions=self.utr_regions,
             protocol=self.protocol_label,
-            annotations=self.annotations_label,
+            annotations=self.annotations,
             store=False
         )
 
