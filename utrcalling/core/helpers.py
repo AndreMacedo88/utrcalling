@@ -87,7 +87,7 @@ def check_if_path_and_open(to_check, method='pickle'):
         elif method == "h5ad":
             output = sc.read_h5ad(to_check)
         elif method == "csv":
-            output = pd.read_csv(to_check, sep=";")  # , engine="python"
+            output = pd.read_csv(to_check, sep=",")  # , engine="python"
         else:
             raise RuntimeError(f'Method {method} not implemented yet')
         return output
