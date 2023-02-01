@@ -59,9 +59,16 @@ class Protocol(ABC, metaclass=CombinedMeta):
                  label_batches=None, alignments=None, annotations=None
                  ) -> None:
         self.logger = module_log.module_logger()
+
+        # set variables from user
         self.annotations = helpers.check_if_path_and_open(annotations, method="csv")
         self.merge_method = merge_method
         self.call_peaks = call_peaks
+
+        # set variables to be modified by the different protocols
+        self.umis = False
+        self.barcodes = False
+
         self.sample_names, self.sample_idx = self.get_sample_names(
             annotations=self.annotations,
             alignments=alignments
@@ -184,6 +191,17 @@ class Protocol(ABC, metaclass=CombinedMeta):
         else:
             return None
     """
+
+    # Protocol-specific methods
+    @ staticmethod
+    @ abstractmethod
+    def define_protocol(alignment, **kwargs):
+        pass
+
+    @ staticmethod
+    @ abstractmethod
+    def get_barcode_list(alignment, **kwargs):
+        pass
 
     # Methods to get read information from the read alignments
     @ staticmethod
