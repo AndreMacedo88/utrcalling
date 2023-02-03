@@ -35,14 +35,12 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
 
     logger = module_log.module_logger()
 
-    """
     if label_batches:
         for idx, batch in enumerate(utr_sizes):
             batch.read_barcodes = [
                 [f"{barcode}-{idx+1}" for barcode in barcodes]
                 for barcodes in batch.read_barcodes
             ]
-    """
 
     logger.info("Merging all batches' UTR sizes")
     if method == "union":
@@ -83,6 +81,7 @@ def filter_barcodes(utr_sizes, annotations):
     barcodes_real = annotations_df.loc[:, barcodes_column_name[0]].tolist()
 
     barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
+    print(utr_sizes.T)
 
     barcodes_correct = set()
     barcodes_replace = {}
@@ -92,12 +91,16 @@ def filter_barcodes(utr_sizes, annotations):
         else:
             try:
                 match = process.extract(
-                    barcode, barcodes_real, scorer=distance.Hamming.distance, score_cutoff=1)
+                    barcode, barcodes_real, scorer=distance.Hamming.distance,
+                    score_cutoff=1
+                )
             except ValueError as err:
-                print(f"Error matching sample barcode/ID: {barcode}\n Please check if \
-the barcodes in the annotation file are correct or, if using different batches with \
-similar barcodes/IDs, if all the batches are correctly described in the annotations file."
-                      )
+                print(
+                    f"Error matching sample barcode/ID: {barcode}\nPlease check if "
+                    f"the barcodes in the annotation file are correct or, if using "
+                    f"different batches with similar barcodes/IDs, if all the batches "
+                    f"are correctly described in the annotations file."
+                )
                 raise err
             if match:
                 barcode_correct = [bc[0] for bc in match]
@@ -146,9 +149,8 @@ def generate_peak_counts(utr_sizes, annotations=None,
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
     logger.info("Calling peaks for each UTR")
     cores = helpers.get_number_cores(left_out=2)
-
     utr_sizes_iter = utr_sizes.iterrows()
-    count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=cores)(
+    count_matrix_list, peaks_var_list = zip(*joblib.Parallel(n_jobs=1)(
         joblib.delayed(call_peaks)(utr=utr, func=func) for utr in tqdm(
             utr_sizes_iter, total=utr_sizes.shape[0], colour="#ffb700",
             ascii=" ■", desc='UTR: ')))
