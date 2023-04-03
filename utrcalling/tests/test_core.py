@@ -15,7 +15,10 @@ from utrcalling.core import core, module_log, protocols
 class TestMapAlignedReads(unittest.TestCase):
     def setUp(self) -> None:
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
-        protocol = protocols.protocol(platform='10x', version=2)
+        protocol = protocols.protocol(
+            platform='10x',
+            version=2,
+            annotations="./test_data/vivo_anno.csv")
 
         self.alignments_n = 5
         alignments = [
@@ -93,7 +96,6 @@ class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
             utr_sizes_counts=self.mapped_label,
             utr_reference_regions=self.utr_regions,
             protocol=self.protocol_label,
-            annotations=self.annotations,
             store=False
         )
 
@@ -107,7 +109,7 @@ class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
 
     def test_barcode(self):
-        self.assertEqual(self.results.obs_names[0], "CACTGT-3")
+        self.assertEqual(self.results.obs_names[0], "CACTGT-1")
 
     def test_utr_names(self):
         self.assertListEqual(self.results.var_names.to_list(), ["UTR1-1", "UTR1-1-1"])
@@ -119,7 +121,6 @@ class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
             utr_sizes_counts=self.mapped,
             utr_reference_regions=self.utr_regions,
             protocol=self.protocol,
-            annotations=self.annotations,
             store=False
         )
 
