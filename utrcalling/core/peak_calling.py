@@ -66,32 +66,20 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
     return sub_utr_reference_unique
 
 
-def filter_barcodes(utr_sizes, annotations):
+def filter_barcodes(utr_sizes, whitelist):
     logger = module_log.module_logger()
     logger.info('Filtering cell barcodes')
 
-    if isinstance(annotations, (pd.DataFrame, pd.Series)):
-        annotations_df = annotations
-    else:
-        annotations_df = pd.read_csv(annotations)
-
-    # Note that barcodes must be on a column with barcode somewhere in its name:
-    barcodes_column_name = annotations_df.columns.str.extract(
-        r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
-    barcodes_real = annotations_df.loc[:, barcodes_column_name[0]].tolist()
-
     barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
-    print(utr_sizes.T)
-
     barcodes_correct = set()
     barcodes_replace = {}
     for barcode in barcodes_to_test:
-        if barcode in barcodes_real:
+        if barcode in whitelist:
             barcodes_correct.add(barcode)
         else:
             try:
                 match = process.extract(
-                    barcode, barcodes_real, scorer=distance.Hamming.distance,
+                    barcode, whitelist, scorer=distance.Hamming.distance,
                     score_cutoff=1
                 )
             except ValueError as err:
@@ -114,6 +102,7 @@ def filter_barcodes(utr_sizes, annotations):
                     except IndexError:  # if working without batches, no need to check
                         barcodes_correct.add(bc)
                         barcodes_replace[barcode] = bc
+                        break
             else:
                 continue
 
@@ -129,13 +118,6 @@ def generate_peak_counts(utr_sizes, annotations=None,
 
     logger = module_log.module_logger()
     logger.info('Generating and counting UTR size peaks')
-
-    # open the annotations file
-    if annotations is not None:
-        if isinstance(annotations, (pd.DataFrame, pd.Series)):
-            pass
-        else:
-            annotations = pd.read_csv(annotations, engine='c')
 
     """# uncomment this block to generate data in chunks
     n_chunks = 3
@@ -175,15 +157,13 @@ def generate_peak_counts(utr_sizes, annotations=None,
     count_matrix = count_matrix.fillna(0).astype("int32")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
-    if annotations is not None:
-        logger.info('Adding annotations')
-        barcodes_column_name = annotations.columns.str.extract(
-            r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
-        peaks_obs = annotations.set_index(barcodes_column_name[0])
-        peaks_obs = peaks_obs.reindex(index=count_matrix.index)
-        return count_matrix, peaks_var, peaks_obs
 
-    return count_matrix, peaks_var
+    logger.info('Adding annotations')
+    barcodes_column_name = annotations.columns.str.extract(
+        r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
+    peaks_obs = annotations.set_index(barcodes_column_name[0])
+    peaks_obs = peaks_obs.reindex(index=count_matrix.index)
+    return count_matrix, peaks_var, peaks_obs
 
 
 def call_peaks(utr, func):

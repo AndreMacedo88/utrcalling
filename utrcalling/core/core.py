@@ -123,7 +123,6 @@ def map_aligned_reads(alignments,
 def call_peaks(utr_sizes_counts,
                utr_reference_regions,
                protocol,
-               annotations=None,
                store=False,
                ):
     logger = module_logger()
@@ -161,42 +160,44 @@ def call_peaks(utr_sizes_counts,
     del utr_sizes_counts  # to save memory
 
     # if we have a table with a specific set of barcodes/IDs, retain only those ones.
-    if annotations is not None:
-        annotations = helpers.check_if_path_and_open(annotations, method="csv")
-        if protocol.label_batches:
-            barcodes_column_name = annotations.columns.str.extract(
-                r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0][0]
-            sample_column_name = annotations.columns.str.extract(
-                r"(.*sample_id.*)", flags=re.IGNORECASE).dropna().values[0][0]
-            # rename the barcodes with the batch appended
-            annotations[barcodes_column_name] = \
-                annotations[barcodes_column_name].astype(str) \
-                + "-" \
-                + annotations[sample_column_name].apply(
-                    lambda x: protocol.sample_idx[protocol.sample_names.inverse[x]]).astype(str)
-        if psutil.virtual_memory().percent > 20:  # if there are memory issues
-            logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
-            num, div = filtered_positions.shape[0], 10
-            idx_tenths = np.cumsum([
-                num // div + (1 if x < num % div else 0) for x in range(div)
-            ])
-            idx_mod = np.insert(idx_tenths, 0, 0)
+    # if protocol.label_batches:
+    #     barcodes_column_name = annotations.columns.str.extract(
+    #         r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0][0]
+    #     sample_column_name = annotations.columns.str.extract(
+    #         r"(.*sample_id.*)", flags=re.IGNORECASE).dropna().values[0][0]
+    #     # rename the barcodes with the batch appended
+    #     annotations[barcodes_column_name] = \
+    #         annotations[barcodes_column_name].astype(str) \
+    #         + "-" \
+    #         + annotations[sample_column_name].apply(
+    #             lambda x: protocol.sample_idx[protocol.sample_names.inverse[x]]).astype(str)
+    if psutil.virtual_memory().percent > 20:  # if there are memory issues
+        logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
+        num, div = filtered_positions.shape[0], 10
+        idx_tenths = np.cumsum([
+            num // div + (1 if x < num % div else 0) for x in range(div)
+        ])
+        idx_mod = np.insert(idx_tenths, 0, 0)
 
-            split_generator = (
-                filtered_positions.iloc[idx_mod[n]:idx_mod[n + 1]] for n in range(len(idx_mod) - 1)
-            )
+        split_generator = (
+            filtered_positions.iloc[idx_mod[n]:idx_mod[n + 1]] for n in range(len(idx_mod) - 1)
+        )
 
-            filtered_list = [
-                filter_barcodes(pos, annotations=annotations) for pos in split_generator
-            ]
+        filtered_list = [
+            filter_barcodes(
+                pos, whitelist=protocol.barcode_whitelist
+            ) for pos in split_generator
+        ]
 
-            filtered_positions = pd.concat(filtered_list)
-        else:
-            filtered_positions = filter_barcodes(filtered_positions,
-                                                 annotations=annotations)
+        filtered_positions = pd.concat(filtered_list)
+    else:
+        filtered_positions = filter_barcodes(
+            filtered_positions,
+            whitelist=protocol.barcode_whitelist
+        )
     # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(
-        filtered_positions, annotations=annotations, func=protocol.peak_calling)
+        filtered_positions, annotations=protocol.annotations, func=protocol.peak_calling)
 
     try:
         del filtered_positions  # to save memory
@@ -222,9 +223,8 @@ def call_peaks(utr_sizes_counts,
             directory, f'peaks_var_{protocol.merge_method}.pkl'))
         utr_reference_subset.to_pickle(os.path.join(
             directory, f'UTR_reference_subset_{protocol.merge_method}.pkl'))
-        if annotations is not None:
-            peaks_obs.to_pickle(os.path.join(
-                directory, f'peaks_obs_{protocol.merge_method}.pkl'))
+        peaks_obs.to_pickle(os.path.join(
+            directory, f'peaks_obs_{protocol.merge_method}.pkl'))
 
     # merge results and annotations into
     count_matrix_anndata = generate_count_matrix_anndata(

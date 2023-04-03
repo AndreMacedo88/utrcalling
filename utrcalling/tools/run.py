@@ -63,7 +63,8 @@ def run(utr_annotation,
         call_peaks=not raw_sizes,
         label_batches=label_batches,
         alignments=alignments,
-        annotations=annotations_file)
+        annotations=annotations_file,
+    )
 
     # Get UTR reference data from the organisms GTF annotation file
     logger.info('Preparing utr reference regions')
@@ -73,13 +74,20 @@ def run(utr_annotation,
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
-        alignments, utr_reference_regions, protocol, store=store_intermediate)
+        alignments,
+        utr_reference_regions,
+        protocol,
+        store=store_intermediate
+    )
 
     # Call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
-        utr_sizes_counts, utr_reference_regions, protocol,
-        annotations=annotations_file, store=store_intermediate)
+        utr_sizes_counts,
+        utr_reference_regions,
+        protocol,
+        store=store_intermediate
+    )
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 

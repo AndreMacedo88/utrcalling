@@ -54,32 +54,30 @@ class Protocol(ABC, metaclass=CombinedMeta):
     Provides methods for peak calling and fetching read information and sample names.
     """
 
-    def __init__(self,
-                 merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, alignments=None, annotations=None
-                 ) -> None:
+    def __init__(
+        self,
+        annotations=None,
+        merge_method="union",
+        call_peaks=True,
+        call_peaks_method="kde",
+        label_batches=None,
+        alignments=None,
+    ) -> None:
+
         self.logger = module_log.module_logger()
 
         # set variables from user
-        self.annotations = helpers.check_if_path_and_open(annotations, method="csv")
-        self.merge_method = merge_method
-        self.call_peaks = call_peaks
-
-        # set variables to be modified by the different protocols
-        self.umis = False
-        self.barcodes = False
-
-        self.sample_names, self.sample_idx = self.get_sample_names(
-            annotations=self.annotations,
-            alignments=alignments
+        self.annotations = helpers.check_if_path_and_open(
+            to_check=annotations, method="csv"
         )
-        # self.batch_codes = self.get_batch_codes(annotations=self.annotations)
+        self.merge_method = merge_method
 
         if isinstance(label_batches, bool) or label_batches is None:
             self.label_batches = label_batches
         else:
             self.label_batches = bool(strtobool(label_batches))
 
+        self.call_peaks = call_peaks
         if self.call_peaks:
             if call_peaks_method.lower() == "kde":
                 self.peak_calling = self._call_peaks_using_kernel_density_estimator
@@ -93,6 +91,17 @@ class Protocol(ABC, metaclass=CombinedMeta):
         else:
             self.peak_calling = self._bypass_calling_peaks
 
+        # set variables to be modified by the different protocols
+        self.umis = False
+
+        self.sample_names = None
+        self.sample_idx = None
+
+        # set variables that are calculated from the inputs
+        self.batches_list, self.batches_range = self.get_batch_information()
+        self.barcode_whitelist = self.get_barcode_list()
+        self.logger.info(f"Whitelist: {self.barcode_whitelist}")
+
     # log the protocol:
     def protocol_log(self):
         self.logger.info(
@@ -104,12 +113,12 @@ class Protocol(ABC, metaclass=CombinedMeta):
         )
 
     # set-up methods
-    def get_sample_names(self, annotations, alignments):
-        if annotations is not None:
+    def get_sample_names(self, alignments):
+        if self.annotations is not None:
             sample_names_dict = bidict()
             sample_idx_dict = dict()
             try:
-                sample_names = annotations.loc[:, annotations.columns.str.extract(
+                sample_names = self.annotations.loc[:, self.annotations.columns.str.extract(
                     r"(.*sample_id.*)", flags=re.IGNORECASE).values[0]]
             except IndexError as err:
                 msg = (
@@ -142,6 +151,65 @@ class Protocol(ABC, metaclass=CombinedMeta):
                     sample_names_dict[sample_bam[0]] = sample
                     sample_idx_dict[sample_bam[0]] = idx + 1  # to turn to 1-based index
         return sample_names_dict, sample_idx_dict
+
+    def get_batch_information(self):
+        try:
+            batches_column_name = self.annotations.columns.str.extract(
+                r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]
+        except IndexError:
+            msg = (
+                f"If you are working with multiple samples/batches, please supply "
+                f"a column for `batch` in the annotation file. "
+                f"This column should contain the batch ID for each sample."
+            )
+            self.logger.warning(msg)
+            return None, None  # will make the rest of the protocol behave with no batches
+
+        if len(batches_column_name) > 1:
+            raise ValueError(
+                f"Too many columns in the annotation file with 'barcode' in "
+                f"their name."
+            )
+        else:
+            batches_column_name = batches_column_name[0]
+        batches_df = self.annotations.reset_index().loc[:, batches_column_name]
+        batches_list = batches_df.to_list()
+        batches_range = batches_df.index
+        batches_range = (batches_range.to_numpy() + 1).astype(str)
+        return batches_list, batches_range
+
+    def get_barcode_list(self):
+        try:
+            barcode_column_name = self.annotations.columns.str.extract(
+                r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
+        except IndexError:
+            msg = (
+                f"If you are working with barcodes, please supply "
+                f"a column for `barcode` in the annotation file. "
+                f"This column should contain the barcode for each sample/cell, "
+                f"as appropriate."
+            )
+            self.logger.warning(msg)
+            return None  # will make the rest of the protocol behave with no barcodes
+
+        if len(barcode_column_name) > 1:
+            raise ValueError(
+                f"Too many columns in the annotation file with 'barcode' in "
+                f"their name."
+            )
+        else:
+            barcode_column_name = barcode_column_name[0]
+
+        barcodes_series = self.annotations.loc[:, barcode_column_name]
+
+        if self.label_batches and (self.batches_list is not None):
+            try:
+                barcodes_series.str.split("-").to_list()[1]
+            except IndexError:
+                barcodes_series = (barcodes_series + "-" + self.batches_range)
+
+        barcodes_whitelist = barcodes_series.unique()
+        return barcodes_whitelist
 
     """
             batches_dict = dict()
@@ -194,13 +262,8 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     # Protocol-specific methods
     @ staticmethod
-    @ abstractmethod
+    # @ abstractmethod
     def define_protocol(alignment, **kwargs):
-        pass
-
-    @ staticmethod
-    @ abstractmethod
-    def get_barcode_list(alignment, **kwargs):
         pass
 
     # Methods to get read information from the read alignments
@@ -394,6 +457,9 @@ class ProtocolSmartseq(ProtocolThreePrime):
 
         if self.label_batches is None:
             self.label_batches = False
+        self.sample_names, self.sample_idx = self.get_sample_names(
+            alignments=alignments
+        )
 
 
 class ProtocolSmartseq3(ProtocolSmartseq):
@@ -403,10 +469,10 @@ class ProtocolSmartseq3(ProtocolSmartseq):
         read_sample_idx = self.sample_idx[bam_name]
 
         read_seq = alignment.read.seq
-        if read_sample_idx is None:
-            read_barcode = helpers.to_string(read_seq[:6])
-        else:
+        if self.label_batches:
             read_barcode = f"{helpers.to_string(read_seq[:6])}-{read_sample_idx}"
+        else:
+            read_barcode = helpers.to_string(read_seq[:6])
         read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
         return read_umi, read_barcode
 
@@ -419,6 +485,9 @@ class ProtocolCapseq(ProtocolFivePrime):
 
         if self.label_batches is None:
             self.label_batches = False
+        self.sample_names, self.sample_idx = self.get_sample_names(
+            alignments=alignments
+        )
 
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
