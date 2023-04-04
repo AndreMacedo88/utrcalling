@@ -113,8 +113,11 @@ def filter_barcodes(utr_sizes, whitelist):
     return utr_sizes.groupby(level=0).agg(list)
 
 
-def generate_peak_counts(utr_sizes, annotations=None,
-                         func=protocols.Protocol._call_peaks_using_kernel_density_estimator):
+def generate_peak_counts(
+    utr_sizes,
+    annotations,
+    func=protocols.Protocol._call_peaks_using_kernel_density_estimator
+):
 
     logger = module_log.module_logger()
     logger.info('Generating and counting UTR size peaks')
