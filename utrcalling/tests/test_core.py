@@ -57,37 +57,50 @@ class TestMapAlignedReads(unittest.TestCase):
 class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = {"utr_name": ["UTR1", "UTR1-1", "UTR2", "UTR3", "UTR4"],
-                           "chrom": [1, 1, 1, 1, 1],
-                           "start": [14190, 16400, 184700, 628000, 1200000],
-                           "end": [14500, 16600, 184900, 630000, 1200500],
-                           "name": ["UTR1", "UTR1", "UTR2", "UTR3", "UTR4"],
-                           "score": [0.0] * 5,
-                           "strand": ["+", "-", "-", "+", "-"],
-                           "transcript_id": ["UTR1_t", "UTR1_t", "UTR2_t", "UTR3_t", "UTR4_t"],
-                           "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
-                           }
+        cls.utr_regions = {
+            "utr_name": ["UTR1", "UTR1-1", "UTR2", "UTR3", "UTR4"],
+            "chrom": [1, 1, 1, 1, 1],
+            "start": [14190, 16400, 184700, 628000, 1200000],
+            "end": [14500, 16600, 184900, 630000, 1200500],
+            "name": ["UTR1", "UTR1", "UTR2", "UTR3", "UTR4"],
+            "score": [0.0] * 5,
+            "strand": ["+", "-", "-", "+", "-"],
+            "transcript_id": ["UTR1_t", "UTR1_t", "UTR2_t", "UTR3_t", "UTR4_t"],
+            "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
+        }
         cls.utr_regions = pd.DataFrame(cls.utr_regions).set_index("utr_name")
         cls.alignments = ['./test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam']
         # objects for testing without label_batches
         annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
         cls.annotations = annotations.query("Sample_ID=='AS-740066-LR-59119'")
         cls.annotations = cls.annotations.drop_duplicates(subset=["Sample_Barcode"])
-        cls.protocol = protocols.protocol(platform='smartseq', version=3,
-                                          label_batches=False,
-                                          annotations=cls.annotations,
-                                          alignments=cls.alignments)
+        cls.protocol = protocols.protocol(
+            platform='smartseq',
+            version=3,
+            label_batches=False,
+            annotations=cls.annotations,
+            alignments=cls.alignments
+        )
         cls.mapped = core.map_aligned_reads(
-            alignments=cls.alignments, utr_regions=cls.utr_regions,
-            protocol=cls.protocol, store=False)
+            alignments=cls.alignments,
+            utr_regions=cls.utr_regions,
+            protocol=cls.protocol,
+            store=False
+        )
         # objects for testing with label_batches
-        cls.protocol_label = protocols.protocol(platform='smartseq', version=3,
-                                                label_batches=True,
-                                                annotations=cls.annotations,
-                                                alignments=cls.alignments)
+        cls.protocol_label = protocols.protocol(
+            platform='smartseq',
+            version=3,
+            label_batches=True,
+            annotations=cls.annotations,
+            alignments=cls.alignments
+        )
         cls.mapped_label = core.map_aligned_reads(
-            alignments=cls.alignments, utr_regions=cls.utr_regions,
-            protocol=cls.protocol_label, store=False)
+            alignments=cls.alignments,
+            utr_regions=cls.utr_regions,
+            protocol=cls.protocol_label,
+            store=False
+        )
 
 
 class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
