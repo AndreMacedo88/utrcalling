@@ -74,37 +74,39 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
         mapped_read_information = [read_start_positions, read_strands,
                                    read_barcodes, read_umis,
                                    read_lengths, utr_sizes_from_reads]
-
-        for alignment in bam_file[interval]:  # BAM_Reader[GenomicInterval] is a generator
-            mapping_stats["Reads mapped to the region of interest"] += 1
-            if not alignment.pe_which == read:  # get only one of the 2 paired reads
-                mapping_stats[read_strand_string] += 1
-            elif not alignment.proper_pair:
-                mapping_stats["Alignments not proper pair"] += 1
-            elif alignment.pcr_or_optical_duplicate:
-                mapping_stats["PCR duplicates"] += 1
-            elif alignment.not_primary_alignment:
-                mapping_stats["Alignments not primary alignment"] += 1
-            elif not protocol.check_strand_matches(alignment.iv.strand, interval.strand):
-                mapping_stats["Alignments in interval but wrong strand"] += 1
-            else:
-                read_info = extract_read_information(alignment=alignment,
-                                                     interval=interval,
-                                                     protocol=protocol,
-                                                     bam_name=bam)
-                if read_info is None:
-                    continue
+        try:
+            # BAM_Reader[GenomicInterval] is a generator
+            for alignment in bam_file[interval]:
+                mapping_stats["Reads mapped to the region of interest"] += 1
+                if not alignment.pe_which == read:  # get only one of the 2 paired reads
+                    mapping_stats[read_strand_string] += 1
+                elif not alignment.proper_pair:
+                    mapping_stats["Alignments not proper pair"] += 1
+                elif alignment.pcr_or_optical_duplicate:
+                    mapping_stats["PCR duplicates"] += 1
+                elif alignment.not_primary_alignment:
+                    mapping_stats["Alignments not primary alignment"] += 1
+                elif not protocol.check_strand_matches(
+                    alignment.iv.strand,
+                    interval.strand
+                ):
+                    mapping_stats["Alignments in interval but wrong strand"] += 1
                 else:
-                    read_start_positions.append(read_info[0])
-                    read_strands.append(read_info[1])
-                    read_barcodes.append(read_info[2])
-                    read_umis.append(read_info[3])
-                    read_lengths.append(read_info[4])
-                    utr_sizes_from_reads.append(read_info[5])
-
-                    # Read info: ["read_start_positions", "read_strands",
-                    #             "read_barcodes", "read_umis",
-                    #             "read_lengths", "utr_sizes_from_reads"]
+                    read_info = extract_read_information(alignment=alignment,
+                                                         interval=interval,
+                                                         protocol=protocol,
+                                                         bam_name=bam)
+                    if read_info is None:
+                        continue
+                    else:
+                        read_start_positions.append(read_info[0])
+                        read_strands.append(read_info[1])
+                        read_barcodes.append(read_info[2])
+                        read_umis.append(read_info[3])
+                        read_lengths.append(read_info[4])
+                        utr_sizes_from_reads.append(read_info[5])
+        except ValueError:  # intervals can be from genome annotations with more chroms
+            continue
 
         if read_start_positions:
             umis_unique = []
