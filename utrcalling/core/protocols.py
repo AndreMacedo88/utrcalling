@@ -100,7 +100,6 @@ class Protocol(ABC, metaclass=CombinedMeta):
         # set variables that are calculated from the inputs
         self.batches_list, self.batches_range = self.get_batch_information()
         self.barcode_whitelist = self.get_barcode_list()
-        self.logger.info(f"Whitelist: {self.barcode_whitelist}")
 
     # log the protocol:
     def protocol_log(self):
@@ -114,42 +113,47 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     # set-up methods
     def get_sample_names(self, alignments):
-        if self.annotations is not None:
-            sample_names_dict = bidict()
-            sample_idx_dict = dict()
-            try:
-                sample_names = self.annotations.loc[:, self.annotations.columns.str.extract(
-                    r"(.*sample_id.*)", flags=re.IGNORECASE).values[0]]
-            except IndexError as err:
+        sample_names_dict = bidict()
+        sample_idx_dict = dict()
+        if not isinstance(alignments, list):
+            alignments = [alignments]
+        try:
+            sample_names = self.annotations.loc[:, self.annotations.columns.str.extract(
+                r"(.*sample_id.*)", flags=re.IGNORECASE).values[0]]
+        except IndexError as err:
+            msg = (
+                f"Please supply a column for `sample_id` in the annotation file. "
+                f"This column should contain the names of each sample, corresponding "
+                f"to the name in the bam file."
+            )
+            self.logger.error(msg)
+            raise IndexError(msg) from err
+
+        not_found_trigger = True
+        for idx, sample in enumerate(sample_names.iloc[:, 0]):
+            sample_bam = [bam for bam in alignments if sample in bam]
+            sample_bam_len = len(sample_bam)
+            if sample_bam_len > 1:
                 msg = (
-                    f"Please supply a column for `sample_id` in the annotation file. "
-                    f"This column should contain the names of each sample, corresponding "
-                    f"to the name in the bam file."
+                    f"The `sample_id` column in the annotation file should contain "
+                    f"IDs that are uniquely identifiable to the provided alignment "
+                    f"bam files' path/names."
                 )
                 self.logger.error(msg)
-                raise IndexError(msg) from err
-
-            for idx, sample in enumerate(sample_names.iloc[:, 0]):
-                sample_bam = [bam for bam in alignments if sample in bam]
-                sample_bam_len = len(sample_bam)
-                if sample_bam_len > 1:
-                    msg = (
-                        f"The `sample_id` column in the annotation file should contain "
-                        f"IDs that are uniquely identifiable to the provided alignment "
-                        f"bam files' names."
-                    )
-                    self.logger.error(msg)
-                    raise ValueError(msg)
-                elif sample_bam_len == 0:
+                raise ValueError(msg)
+            elif sample_bam_len == 0:
+                if not_found_trigger:
                     msg = (
                         f"Some samples IDs not found in the provided alignment bam files."
                         f"The `sample_id` column in the annotation file should contain "
-                        f"IDs that match the provided alignment bam files' names."
+                        f"IDs that match the provided alignment bam files' path/names."
                     )
                     self.logger.warning(msg)
-                else:
-                    sample_names_dict[sample_bam[0]] = sample
-                    sample_idx_dict[sample_bam[0]] = idx + 1  # to turn to 1-based index
+                    not_found_trigger = False
+            else:
+                sample_names_dict[sample_bam[0]] = sample
+                sample_idx_dict[sample_bam[0]] = self.batches_range[idx]
+
         return sample_names_dict, sample_idx_dict
 
     def get_batch_information(self):
@@ -172,10 +176,10 @@ class Protocol(ABC, metaclass=CombinedMeta):
             )
         else:
             batches_column_name = batches_column_name[0]
-        batches_df = self.annotations.reset_index().loc[:, batches_column_name]
+        batches_df = self.annotations.loc[:, batches_column_name]
         batches_list = batches_df.to_list()
-        batches_range = batches_df.index
-        batches_range = (batches_range.to_numpy() + 1).astype(str)
+        batches_range, _ = pd.factorize(batches_df, sort=False)
+        batches_range = (batches_range + 1).astype(str)
         return batches_list, batches_range
 
     def get_barcode_list(self):
@@ -411,8 +415,15 @@ class ProtocolFivePrime(Protocol):
 class ProtocolTenx(ProtocolThreePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
                  label_batches=None, alignments=None, annotations=None) -> None:
-        super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
-                         alignments, annotations)
+
+        super().__init__(
+            merge_method=merge_method,
+            call_peaks=call_peaks,
+            call_peaks_method=call_peaks_method,
+            label_batches=label_batches,
+            alignments=alignments,
+            annotations=annotations,
+        )
 
         if self.label_batches is None:
             self.label_batches = True
@@ -452,8 +463,15 @@ class ProtocolTenx2(ProtocolTenx):
 class ProtocolSmartseq(ProtocolThreePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
                  label_batches=None, alignments=None, annotations=None) -> None:
-        super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
-                         alignments, annotations)
+
+        super().__init__(
+            merge_method=merge_method,
+            call_peaks=call_peaks,
+            call_peaks_method=call_peaks_method,
+            label_batches=label_batches,
+            alignments=alignments,
+            annotations=annotations,
+        )
 
         if self.label_batches is None:
             self.label_batches = False
@@ -480,8 +498,15 @@ class ProtocolSmartseq3(ProtocolSmartseq):
 class ProtocolCapseq(ProtocolFivePrime):
     def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
                  label_batches=None, alignments=None, annotations=None) -> None:
-        super().__init__(merge_method, call_peaks, call_peaks_method, label_batches,
-                         alignments, annotations)
+
+        super().__init__(
+            merge_method=merge_method,
+            call_peaks=call_peaks,
+            call_peaks_method=call_peaks_method,
+            label_batches=label_batches,
+            alignments=alignments,
+            annotations=annotations,
+        )
 
         if self.label_batches is None:
             self.label_batches = False
@@ -494,7 +519,7 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
     @ staticmethod
     def get_reads_identity(alignment, **kwargs):
-        read_batch_id = kwargs.get('batch', 'S')
+        read_batch_id = kwargs.get('bam_name', 'S')
         read_seq = helpers.to_string(alignment.read.seq)
 
         ss3_regex = "(ATTGCGCAATG)[NGCAT]{8}"
@@ -512,7 +537,7 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
 
     @ staticmethod
     def get_reads_identity(alignment, **kwargs):
-        read_batch_id = kwargs.get('batch', 'S')
+        read_batch_id = kwargs.get('bam_name', 'S')
 
         read_seq = helpers.to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]
@@ -521,29 +546,29 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
         return read_umi, read_batch_id
 
 
-def protocol(platform, version, *args, **kwargs):
+def protocol(platform, version, **kwargs):
     error_message = f"Protocol for {platform} version {version} not implemented."
 
     if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
         if version == 2:
-            return ProtocolTenx2(*args, **kwargs)
+            return ProtocolTenx2(**kwargs)
         if version == 3:
-            return ProtocolTenx3(*args, **kwargs)
+            return ProtocolTenx3(**kwargs)
         else:
             raise NotImplementedError(error_message)
     elif platform.lower() in ('smart-seq', 'smartseq'):
         if version == 3:
-            return ProtocolSmartseq3(*args, **kwargs)
+            return ProtocolSmartseq3(**kwargs)
         else:
             raise NotImplementedError(error_message)
     elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
         if version == 3:
-            return ProtocolCapseqSmartseq3(*args, **kwargs)
+            return ProtocolCapseqSmartseq3(**kwargs)
         else:
             raise NotImplementedError(error_message)
     elif platform.lower() in ('smart-seq_cap-readname', 'smartseq_cap-readname'):
         if version == 3:
-            return ProtocolCapseqSmartseq3ReadName(*args, **kwargs)
+            return ProtocolCapseqSmartseq3ReadName(**kwargs)
         else:
             raise NotImplementedError(error_message)
     else:
