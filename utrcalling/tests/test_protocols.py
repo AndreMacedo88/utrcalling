@@ -17,8 +17,13 @@ class Test10x(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = protocols.protocol(platform='10x', version=2,
-                                          merge_method="intersection")
+        cls.protocol = protocols.protocol(
+            platform='10x',
+            version=2,
+            alignments=[alignment_1, alignment_2],
+            annotations="./test_data/smartseq3_anno.csv",
+            merge_method="intersection"
+        )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(alignment, intervals, cls.protocol,
                                          read='first') for alignment in [alignment_1,
@@ -59,10 +64,15 @@ class TestSmartSeqCapPhosphoReadname(unittest.TestCase):
     def setUpClass(cls) -> None:
         utr_regions = pd.read_pickle('./test_data/test_UTR_reference_5prime.pkl')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
-        alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
-        cls.protocol = protocols.protocol(platform='smart-seq_cap-readname', version=3)
+        cls.alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
+        cls.protocol = protocols.protocol(
+            platform='smart-seq_cap-readname',
+            version=3,
+            alignments=cls.alignment,
+            annotations="./test_data/smartseq3_anno.csv",
+        )
         cls.mappings = utr_mapping.map_reads_to_utr(
-            alignment, intervals, cls.protocol, read='first', batch="test_sample")
+            cls.alignment, intervals, cls.protocol, read='first', batch="test_sample")
 
 
 class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
@@ -80,7 +90,7 @@ class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
         dict_true = {
             'read_start_positions': [23677423, 23677444, 23677448],
             'read_strands': ['-', '-', '-'],
-            'read_barcodes': ['test_sample', 'test_sample', 'test_sample'],
+            'read_barcodes': [self.alignment] * 3,
             'read_umis': ['CGCCAGGC', 'GACACGAT', 'AAGGGGAC'],
             'read_lengths': [81, 82, 82],
             'utr_sizes_from_reads': [44, 1, 19]

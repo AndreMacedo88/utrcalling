@@ -56,7 +56,7 @@ def reduce_regions(bed, annotations_index=[], operation_list=[]):
 def generate_utr_name(utr_bed):
     if not isinstance(utr_bed, pd.DataFrame):
         utr_bed = utr_bed.to_dataframe()
-    
+
     # sort by name so that name incrementation is handled correctly later on.
     utr_bed.sort_values(by=['name', 'start'], inplace=True)
 
