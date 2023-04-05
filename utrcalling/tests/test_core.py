@@ -101,56 +101,56 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
             protocol=cls.protocol_label,
             store=False
         )
+        cls.results_label = core.call_peaks(
+            utr_sizes_counts=cls.mapped_label,
+            utr_reference_regions=cls.utr_regions,
+            protocol=cls.protocol_label,
+            store=False
+        )
+        cls.results_nolabel = core.call_peaks(
+            utr_sizes_counts=cls.mapped,
+            utr_reference_regions=cls.utr_regions,
+            protocol=cls.protocol,
+            store=False
+        )
 
 
 class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
-    def setUp(self) -> None:
-        self.results = core.call_peaks(
-            utr_sizes_counts=self.mapped_label,
-            utr_reference_regions=self.utr_regions,
-            protocol=self.protocol_label,
-            store=False
-        )
 
     def test_is_anndata(self):
-        self.assertIsInstance(self.results, ad.AnnData)
+        self.assertIsInstance(self.results_label, ad.AnnData)
 
     def test_shape_anndata(self):
-        self.assertTupleEqual(self.results.shape, (1, 2))
+        self.assertTupleEqual(self.results_label.shape, (1, 2))
 
     def test_utr_sizes(self):
-        self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
+        self.assertListEqual(self.results_label.var.utr_size.to_list(), [223, 158])
 
     def test_barcode(self):
-        self.assertEqual(self.results.obs_names[0], "CACTGT-1")
+        self.assertEqual(self.results_label.obs_names[0], "CACTGT-1")
 
     def test_utr_names(self):
-        self.assertListEqual(self.results.var_names.to_list(), ["UTR1-1", "UTR1-1-1"])
+        self.assertListEqual(self.results_label.var_names.to_list(),
+                             ["UTR1-1", "UTR1-1-1"])
 
 
 class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
-    def setUp(self) -> None:
-        self.results = core.call_peaks(
-            utr_sizes_counts=self.mapped,
-            utr_reference_regions=self.utr_regions,
-            protocol=self.protocol,
-            store=False
-        )
 
     def test_is_anndata(self):
-        self.assertIsInstance(self.results, ad.AnnData)
+        self.assertIsInstance(self.results_nolabel, ad.AnnData)
 
     def test_shape_anndata(self):
-        self.assertTupleEqual(self.results.shape, (1, 2))
+        self.assertTupleEqual(self.results_nolabel.shape, (1, 2))
 
     def test_utr_sizes(self):
-        self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
+        self.assertListEqual(self.results_nolabel.var.utr_size.to_list(), [223, 158])
 
     def test_barcode(self):
-        self.assertEqual(self.results.obs_names[0], "CACTGT")
+        self.assertEqual(self.results_nolabel.obs_names[0], "CACTGT")
 
     def test_utr_names(self):
-        self.assertListEqual(self.results.var_names.to_list(), ["UTR1-1", "UTR1-1-1"])
+        self.assertListEqual(self.results_nolabel.var_names.to_list(), [
+                             "UTR1-1", "UTR1-1-1"])
 
 
 if __name__ == '__main__':
