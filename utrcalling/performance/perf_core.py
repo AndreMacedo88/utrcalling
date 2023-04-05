@@ -46,5 +46,6 @@ def map_aligned_reads_perf(lines):
     cum_time = pstats.Stats(profiler).sort_stats("cumtime")
     cum_time.print_stats(lines)
 
+
 if __name__ == '__main__':
     map_aligned_reads_perf(lines=20)
