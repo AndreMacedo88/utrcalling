@@ -14,7 +14,7 @@ from utrcalling.tests.test_data import synthetic_data
 
 class GeneratePeakCounts:
     def __init__(self) -> None:
-        data_synthetic = synthetic_data.LargeThreePrimeBarcoded(size=(20000, 200))
+        data_synthetic = synthetic_data.LargeThreePrimeBarcoded(size=(20000, 2000))
         self.data = data_synthetic.data
         self.anno = data_synthetic.anno
         self.alignments = data_synthetic.alignments

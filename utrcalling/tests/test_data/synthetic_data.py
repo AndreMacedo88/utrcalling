@@ -1,6 +1,9 @@
 import os
 from tempfile import mkstemp
 import copy
+import random
+import string
+import numpy as np
 import pandas as pd
 import pysam
 
@@ -123,6 +126,7 @@ ANNOTATION = pd.DataFrame(columns=["celltype", "barcodes",
 
 class ThreePrimeBarcoded:
     def __init__(self) -> None:
+        # Build the data
         read_start_positions = [[100, 101, 100, 200, 202, 300],
                                 [1000, 1100, 1102, 1200, 1200]]
         read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-", "+"]]
@@ -159,19 +163,21 @@ class ThreePrimeBarcoded:
         )
         )
 
+        # Build the annotations
         self._anno = ANNOTATION
 
-        @property
-        def data_synthetic(self):
-            return copy.deepcopy(self._data_synthetic)
+    @property
+    def data_synthetic(self):
+        return copy.deepcopy(self._data_synthetic)
 
-        @property
-        def anno(self):
-            return copy.deepcopy(self._anno)
+    @property
+    def anno(self):
+        return copy.deepcopy(self._anno)
 
 
 class ThreePrimeBarcodedFiltered:
     def __init__(self) -> None:
+        # Build the data
         read_start_positions = [[100, 101, 100, 200, 202, 300],
                                 [1000, 1100, 1102, 1200]]
         read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-"]]
@@ -203,18 +209,120 @@ class ThreePrimeBarcodedFiltered:
                                                   "ENSMUSG00000000002"],
                                            data=list(
             zip(
-                read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
-                utr_sizes_from_reads
+                read_start_positions,
+                read_strands,
+                read_barcodes,
+                read_umis,
+                read_lengths,
+                utr_sizes_from_reads,
             )
         )
         )
 
+        # Build the annotations
         self._anno = ANNOTATION
 
-        @property
-        def data_filtered(self):
-            return copy.deepcopy(self._data_filtered)
+    @property
+    def data_filtered(self):
+        return copy.deepcopy(self._data_filtered)
 
-        @property
-        def anno(self):
-            return copy.deepcopy(self._anno)
+    @property
+    def anno(self):
+        return copy.deepcopy(self._anno)
+
+
+class LargeThreePrimeBarcoded:
+    def __init__(self, size=(10000, 15)) -> None:
+        # Build the data
+        rng = np.random.default_rng(123)
+
+        start_positions = rng.multinomial(
+            n=100, pvals=[0.25, 0.75], size=size).astype(int).tolist()
+        read_start_positions = []
+        for i in start_positions:
+            i_list = []
+            for z in i:
+                i_list.append(int(rng.choice(z, 1)))
+            read_start_positions.append(i_list)
+
+        read_strands = [
+            list(i) for i in rng.choice(["+", "-"], size=size)
+        ]
+        read_barcodes = [
+            list(i) for i in rng.choice(list(string.ascii_uppercase), size=size)
+        ]
+        umi_len = 8
+        umi_bases = ["A", "C", "T", "G"]
+        read_umis = [
+            [''.join(random.choice(umi_bases) for v in range(umi_len))
+             for i in range(size[1])]
+            for z in range(size[0])
+        ]
+        read_lengths = [
+            list(i) for i in rng.normal(loc=100, scale=1, size=size).astype(int)
+        ]
+        utr_sizes_from_reads = read_start_positions
+
+        utr_len = 15
+        utr_bases = list(string.ascii_uppercase)
+        utrs = [
+            ''.join(random.choice(utr_bases) for v in range(utr_len))
+            for i in range(size[0])
+        ]
+
+        self._data = pd.DataFrame(
+            data=list(
+                zip(
+                    read_start_positions,
+                    read_strands,
+                    read_barcodes,
+                    read_umis,
+                    read_lengths,
+                    utr_sizes_from_reads,
+                )
+            ),
+            columns=[
+                'read_start_positions', 'read_strands',
+                'read_barcodes', 'read_umis',
+                'read_lengths', 'utr_sizes_from_reads'
+            ],
+            index=utrs
+        )
+
+        # Build the annotations
+        barcodes = self._data.read_barcodes.explode().unique()
+        anno_length = len(barcodes)
+        sample_id = [
+            i for i in rng.choice(
+                list(string.ascii_lowercase),
+                size=anno_length,
+                replace=False,
+            )
+        ]
+        batch = [1] * anno_length
+
+        self._anno = pd.DataFrame(columns=["sample_id", "barcodes",
+                                           "batch"],
+                                  data=list(
+            zip(
+                sample_id,
+                barcodes,
+                batch
+            )
+        )
+        )
+
+        # Build the alignment paths
+        self._alignments = sample_id
+
+    @property
+    def data(self):
+        return copy.deepcopy(self._data)
+
+    @property
+    def anno(self):
+        return copy.deepcopy(self._anno)
+
+    @property
+    def alignments(self):
+        return copy.deepcopy(self._anno)
