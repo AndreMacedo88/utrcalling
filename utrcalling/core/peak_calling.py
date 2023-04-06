@@ -143,23 +143,13 @@ def generate_peak_counts(
 
     logger.info('Finished generating and counting UTR size peaks')
 
-    # Free some RAM by deleting biggest variables, collecting the garbage, and shutting
-    # down joblib inactive workers
+    # Free some RAM by deleting biggest variables
     del utr_sizes
-
-    # gc.collect()
-    # try:
-    #     get_reusable_executor().shutdown(wait=True)
-    # except PermissionError:
-    #     pass
-    # if psutil.virtual_memory().percent > 50:
-    #     for ct_mtx in count_matrix_list:
-    #         ct_mtx.astype("int32", copy=False, errors="ignore")
 
     count_matrix = pd.concat(count_matrix_list, axis=1,
                              ignore_index=False, copy=False)
     del count_matrix_list  # Free some RAM
-    count_matrix = count_matrix.fillna(0).astype("uint16")
+    count_matrix = count_matrix.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
@@ -203,6 +193,7 @@ def call_peaks(utr, func_):
 
     peaks_var = pd.DataFrame.from_dict(peaks_var, orient="index", columns=["utr_size"])
     count_matrix = pd.DataFrame(count_matrix)
+
     return count_matrix, peaks_var
 
 
