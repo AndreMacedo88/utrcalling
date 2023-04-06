@@ -5,6 +5,8 @@ import unittest
 import logging as log_module
 from utrcalling.core import module_log
 
+os.environ["MODIN_CPUS"] = "1"
+
 
 def run_all_tests(verbosity, logging):
     """

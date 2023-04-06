@@ -13,7 +13,7 @@ from test_data import synthetic_data
 
 class TestGenerateUtrIntervals(unittest.TestCase):
     def setUp(self) -> None:
-        utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
+        utr_regions = pd.read_parquet('./test_data/test_UTR_reference.parquet')
         self.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
 
@@ -33,13 +33,13 @@ class TestMapReadsToUtr(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
+        cls.utr_regions = pd.read_parquet('./test_data/test_UTR_reference.parquet')
 
-        cls.utr_regions_smartseq = pd.read_pickle(
-            './test_data/test_UTR_reference_smartseq.pkl')
+        cls.utr_regions_smartseq = pd.read_parquet(
+            './test_data/test_UTR_reference_smartseq.parquet')
 
-        cls.utr_regions_5prime = pd.read_pickle(
-            './test_data/test_UTR_reference_5prime.pkl'
+        cls.utr_regions_5prime = pd.read_parquet(
+            './test_data/test_UTR_reference_5prime.parquet'
         )
 
         # test data for 10X

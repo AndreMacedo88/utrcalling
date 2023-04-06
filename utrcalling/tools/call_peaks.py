@@ -24,7 +24,7 @@ def call_peaks(utr_annotation,
 
     Args:
         utr_annotation (str): Path to a .bed file with the utr annotations.
-        utr_sizes_counts (str): Path to a pickle object with a UtrMappings object.
+        utr_sizes_counts (str): Path to a parquet object with a UtrMappings object.
         single_cell_annotation (str, optional): Path to the experiments' annotation file. 
             Defaults to None.
         store_intermediate (bool, optional): [description]. Defaults to False.
@@ -53,7 +53,7 @@ def call_peaks(utr_annotation,
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     utr_sizes_counts = helpers.check_if_dir_and_list_files(utr_sizes_counts,
-                                                           suffix='.pkl')
+                                                           suffix='.parquet')
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts, utr_reference_annotations, protocol,
         annotations=annotations_file, store=store_intermediate)
@@ -99,20 +99,20 @@ Exports the UTR sizes count matrix to a h5ad file, which you can name with --out
 """,
     epilog="""
 Example on how to use in command-line:
-$ call_peaks.py mus_musculus_UTRs.bed -c sample-1.pkl sample-2.pkl 
+$ call_peaks.py mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet 
     -A experiment.csv -p 10x -v 2 -i -o results.h5ad
 """,
     formatter_class=argparse.ArgumentDefaultsHelpFormatter
 )
 
 parser.add_argument("utr_annotation", type=str,
-                    help="BED or pickle file with the UTR annotations")
+                    help="BED, parquet, or pickle file with the UTR annotations")
 
 parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True,
                     help="""
     File, or files with the utr and read information. One file per sample/batch should be 
     supplied if downstream applications involve comparisons between the samples/batches.
-    The files should be pickle files of a UtrMappings object.
+    The files should be parquet files of a UtrMappings object.
     """)
 
 parser.add_argument("--annotations_file", "-A", type=str,

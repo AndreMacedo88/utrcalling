@@ -14,7 +14,7 @@ from utrcalling.core import core, module_log, protocols
 
 class TestMapAlignedReads(unittest.TestCase):
     def setUp(self) -> None:
-        utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
+        utr_regions = pd.read_parquet('./test_data/test_UTR_reference.parquet')
         protocol = protocols.protocol(
             platform='10x',
             version=2,

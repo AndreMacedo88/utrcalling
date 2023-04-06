@@ -76,10 +76,12 @@ def check_if_exists_and_mkdir(folders_path):
         os.makedirs(folders_path)
 
 
-def check_if_path_and_open(to_check, method='pickle'):
+def check_if_path_and_open(to_check, method='parquet'):
     if isinstance(to_check, (str, pathlib.PurePath)):
         method = method.lower()
-        if method == 'pickle':
+        if method == 'parquet':
+            output = pd.read_parquet(to_check)
+        elif method == 'pickle':
             with open(to_check, "rb") as input_file:
                 output = pickle.load(input_file)
         elif method == "pickle_pandas":
@@ -106,17 +108,19 @@ def check_file_exists_and_return_unique(filepath, append=1):
 
 
 def load_annotations(annotation_path):
-    if annotation_path.endswith('.pkl'):
-        output = pd.read_pickle(annotation_path)
+    if annotation_path.endswith('.parquet'):
+        output = pd.read_parquet(annotation_path)
     elif annotation_path.endswith('.bed'):
         output = pybedtools.BedTool(annotation_path)
+    elif annotation_path.endswith('.pkl'):
+        output = pd.read_pickle(annotation_path)
     else:
         raise RuntimeError(
             f'Annotation file {annotation_path} is of a not recognized type.')
     return output
 
 
-def check_if_dir_and_list_files(path, suffix='.pkl'):
+def check_if_dir_and_list_files(path, suffix='.parquet'):
     if isinstance(path, (list, tuple)):
         paths = []
         for p in path:

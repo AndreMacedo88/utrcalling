@@ -13,7 +13,8 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 
 class MapAlignedReads:
     def __init__(self) -> None:
-        self.utr_regions = pd.read_pickle('../tests/test_data/test_UTR_reference.pkl')
+        self.utr_regions = pd.read_parquet(
+            '../tests/test_data/test_UTR_reference.parquet')
         self.protocol = protocols.protocol(platform='10x', version=2)
 
         alignments_n = 5

@@ -17,7 +17,7 @@ from test_data import synthetic_data
 class TestPeakCalling(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_pickle('./test_data/test_UTR_reference.pkl')
+        cls.utr_regions = pd.read_parquet('./test_data/test_UTR_reference.parquet')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
@@ -227,8 +227,8 @@ class TestFilterBarcodes(TestPeakCalling):
 class TestFilterBarcodesSynthetic(unittest.TestCase):
     def setUp(self) -> None:
         data_synthetic = synthetic_data.ThreePrimeBarcoded()
-        self.data = data_synthetic._data_synthetic
-        self.anno = data_synthetic._anno
+        self.data = data_synthetic.data_synthetic
+        self.anno = data_synthetic.anno
         self.filtered = peak_calling.filter_barcodes(
             utr_sizes=self.data,
             whitelist=self.anno["barcodes"].unique()
@@ -431,5 +431,5 @@ class TestAnnData(TestGenerateCountMatrixAnndata):
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")

@@ -2,14 +2,14 @@ import os
 import re
 from functools import partial, reduce
 from tempfile import mkstemp
-import gc
-import psutil
+# import gc
+# import psutil
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)  # silence modin UserWarnings
 
-import joblib
-from joblib.externals.loky import get_reusable_executor
+# import joblib
+# from joblib.externals.loky import get_reusable_executor
 import modin.pandas as mpd
 import pandas as pd
 from rapidfuzz import process, distance
@@ -134,15 +134,6 @@ def generate_peak_counts(
         utr_sizes = mpd.read_feather(df_path)
         os.remove(df_path)
         utr_sizes = utr_sizes.set_index("utr_name")
-
-    """# uncomment this block to generate data in chunks
-    n_chunks = 3
-    chunk = 3
-    logger.debug(f"Dividing the data into {n_chunks} chunks and processing chunk {chunk}")
-    a = list(helpers.split_list(range(len(utr_sizes)), n_chunks))[chunk - 1]
-    slicer = slice(a.start, a.stop, a.step)
-    utr_sizes = utr_sizes[utr_sizes[slicer]]
-    """
 
     # iterate over each UTR, to call peaks corresponding to the UTR's different sizes.
     logger.info("Calling peaks for each UTR")
