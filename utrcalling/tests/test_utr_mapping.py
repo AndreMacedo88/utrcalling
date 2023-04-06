@@ -73,7 +73,6 @@ class TestTenxTwo(TestMapReadsToUtr):
     def test_details(self):
         dict_true = {
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
-            'read_umis': ['TCAACACAAG', 'AATCGAGAGT', 'CCTGAGTATG'],
             'utr_sizes_from_reads': [1468, 1458, 1466]
         }
         self.assertDictEqual(
@@ -104,7 +103,6 @@ class TestTenxThree(TestMapReadsToUtr):
     def test_details(self):
         dict_true = {
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
-            'read_umis': ['TCAACACAAGTT', 'AATCGAGAGTTT', 'CCTGAGTATGTT'],
             'utr_sizes_from_reads': [1468, 1458, 1466]
         }
         self.assertDictEqual(
@@ -137,7 +135,6 @@ class TestSmartSeq3(TestMapReadsToUtr):
     def test_details(self):
         dict_true = {
             'read_barcodes': [['CACTGT-2'], ['CACTGT-2']],
-            'read_umis': [['GTGATATG'], ['GGCCACCA']],
             'utr_sizes_from_reads': [[300], [30]]
         }
         self.assertDictEqual(
@@ -146,7 +143,6 @@ class TestSmartSeq3(TestMapReadsToUtr):
     def test_details_one(self):
         dict_true = {
             'read_barcodes': ['CACTGT-2'],
-            'read_umis': ['GTGATATG'],
             'utr_sizes_from_reads': [300]
         }
         self.assertDictEqual(
@@ -178,7 +174,6 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
     def test_details(self):
         dict_true = {
             'read_barcodes': [self.alignment_cap, self.alignment_cap, self.alignment_cap],
-            'read_umis': ['CGCCAGGC', 'GACACGAT', 'AAGGGGAC'],
             'utr_sizes_from_reads': [4, 25, 29]
         }
         self.assertDictEqual(
@@ -250,7 +245,6 @@ class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
     def test_details(self):
         dict_true = {
             'read_barcodes': [['CACTGT'], ['CACTGT']],
-            'read_umis': [['GTGATATG'], ['GGCCACCA']],
             'utr_sizes_from_reads': [[223], [158]]
         }
         self.assertDictEqual(
@@ -279,7 +273,6 @@ class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
     def test_details(self):
         dict_true = {
             'read_barcodes': [['CACTGT-2'], ['CACTGT-2']],
-            'read_umis': [['GTGATATG'], ['GGCCACCA']],
             'utr_sizes_from_reads': [[223], [158]]
         }
         self.assertDictEqual(
@@ -328,7 +321,6 @@ class TestSmartSeq3CapReadnameMinimal(TestMapReadsToUtrMinimalCap):
     def test_details(self):
         dict_true = {
             'read_barcodes': [[self.alignment], [self.alignment]],
-            'read_umis': [['TTGCCACG'], ['TTCAGACG']],
             'utr_sizes_from_reads': [[68], [143]]
         }
         self.assertDictEqual(
@@ -378,7 +370,6 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
     def test_details(self):
         dict_true = {
             'read_barcodes': [[self.data.alignment], [self.data.alignment]],
-            'read_umis': [['TCTGCGTG'], ['TTGGCAGG']],
             'utr_sizes_from_reads': [[404], [69]]
         }
         self.assertDictEqual(

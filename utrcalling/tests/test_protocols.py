@@ -42,14 +42,13 @@ class TestFilterUtrSizes(Test10x):
         self.filtered = self.protocol.filter_utr_sizes(merged, threshold=1)
 
     def test_number_of_features(self) -> None:
-        self.assertEqual(self.filtered.shape, (63, 3))
+        self.assertEqual(self.filtered.shape, (63, 2))
 
     def test_is_filtered(self):
         dict_true = {
             'read_barcodes': ['CTAATGGCATTCGACA-1',
                               'CCCAGTTTCGCTTGTC-1',
                               'TATTACCAGGATTCGG-2'],
-            'read_umis': ['AACCGAGCGT', 'AATGGTAACG', 'AGCGATAGGA'],
             'utr_sizes_from_reads': [798, 798, 798]
         }
         self.assertDictEqual(
@@ -86,7 +85,6 @@ class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
         # For 5'UTRs we don't want filtering by default
         dict_true = {
             'read_barcodes': [self.alignment] * 3,
-            'read_umis': ['CGCCAGGC', 'GACACGAT', 'AAGGGGAC'],
             'utr_sizes_from_reads': [44, 1, 19]
         }
         self.assertDictEqual(

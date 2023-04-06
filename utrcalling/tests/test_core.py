@@ -31,7 +31,6 @@ class TestMapAlignedReads(unittest.TestCase):
 
         self.true_results_5804 = {
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
-            'read_umis': ['TCAACACAAG', 'AATCGAGAGT', 'CCTGAGTATG'],
             'utr_sizes_from_reads': [1468, 1458, 1466]
         }
 

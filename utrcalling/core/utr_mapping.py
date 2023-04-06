@@ -70,7 +70,6 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
 
         mapped_read_information = [
             read_barcodes,
-            read_umis,
             utr_sizes_from_reads
         ]
         try:
@@ -104,24 +103,21 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
         except ValueError:  # intervals can be from genome annotations with more chroms
             continue
 
-        # UMI deduplication TODO: make it into a function for readability
+        # Deduplicate reads using the UMIs
         if read_umis:
-            umis_unique = []
-            idx_unique = []
-            for idx, umi in enumerate(read_umis.copy()):
-                if umi not in umis_unique:
-                    idx_unique.append(idx)
-                    umis_unique.append(umi)
-            mapped_read_information = [[element[i] for i in idx_unique]
-                                       for element in mapped_read_information]
+            mapped_read_information = deduplicate_reads(
+                read_umis=read_umis,
+                read_info=mapped_read_information,
+            )
 
+            # store the read information for this UTR
             utr_mappings[name] = mapped_read_information
 
     del bam_file
 
     utr_mappings = pd.DataFrame.from_dict(
         utr_mappings, orient="index",
-        columns=["read_barcodes", "read_umis", "utr_sizes_from_reads"])
+        columns=["read_barcodes", "utr_sizes_from_reads"])
 
     utr_mappings.index.name = "utr_name"
 
@@ -131,6 +127,19 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
                  psutil.virtual_memory().percent)
 
     return utr_mappings
+
+
+def deduplicate_reads(read_umis, read_info):
+    umis_unique = []
+    idx_unique = []
+    for idx, umi in enumerate(read_umis.copy()):
+        if umi not in umis_unique:
+            idx_unique.append(idx)
+            umis_unique.append(umi)
+    read_info = [
+        [element[i] for i in idx_unique] for element in read_info
+    ]
+    return read_info
 
 
 def extract_read_information(alignment, interval, protocol, bam_name):

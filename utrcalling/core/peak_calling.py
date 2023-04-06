@@ -189,13 +189,6 @@ def call_peaks(utr, func_):
     info = info.explode(column=info.columns.tolist(), ignore_index=True)
     info = info.sort_values(by="utr_sizes_from_reads")
 
-    """
-    # similar UMIs refer to the same event (molecule), and so we take the mode
-    info['utr_sizes_from_reads'] = info.groupby(['read_barcodes', 'read_umis'])[
-        'utr_sizes_from_reads'].transform(mode)
-    info = info.drop_duplicates()
-    """
-
     utr_sizes_vector = info["utr_sizes_from_reads"].values.reshape(-1, 1)
     # now we call the utr size peaks based on the distribution of individual UTR sizes
     peaks = func_(utr_sizes_vector)

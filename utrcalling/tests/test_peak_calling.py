@@ -58,9 +58,6 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
                               'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
                               'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2'],
-            'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT',
-                          'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
-                          'CTTTAGAACT', 'TGCTAGGACG'],
             'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
         }
         self.assertDictEqual(
@@ -86,9 +83,6 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
                               'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
                               'GCTGCAGCACTGTGTA-2', 'GTCCTCAGTAAACGCG-2'],
-            'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT',
-                          'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
-                          'CTTTAGAACT', 'TGCTAGGACG'],
             'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
         }
         self.assertDictEqual(
@@ -99,7 +93,6 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
     def test_index_on_first_df(self):
         details_true = {
             'read_barcodes': ['CGAGAAGGTGCAACGA-1', 'CAGTCCTAGAAGGACA-1'],
-            'read_umis': ['CCCACAGCCA', 'TGCCTCACGG'],
             'utr_sizes_from_reads': [53, 28]
         }
         self.assertDictEqual(
@@ -110,7 +103,6 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
     def test_index_on_second_df(self):
         details_true = {
             'read_barcodes': ['ACAGCTATCCTTAATC-2'],
-            'read_umis': ['AATAGTCCAT'],
             'utr_sizes_from_reads': [192]
         }
         self.assertDictEqual(
