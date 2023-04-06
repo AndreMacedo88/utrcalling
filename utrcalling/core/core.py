@@ -28,7 +28,7 @@ import re
 import psutil
 
 import numpy as np
-import pandas as pd
+import modin.pandas as pd
 import pybedtools
 import joblib
 from tqdm import tqdm
@@ -130,7 +130,8 @@ def call_peaks(utr_sizes_counts,
     # if more than one counts file is provided, they must be merged before peak calling
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
         utr_sizes_counts = [
-            helpers.check_if_path_and_open(element, method="pickle_pandas") for element in utr_sizes_counts
+            helpers.check_if_path_and_open(element, method="pickle_pandas")
+            for element in utr_sizes_counts
         ]
 
         utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,

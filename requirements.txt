@@ -1,8 +1,10 @@
 numpy>=1.22.3
 pandas>=1.2.4
+modin[ray]>=0.19.0
 scipy>=1.6.2
 scikit-learn>=0.23.2
 regex>=2022.04.24
+rapidfuzz>=2.0.0
 joblib>=1.0.1
 anndata>=0.8.0
 scanpy>=1.9.1
@@ -12,4 +14,6 @@ pybedtools==0.8.2
 tqdm>=4.59.0
 psutil
 pymper
-rapidfuzz
+coloredlogs
+verboselogs
+colorama

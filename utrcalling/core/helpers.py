@@ -5,7 +5,7 @@ import pickle
 from collections import defaultdict
 
 import pybedtools
-import pandas as pd
+import modin.pandas as pd
 import scanpy as sc
 
 from utrcalling.core import module_log

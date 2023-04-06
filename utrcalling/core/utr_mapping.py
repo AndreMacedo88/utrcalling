@@ -108,7 +108,8 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
         except ValueError:  # intervals can be from genome annotations with more chroms
             continue
 
-        if read_start_positions:
+        # UMI deduplication TODO: make it into a function for readability
+        if read_umis:
             umis_unique = []
             idx_unique = []
             for idx, umi in enumerate(read_umis.copy()):

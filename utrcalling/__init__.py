@@ -29,9 +29,17 @@ def show_logo():
 # First, prevent joblib instances from printing the header
 
 caller_process = psutil.Process().cmdline()
+initialize = True
+for element in caller_process:
+    if ("ray::IDLE" in element) or ("joblib" in element):
+        initialize = False
+        break
 
-if any("joblib" in element for element in caller_process):
-    pass
-else:
+if initialize:
     init()
     show_logo()
+    import ray
+    ray.init(
+        runtime_env={'env_vars': {'__MODIN_AUTOIMPORT_PANDAS__': '1'}},
+        include_dashboard=False
+    )
