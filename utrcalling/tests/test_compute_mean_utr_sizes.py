@@ -64,7 +64,7 @@ class TestComputeMeanSizes(TestCaseBase):
                                 dtype=count_matrix.dtype)
         self.adata_path = "test_compute_mean_sizes.h5ad"
         tool.compute_mean_utr_sizes(
-            self.adata,
+            self.adata.copy(),
             self.adata_path,
             utr_name_column="utr_name",
         )
@@ -101,5 +101,5 @@ class TestComputeMeanSizes(TestCaseBase):
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")
