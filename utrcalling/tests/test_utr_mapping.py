@@ -72,11 +72,8 @@ class TestTenxTwo(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [122748098, 122748088, 122748096],
-            'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
             'read_umis': ['TCAACACAAG', 'AATCGAGAGT', 'CCTGAGTATG'],
-            'read_lengths': [51, 37, 44],
             'utr_sizes_from_reads': [1468, 1458, 1466]
         }
         self.assertDictEqual(
@@ -106,11 +103,8 @@ class TestTenxThree(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [122748098, 122748088, 122748096],
-            'read_strands': ['-', '-', '-'],
             'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
             'read_umis': ['TCAACACAAGTT', 'AATCGAGAGTTT', 'CCTGAGTATGTT'],
-            'read_lengths': [51, 37, 44],
             'utr_sizes_from_reads': [1468, 1458, 1466]
         }
         self.assertDictEqual(
@@ -142,11 +136,8 @@ class TestSmartSeq3(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [[14412], [16441]],
-            'read_strands': [['-'], ['+']],
             'read_barcodes': [['CACTGT-2'], ['CACTGT-2']],
             'read_umis': [['GTGATATG'], ['GGCCACCA']],
-            'read_lengths': [[97], [93]],
             'utr_sizes_from_reads': [[300], [30]]
         }
         self.assertDictEqual(
@@ -154,11 +145,8 @@ class TestSmartSeq3(TestMapReadsToUtr):
 
     def test_details_one(self):
         dict_true = {
-            'read_start_positions': [14412],
-            'read_strands': ['-'],
             'read_barcodes': ['CACTGT-2'],
             'read_umis': ['GTGATATG'],
-            'read_lengths': [97],
             'utr_sizes_from_reads': [300]
         }
         self.assertDictEqual(
@@ -189,11 +177,8 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [23677423, 23677444, 23677448],
-            'read_strands': ['-', '-', '-'],
             'read_barcodes': [self.alignment_cap, self.alignment_cap, self.alignment_cap],
             'read_umis': ['CGCCAGGC', 'GACACGAT', 'AAGGGGAC'],
-            'read_lengths': [81, 82, 82],
             'utr_sizes_from_reads': [4, 25, 29]
         }
         self.assertDictEqual(
@@ -264,11 +249,8 @@ class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [[14412], [16441]],
-            'read_strands': [['-'], ['+']],
             'read_barcodes': [['CACTGT'], ['CACTGT']],
             'read_umis': [['GTGATATG'], ['GGCCACCA']],
-            'read_lengths': [[97], [93]],
             'utr_sizes_from_reads': [[223], [158]]
         }
         self.assertDictEqual(
@@ -296,11 +278,8 @@ class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [[14412], [16441]],
-            'read_strands': [['-'], ['+']],
             'read_barcodes': [['CACTGT-2'], ['CACTGT-2']],
             'read_umis': [['GTGATATG'], ['GGCCACCA']],
-            'read_lengths': [[97], [93]],
             'utr_sizes_from_reads': [[223], [158]]
         }
         self.assertDictEqual(
@@ -348,11 +327,8 @@ class TestSmartSeq3CapReadnameMinimal(TestMapReadsToUtrMinimalCap):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [[3102682], [3153041]],
-            'read_strands': [['+'], ['-']],
             'read_barcodes': [[self.alignment], [self.alignment]],
             'read_umis': [['TTGCCACG'], ['TTCAGACG']],
-            'read_lengths': [[80], [81]],
             'utr_sizes_from_reads': [[68], [143]]
         }
         self.assertDictEqual(
@@ -401,11 +377,8 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
 
     def test_details(self):
         dict_true = {
-            'read_start_positions': [[3340662], [3536771]],
-            'read_strands': [['-'], ['+']],
             'read_barcodes': [[self.data.alignment], [self.data.alignment]],
             'read_umis': [['TCTGCGTG'], ['TTGGCAGG']],
-            'read_lengths': [[82], [82]],
             'utr_sizes_from_reads': [[404], [69]]
         }
         self.assertDictEqual(

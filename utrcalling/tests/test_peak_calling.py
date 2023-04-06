@@ -54,9 +54,6 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
 
     def test_details(self):
         details_true = {
-            'read_start_positions': [10024824, 10024829, 10024829, 10024833, 10024602,
-                                     10024826, 10024829, 10024829, 10024835, 10024839],
-            'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'],
             'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1',
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
                               'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
@@ -64,7 +61,6 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
             'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT',
                           'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
                           'CTTTAGAACT', 'TGCTAGGACG'],
-            'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41],
             'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
         }
         self.assertDictEqual(
@@ -86,9 +82,6 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
 
     def test_identical_index(self):
         details_true = {
-            'read_start_positions': [10024824, 10024829, 10024829, 10024833, 10024602,
-                                     10024826, 10024829, 10024829, 10024835, 10024839],
-            'read_strands': ['+', '+', '+', '+', '+', '+', '+', '+', '+', '+'],
             'read_barcodes': ['CGTTGGGCAGTCAGAG-1', 'CCGTGGAGTCTCGTTC-1',
                               'GTAGTCAAGCTATGCT-1', 'TGCGCAGAGGCATGTG-1', 'CGACCTTTCTGCTGCT-2',
                               'TGTTCCGAGGGTCGAT-2', 'GTACGTAAGCGTTTAC-2', 'GTGCGGTAGGACAGCT-2',
@@ -96,7 +89,6 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
             'read_umis': ['CTGGCTTATA', 'CAACGTAACA', 'GACCTCCGGT', 'AACCCGCACT',
                           'GTCACGTGAG', 'TTCCTAAATG', 'CATGATCGGT', 'CTCCAGGAAT',
                           'CTTTAGAACT', 'TGCTAGGACG'],
-            'read_lengths': [46, 50, 48, 46, 43, 45, 54, 50, 41, 41],
             'utr_sizes_from_reads': [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
         }
         self.assertDictEqual(
@@ -106,11 +98,8 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
 
     def test_index_on_first_df(self):
         details_true = {
-            'read_start_positions': [136881390, 136881415],
-            'read_strands': ['+', '+'],
             'read_barcodes': ['CGAGAAGGTGCAACGA-1', 'CAGTCCTAGAAGGACA-1'],
             'read_umis': ['CCCACAGCCA', 'TGCCTCACGG'],
-            'read_lengths': [53, 48],
             'utr_sizes_from_reads': [53, 28]
         }
         self.assertDictEqual(
@@ -120,11 +109,8 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
 
     def test_index_on_second_df(self):
         details_true = {
-            'read_start_positions': [107584044],
-            'read_strands': ['-'],
             'read_barcodes': ['ACAGCTATCCTTAATC-2'],
             'read_umis': ['AATAGTCCAT'],
-            'read_lengths': [50],
             'utr_sizes_from_reads': [192]
         }
         self.assertDictEqual(

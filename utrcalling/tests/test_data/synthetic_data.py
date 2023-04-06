@@ -127,9 +127,6 @@ ANNOTATION = pd.DataFrame(columns=["celltype", "barcodes",
 class ThreePrimeBarcoded:
     def __init__(self) -> None:
         # Build the data
-        read_start_positions = [[100, 101, 100, 200, 202, 300],
-                                [1000, 1100, 1102, 1200, 1200]]
-        read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-", "+"]]
         read_barcodes = [["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
                           "GAAAAAAAAAAAAAAT-2", "GAAAAAAAAAAAAAAT-2",
                           "AAAAAAAAAAAAAAAG-2", "AAAAAAAAAAAAAAAG-1"],
@@ -141,23 +138,21 @@ class ThreePrimeBarcoded:
              "CCCCCCCTTC"],
             ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC", "CTCTCTCTCT"]
         ]
-        read_lengths = [
-            [49, 59, 51, 52, 48, 52],
-            [50, 52, 53, 52, 70]
-        ]
         utr_sizes_from_reads = [
             [500, 499, 500, 400, 398, 300],
             [100, 200, 202, 300, 300]
         ]
 
-        self._data_synthetic = pd.DataFrame(columns=['read_start_positions', 'read_strands',
-                                                     'read_barcodes', 'read_umis',
-                                                     'read_lengths', 'utr_sizes_from_reads'],
-                                            index=["ENSMUSG00000000001",
-                                                   "ENSMUSG00000000002"],
-                                            data=list(
+        self._data_synthetic = pd.DataFrame(columns=[
+            'read_barcodes',
+            'read_umis',
+            'utr_sizes_from_reads'
+        ],
+            index=["ENSMUSG00000000001", "ENSMUSG00000000002"],
+            data=list(
             zip(
-                read_start_positions, read_strands, read_barcodes, read_umis, read_lengths,
+                read_barcodes,
+                read_umis,
                 utr_sizes_from_reads
             )
         )
@@ -178,9 +173,6 @@ class ThreePrimeBarcoded:
 class ThreePrimeBarcodedFiltered:
     def __init__(self) -> None:
         # Build the data
-        read_start_positions = [[100, 101, 100, 200, 202, 300],
-                                [1000, 1100, 1102, 1200]]
-        read_strands = [["+", "+", "+", "+", "+", "+"], ["-", "-", "-", "-"]]
         read_barcodes = [
             ['AAAAAAAAAAAAAAAA-1', 'AAAAAAAAAAAAAAAA-1',
              'GAAAAAAAAAAAAAAT-2', 'GAAAAAAAAAAAAAAT-2',
@@ -193,27 +185,21 @@ class ThreePrimeBarcodedFiltered:
              "CCCCCCCTTC"],
             ["AAAAAAAAAA", "AAAAAAAAAT", "AAAAAAAAAG", "AAAAAAAAAC"]
         ]
-        read_lengths = [
-            [49, 59, 51, 52, 48, 52],
-            [50, 52, 53, 52]
-        ]
         utr_sizes_from_reads = [
             [500, 499, 500, 400, 398, 300],
             [100, 200, 202, 300]
         ]
 
-        self._data_filtered = pd.DataFrame(columns=['read_start_positions', 'read_strands',
-                                                    'read_barcodes', 'read_umis',
-                                                    'read_lengths', 'utr_sizes_from_reads'],
-                                           index=["ENSMUSG00000000001",
-                                                  "ENSMUSG00000000002"],
-                                           data=list(
+        self._data_filtered = pd.DataFrame(columns=[
+            'read_barcodes',
+            'read_umis',
+            'utr_sizes_from_reads'
+        ],
+            index=["ENSMUSG00000000001", "ENSMUSG00000000002"],
+            data=list(
             zip(
-                read_start_positions,
-                read_strands,
                 read_barcodes,
                 read_umis,
-                read_lengths,
                 utr_sizes_from_reads,
             )
         )
@@ -236,18 +222,6 @@ class LargeThreePrimeBarcoded:
         # Build the data
         rng = np.random.default_rng(123)
 
-        start_positions = rng.multinomial(
-            n=100, pvals=[0.25, 0.75], size=size).astype(int).tolist()
-        read_start_positions = []
-        for i in start_positions:
-            i_list = []
-            for z in i:
-                i_list.append(int(rng.choice(z, 1)))
-            read_start_positions.append(i_list)
-
-        read_strands = [
-            list(i) for i in rng.choice(["+", "-"], size=size)
-        ]
         read_barcodes = [
             list(i) for i in rng.choice(list(string.ascii_uppercase), size=size)
         ]
@@ -258,10 +232,15 @@ class LargeThreePrimeBarcoded:
              for i in range(size[1])]
             for z in range(size[0])
         ]
-        read_lengths = [
-            list(i) for i in rng.normal(loc=100, scale=1, size=size).astype(int)
-        ]
-        utr_sizes_from_reads = read_start_positions
+
+        utr_sizes = rng.multinomial(
+            n=100, pvals=[0.25, 0.75], size=size).astype(int).tolist()
+        utr_sizes_from_reads = []
+        for i in utr_sizes:
+            i_list = []
+            for z in i:
+                i_list.append(int(rng.choice(z, 1)))
+            utr_sizes_from_reads.append(i_list)
 
         utr_len = 15
         utr_bases = list(string.ascii_uppercase)
@@ -273,18 +252,15 @@ class LargeThreePrimeBarcoded:
         self._data = pd.DataFrame(
             data=list(
                 zip(
-                    read_start_positions,
-                    read_strands,
                     read_barcodes,
                     read_umis,
-                    read_lengths,
                     utr_sizes_from_reads,
                 )
             ),
             columns=[
-                'read_start_positions', 'read_strands',
-                'read_barcodes', 'read_umis',
-                'read_lengths', 'utr_sizes_from_reads'
+                'read_barcodes',
+                'read_umis',
+                'utr_sizes_from_reads'
             ],
             index=utrs
         )

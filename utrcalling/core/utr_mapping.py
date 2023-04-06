@@ -64,16 +64,15 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
 
     for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
                                desc="Interval: "):
-        read_start_positions = []
-        read_strands = []
         read_barcodes = []
         read_umis = []
-        read_lengths = []
         utr_sizes_from_reads = []
 
-        mapped_read_information = [read_start_positions, read_strands,
-                                   read_barcodes, read_umis,
-                                   read_lengths, utr_sizes_from_reads]
+        mapped_read_information = [
+            read_barcodes,
+            read_umis,
+            utr_sizes_from_reads
+        ]
         try:
             # BAM_Reader[GenomicInterval] is a generator
             for alignment in bam_file[interval]:
@@ -99,12 +98,9 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
                     if read_info is None:
                         continue
                     else:
-                        read_start_positions.append(read_info[0])
-                        read_strands.append(read_info[1])
-                        read_barcodes.append(read_info[2])
-                        read_umis.append(read_info[3])
-                        read_lengths.append(read_info[4])
-                        utr_sizes_from_reads.append(read_info[5])
+                        read_barcodes.append(read_info[0])
+                        read_umis.append(read_info[1])
+                        utr_sizes_from_reads.append(read_info[2])
         except ValueError:  # intervals can be from genome annotations with more chroms
             continue
 
@@ -125,8 +121,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
 
     utr_mappings = pd.DataFrame.from_dict(
         utr_mappings, orient="index",
-        columns=["read_start_positions", "read_strands", "read_barcodes", "read_umis",
-                 "read_lengths", "utr_sizes_from_reads"])
+        columns=["read_barcodes", "read_umis", "utr_sizes_from_reads"])
 
     utr_mappings.index.name = "utr_name"
 
@@ -198,14 +193,10 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     if not read_barcode:
         return None
 
-    # get read length
-    read_length = len(read_sequence)
-
     # get the computed size of the UTR for this molecule
     utr_size = protocol.get_utr_size_from_read(read_start_position=read_start_position,
                                                interval=interval)
 
-    information = read_start_position, read_strand, read_barcode, \
-        read_umi, read_length, utr_size  # , read_sequence
+    information = read_barcode, read_umi, utr_size
 
     return information
