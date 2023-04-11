@@ -180,11 +180,13 @@ def extract_read_information(alignment, interval, protocol, bam_name):
 
     if read_strand == '+':
         read_sequence = read_seq[query_from:query_to]
-    else:
+    elif read_strand == "-":
         if query_from == 0:
             read_sequence = read_seq[-query_to:]
         else:
             read_sequence = read_seq[-query_to:-query_from]
+    else:
+        raise AttributeError(f"Read strand {read_strand} not recognized.")
 
     # if the start of the read is not in the reference UTR region then we discard the read
     if interval.strand == '+':
