@@ -7,7 +7,7 @@ from utrcalling.core import helpers
 
 def compute_mean_utr_sizes(input_path, out_path, utr_name_column="utr_name"):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    adata = ap.compute_cell_means(adata=adata, utr_name_column=utr_name_column)
+    adata = ap.compute_utr_size_means(adata=adata, utr_name_column=utr_name_column)
     adata.write_h5ad(out_path)
 
 
