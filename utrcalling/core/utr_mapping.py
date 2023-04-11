@@ -155,38 +155,10 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     Returns:
         tuple: The relevant read information
     """
-    logger = module_logger()
-
-    # get read strand
-    read_strand = alignment.iv.strand
+    # logger = module_logger()
 
     # get the read starting position. This may, or may not, be the match start position
     read_start_position = alignment.iv.start_d
-
-    # get read sequence
-    read_seq = to_string(alignment.read.seq)
-    query_from = None
-    query_to = None
-    for operation in alignment.cigar:
-        if operation.type in ('M', 'I', '=', 'X'):
-            if query_from is None:
-                query_from = operation.query_from
-            query_to = operation.query_to
-    if query_from is None:
-        match_fail = f'Read {read_seq} has no alignment match! \
-        Please filter your alignments before running the tool.'
-        logger.error(match_fail)
-        raise RuntimeError(match_fail)
-
-    if read_strand == '+':
-        read_sequence = read_seq[query_from:query_to]
-    elif read_strand == "-":
-        if query_from == 0:
-            read_sequence = read_seq[-query_to:]
-        else:
-            read_sequence = read_seq[-query_to:-query_from]
-    else:
-        raise AttributeError(f"Read strand {read_strand} not recognized.")
 
     # if the start of the read is not in the reference UTR region then we discard the read
     if interval.strand == '+':
@@ -211,3 +183,35 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     information = read_barcode, read_umi, utr_size
 
     return information
+
+
+"""
+# Snippet of old code that was used to provide with the read_sequence
+    # get read strand
+    read_strand = alignment.iv.strand
+    
+    # get read sequence
+    read_seq = to_string(alignment.read.seq)
+    query_from = None
+    query_to = None
+    for operation in alignment.cigar:
+        if operation.type in ('M', 'I', '=', 'X'):
+            if query_from is None:
+                query_from = operation.query_from
+            query_to = operation.query_to
+    if query_from is None:
+        match_fail = f'Read {read_seq} has no alignment match! \
+        Please filter your alignments before running the tool.'
+        logger.error(match_fail)
+        raise RuntimeError(match_fail)
+
+    if read_strand == '+':
+        read_sequence = read_seq[query_from:query_to]
+    elif read_strand == "-":
+        if query_from == 0:
+            read_sequence = read_seq[-query_to:]
+        else:
+            read_sequence = read_seq[-query_to:-query_from]
+    else:
+        raise AttributeError(f"Read strand {read_strand} not recognized.")
+"""
