@@ -7,7 +7,7 @@ from utrcalling.core import helpers
 
 def compute_mean_utr_sizes(input_path, out_path, utr_name_column="utr_name"):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    adata = ap.compute_cell_means_and_var(adata=adata, utr_name_column=utr_name_column)
+    adata = ap.compute_cell_means(adata=adata, utr_name_column=utr_name_column)
     adata.write_h5ad(out_path)
 
 
@@ -22,7 +22,7 @@ def main():
 
 parser = argparse.ArgumentParser(
     description="""
-Computes the variance and mean UTR size per row of the AnnData object provided
+Computes the mean UTR size per row of the AnnData object provided
 """,
     epilog="""
 Example use:
