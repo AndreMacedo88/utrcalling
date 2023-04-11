@@ -118,7 +118,6 @@ def compute_cell_means(adata, utr_name_column="utr_name"):
 
     df = adata.to_df()
     df_mult = df.mul(adata.var["utr_size"])
-    print(df_mult)
 
     df = pd.melt(
         df,

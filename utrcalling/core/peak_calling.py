@@ -87,8 +87,8 @@ def filter_barcodes(utr_sizes, whitelist):
                     score_cutoff=1
                 )
             except ValueError as err:
-                print(
-                    f"Error matching sample barcode/ID: {barcode}\nPlease check if "
+                logger.error(
+                    f"\nError matching sample barcode/ID: {barcode}\nPlease check if "
                     f"the barcodes in the annotation file are correct or, if using "
                     f"different batches with similar barcodes/IDs, if all the batches "
                     f"are correctly described in the annotations file."
