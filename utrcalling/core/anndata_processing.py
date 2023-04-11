@@ -109,7 +109,7 @@ def counts_to_percentages(adata, utr_name_column):
     return adata
 
 
-def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
+def compute_cell_means(adata, utr_name_column="utr_name"):
     obs_index_name = adata.obs.index.name
     adata.var = adata.var.set_index(utr_name_column)
 
@@ -140,80 +140,12 @@ def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
         columns=utr_name_column
     )["value"].reindex(adata.obs.index)
 
-    print(df)
-
-    df_var = df_mult.T.join(df.T, rsuffix="_mean")
-    df_size = int(len(df_var.columns) / 2)
-    df_var_means = df_var.iloc[:, df_size:]
-    df_var = df_var.iloc[:, :df_size]
-    df_var_means.columns = df_var.columns
-
-    df_var = (df_var - df_var_means).abs()**2
-
-    df_var = df_var.groupby("utr_name").mean().T
-    print(df_var)
-
     adata = anndata.AnnData(
         df,
         obs=adata.obs,
         var=var_new,
         dtype=df.values.dtype
     )
-    adata.layers['variance'] = df_var
-
-    # def repeat_arr(row, sizes):
-    #     sizes_repeated = np.repeat(sizes, row.astype(int))
-    #     removed_zeros = np.where(sizes_repeated != 0, sizes_repeated, np.nan)
-
-    #     with warnings.catch_warnings():
-    #         warnings.simplefilter("ignore", category=RuntimeWarning)
-    #         means = np.nanmean(removed_zeros)
-
-    #     data_to_norm = removed_zeros[np.isfinite(removed_zeros)]
-    #     if data_to_norm.size > 2:
-    #         norm_data = (data_to_norm - np.min(data_to_norm)) / np.ptp(data_to_norm)
-    #         vars = np.nanvar(norm_data, ddof=1)
-    #     else:
-    #         vars = np.nan
-    #     return [means, vars]
-
-    # def compute(utr):
-    #     utr_data = adata[:, adata.var[utr_name_column] == utr]
-    #     sizes = utr_data.var.utr_size.values
-    #     mean_and_var = np.apply_along_axis(
-    #         repeat_arr, 1, utr_data.X, sizes
-    #     )
-    #     number_umis = int(np.sum(utr_data.X))
-    #     return utr, number_umis, mean_and_var
-
-    # cell_mean_sizes = pd.DataFrame(index=adata.obs_names)
-    # cell_var_sizes = pd.DataFrame(index=adata.obs_names)
-
-    # # parallelize the calculation of mean UTR site size per cell per UTR
-    # utrs = adata.var[utr_name_column].unique()
-    # utr_list, umi_list, mean_and_var_list = zip(*joblib.Parallel(n_jobs=-2)(
-    #     joblib.delayed(compute)(utr=utr) for utr in
-    #     tqdm(utrs, desc='Calculating mean UTR site size per cell per UTR. UTR no: ',
-    #          colour="#ffb700", ascii=" ■")))
-
-    # # assign the parallelization results properly
-    # umis = {utr: umi for (utr, umi) in zip(utr_list, umi_list)}
-    # for utr, means_and_vars in zip(utr_list, mean_and_var_list):
-    #     cell_mean_sizes[utr] = means_and_vars[:, 0]
-    #     cell_var_sizes[utr] = means_and_vars[:, 1]
-
-    # var = adata.var[adata.var[utr_name_column].isin(
-    #     cell_mean_sizes.columns)]
-    # var = var.drop_duplicates(subset=[utr_name_column])
-    # var = var.set_index(utr_name_column)
-    # var = var.drop(labels="utr_size", errors="ignore")
-    # var['UMIs'] = pd.Series(umis)
-
-    # adata = anndata.AnnData(cell_mean_sizes,
-    #                         obs=adata.obs,
-    #                         var=var,
-    #                         dtype=cell_mean_sizes.values.dtype)
-    # adata.layers['variance'] = cell_var_sizes
     return adata
 
 
@@ -305,64 +237,3 @@ def split_train_test_data(adata, train_fraction, seed):
     adata_train = adata[adata.obs_names.isin(obs_train.index), :]
     adata_test = adata[adata.obs_names.isin(obs_test.index), :]
     return adata_train, adata_test
-
-# LEGACY FUNCTIONS
-
-
-"""
-def compute_cell_means_and_var(adata, utr_name_column="utr_name"):
-    def repeat_arr(row, sizes):
-        sizes_repeated = np.repeat(sizes, row.astype(int))
-        removed_zeros = np.where(sizes_repeated != 0, sizes_repeated, np.nan)
-
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            means = np.nanmean(removed_zeros)
-
-        data_to_norm = removed_zeros[np.isfinite(removed_zeros)]
-        if data_to_norm.size > 2:
-            norm_data = (data_to_norm - np.min(data_to_norm)) / np.ptp(data_to_norm)
-            vars = np.nanvar(norm_data, ddof=1)
-        else:
-            vars = np.nan
-        return [means, vars]
-
-    def compute(utr):
-        utr_data = adata[:, adata.var[utr_name_column] == utr]
-        sizes = utr_data.var.utr_size.values
-        mean_and_var = np.apply_along_axis(
-            repeat_arr, 1, utr_data.X, sizes
-        )
-        number_umis = int(np.sum(utr_data.X))
-        return utr, number_umis, mean_and_var
-
-    cell_mean_sizes = pd.DataFrame(index=adata.obs_names)
-    cell_var_sizes = pd.DataFrame(index=adata.obs_names)
-
-    # parallelize the calculation of mean UTR site size per cell per UTR
-    utrs = adata.var[utr_name_column].unique()
-    utr_list, umi_list, mean_and_var_list = zip(*joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(compute)(utr=utr) for utr in
-        tqdm(utrs, desc='Calculating mean UTR site size per cell per UTR. UTR no: ',
-             colour="#ffb700", ascii=" ■")))
-
-    # assign the parallelization results properly
-    umis = {utr: umi for (utr, umi) in zip(utr_list, umi_list)}
-    for utr, means_and_vars in zip(utr_list, mean_and_var_list):
-        cell_mean_sizes[utr] = means_and_vars[:, 0]
-        cell_var_sizes[utr] = means_and_vars[:, 1]
-
-    var = adata.var[adata.var[utr_name_column].isin(
-        cell_mean_sizes.columns)]
-    var = var.drop_duplicates(subset=[utr_name_column])
-    var = var.set_index(utr_name_column)
-    var = var.drop(labels="utr_size", errors="ignore")
-    var['UMIs'] = pd.Series(umis)
-
-    adata = anndata.AnnData(cell_mean_sizes,
-                            obs=adata.obs,
-                            var=var,
-                            dtype=cell_mean_sizes.values.dtype)
-    adata.layers['variance'] = cell_var_sizes
-    return adata
-"""
