@@ -83,6 +83,12 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
             protocol=cls.protocol,
             store=False
         )
+        cls.results_nolabel = core.call_peaks(
+            utr_sizes_counts=cls.mapped,
+            utr_reference_regions=cls.utr_regions,
+            protocol=cls.protocol,
+            store=False
+        )
         # objects for testing with label_batches
         cls.protocol_label = protocols.protocol(
             platform='smartseq',
@@ -101,12 +107,6 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
             utr_sizes_counts=cls.mapped_label,
             utr_reference_regions=cls.utr_regions,
             protocol=cls.protocol_label,
-            store=False
-        )
-        cls.results_nolabel = core.call_peaks(
-            utr_sizes_counts=cls.mapped,
-            utr_reference_regions=cls.utr_regions,
-            protocol=cls.protocol,
             store=False
         )
 

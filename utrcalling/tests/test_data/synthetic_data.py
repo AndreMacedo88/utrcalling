@@ -254,15 +254,15 @@ class LargeThreePrimeBarcoded:
         ]
         batch = [1] * anno_length
 
-        self._anno = pd.DataFrame(columns=["sample_id", "barcodes",
-                                           "batch"],
-                                  data=list(
-            zip(
-                sample_id,
-                barcodes,
-                batch
-            )
-        )
+        self._anno = pd.DataFrame(
+            data=list(
+                zip(
+                    sample_id,
+                    barcodes,
+                    batch
+                )
+            ),
+            columns=["sample_id", "barcodes", "batch"],
         )
 
         # Build the alignment paths
@@ -276,6 +276,10 @@ class LargeThreePrimeBarcoded:
     def anno(self):
         return copy.deepcopy(self._anno)
 
+    @anno.setter
+    def anno(self, df):
+        self.anno = df
+
     @property
     def alignments(self):
-        return copy.deepcopy(self._anno)
+        return copy.deepcopy(self._alignments)

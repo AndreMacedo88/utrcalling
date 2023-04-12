@@ -109,7 +109,7 @@ def counts_to_percentages(adata, utr_name_column):
     return adata
 
 
-def compute_cell_means(adata, utr_name_column="utr_name"):
+def compute_utr_size_means(adata, utr_name_column="utr_name"):
     obs_index_name = adata.obs.index.name
     adata.var = adata.var.set_index(utr_name_column)
 

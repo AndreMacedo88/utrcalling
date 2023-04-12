@@ -61,7 +61,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         call_peaks=True,
         call_peaks_method="kde",
         label_batches=None,
-        alignments=None,
+        alignments=None,  # TODO: either remove this or use alignments to improve protocol
     ) -> None:
 
         self.logger = module_log.module_logger()
@@ -98,8 +98,14 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.sample_idx = None
 
         # set variables that are calculated from the inputs
-        self.batches_list, self.batches_range = self.get_batch_information()
-        self.barcode_whitelist = self.get_barcode_list()
+        self.barcode_column_name = self._get_barcode_column()
+        self.batch_column_name = self._get_batch_column()
+
+        self.batches_list, self.batches_range = self._get_batch_information()
+
+        self.annotations = self._resolve_barcode_reuse_by_batch()
+
+        self.barcode_whitelist = self._get_barcode_list()
 
     # log the protocol:
     def protocol_log(self):
@@ -117,20 +123,14 @@ class Protocol(ABC, metaclass=CombinedMeta):
         sample_idx_dict = dict()
         if not isinstance(alignments, list):
             alignments = [alignments]
-        try:
-            sample_names = self.annotations.loc[:, self.annotations.columns.str.extract(
-                r"(.*sample_id.*)", flags=re.IGNORECASE).values[0]]
-        except IndexError as err:
-            msg = (
-                f"Please supply a column for `sample_id` in the annotation file. "
-                f"This column should contain the names of each sample, corresponding "
-                f"to the name in the bam file."
-            )
-            self.logger.error(msg)
-            raise IndexError(msg) from err
+
+        sample_column_name = self._get_sample_column()
+        sample_names = self.annotations.loc[:, sample_column_name]
 
         not_found_trigger = True
-        for idx, sample in enumerate(sample_names.iloc[:, 0]):
+        for idx, sample in enumerate(sample_names):
+            # TODO: the next 2 lines break if the sample_id column in anno file contains
+            # a substring of more than one alignment
             sample_bam = [bam for bam in alignments if sample in bam]
             sample_bam_len = len(sample_bam)
             if sample_bam_len > 1:
@@ -155,10 +155,36 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 sample_idx_dict[sample_bam[0]] = self.batches_range[idx]
 
         return sample_names_dict, sample_idx_dict
+    """
+        sample_column_name = self._get_sample_column()
+        sample_names = self.annotations.loc[:, sample_column_name]
+    """
 
-    def get_batch_information(self):
+    def _get_sample_column(self):
         try:
-            batches_column_name = self.annotations.columns.str.extract(
+            sample_column_name = self.annotations.columns.str.extract(
+                r"(.*sample_id.*)", flags=re.IGNORECASE).values[0]
+        except IndexError:
+            msg = (
+                f"Please supply a column for `sample_id` in the annotation file. "
+                f"This column should contain the names of each sample, corresponding "
+                f"to the name in the bam file."
+            )
+            self.logger.error(msg)
+            raise ValueError(msg)
+
+        if len(sample_column_name) > 1:
+            raise ValueError(
+                f"Too many columns in the annotation file with 'sample_id' in "
+                f"their name."
+            )
+        else:
+            sample_column_name = sample_column_name[0]
+        return sample_column_name
+
+    def _get_batch_column(self):
+        try:
+            batch_column_name = self.annotations.columns.str.extract(
                 r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]
         except IndexError:
             msg = (
@@ -167,22 +193,18 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 f"This column should contain the batch ID for each sample."
             )
             self.logger.warning(msg)
-            return None, None  # will make the rest of the protocol behave with no batches
+            return None
 
-        if len(batches_column_name) > 1:
+        if len(batch_column_name) > 1:
             raise ValueError(
-                f"Too many columns in the annotation file with 'barcode' in "
+                f"Too many columns in the annotation file with 'batch' in "
                 f"their name."
             )
         else:
-            batches_column_name = batches_column_name[0]
-        batches_df = self.annotations.loc[:, batches_column_name]
-        batches_list = batches_df.to_list()
-        batches_range, _ = pd.factorize(batches_df, sort=False)
-        batches_range = (batches_range + 1).astype(str)
-        return batches_list, batches_range
+            batch_column_name = batch_column_name[0]
+        return batch_column_name
 
-    def get_barcode_list(self):
+    def _get_barcode_column(self):
         try:
             barcode_column_name = self.annotations.columns.str.extract(
                 r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
@@ -194,7 +216,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 f"as appropriate."
             )
             self.logger.warning(msg)
-            return None  # will make the rest of the protocol behave with no barcodes
+            return None
 
         if len(barcode_column_name) > 1:
             raise ValueError(
@@ -203,15 +225,45 @@ class Protocol(ABC, metaclass=CombinedMeta):
             )
         else:
             barcode_column_name = barcode_column_name[0]
+        return barcode_column_name
 
-        barcodes_series = self.annotations.loc[:, barcode_column_name]
+    def _get_batch_information(self):
+        if self.batch_column_name is None:
+            return None, None  # will make the rest of the protocol behave without batches
 
+        batches_df = self.annotations.loc[:, self.batch_column_name]
+        batches_list = batches_df.to_list()
+        batches_range, _ = pd.factorize(batches_df, sort=False)
+        batches_range = (batches_range + 1).astype(str)
+        return batches_list, batches_range
+
+    def _resolve_barcode_reuse_by_batch(self):
+        annotations = self.annotations.copy()
         if self.label_batches and (self.batches_list is not None):
-            try:
-                barcodes_series.str.split("-").to_list()[1]
-            except IndexError:
-                barcodes_series = (barcodes_series + "-" + self.batches_range)
+            barcodes = annotations.loc[:, self.barcode_column_name]
+            if barcodes.str.match(".*-[\d]$").all():
+                pass
+            else:
+                barcodes_suffix = [f"-{val}" for val in self.batches_range]
+                annotations.loc[
+                    :, self.barcode_column_name
+                ] = barcodes.astype(str) + barcodes_suffix
+            return annotations
+        elif self.label_batches:
+            msg = (
+                f"Please use a column in your annotation file with the"
+                " batch information"
+            )
+            self.logger.error(msg)
+            raise KeyError(msg)
+        else:
+            return annotations
 
+    def _get_barcode_list(self):
+        if self.barcode_column_name is None:
+            return None  # will make the rest of the protocol behave without barcodes
+
+        barcodes_series = self.annotations.loc[:, self.barcode_column_name]
         barcodes_whitelist = barcodes_series.unique()
         return barcodes_whitelist
 
