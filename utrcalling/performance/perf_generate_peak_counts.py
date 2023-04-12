@@ -4,8 +4,6 @@ import cProfile
 import pstats
 import logging
 
-import pandas as pd
-
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
 from utrcalling.core import peak_calling, module_log, protocols
