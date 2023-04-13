@@ -13,12 +13,6 @@ from colorama import init, Fore, Style
 
 from utrcalling._metadata import __version__, __author__, __license__
 
-# from utrcalling import core
-# from utrcalling import tests
-# from utrcalling import tools
-
-# from utrcalling.core import protocols
-
 
 def show_logo():
     print(f"\n{Style.BRIGHT}{Fore.MAGENTA}/{Fore.RED}/{Fore.YELLOW}/" +

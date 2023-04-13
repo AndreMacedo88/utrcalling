@@ -19,11 +19,7 @@ from utrcalling.tools import call_peaks_different_bandwidths
 
 from utrcalling.tests import test_case
 
-"""
-read the CLI version from the VERSION file
-"""
-# DIR_PATH = path.dirname(path.realpath(__file__))
-# VERSION_FILE = path.join(DIR_PATH, './../VERSION')
+# read the version from the metadata file
 metadata_file = "utrcalling/_metadata.py"
 with open(metadata_file, "rt") as file:
     metadata = file.read()
@@ -39,7 +35,7 @@ with open(metadata_file, "rt") as file:
 def create_parser():
     # create the main parser object
     parser = argparse.ArgumentParser(
-        description='Suite of tools to map reads to the UTR'
+        description="Suite of tools to map reads to the UTR."
     )
     parser.add_argument(
         '--version', '-V',
