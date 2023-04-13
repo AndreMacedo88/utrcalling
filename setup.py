@@ -84,6 +84,7 @@ setuptools.setup(
             "estimate-best-bandwidth=utrcalling.tools.estimate_best_bandwidth:main",
             "check-distance-to-pas=utrcalling.tools.check_distance_to_pas:main",
             "call-peaks-different-bandwidths=utrcalling.tools.call_peaks_different_bandwidths:main",
+            "utrcalling=utrcalling.runtime:main",
         ],
     }
 )
