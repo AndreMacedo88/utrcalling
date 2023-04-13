@@ -11,33 +11,30 @@ def select_alternative_transcription_events(input_path, out_path):
     adata_new.write_h5ad(out_path)
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Removes UTRs that have less than 2 alternative transcription sites."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+        "This selects alternative poly adenilation (APA) or "
+        "alternative transcription initiation (ATI) events."
+    )
 
+    parser = subparsers.add_parser(
+        name="select-alternative-transcription-events",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example use:
+    $ utrcalling select-alternative-transcription-events adata_old.h5ad adata_new.h5ad
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser = argparse.ArgumentParser(
-    description="""
-Removes UTRs that have less than 2 alternative transcription sites, effectively 
-selecting alternative poly adenilation (APA) or alternative transcription 
-initiation (ATI) events.
-""",
-    epilog="""
-Example use:
-$ select-alternative-transcription-events adata_old.h5ad adata_new.h5ad
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("input_path", type=str,
+                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument("out_path", type=str, help="Path where output will be stored.")
 
-parser.add_argument("input_path", type=str,
-                    help="Path to input AnnData object file (h5ad format).")
-parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=select_alternative_transcription_events)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=select_alternative_transcription_events)

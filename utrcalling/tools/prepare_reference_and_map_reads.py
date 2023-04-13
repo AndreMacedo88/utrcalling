@@ -56,54 +56,53 @@ def generate_utr_reference_and_map_reads(utr_annotation,
         alignments, utr_reference_regions, protocol, store=True)
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Builds a UTR reference and then maps the supplied reads to generate "
+        "raw UTR sizes."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+        "This is the first and second part of the UTR calling pipeline."
+    )
 
-
-parser = argparse.ArgumentParser(
-    description="""
-    Builds a UTR reference and then maps the supplied reads to generate raw UTR sizes.
-    """,
-    epilog="""
+    parser = subparsers.add_parser(
+        name="prepare-reference-and-map-reads",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
     Example on how to use in command-line:
-    $ prepare-reference-and-map-reads mus_musculus.gtf 
-        -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2
-    """,
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter
-)
-parser.add_argument("utr_annotation", type=str,
-                    help="GTF file with the genome annotations")
+    $ utrcalling prepare-reference-and-map-reads mus_musculus.gtf 
+    -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2
+        """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("utr_annotation", type=str,
+                        help="GTF file with the genome annotations")
 
-parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
-File, or files with the read alignments. One alignment per sample/batch should be 
-supplied if downstream applications involve comparisons between the samples/batches.
-Alignments must be sorted and have an index file .bai in the same directory
-""")
+    parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
+    File, or files with the read alignments. One alignment per sample/batch should be
+    supplied if downstream applications involve comparisons between the samples/batches.
+    Alignments must be sorted and have an index file .bai in the same directory
+    """)
 
-parser.add_argument("--feature", "-f", type=str,
-                    help="Type of UTR that you want to map. three_prime_utr or \
-                        five_prime_utr",
-                    default='three_prime_utr')
+    parser.add_argument("--feature", "-f", type=str,
+                        help="Type of UTR that you want to map. three_prime_utr or \
+                            five_prime_utr",
+                        default='three_prime_utr')
 
-parser.add_argument("--protocol_platform", "-p", type=str,
-                    help="Sequencing platform used.",
-                    default='10x')
+    parser.add_argument("--protocol_platform", "-p", type=str,
+                        help="Sequencing platform used.",
+                        default='10x')
 
-parser.add_argument("--protocol_version", "-v", type=int,
-                    help="Version of the protocol used in library preparation.",
-                    default=2)
+    parser.add_argument("--protocol_version", "-v", type=int,
+                        help="Version of the protocol used in library preparation.",
+                        default=2)
 
-parser.add_argument("--log_level", "-l", type=str,
-                    help="Level of logging messages to retrieve during the run.",
-                    default="info")
+    parser.add_argument("--log_level", "-l", type=str,
+                        help="Level of logging messages to retrieve during the run.",
+                        default="info")
 
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=generate_utr_reference_and_map_reads)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=generate_utr_reference_and_map_reads)

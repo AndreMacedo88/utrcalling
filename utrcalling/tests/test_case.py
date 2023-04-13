@@ -33,39 +33,38 @@ def run_all_tests(verbosity, logging):
     module_log.log_end_run("Finished testing")
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Runs all tests developed for the utrcalling module."
+    )
+    description = (
+        f"{help} Verbosity:"
 
-    args_all.func(**args)
+        "| 0 (quiet): Get the total numbers of tests executed and the global result. "
+        "| 1 (moderate): Get the same as quiet plus a dot for every successful test or a "
+        "F for every failure. "
+        "| 2 (verbose): Get the help string of every test and the respective result."
 
+    )
 
-parser = argparse.ArgumentParser(
-    description="""
-Runs all tests developed for the utrcalling module. Verbosity: 
+    parser = subparsers.add_parser(
+        name="run-tests",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example use:
+    $ utrcalling run-tests --verbosity 1 --logging
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    | 0 (quiet): Get the total numbers of tests executed and the global result.
-    | 1 (moderate): Get the same as quiet plus a dot for every successful test or a F for 
-        every failure.
-    | 2 (verbose): Get the help string of every test and the respective result.
-
-""",
-    epilog="""
-Example use:
-$ utrcalling-runtests --verbosity 1 --logging
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-
-parser.add_argument("--verbosity", "-v", type=int, required=False,
-                    help="Verbosity level for the test run.", default=2)
-parser.add_argument("--logging", "-l", action='store_true',
-                    help="Should the tool's logs be also shown while testing?",
-                    default=False)
-
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=run_all_tests)
-
-if __name__ == "__main__":
-    main()
+    parser.add_argument("--verbosity", "-v", type=int, required=False,
+                        help="Verbosity level for the test run.", default=2)
+    parser.add_argument(
+        "--logging", "-l",
+        action='store_true',
+        required=False,
+        help="Should the tool's logs be also shown while testing?",
+        default=False
+    )
+    parser.set_defaults(func=run_all_tests)

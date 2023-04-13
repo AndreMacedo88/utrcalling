@@ -75,103 +75,101 @@ This could be because their type is ambiguous
 (characters/integers/etc).\n
 To deal with this, either make all annotations columns and re-run the tool,
 or run the tool with the option to output the intermediate files and 
-build your h5ad object from the counts matrix, obs, and var.
+build your h5ad object from the count matrix, obs, and var.
 The error message was:\n{e}
             """)
 
     return
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Calls consensus peaks based on raw UTR size counts."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+        "Returns UTR size consensus peak counts per cell/sample/batch "
+        "from UTR size counts and UTR annotation files. "
+        "Exports the UTR sizes count matrix to a h5ad file. "
+        "This is the third part of the UTR calling pipeline."
+    )
 
-
-parser = argparse.ArgumentParser(
-    description="""
-Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR 
-annotation files.
-Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
-""",
-    epilog="""
-Example on how to use in command-line:
-$ call_peaks.py mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet 
+    parser = subparsers.add_parser(
+        name="call-peaks",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example on how to use in command-line:
+    $ utrcalling call_peaks mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet 
     -A experiment.csv -p 10x -v 2 -i -o results.h5ad
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter
-)
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-parser.add_argument("utr_annotation", type=str,
-                    help="BED, parquet, or pickle file with the UTR annotations")
+    parser.add_argument("utr_annotation", type=str,
+                        help="BED, parquet, or pickle file with the UTR annotations")
 
-parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True,
-                    help="""
-    File, or files with the utr and read information. One file per sample/batch should be 
-    supplied if downstream applications involve comparisons between the samples/batches.
-    The files should be parquet files of a UtrMappings object.
-    """)
+    parser.add_argument("--utr_sizes_counts", "-c", nargs='+', type=str, required=True,
+                        help="""
+        File, or files with the utr and read information. One file per sample/batch should be 
+        supplied if downstream applications involve comparisons between the samples/batches.
+        The files should be parquet files of a UtrMappings object.
+        """)
 
-parser.add_argument("--annotations_file", "-A", type=str,
-                    help="""
-                    File with your experiment's information, such as cell barcodes.
-                    """,
-                    default=None)
+    parser.add_argument("--annotations_file", "-A", type=str,
+                        help="""
+                        File with your experiment's information, such as cell barcodes.
+                        """,
+                        default=None)
 
-parser.add_argument("--protocol_platform", "-p", type=str,
-                    help="Sequencing platform used.",
-                    default='10x')
+    parser.add_argument("--protocol_platform", "-p", type=str,
+                        help="Sequencing platform used.",
+                        default='10x')
 
-parser.add_argument("--protocol_version", "-v", type=int,
-                    help="Version of the protocol used in library preparation.",
-                    default=2)
+    parser.add_argument("--protocol_version", "-v", type=int,
+                        help="Version of the protocol used in library preparation.",
+                        default=2)
 
-parser.add_argument("--batch_merge_method", "-m", type=str,
-                    help="""
-                    Method used to deal with different UTR coverage in different
-                    batches. If `union`, then the tool outputs UTRs that are not 
-                    represented by all batches. If `intersection` only the reads that
-                    map to UTRs in common between all batches will be used. Default
-                    depends on the protocol used.
-                    """,
-                    default=None)
+    parser.add_argument("--batch_merge_method", "-m", type=str,
+                        help="""
+                        Method used to deal with different UTR coverage in different
+                        batches. If `union`, then the tool outputs UTRs that are not 
+                        represented by all batches. If `intersection` only the reads that
+                        map to UTRs in common between all batches will be used. Default
+                        depends on the protocol used.
+                        """,
+                        default=None)
 
-parser.add_argument("--store_intermediate", "-i", action="store_true",
-                    help="""
-                    Stores intermediate files that can be used to 
-                    run quicker pipelines later on. Useful if something wrong 
-                    is happening in later stages of the pipeline.
-                    """)
+    parser.add_argument("--store_intermediate", "-i", action="store_true",
+                        help="""
+                        Stores intermediate files that can be used to 
+                        run quicker pipelines later on. Useful if something wrong 
+                        is happening in later stages of the pipeline.
+                        """)
 
-parser.add_argument("--raw_sizes", "-r", action="store_true",
-                    help="""
-                    Produces a count matrix with the individual UMI UTR sizes, without 
-                    aggregating individual molecules' UTR sizes into consensus peaks.
-                    """)
+    parser.add_argument("--raw_sizes", "-r", action="store_true",
+                        help="""
+                        Produces a count matrix with the individual UMI UTR sizes, without 
+                        aggregating individual molecules' UTR sizes into consensus peaks.
+                        """)
 
-parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
-                    help="""
-                    If True, gets the batches from the annotation file and labels each
-                    barcode/sample according to the batch. This prevents aggregation
-                    of the results if barcodes are recycled between batches, or when 
-                    2 samples have the same ID.
-                    """,
-                    default=None)
+    parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
+                        help="""
+                        If True, gets the batches from the annotation file and labels each
+                        barcode/sample according to the batch. This prevents aggregation
+                        of the results if barcodes are recycled between batches, or when 
+                        2 samples have the same ID.
+                        """,
+                        default=None)
 
-parser.add_argument("--log_level", "-l", type=str,
-                    help="Level of logging messages to retrieve during the run.",
-                    default="info")
+    parser.add_argument("--log_level", "-l", type=str,
+                        help="Level of logging messages to retrieve during the run.",
+                        default="info")
 
-parser.add_argument("--out", "-o", type=str,
-                    help="Path or partial path to a folder to store the result files.",
-                    default="UTR_results.h5ad")
+    parser.add_argument("--out", "-o", type=str,
+                        help="Path or partial path to a folder to store the result files.",
+                        default="UTR_counts.h5ad")
 
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=call_peaks)
-
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=call_peaks)

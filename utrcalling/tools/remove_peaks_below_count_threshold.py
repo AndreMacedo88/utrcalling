@@ -1,7 +1,5 @@
 # import general tools
 import argparse
-# import data processing tools
-import scanpy as sc
 
 from utrcalling.core import peak_calling_anndata as pc
 from utrcalling.core import helpers
@@ -13,36 +11,33 @@ def remove_peaks_below_count_threshold(input_path, out_path, threshold):
     adata_new.write_h5ad(out_path)
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Removes the UTR location peaks that have less than `threshold` counts in "
+        "the sum of all cells/samples/batches."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+        "This effectively curates the peaks, selecting the most common "
+        "and/or more prone to be true peaks."
+    )
 
+    parser = subparsers.add_parser(
+        name="remove-peaks-below-threshold",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example use:
+    $ utrcalling remove-peaks-below-threshold adata_old.h5ad adata_filtered.h5ad -t 10
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser = argparse.ArgumentParser(
-    description="""
-Removes the UTR location peaks that have less than `threshold` counts in
-the sum of all cells/samples/batches. This effectively curates the peaks, selecting the most common
-and/or more prone to be true peaks.
-""",
-    epilog="""
-Example use:
-$ remove-peaks-below-count-threshold adata_old.h5ad adata_filtered.h5ad -t 10
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("input_path", type=str,
+                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument("out_path", type=str, help="Path where output will be stored.")
+    parser.add_argument("-t", "--threshold", type=int,
+                        help="Count threshold to filter the data.", default=10)
 
-parser.add_argument("input_path", type=str,
-                    help="Path to input AnnData object file (h5ad format).")
-parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-parser.add_argument("-t", "--threshold", type=int,
-                    help="Count threshold to filter the data.", default=10)
-
-
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=remove_peaks_below_count_threshold)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=remove_peaks_below_count_threshold)

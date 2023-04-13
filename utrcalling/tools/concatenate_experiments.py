@@ -13,32 +13,30 @@ def concatenate_experiments(input_paths, out_path):
     adata_result.write_h5ad(out_path)
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Concatenates 2 or more files containing raw 3'UTR sizes per UTR."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+    )
 
+    parser = subparsers.add_parser(
+        name="concatenate-experiments",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example use:
+    $ utrcalling concatenate-experiments -i adata_1.h5ad adata_2.h5ad adata_3.h5ad 
+    -o adata_concat.h5ad
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser = argparse.ArgumentParser(
-    description="""
-Concatenates 2 or more files containing raw 3'UTR sizes per UTR.
-""",
-    epilog="""
-Example use:
-$ concatenate-experiments -i adata_1.h5ad adata_2.h5ad adata_3.h5ad -o adata_concat.h5ad
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--input_paths", "-i", nargs="+", type=str, required=True,
+                        help="Paths to the input AnnData object files (h5ad format).")
+    parser.add_argument("--out_path", "-o", type=str, required=True,
+                        help="Path to write the result (h5ad format).")
 
-parser.add_argument("--input_paths", "-i", nargs="+", type=str, required=True,
-                    help="Paths to the input AnnData object files (h5ad format).")
-parser.add_argument("--out_path", "-o", type=str, required=True,
-                    help="Path to write the result (h5ad format).")
-
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=concatenate_experiments)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=concatenate_experiments)

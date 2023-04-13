@@ -17,34 +17,32 @@ def estimate_best_bandwidth(input_path, out_path, bandwidths):
     joblib.dump(scores, out_path)
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Calculates scores per bandwidth given."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+        "The score is the average number of UMIs 10-30 bps "
+        "after the canonical PAS per UTR in the AnnData object."
+    )
 
+    parser = subparsers.add_parser(
+        name="estimate-best-bandwidth",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example use:
+    $ utrcalling estimate-best-bandwidth adata.h5ad estimations_scores.joblib -b 1 7 12
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser = argparse.ArgumentParser(
-    description="""
-Calculates a score per bandwidth. The score is the average number of UMIs 10-30 bps 
-after the canonical PAS per UTR in the AnnData object.
-""",
-    epilog="""
-Example use:
-$ estimate-best-bandwidth adata.h5ad estimations_scores.joblib -b 1 7 12
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("input_path", type=str,
+                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument("out_path", type=str, help="Path where output will be stored.")
+    parser.add_argument("-b", "--bandwidths", nargs="+", type=int, default=[1, 7, 12, 15],
+                        help="One or more bandwidths to use in the gaussian kernel")
 
-parser.add_argument("input_path", type=str,
-                    help="Path to input AnnData object file (h5ad format).")
-parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-parser.add_argument("-b", "--bandwidths", nargs="+", type=int, default=[1, 7, 12, 15],
-                    help="One or more bandwidths to use in the gaussian kernel")
-
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=estimate_best_bandwidth)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=estimate_best_bandwidth)

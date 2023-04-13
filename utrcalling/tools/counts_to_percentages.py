@@ -11,41 +11,38 @@ def counts_to_percentages(input_path, out_path, utr_name_column="utr_name"):
     adata.write_h5ad(out_path)
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Converts the UMI counts per polyA site into percentage polyA site "
+        "usage in relation to the total sum of UMIs in the UTR."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+    )
 
+    parser = subparsers.add_parser(
+        name="counts-to-percentages",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example use:
+    $ utrcalling counts-to-percentages adata.h5ad adata_percentages -u utr_name
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser = argparse.ArgumentParser(
-    description="""
-Converts the UMI counts per polyA site into percentage polyA site usage in relation
-to the total sum of UMIs in the UTR.
-""",
-    epilog="""
-Example use:
-$ counts-to-percentages adata.h5ad adata_percentages -u utr_name
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("input_path", type=str,
+                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument("out_path", type=str,
+                        help="""
+                        Path where output will be stored. '_bw' plus the bandwidth used
+                        will be appended to out_path.
+                        """)
+    parser.add_argument("-u", "--utr_name_column", type=str, default="utr_name",
+                        help="""
+                        The name of the column in the anndata.var dataframe that
+                        contains the names of the UTRs.
+                        """)
 
-parser.add_argument("input_path", type=str,
-                    help="Path to input AnnData object file (h5ad format).")
-parser.add_argument("out_path", type=str,
-                    help="""
-                    Path where output will be stored. '_bw' plus the bandwidth used
-                    will be appended to out_path.
-                    """)
-parser.add_argument("-u", "--utr_name_column", type=str, default="utr_name",
-                    help="""
-                    The name of the column in the anndata.var dataframe that 
-                    contains the names of the UTRs.
-                    """)
-
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=counts_to_percentages)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=counts_to_percentages)

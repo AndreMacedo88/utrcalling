@@ -16,7 +16,7 @@ def run(utr_annotation,
         protocol_version=3,
         label_batches=None,
         log_level='info',
-        out='UTR_results.h5ad',
+        out='UTR_counts.h5ad',
         raw_sizes=False,
         store_intermediate=False,
         ):
@@ -104,105 +104,105 @@ This could be because their type is ambiguous
 (characters/integers/etc).\n
 To deal with this, either make all annotations columns and re-run the tool,
 or run the tool with the option to output the intermediate files and 
-build your h5ad object from the counts matrix, obs, and var.
+build your h5ad object from the count matrix, obs, and var.
 The error message was:\n{e}
             """)
 
     return
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Runs the entire UTR calling pipeline."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+        "Exports the UTR sizes count matrix to a h5ad file."
+    )
 
-
-parser = argparse.ArgumentParser(
-    description="""
-Runs the entire UTR calling pipeline.
-Exports the UTR sizes count matrix to a h5ad file, which you can name with --out.
-""",
-    epilog="""
-Example on how to use in command-line:
-$ run.py mus_musculus.gtf 
-    -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2 
+    parser = subparsers.add_parser(
+        name="run",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example on how to use in command-line:
+    $ utrcalling run mus_musculus.gtf 
+    -a star_align.bam star_align_ko.bam -f three_prime_utr -p 10x -v 2
     -i -A experiment.csv -o results.h5ad
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
 
-parser.add_argument("utr_annotation", type=str,
-                    help="GTF file with the genome annotations")
+    parser.add_argument("utr_annotation", type=str,
+                        help="GTF file with the genome annotations")
 
-parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
-    File, or files with the read alignments. One alignment per sample/batch should be 
-    supplied if downstream applications involve comparisons between the samples/batches.
-    Alignments must be sorted and have an index file .bai in the same directory
-    """)
+    parser.add_argument("--alignments", "-a", nargs='+', type=str, required=True, help="""
+        File, or files with the read alignments. One alignment per sample/batch should be 
+        supplied if downstream applications involve comparisons between the samples/batches.
+        Alignments must be sorted and have an index file .bai in the same directory
+        """)
 
-parser.add_argument("--feature", "-f", type=str,
-                    help="Type of UTR that you want to map. three_prime_utr or \
-                        five_prime_utr",
-                    default='three_prime_utr')
+    parser.add_argument("--feature", "-f", type=str,
+                        help="Type of UTR that you want to map. three_prime_utr or \
+                            five_prime_utr",
+                        default='three_prime_utr')
 
-parser.add_argument("--annotations_file", "-A", type=str,
-                    help="""
-                    File with your experiment's information, such as cell barcodes.
-                    """,
-                    default=None)
+    parser.add_argument("--annotations_file", "-A", type=str,
+                        help="""
+                        File with your experiment's information, such as cell barcodes, 
+                        sample IDs, and batch information.
+                        """,
+                        default=None,
+                        required=True)
 
-parser.add_argument("--protocol_platform", "-p", type=str,
-                    help="Sequencing platform used.",
-                    default='10x')
+    parser.add_argument("--protocol_platform", "-p", type=str,
+                        help="Sequencing platform used.",
+                        default='10x')
 
-parser.add_argument("--protocol_version", "-v", type=int,
-                    help="Version of the protocol used in library preparation.",
-                    default=2)
+    parser.add_argument("--protocol_version", "-v", type=int,
+                        help="Version of the protocol used in library preparation.",
+                        default=2)
 
-parser.add_argument("--batch_merge_method", "-m", type=str,
-                    help="""
-                    Method used to deal with different UTR coverage in different
-                    samples/batches. If `union`, then the tool outputs UTRs that are not 
-                    represented by all samples/batches. If `intersection` only the reads that
-                    map to UTRs in common between all samples/batches will be used. Default
-                    depends on the protocol used.
-                    """,
-                    default=None)
+    parser.add_argument("--batch_merge_method", "-m", type=str,
+                        help="""
+                        Method used to deal with different UTR coverage in different
+                        samples/batches. If `union`, then the tool outputs UTRs that are not 
+                        represented by all samples/batches. If `intersection` only the reads that
+                        map to UTRs in common between all samples/batches will be used. Default
+                        depends on the protocol used.
+                        """,
+                        default=None)
 
-parser.add_argument("--store_intermediate", "-i", action="store_true",
-                    help="""
-                    Stores intermediate files that can be used to 
-                    run quicker pipelines later on. Useful if something wrong 
-                    is happening in later stages of the pipeline.
-                    """)
+    parser.add_argument("--store_intermediate", "-i", action="store_true",
+                        help="""
+                        Stores intermediate files that can be used to 
+                        run quicker pipelines later on. Useful if something wrong 
+                        is happening in later stages of the pipeline.
+                        """)
 
-parser.add_argument("--raw_sizes", "-r", action="store_true",
-                    help="""
-                    Produces a count matrix with the individual UMI UTR sizes, without 
-                    aggregating individual molecules' UTR sizes into consensus peaks.
-                    """)
+    parser.add_argument("--raw_sizes", "-r", action="store_true",
+                        help="""
+                        Produces a count matrix with the individual UMI UTR sizes, without 
+                        aggregating individual molecules' UTR sizes into consensus peaks.
+                        """)
 
-parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
-                    help="""
-                    If True, gets the batches from the annotation file and labels each
-                    barcode/sample according to the batch. This prevents aggregation
-                    of the results if barcodes are recycled between batches, or when 
-                    2 samples have the same ID.
-                    """,
-                    default=None)
+    parser.add_argument("--label_batches", "-L", type=ast.literal_eval,
+                        help="""
+                        If True, gets the batches from the annotation file and labels each
+                        barcode/sample according to the batch. This prevents aggregation
+                        of the results if barcodes are recycled between batches, or when 
+                        2 samples have the same ID.
+                        """,
+                        default=None)
 
-parser.add_argument("--log_level", "-l", type=str,
-                    help="Level of logging messages to retrieve during the run.",
-                    default="info")
+    parser.add_argument("--log_level", "-l", type=str,
+                        help="Level of logging messages to retrieve during the run.",
+                        default="info")
 
-parser.add_argument("--out", "-o", type=str,
-                    help="Path or partial path to a folder to store the result files.",
-                    default="UTR_results.h5ad")
+    parser.add_argument("--out", "-o", type=str,
+                        help="Path or partial path to a folder to store the result files.",
+                        default="UTR_results.h5ad")
 
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=run)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=run)

@@ -26,41 +26,38 @@ def split_train_test(input_path, seed, train_fraction, out_path):
     adata_test.write_h5ad(path_test)
 
 
-def main():
-    args_all = parser.parse_args()
+def create_parser(subparsers):
 
-    args = vars(args_all).copy()
-    del args["func"]
+    help = (
+        "Splits an UTR sizes experiment file (h5ad) into train/test samples, "
+        "stratified by UMI number."
+    )
 
-    args_all.func(**args)
+    description = (
+        f"{help} "
+        "`train_fraction` is a float representing the fraction of samples set as "
+        "training samples. Setting `seed` allows for reproducible splits."
+    )
 
+    parser = subparsers.add_parser(
+        name="split-train-test",
+        help=help,
+        description=f"DESCRIPTION: {description}",
+        epilog="""
+    Example use:
+    $ utrcalling split-train-test ./results/adata.h5ad -s 111 -o ./results/adata
+    """,
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-parser = argparse.ArgumentParser(
-    description="""
-Splits an UTR sizes experiment file (h5ad) into train/test samples, 
-stratified by UMI number.
-`train_fraction` is a float representing the fraction of samples set as training samples.
-Setting `seed` allows for reproducible splits.
-""",
-    epilog="""
-Example use:
-$ split-train-test ./results/adata.h5ad -s 111 -o ./results/adata
-""",
-    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("input_path", type=str,
+                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument("--seed", "-s", type=int,
+                        help="Integer used to set a random seed for reproducibility.",
+                        default=None)
+    parser.add_argument("--train_fraction", "-t", type=float,
+                        help="Fraction of data to assign as train data.",
+                        default=0.75)
+    parser.add_argument("--out_path", "-o", type=str,
+                        help="Path with the filename prefix to write the train and test data.")
 
-parser.add_argument("input_path", type=str,
-                    help="Path to input AnnData object file (h5ad format).")
-parser.add_argument("--seed", "-s", type=int,
-                    help="Integer used to set a random seed for reproducibility.",
-                    default=None)
-parser.add_argument("--train_fraction", "-t", type=float,
-                    help="Fraction of data to assign as train data.",
-                    default=0.75)
-parser.add_argument("--out_path", "-o", type=str,
-                    help="Path with the filename prefix to write the train and test data.")
-
-# This allows for assigning different parsers to different functions:
-parser.set_defaults(func=split_train_test)
-
-if __name__ == "__main__":
-    main()
+    parser.set_defaults(func=split_train_test)
