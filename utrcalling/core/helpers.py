@@ -6,9 +6,27 @@ from collections import defaultdict
 
 import pybedtools
 import modin.pandas as pd
+import ray
 import scanpy as sc
 
 from utrcalling.core import module_log
+
+
+def init_ray():
+    if not ray.is_initialized():
+        try:
+            n_cores = int(os.environ["MODIN_CPUS"])
+            ray.init(
+                runtime_env={'env_vars': {'__MODIN_AUTOIMPORT_PANDAS__': '1'}},
+                include_dashboard=False,
+                num_cpus=n_cores
+            )
+            print(f"Running Ray on {n_cores} CPUs")
+        except KeyError:
+            ray.init(
+                runtime_env={'env_vars': {'__MODIN_AUTOIMPORT_PANDAS__': '1'}},
+                include_dashboard=False,
+            )
 
 
 def flatten(list_):
@@ -77,6 +95,7 @@ def check_if_exists_and_mkdir(folders_path):
 
 
 def check_if_path_and_open(to_check, method='parquet'):
+    init_ray()
     if isinstance(to_check, (str, pathlib.PurePath)):
         method = method.lower()
         if method == 'parquet':
@@ -108,6 +127,7 @@ def check_file_exists_and_return_unique(filepath, append=1):
 
 
 def load_annotations(annotation_path):
+    init_ray()
     if annotation_path.endswith('.parquet'):
         output = pd.read_parquet(annotation_path)
     elif annotation_path.endswith('.bed'):

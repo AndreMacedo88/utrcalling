@@ -124,6 +124,7 @@ def generate_peak_counts(
 ):
 
     logger = module_log.module_logger()
+    helpers.init_ray()
     logger.info('Generating and counting UTR size peaks')
 
     if not isinstance(utr_sizes, mpd.DataFrame):

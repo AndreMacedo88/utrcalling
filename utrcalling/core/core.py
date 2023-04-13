@@ -24,7 +24,6 @@ genomic coordinates and optionally UTR sequence information.
 """
 
 import os
-import re
 import psutil
 
 import numpy as np
@@ -123,6 +122,7 @@ def call_peaks(utr_sizes_counts,
                store=False,
                ):
     logger = module_logger()
+    helpers.init_ray()
 
     # if more than one counts file is provided, they must be merged before peak calling
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
