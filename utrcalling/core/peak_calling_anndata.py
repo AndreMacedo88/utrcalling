@@ -24,7 +24,7 @@ from tqdm import tqdm
 from utrcalling.core import module_log
 
 # Set up logging
-logger = module_log.module_logger(disable=False, store_log=True, level="debug")
+logger = module_log.module_logger(disable=False, store_log=False, level="debug")
 
 
 def peak_call_anndata_parallel(adata, method, **kwargs):

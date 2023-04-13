@@ -24,7 +24,7 @@ def generate_utr_reference_and_map_reads(utr_annotation,
     """
 
     # Set up logging
-    logger = module_logger(disable=False, store_log=True, level=log_level)
+    logger = module_logger(disable=False, store_log=False, level=log_level)
     for arg, value in locals().items():
         logger.info(f'║ Argument {arg}: {value}\n')
 

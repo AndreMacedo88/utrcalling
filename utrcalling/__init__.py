@@ -7,7 +7,6 @@ For the source see: https://github.com/AndreMacedo88/utrcalling
 For detailed documentation see: TODO
 """
 
-import os
 import psutil
 from colorama import init, Fore, Style
 
