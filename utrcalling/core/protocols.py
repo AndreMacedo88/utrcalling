@@ -171,7 +171,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 f"to the name in the bam file."
             )
             self.logger.error(msg)
-            raise ValueError(msg)
+            raise IndexError(msg)
 
         if len(sample_column_name) > 1:
             raise ValueError(
