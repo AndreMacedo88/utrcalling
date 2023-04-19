@@ -11,6 +11,8 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 
 from utrcalling.core import core, module_log, protocols
 
+# TODO: test 10X run without barcodes
+
 
 class TestMapAlignedReads(unittest.TestCase):
     def setUp(self) -> None:
