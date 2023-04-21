@@ -112,6 +112,39 @@ class TestTenxThree(TestMapReadsToUtr):
         self.assertEqual(self.mappings.shape[0], 110)
 
 
+class TestTenxThreeNoBarcodes(TestMapReadsToUtr):
+    def setUp(self) -> None:
+        self.maxDiff = None
+        self.intervals = utr_mapping.generate_utr_intervals(
+            utr_regions=self.utr_regions
+        )
+        annotations = pd.read_csv("./test_data/vivo_anno.csv")
+        annotations = annotations.drop("CellBarcode", axis=1)
+
+        protocol = protocols.protocol(
+            platform='10x',
+            version=3,
+            annotations=annotations
+        )
+        self.mappings = utr_mapping.map_reads_to_utr(
+            self.alignment,
+            self.intervals,
+            protocol,
+            read='first'
+        )
+
+    def test_details(self):
+        dict_true = {
+            'read_barcodes': ['GATGAAACATTAACCG', 'TGCGCAGAGTCCATAC', 'GCTGGGTGTACGCACC'],
+            'utr_sizes_from_reads': [1468, 1458, 1466]
+        }
+        self.assertDictEqual(
+            self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true)
+
+    def test_length(self):
+        self.assertEqual(self.mappings.shape[0], 110)
+
+
 class TestSmartSeq3(TestMapReadsToUtr):
     def setUp(self) -> None:
         # test data for SmartSeq3
@@ -124,6 +157,48 @@ class TestSmartSeq3(TestMapReadsToUtr):
             label_batches=True,
             alignments=self.alignment_smartseq,
             annotations="./test_data/smartseq3_anno.csv"
+        )
+        self.mappings = utr_mapping.map_reads_to_utr(
+            self.alignment_smartseq,
+            self.intervals,
+            protocol,
+            read='first',
+        )
+
+    def test_details(self):
+        dict_true = {
+            'read_barcodes': [['CACTGT-2'], ['CACTGT-2']],
+            'utr_sizes_from_reads': [[300], [30]]
+        }
+        self.assertDictEqual(
+            self.mappings.to_dict(orient="list"), dict_true)
+
+    def test_details_one(self):
+        dict_true = {
+            'read_barcodes': ['CACTGT-2'],
+            'utr_sizes_from_reads': [300]
+        }
+        self.assertDictEqual(
+            self.mappings.loc["ENSG00000188976"].to_dict(), dict_true)
+
+    def test_length(self):
+        self.assertEqual(self.mappings.shape[0], 2)
+
+
+class TestSmartSeq3NoBarcodes(TestMapReadsToUtr):
+    def setUp(self) -> None:
+        # test data for SmartSeq3
+        self.intervals = utr_mapping.generate_utr_intervals(
+            utr_regions=self.utr_regions_smartseq
+        )
+        annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
+        annotations = annotations.drop("Sample_Barcode", axis=1)
+        protocol = protocols.protocol(
+            platform='smartseq',
+            version=3,
+            label_batches=True,
+            alignments=self.alignment_smartseq,
+            annotations=annotations
         )
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment_smartseq,
