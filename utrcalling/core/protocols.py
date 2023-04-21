@@ -103,7 +103,8 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         self.batches_list, self.batches_range = self._get_batch_information()
 
-        self.annotations = self._resolve_barcode_reuse_by_batch()
+        if self.barcode_column_name is not None:
+            self.annotations = self._resolve_barcode_reuse_by_batch()
 
         self.barcode_whitelist = self._get_barcode_list()
 
