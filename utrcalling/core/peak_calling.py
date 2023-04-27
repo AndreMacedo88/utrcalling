@@ -158,8 +158,6 @@ def generate_peak_counts_and_anno(
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
     logger.info('Adding annotations')
-    # barcodes_column_name = annotations.columns.str.extract(
-    #     r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
     if protocol.barcode_column_name:
         peaks_obs = annotations.set_index(protocol.barcode_column_name)
         peaks_obs = peaks_obs.reindex(index=count_matrix.index)

@@ -262,7 +262,6 @@ class TestGeneratePeakCounts(TestPeakCalling):
         cls.merged = peak_calling.merge_samples_utr_sizes(
             utr_sizes=copy.deepcopy(cls.mappings)
         )
-        cls.annotations = pd.read_csv('./test_data/vivo_anno.csv', sep=",")
         cls.merged = peak_calling.filter_barcodes(
             cls.merged,
             whitelist=cls.protocol.barcode_whitelist
@@ -273,7 +272,7 @@ class TestMatrix(TestGeneratePeakCounts):
     def setUp(self):
         self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
-            annotations=self.annotations
+            protocol=self.protocol,
         )
 
     def test_length(self):
@@ -291,7 +290,7 @@ class TestVar(TestGeneratePeakCounts):
     def setUp(self):
         _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
-            annotations=self.annotations
+            protocol=self.protocol,
         )
 
     def test_length(self):
@@ -306,7 +305,7 @@ class TestObs(TestGeneratePeakCounts):
     def setUp(self):
         _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
-            annotations=self.annotations
+            protocol=self.protocol,
         )
 
     def test_length(self):
@@ -322,11 +321,11 @@ class TestGeneratePeakCountsSynthetic(unittest.TestCase):
     def setUpClass(cls) -> None:
         data_filtered = synthetic_data.ThreePrimeBarcodedFiltered()
         cls.data = data_filtered._data_filtered
-        cls.anno = data_filtered._anno
+        anno = data_filtered._anno
         cls.protocol = protocols.protocol(
             platform='10x',
             version=2,
-            annotations=cls.anno,
+            annotations=anno,
             merge_method="intersection",
         )
 
@@ -335,8 +334,7 @@ class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self) -> None:
         self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
-            annotations=self.anno,
-            func=self.protocol.peak_calling
+            protocol=self.protocol,
         )
 
     def test_length(self):
@@ -364,8 +362,7 @@ class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
         _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
-            annotations=self.anno,
-            func=self.protocol.peak_calling
+            protocol=self.protocol,
         )
 
     def test_length(self):
@@ -380,8 +377,7 @@ class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
         _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
-            annotations=self.anno,
-            func=self.protocol.peak_calling
+            protocol=self.protocol,
         )
 
     def test_length(self):
@@ -407,7 +403,7 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
         )
         cls.matrix, var, cls.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=filtered,
-            annotations=cls.annotations,
+            protocol=cls.protocol,
         )
         cls.var = peak_calling.add_to_peaks_var(var, subsetted)
 
