@@ -10,7 +10,7 @@ import copy
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import peak_calling, protocols, utr_mapping, module_log, helpers
+from utrcalling.core import peak_calling, protocol, utr_mapping, module_log, helpers
 from test_data import synthetic_data
 
 
@@ -22,13 +22,13 @@ class TestPeakCalling(unittest.TestCase):
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
         cls.annotations = pd.read_csv("./test_data/vivo_anno.csv")
-        cls.protocol = protocols.protocol(
+        cls.protocol_ = protocol.create(
             platform='10x',
             version=2,
             annotations=cls.annotations,
             merge_method="intersection",
         )
-        cls.protocol_union = protocols.protocol(
+        cls.protocol_union = protocol.create(
             platform='10x',
             version=2,
             annotations=cls.annotations,
@@ -38,7 +38,7 @@ class TestPeakCalling(unittest.TestCase):
             utr_mapping.map_reads_to_utr(
                 bam=alignment,
                 intervals=intervals,
-                protocol=cls.protocol,
+                protocol=cls.protocol_,
                 read='first'
             ) for alignment in [alignment_1, alignment_2]
         ]
@@ -49,7 +49,7 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
         self.maxDiff = None
         self.merged = peak_calling.merge_samples_utr_sizes(
             utr_sizes=self.mappings,
-            method=self.protocol.merge_method
+            method=self.protocol_.merge_method
         )
 
     def test_details(self):
@@ -180,7 +180,7 @@ class TestFilterBarcodes(TestPeakCalling):
     def test_filter(self):
         filtered = peak_calling.filter_barcodes(
             utr_sizes=self.merged,
-            whitelist=self.protocol.barcode_whitelist
+            whitelist=self.protocol_.barcode_whitelist
         )
         annotations = pd.read_csv(self.annotations)
         barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
@@ -191,7 +191,7 @@ class TestFilterBarcodes(TestPeakCalling):
     def test_specific_utr(self):
         filtered = peak_calling.filter_barcodes(
             utr_sizes=self.merged,
-            whitelist=self.protocol.barcode_whitelist
+            whitelist=self.protocol_.barcode_whitelist
         )
         self.assertNotEqual(
             len(self.merged.loc["ENSMUSG00000025917"]['read_barcodes']),
@@ -206,7 +206,7 @@ class TestFilterBarcodes(TestPeakCalling):
         ]
         filtered = peak_calling.filter_barcodes(
             utr_sizes=self.merged,
-            whitelist=self.protocol.barcode_whitelist
+            whitelist=self.protocol_.barcode_whitelist
         )
         self.assertListEqual(
             filtered.loc["ENSMUSG00000025917"]['read_barcodes'], barcodes_real)
@@ -215,7 +215,7 @@ class TestFilterBarcodes(TestPeakCalling):
         annotations = pd.read_csv(self.annotations)
         filtered = peak_calling.filter_barcodes(
             utr_sizes=self.merged,
-            whitelist=self.protocol.barcode_whitelist
+            whitelist=self.protocol_.barcode_whitelist
         )
         barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
             filtered,
@@ -264,7 +264,7 @@ class TestGeneratePeakCounts(TestPeakCalling):
         )
         cls.merged = peak_calling.filter_barcodes(
             cls.merged,
-            whitelist=cls.protocol.barcode_whitelist
+            whitelist=cls.protocol_.barcode_whitelist
         )
 
 
@@ -272,7 +272,7 @@ class TestMatrix(TestGeneratePeakCounts):
     def setUp(self):
         self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
-            protocol=self.protocol,
+            protocol=self.protocol_,
         )
 
     def test_length(self):
@@ -290,7 +290,7 @@ class TestVar(TestGeneratePeakCounts):
     def setUp(self):
         _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
-            protocol=self.protocol,
+            protocol=self.protocol_,
         )
 
     def test_length(self):
@@ -305,7 +305,7 @@ class TestObs(TestGeneratePeakCounts):
     def setUp(self):
         _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
-            protocol=self.protocol,
+            protocol=self.protocol_,
         )
 
     def test_length(self):
@@ -322,7 +322,7 @@ class TestGeneratePeakCountsSynthetic(unittest.TestCase):
         data_filtered = synthetic_data.ThreePrimeBarcodedFiltered()
         cls.data = data_filtered._data_filtered
         anno = data_filtered._anno
-        cls.protocol = protocols.protocol(
+        cls.protocol_ = protocol.create(
             platform='10x',
             version=2,
             annotations=anno,
@@ -334,7 +334,7 @@ class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self) -> None:
         self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
-            protocol=self.protocol,
+            protocol=self.protocol_,
         )
 
     def test_length(self):
@@ -362,7 +362,7 @@ class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
         _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
-            protocol=self.protocol,
+            protocol=self.protocol_,
         )
 
     def test_length(self):
@@ -377,7 +377,7 @@ class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
         _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
-            protocol=self.protocol,
+            protocol=self.protocol_,
         )
 
     def test_length(self):
@@ -399,11 +399,11 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
         )
         filtered = peak_calling.filter_barcodes(
             utr_sizes=merged,
-            whitelist=cls.protocol.barcode_whitelist,
+            whitelist=cls.protocol_.barcode_whitelist,
         )
         cls.matrix, var, cls.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=filtered,
-            protocol=cls.protocol,
+            protocol=cls.protocol_,
         )
         cls.var = peak_calling.add_to_peaks_var(var, subsetted)
 

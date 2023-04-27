@@ -6,7 +6,7 @@ import logging
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import peak_calling, module_log, protocols
+from utrcalling.core import peak_calling, module_log, protocol
 from utrcalling.tests.test_data import synthetic_data
 
 
@@ -16,7 +16,7 @@ class GeneratePeakCounts:
         self.data = data_synthetic.data
         self.anno = data_synthetic.anno
         self.alignments = data_synthetic.alignments
-        self.protocol = protocols.protocol(
+        self.protocol = protocol.create(
             platform='smartseq',
             version=3,
             annotations=self.anno,

@@ -9,15 +9,13 @@ import anndata as ad
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import core, module_log, protocols
-
-# TODO: test 10X run without barcodes
+from utrcalling.core import core, module_log, protocol
 
 
 class TestMapAlignedReads(unittest.TestCase):
     def setUp(self) -> None:
         utr_regions = pd.read_parquet('./test_data/test_UTR_reference.parquet')
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='10x',
             version=2,
             annotations="./test_data/vivo_anno.csv")
@@ -28,7 +26,7 @@ class TestMapAlignedReads(unittest.TestCase):
         ] * self.alignments_n
 
         self.read_mappings = core.map_aligned_reads(
-            alignments, utr_regions, protocol, store=False
+            alignments, utr_regions, protocol_, store=False
         )
 
         self.true_results_5804 = {
@@ -73,7 +71,7 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
         cls.annotations = cls.annotations.drop_duplicates(subset=["Sample_Barcode"])
 
         # objects for testing without label_batches
-        cls.protocol = protocols.protocol(
+        cls.protocol_ = protocol.create(
             platform='smartseq',
             version=3,
             label_batches=False,
@@ -83,17 +81,17 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
         cls.mapped = core.map_aligned_reads(
             alignments=cls.alignments,
             utr_regions=cls.utr_regions,
-            protocol=cls.protocol,
+            protocol=cls.protocol_,
             store=False
         )
         cls.results_nolabel = core.call_peaks(
             utr_sizes_counts=cls.mapped,
             utr_reference_regions=cls.utr_regions,
-            protocol=cls.protocol,
+            protocol=cls.protocol_,
             store=False
         )
         # objects for testing with label_batches
-        cls.protocol_label = protocols.protocol(
+        cls.protocol_label = protocol.create(
             platform='smartseq',
             version=3,
             label_batches=True,
@@ -155,7 +153,7 @@ class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
 class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
     def setUp(self) -> None:
         self.annotations = self.annotations.drop("Sample_Barcode", axis=1)
-        self.protocol = protocols.protocol(
+        self.protocol_ = protocol.create(
             platform='smartseq',
             version=3,
             label_batches=False,
@@ -165,13 +163,13 @@ class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
         self.mapped = core.map_aligned_reads(
             alignments=self.alignments,
             utr_regions=self.utr_regions,
-            protocol=self.protocol,
+            protocol=self.protocol_,
             store=False
         )
         self.results = core.call_peaks(
             utr_sizes_counts=self.mapped,
             utr_reference_regions=self.utr_regions,
-            protocol=self.protocol,
+            protocol=self.protocol_,
             store=False
         )
 

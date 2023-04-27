@@ -4,7 +4,7 @@ import unittest
 import copy
 
 import pandas as pd
-from utrcalling.core import peak_calling, protocols, utr_mapping, module_log
+from utrcalling.core import peak_calling, protocol, utr_mapping, module_log
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
@@ -17,7 +17,7 @@ class Test10x(unittest.TestCase):
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
-        cls.protocol = protocols.protocol(
+        cls.protocol = protocol.create(
             platform='10x',
             version=2,
             alignments=[alignment_1, alignment_2],
@@ -61,7 +61,7 @@ class TestSmartSeqCapPhosphoReadname(unittest.TestCase):
         utr_regions = pd.read_parquet('./test_data/test_UTR_reference_5prime.parquet')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         cls.alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
-        cls.protocol = protocols.protocol(
+        cls.protocol = protocol.create(
             platform='smart-seq_cap-readname',
             version=3,
             alignments=cls.alignment,

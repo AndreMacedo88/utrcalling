@@ -7,7 +7,7 @@ import pandas as pd
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import protocols, utr_mapping, module_log
+from utrcalling.core import protocol, utr_mapping, module_log
 from test_data import synthetic_data
 
 
@@ -58,7 +58,7 @@ class TestTenxTwo(TestMapReadsToUtr):
         self.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=self.utr_regions
         )
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='10x',
             version=2,
             annotations=pd.read_csv("./test_data/vivo_anno.csv")
@@ -66,7 +66,7 @@ class TestTenxTwo(TestMapReadsToUtr):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment,
             self.intervals,
-            protocol,
+            protocol_,
             read='first'
         )
 
@@ -88,7 +88,7 @@ class TestTenxThree(TestMapReadsToUtr):
         self.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=self.utr_regions
         )
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='10x',
             version=3,
             annotations=pd.read_csv("./test_data/vivo_anno.csv")
@@ -96,7 +96,7 @@ class TestTenxThree(TestMapReadsToUtr):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment,
             self.intervals,
-            protocol,
+            protocol_,
             read='first'
         )
 
@@ -121,7 +121,7 @@ class TestTenxThreeNoBarcodes(TestMapReadsToUtr):
         annotations = pd.read_csv("./test_data/vivo_anno.csv")
         annotations = annotations.drop("CellBarcode", axis=1)
 
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='10x',
             version=3,
             annotations=annotations
@@ -129,7 +129,7 @@ class TestTenxThreeNoBarcodes(TestMapReadsToUtr):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment,
             self.intervals,
-            protocol,
+            protocol_,
             read='first'
         )
 
@@ -151,7 +151,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
         self.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=self.utr_regions_smartseq
         )
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='smartseq',
             version=3,
             label_batches=True,
@@ -161,7 +161,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment_smartseq,
             self.intervals,
-            protocol,
+            protocol_,
             read='first',
         )
 
@@ -193,7 +193,7 @@ class TestSmartSeq3NoBarcodes(TestMapReadsToUtr):
         )
         annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
         annotations = annotations.drop("Sample_Barcode", axis=1)
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='smartseq',
             version=3,
             label_batches=True,
@@ -203,7 +203,7 @@ class TestSmartSeq3NoBarcodes(TestMapReadsToUtr):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment_smartseq,
             self.intervals,
-            protocol,
+            protocol_,
             read='first',
         )
 
@@ -232,7 +232,7 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
         self.intervals_5prime = utr_mapping.generate_utr_intervals(
             utr_regions=self.utr_regions_5prime
         )
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='smart-seq_cap-readname',
             version=3,
             alignments=self.alignment_cap,
@@ -241,7 +241,7 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment_cap,
             self.intervals_5prime,
-            protocol,
+            protocol_,
             read='first',
             batch="test_sample"
         )
@@ -261,7 +261,7 @@ class TestSmartSeq3Cap(TestMapReadsToUtr):
 class TestProtocolNotSupported(TestMapReadsToUtr):
     def test_platform(self):
         with self.assertRaises(NotImplementedError):
-            protocols.protocol(
+            protocol.create(
                 platform='Zehn_x',
                 version=3,
                 annotations="./test_data/smartseq3_anno.csv",
@@ -269,7 +269,7 @@ class TestProtocolNotSupported(TestMapReadsToUtr):
 
     def test_version_tenx(self):
         with self.assertRaises(NotImplementedError):
-            protocols.protocol(
+            protocol.create(
                 platform='10x',
                 version=1,
                 annotations="./test_data/smartseq3_anno.csv",
@@ -277,7 +277,7 @@ class TestProtocolNotSupported(TestMapReadsToUtr):
 
     def test_version_smartseq(self):
         with self.assertRaises(NotImplementedError):
-            protocols.protocol(
+            protocol.create(
                 platform='Smart-seq',
                 version=1,
                 annotations="./test_data/smartseq3_anno.csv",
@@ -305,7 +305,7 @@ class TestMapReadsToUtrMinimal(unittest.TestCase):
 
 class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
     def setUp(self) -> None:
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='smartseq',
             version=3,
             alignments=self.alignment,
@@ -313,7 +313,7 @@ class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
         )
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment, self.intervals,
-            protocol,
+            protocol_,
             read='first'
         )
 
@@ -331,7 +331,7 @@ class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
 
 class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
     def setUp(self) -> None:
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='smartseq',
             version=3,
             label_batches=True,
@@ -341,7 +341,7 @@ class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment,
             self.intervals,
-            protocol,
+            protocol_,
             read='first'
         )
 
@@ -379,7 +379,7 @@ class TestMapReadsToUtrMinimalCap(unittest.TestCase):
 class TestSmartSeq3CapReadnameMinimal(TestMapReadsToUtrMinimalCap):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='smart-seq_cap-readname',
             version=3,
             alignments=self.alignment,
@@ -388,7 +388,7 @@ class TestSmartSeq3CapReadnameMinimal(TestMapReadsToUtrMinimalCap):
         self.mappings = utr_mapping.map_reads_to_utr(
             self.alignment,
             self.intervals,
-            protocol,
+            protocol_,
             read='first',
             batch="Test"
         )
@@ -427,7 +427,7 @@ class TestMapReadsToUtrSyntheticCap(unittest.TestCase):
 class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
     def setUp(self) -> None:
         self.maxDiff = None
-        protocol = protocols.protocol(
+        protocol_ = protocol.create(
             platform='smart-seq_cap',
             version=3,
             alignments=self.data.alignment,
@@ -437,7 +437,7 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
             self.mappings = utr_mapping.map_reads_to_utr(
                 self.data.alignment,
                 self.intervals,
-                protocol,
+                protocol_,
                 read='first',
                 batch="Test",
             )

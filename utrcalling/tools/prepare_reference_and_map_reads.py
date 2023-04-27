@@ -2,7 +2,7 @@
 import argparse
 import os
 # import internal tools
-from utrcalling.core import core, helpers, protocols
+from utrcalling.core import core, helpers, protocol
 from utrcalling.core.module_log import module_logger
 
 
@@ -40,7 +40,7 @@ def generate_utr_reference_and_map_reads(utr_annotation,
         sample_names = None
 
     # Set up the protocol for this specific run
-    protocol = protocols.protocol(
+    protocol = protocol.create(
         protocol_platform,
         int(protocol_version),
         sample_names=sample_names)

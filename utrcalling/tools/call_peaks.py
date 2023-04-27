@@ -2,7 +2,7 @@
 import argparse
 import ast
 # import internal tools
-from utrcalling.core import core, helpers, protocols
+from utrcalling.core import core, helpers, protocol
 from utrcalling.core.module_log import module_logger
 
 
@@ -39,7 +39,7 @@ def call_peaks(utr_annotation,
         logger.info(f'║ Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = protocols.protocol(
+    protocol = protocol.create(
         protocol_platform,
         int(protocol_version),
         merge_method=batch_merge_method,

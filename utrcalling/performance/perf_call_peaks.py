@@ -8,7 +8,7 @@ import pandas as pd
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import core, module_log, protocols
+from utrcalling.core import core, module_log, protocol
 from utrcalling.tests.test_data import synthetic_data
 
 
@@ -29,7 +29,7 @@ class GeneratePeakCounts:
         self.anno = pd.concat([anno_1, anno_2], ignore_index=True)
         self.alignments = self.anno.sample_id.to_list()
 
-        self.protocol = protocols.protocol(
+        self.protocol = protocol.create(
             platform='smartseq',
             version=3,
             annotations=self.anno,
