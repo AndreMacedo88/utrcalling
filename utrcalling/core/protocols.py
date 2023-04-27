@@ -66,10 +66,11 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         self.logger = module_log.module_logger()
 
-        # set variables from user
+        # set variables from the arguments
         self.annotations = helpers.check_if_path_and_open(
             to_check=annotations, method="csv"
         )
+
         self.merge_method = merge_method
 
         if isinstance(label_batches, bool) or label_batches is None:
@@ -93,7 +94,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         # set variables to be modified by the different protocols
         self.umis = False
-
+        self.barcode_whitelist = None
         self.sample_names = None
         self.sample_idx = None
 
@@ -105,10 +106,10 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         if self.barcode_column_name is not None:
             self.annotations = self._resolve_barcode_reuse_by_batch()
-
-        self.barcode_whitelist = self._get_barcode_list()
+            self.barcode_whitelist = self._get_barcode_list()
 
     # log the protocol:
+
     def protocol_log(self):
         self.logger.info(
             f'Protocol:\n' +
@@ -261,9 +262,6 @@ class Protocol(ABC, metaclass=CombinedMeta):
             return annotations
 
     def _get_barcode_list(self):
-        if self.barcode_column_name is None:
-            return None  # will make the rest of the protocol behave without barcodes
-
         barcodes_series = self.annotations.loc[:, self.barcode_column_name]
         barcodes_whitelist = barcodes_series.unique()
         return barcodes_whitelist

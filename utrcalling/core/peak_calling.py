@@ -117,14 +117,17 @@ def filter_barcodes(utr_sizes, whitelist):
     return utr_sizes.groupby(level=0).agg(list)
 
 
-def generate_peak_counts(
+def generate_peak_counts_and_anno(
     utr_sizes,
-    annotations,
-    func=protocols.Protocol._call_peaks_using_kernel_density_estimator
+    protocol,
 ):
 
     logger = module_log.module_logger()
     helpers.init_ray()
+
+    annotations = protocol.annotations
+    func = protocol.peak_calling
+
     logger.info('Generating and counting UTR size peaks')
 
     if not isinstance(utr_sizes, mpd.DataFrame):
@@ -155,11 +158,14 @@ def generate_peak_counts(
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
     logger.info('Adding annotations')
-    barcodes_column_name = annotations.columns.str.extract(
-        r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
-    peaks_obs = annotations.set_index(barcodes_column_name[0])
-    peaks_obs = peaks_obs.reindex(index=count_matrix.index)
-    return count_matrix, peaks_var, peaks_obs
+    # barcodes_column_name = annotations.columns.str.extract(
+    #     r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
+    if protocol.barcode_column_name:
+        peaks_obs = annotations.set_index(protocol.barcode_column_name)
+        peaks_obs = peaks_obs.reindex(index=count_matrix.index)
+        return count_matrix, peaks_var, peaks_obs
+    else:
+        return count_matrix, peaks_var
 
 
 def call_peaks(utr, func_):

@@ -25,7 +25,7 @@ class GeneratePeakCounts:
         )
 
     def perf_test(self):
-        peak_calling.generate_peak_counts(
+        peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
             annotations=self.anno,
             func=self.protocol.peak_calling

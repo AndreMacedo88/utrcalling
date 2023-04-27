@@ -40,7 +40,7 @@ from utrcalling.core.utr_reference import (
 from utrcalling.core.utr_mapping import generate_utr_intervals, map_reads_to_utr, module_logger
 from utrcalling.core.peak_calling import (
     subset_reference_data, merge_samples_utr_sizes, filter_barcodes,
-    generate_peak_counts, add_to_peaks_var, generate_count_matrix_anndata
+    generate_peak_counts_and_anno, add_to_peaks_var, generate_count_matrix_anndata
 )
 
 
@@ -157,51 +157,42 @@ def call_peaks(utr_sizes_counts,
 
     del utr_sizes_counts  # to save memory
 
-    # if we have a table with a specific set of barcodes/IDs, retain only those ones.
-    # if protocol.label_batches:
-    #     barcodes_column_name = annotations.columns.str.extract(
-    #         r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0][0]
-    #     sample_column_name = annotations.columns.str.extract(
-    #         r"(.*sample_id.*)", flags=re.IGNORECASE).dropna().values[0][0]
-    #     # rename the barcodes with the batch appended
-    #     annotations[barcodes_column_name] = \
-    #         annotations[barcodes_column_name].astype(str) \
-    #         + "-" \
-    #         + annotations[sample_column_name].apply(
-    #             lambda x: protocol.sample_idx[protocol.sample_names.inverse[x]]).astype(str)
-    if psutil.virtual_memory().percent > 20:  # if there are memory issues
-        logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
-        num, div = filtered_positions.shape[0], 10
-        idx_tenths = np.cumsum([
-            num // div + (1 if x < num % div else 0) for x in range(div)
-        ])
-        idx_mod = np.insert(idx_tenths, 0, 0)
+    if protocol.barcode_whitelist is not None:
+        if psutil.virtual_memory().percent > 20:  # if there are memory issues
+            logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
+            num, div = filtered_positions.shape[0], 10
+            idx_tenths = np.cumsum([
+                num // div + (1 if x < num % div else 0) for x in range(div)
+            ])
+            idx_mod = np.insert(idx_tenths, 0, 0)
 
-        split_generator = (
-            filtered_positions.iloc[idx_mod[n]:idx_mod[n + 1]] for n in range(len(idx_mod) - 1)
-        )
+            split_generator = (
+                filtered_positions.iloc[idx_mod[n]:idx_mod[n + 1]] for n in range(len(idx_mod) - 1)
+            )
 
-        filtered_list = [
-            filter_barcodes(
-                pos, whitelist=protocol.barcode_whitelist
-            ) for pos in split_generator
-        ]
+            filtered_list = [
+                filter_barcodes(
+                    pos, whitelist=protocol.barcode_whitelist
+                ) for pos in split_generator
+            ]
 
-        filtered_positions = pd.concat(filtered_list)
-    else:
-        filtered_positions = filter_barcodes(
-            filtered_positions,
-            whitelist=protocol.barcode_whitelist
-        )
+            filtered_positions = pd.concat(filtered_list)
+        else:
+            filtered_positions = filter_barcodes(
+                filtered_positions,
+                whitelist=protocol.barcode_whitelist
+            )
+
     # calculate broad peaks based on individual UMI utr sizes
-    peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts(
-        filtered_positions, annotations=protocol.annotations, func=protocol.peak_calling)
+    peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts_and_anno(
+        filtered_positions, protocol=protocol)
 
     try:
         del filtered_positions  # to save memory
     except NameError:
         pass
 
+    # retrieve var and obs information
     peaks_var = peaks_var_and_obs[0]
     if len(peaks_var_and_obs) == 2:
         peaks_obs = peaks_var_and_obs[1]
