@@ -6,9 +6,8 @@ Each protocol should define functions and variables that are expected to be call
 the run.
 
 Note:
-1- These functions are defined as private functions at the end of this file.
-2- The protocol itself is defined by the `_check_platform_and_version` function.
-3- New protocols should, then, append an elif clause in this function.
+1- These functions are defined as class extensions at the end of this file.
+2- New protocols should, then, extend the necessary class in this file.
 
 """
 # built-in packages
@@ -16,11 +15,7 @@ from abc import ABC, ABCMeta, abstractmethod
 from distutils.util import strtobool
 import re
 # data wrangling packages
-import numpy as np
 import pandas as pd
-# stats packages
-from sklearn.neighbors import KernelDensity
-from scipy.signal import argrelextrema
 from bidict import bidict
 # internal packages
 from utrcalling.core import module_log, helpers
@@ -259,61 +254,6 @@ class Protocol(ABC, metaclass=CombinedMeta):
         barcodes_series = self.annotations.loc[:, self.barcode_column_name]
         barcodes_whitelist = barcodes_series.unique()
         return barcodes_whitelist
-
-    """
-            batches_dict = dict()
-            try:
-                batches_df = annotations.loc[:, [annotations.columns.str.extract(
-                    r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0][0],
-                    sample_names.columns[0]]]
-            except IndexError as err:
-                msg = (
-                    f"If you are working with multiple samples/batches, please supply "
-                    f"a column for `batch` in the annotation file. "
-                    f"This column should contain the batch ID for each sample."
-                )
-                self.logger.error(msg)
-                raise err
-            for idx, row in enumerate(batches_df.itertuples()):
-                try:
-                    batches_dict[sample_names_dict.inverse[row[1]]] = {row[0]: idx}
-                except KeyError:
-                    msg = (
-                        f"Some batches not found for the provided alignment bam files."
-                        f"The annotation file should contain only information for the"
-                        f"supplied data (bam files)."
-                    )
-                    self.logger.warning(msg)
-                    continue
-
-            return sample_names_dict, batches_dict
-        else:
-            return None
-
-    def get_batch_codes(self, annotations):
-        if annotations is not None:
-            try:
-                batches_keys = np.unique(annotations.loc[:, annotations.columns.str.extract(
-                    r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]].values)
-                batches = {batches_keys[i]: i + 1 for i in range(len(batches_keys))}
-            except IndexError as err:
-                msg = (
-                    f"If you are working with multiple samples/batches, please supply "
-                    f"a column for `batch` in the annotation file. "
-                    f"This column should contain the batch ID for each sample."
-                )
-                self.logger.error(msg)
-                raise err
-            return batches
-        else:
-            return None
-    """
-
-    # Protocol-specific methods
-    @ staticmethod
-    # @ abstractmethod
-    def define_protocol(alignment, **kwargs):
-        pass
 
     # Methods to get read information from the read alignments
     @ staticmethod
