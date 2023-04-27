@@ -271,7 +271,7 @@ class TestGeneratePeakCounts(TestPeakCalling):
 
 class TestMatrix(TestGeneratePeakCounts):
     def setUp(self):
-        self.matrix, _, _ = peak_calling.generate_peak_counts(
+        self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
             annotations=self.annotations
         )
@@ -289,7 +289,7 @@ class TestMatrix(TestGeneratePeakCounts):
 
 class TestVar(TestGeneratePeakCounts):
     def setUp(self):
-        _, self.var, _ = peak_calling.generate_peak_counts(
+        _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
             annotations=self.annotations
         )
@@ -304,7 +304,7 @@ class TestVar(TestGeneratePeakCounts):
 
 class TestObs(TestGeneratePeakCounts):
     def setUp(self):
-        _, _, self.obs = peak_calling.generate_peak_counts(
+        _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.merged,
             annotations=self.annotations
         )
@@ -333,7 +333,7 @@ class TestGeneratePeakCountsSynthetic(unittest.TestCase):
 
 class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self) -> None:
-        self.matrix, _, _ = peak_calling.generate_peak_counts(
+        self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
             annotations=self.anno,
             func=self.protocol.peak_calling
@@ -362,7 +362,7 @@ class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
 
 class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
-        _, self.var, _ = peak_calling.generate_peak_counts(
+        _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
             annotations=self.anno,
             func=self.protocol.peak_calling
@@ -378,7 +378,7 @@ class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
 
 class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
-        _, _, self.obs = peak_calling.generate_peak_counts(
+        _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=self.data,
             annotations=self.anno,
             func=self.protocol.peak_calling
@@ -405,7 +405,7 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
             utr_sizes=merged,
             whitelist=cls.protocol.barcode_whitelist,
         )
-        cls.matrix, var, cls.obs = peak_calling.generate_peak_counts(
+        cls.matrix, var, cls.obs = peak_calling.generate_peak_counts_and_anno(
             utr_sizes=filtered,
             annotations=cls.annotations,
         )

@@ -68,10 +68,11 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
         }
         cls.utr_regions = pd.DataFrame(cls.utr_regions).set_index("utr_name")
         cls.alignments = ['./test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam']
-        # objects for testing without label_batches
         annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
         cls.annotations = annotations.query("Sample_ID=='AS-740066-LR-59119'")
         cls.annotations = cls.annotations.drop_duplicates(subset=["Sample_Barcode"])
+
+        # objects for testing without label_batches
         cls.protocol = protocols.protocol(
             platform='smartseq',
             version=3,
@@ -151,6 +152,43 @@ class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
                              "UTR1-1", "UTR1-1-1"])
 
 
+class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
+    def setUp(self) -> None:
+        self.annotations = self.annotations.drop("Sample_Barcode", axis=1)
+        self.protocol = protocols.protocol(
+            platform='smartseq',
+            version=3,
+            label_batches=False,
+            annotations=self.annotations,
+            alignments=self.alignments
+        )
+        self.mapped = core.map_aligned_reads(
+            alignments=self.alignments,
+            utr_regions=self.utr_regions,
+            protocol=self.protocol,
+            store=False
+        )
+        self.results = core.call_peaks(
+            utr_sizes_counts=self.mapped,
+            utr_reference_regions=self.utr_regions,
+            protocol=self.protocol,
+            store=False
+        )
+
+    def test_is_anndata(self):
+        self.assertIsInstance(self.results, ad.AnnData)
+
+    def test_shape_anndata(self):
+        self.assertTupleEqual(self.results.shape, (1, 2))
+
+    def test_utr_sizes(self):
+        self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
+
+    def test_utr_names(self):
+        self.assertListEqual(self.results.var_names.to_list(),
+                             ["UTR1-1", "UTR1-1-1"])
+
+
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")
