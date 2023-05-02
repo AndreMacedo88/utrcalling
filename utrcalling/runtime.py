@@ -19,16 +19,18 @@ from utrcalling.tools import call_peaks_different_bandwidths
 
 from utrcalling.tests import test_case
 
+from utrcalling._metadata import __version__ as version
+
 # read the version from the metadata file
-metadata_file = "utrcalling/_metadata.py"
-with open(metadata_file, "rt") as file:
-    metadata = file.read()
-    version_expression = r"^__version__ = ['\"]([^'\"]*)['\"]"
-    version_search = re.search(version_expression, metadata, re.M)
-    if version_search:
-        version = version_search.group(1)
-    else:
-        raise RuntimeError("Unable to find version string in {}.".format(metadata))
+# metadata_file = "utrcalling/_metadata.py"
+# with open(metadata_file, "rt") as file:
+#     metadata = file.read()
+#     version_expression = r"^__version__ = ['\"]([^'\"]*)['\"]"
+#     version_search = re.search(version_expression, metadata, re.M)
+#     if version_search:
+#         version = version_search.group(1)
+#     else:
+#         raise RuntimeError("Unable to find version string in {}.".format(metadata))
 
 
 # Function to create the parser with subparsers
