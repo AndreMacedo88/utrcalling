@@ -56,7 +56,7 @@ def run(utr_annotation,
     """
 
     # Set up the protocol for this specific run
-    protocol = protocol.create(
+    protocol_ = protocol.create(
         protocol_platform,
         int(protocol_version),
         merge_method=batch_merge_method,
@@ -76,7 +76,7 @@ def run(utr_annotation,
     utr_sizes_counts = core.map_aligned_reads(
         alignments,
         utr_reference_regions,
-        protocol,
+        protocol_,
         store=store_intermediate
     )
 
@@ -85,7 +85,7 @@ def run(utr_annotation,
     count_matrix_anndata = core.call_peaks(
         utr_sizes_counts,
         utr_reference_regions,
-        protocol,
+        protocol_,
         store=store_intermediate
     )
 
