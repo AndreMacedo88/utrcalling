@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import unittest
 
+import numpy as np
 import pandas as pd
 import anndata as ad
 
@@ -10,6 +11,44 @@ import anndata as ad
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
 from utrcalling.core import core, module_log, protocol
+from utrcalling.tests.test_data import synthetic_data
+
+
+class TestPrepareUtrReferenceRegions(unittest.TestCase):
+    def setUp(self) -> None:
+        gtf = synthetic_data.GtfMouse()
+        with gtf:  # context manager so that the GtfMouse class cleans the file at the end
+            self.regions = core.prepare_utr_reference_regions(
+                gtf=gtf.file_path,
+                feature="three_prime_utr",
+                store=False,
+            )
+
+    def test_final(self):
+        expected = pd.DataFrame(
+            columns=[
+                "chrom", "start", "end", "name", "score", "strand", "transcript_id",
+                "gene_name"
+            ],
+            index=["ENSMUSG1", "ENSMUSG1_2", "ENSMUSG2", "ENSMUSG2_2", "ENSMUSG3"],
+            data=np.array(
+                [
+                    [1, 1000, 1100, 'ENSMUSG1', '.', '+', 'ENSMUST1,ENSMUST2', 'Test1'],
+                    [1, 1150, 1350, 'ENSMUSG1', '.', '+', 'ENSMUST1,ENSMUST2', 'Test1'],
+                    [1, 2000, 2200, 'ENSMUSG2', '.', '-', 'ENSMUST3,ENSMUST4', 'Test2'],
+                    [1, 2400, 2600, 'ENSMUSG2', '.', '-', 'ENSMUST3', 'Test2'],
+                    [1, 3000, 3200, 'ENSMUSG3', '.', '+', 'ENSMUST5', 'Test3']
+                ]
+            )
+        )
+        expected.index.name = "utr_name"
+        for i in range(3):
+            expected.isetitem(i, expected.iloc[:, i].astype("int64"))
+
+        pd.testing.assert_frame_equal(
+            self.regions,
+            expected,
+        )
 
 
 class TestMapAlignedReads(unittest.TestCase):
