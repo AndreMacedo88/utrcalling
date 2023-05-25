@@ -8,7 +8,7 @@ import pandas as pd
 import pysam
 
 
-class GtfMouse:
+class GtfEnsembl:
     def __init__(self) -> None:
         self.fd, self.file_path = mkstemp(suffix=".gtf", dir="./test_data/")
 
@@ -91,8 +91,41 @@ class GtfMouse:
             'protein_id "ENSMUSP5"; protein_version "1";\n'
         )
 
+        feature_9 = (
+            '1	ensembl	three_prime_utr	500	600	.	+	0	'
+            'gene_id "ENSMUSG4"; gene_version "1"; '
+            'transcript_id "ENSMUST6"; transcript_version "2"; '
+            'gene_name "Test4"; transcript_name "Test4-201"; '
+            'protein_id "ENSMUSP6"; protein_version "1";\n'
+        )
+
+        feature_10 = (
+            '1	ensembl	three_prime_utr	1200	1300	.	+	0	'
+            'gene_id "ENSMUSG4"; gene_version "1"; '
+            'transcript_id "ENSMUST6"; transcript_version "2"; '
+            'gene_name "Test4"; transcript_name "Test4-201"; '
+            'protein_id "ENSMUSP6"; protein_version "1";\n'
+        )
+
+        feature_11 = (
+            '1	ensembl	three_prime_utr	500	650	.	-	0	'
+            'gene_id "ENSMUSG5"; gene_version "7"; '
+            'transcript_id "ENSMUST7"; transcript_version "7"; '
+            'gene_name "Test5"; transcript_name "Test5-201"; '
+            'protein_id "ENSMUSP7"; protein_version "1";\n'
+        )
+
+        feature_12 = (
+            '1	ensembl	three_prime_utr	1200	1300	.	-	0	'
+            'gene_id "ENSMUSG5"; gene_version "7"; '
+            'transcript_id "ENSMUST7"; transcript_version "7"; '
+            'gene_name "Test5"; transcript_name "Test5-201"; '
+            'protein_id "ENSMUSP7"; protein_version "1";\n'
+        )
+
         features = feature_1 + feature_2 + feature_3 + feature_4 + feature_5 + \
-            feature_6 + feature_7 + feature_8
+            feature_6 + feature_7 + feature_8 + feature_9 + feature_10 + \
+            feature_11 + feature_12
 
         with os.fdopen(self.fd, "w") as f:
             f.writelines(header + features)
