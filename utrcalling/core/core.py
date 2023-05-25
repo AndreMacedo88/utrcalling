@@ -63,6 +63,7 @@ def prepare_utr_reference_regions(gtf,
     utr_reduced = correct_column_names(utr_reduced)
 
     if store:
+        utr_bed.saveas("utrs_unmerged.bed")
         utr_reduced.to_parquet("utr_reference_regions.parquet")
     return utr_reduced
 
