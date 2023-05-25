@@ -14,9 +14,9 @@ from utrcalling.core import core, module_log, protocol
 from utrcalling.tests.test_data import synthetic_data
 
 
-class TestPrepareUtrReferenceRegions(unittest.TestCase):
+class TestPrepareUtrReferenceRegionsSynthetic(unittest.TestCase):
     def setUp(self) -> None:
-        gtf = synthetic_data.GtfMouse()
+        gtf = synthetic_data.GtfEnsembl()
         with gtf:  # context manager so that the GtfMouse class cleans the file at the end
             self.regions = core.prepare_utr_reference_regions(
                 gtf=gtf.file_path,
@@ -24,17 +24,30 @@ class TestPrepareUtrReferenceRegions(unittest.TestCase):
                 store=False,
             )
 
-    def test_final(self):
+    def test_resulting_df(self):
         expected = pd.DataFrame(
             columns=[
                 "chrom", "start", "end", "name", "score", "strand", "transcript_id",
                 "gene_name"
             ],
-            index=["ENSMUSG1", "ENSMUSG1_2", "ENSMUSG2", "ENSMUSG2_2", "ENSMUSG3"],
+            index=[
+                "ENSMUSG4",
+                "ENSMUSG5",
+                "ENSMUSG1",
+                "ENSMUSG1,ENSMUSG4",
+                "ENSMUSG5_2",
+                "ENSMUSG2",
+                "ENSMUSG2_2",
+                "ENSMUSG3"
+            ],
             data=np.array(
                 [
+                    [1, 500, 600, 'ENSMUSG4', '.', '+', 'ENSMUST6', 'Test4'],
+                    [1, 500, 650, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
                     [1, 1000, 1100, 'ENSMUSG1', '.', '+', 'ENSMUST1,ENSMUST2', 'Test1'],
-                    [1, 1150, 1350, 'ENSMUSG1', '.', '+', 'ENSMUST1,ENSMUST2', 'Test1'],
+                    [1, 1150, 1350, 'ENSMUSG1,ENSMUSG4', '.',
+                        '+', 'ENSMUST1,ENSMUST2,ENSMUST6', 'Test1,Test4'],
+                    [1, 1200, 1300, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
                     [1, 2000, 2200, 'ENSMUSG2', '.', '-', 'ENSMUST3,ENSMUST4', 'Test2'],
                     [1, 2400, 2600, 'ENSMUSG2', '.', '-', 'ENSMUST3', 'Test2'],
                     [1, 3000, 3200, 'ENSMUSG3', '.', '+', 'ENSMUST5', 'Test3']
