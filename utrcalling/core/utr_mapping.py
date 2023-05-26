@@ -185,6 +185,14 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     return information
 
 
+def merge_intronic_utrs(utr_regions, read_mappings):
+    from collections import Counter
+    transcripts = utr_regions.transcript_id.str.split(",")
+    transcripts_flat = [t for ts in transcripts for t in ts]
+    print(Counter(transcripts_flat))
+    pass
+
+
 """
 # Snippet of old code that was used to provide with the read_sequence
     # get read strand
