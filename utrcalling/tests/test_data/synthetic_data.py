@@ -134,6 +134,68 @@ class GtfEnsembl:
         os.remove(self.file_path)
 
 
+UTR_REGIONS_MERGED = pd.DataFrame(
+    columns=[
+        "chrom", "start", "end", "name", "score", "strand", "transcript_id",
+        "gene_name"
+    ],
+    index=[
+        "ENSMUSG4",
+        "ENSMUSG5",
+        "ENSMUSG1",
+        "ENSMUSG1,ENSMUSG4",
+        "ENSMUSG5_2",
+        "ENSMUSG2",
+        "ENSMUSG2_2",
+        "ENSMUSG3"
+    ],
+    data=np.array(
+        [
+            [1, 500, 600, 'ENSMUSG4', '.', '+', 'ENSMUST6', 'Test4'],
+            [1, 500, 650, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
+            [1, 1000, 1100, 'ENSMUSG1', '.', '+', 'ENSMUST1,ENSMUST2', 'Test1'],
+            [1, 1150, 1350, 'ENSMUSG1,ENSMUSG4', '.',
+                '+', 'ENSMUST1,ENSMUST2,ENSMUST6', 'Test1,Test4'],
+            [1, 1200, 1300, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
+            [1, 2000, 2200, 'ENSMUSG2', '.', '-', 'ENSMUST3,ENSMUST4', 'Test2'],
+            [1, 2400, 2600, 'ENSMUSG2', '.', '-', 'ENSMUST3', 'Test2'],
+            [1, 3000, 3200, 'ENSMUSG3', '.', '+', 'ENSMUST5', 'Test3']
+        ]
+    )
+)
+UTR_REGIONS_MERGED.name = "utr_name"
+
+MAPPED_READS = pd.DataFrame(
+    columns=[
+        "read_barcodes",
+        "utr_sizes_from_reads",
+    ],
+    index=[
+        "ENSMUSG4",
+        "ENSMUSG5",
+        "ENSMUSG1",
+        "ENSMUSG1,ENSMUSG4",
+        "ENSMUSG5_2",
+        "ENSMUSG2",
+        "ENSMUSG2_2",
+        "ENSMUSG3"
+    ],
+    data=np.array(
+        [
+            [["CTAGACGT", "CTGATGA"], [50, 45]],
+            [["GTAGACGT"], [50]],
+            [["GAAGACGT"], [60]],
+            [["GAAGACGA", "ATGATGA"], [60, 65]],
+            [["TAAGACGA", "TTGATGA"], [20, 25]],
+            [["AAAGACGA", "GTGATGA"], [30, 35]],
+            [["AAAGACGG"], [50]],
+            [["CAAGACGG"], [90]],
+        ]
+    )
+)
+MAPPED_READS.name = "utr_name"
+
+
 class SmartSeqCapSeqBam:
     def __init__(self) -> None:
         fd, self.alignment = mkstemp(suffix=".bam", dir="./test_data/")
