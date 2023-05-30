@@ -26,17 +26,18 @@ class TestOpenGtf(unittest.TestCase):
 
 class TestExtractFeature(unittest.TestCase):
     def setUp(self) -> None:
-        self.path = "./test_data/test_mus_musculus_GRCm38_102.gtf"
+        path = "./test_data/test_mus_musculus_GRCm38_102.gtf"
+        self.gtf_df = utr_reference.open_gtf(path)
 
     def test_three_prime(self) -> None:
         annotations = utr_reference.extract_feature(
-            self.path, 'three_prime_utr')
+            self.gtf_df, 'three_prime_utr')
         feature_list = annotations["feature"].unique().tolist()
         self.assertListEqual(feature_list, ['three_prime_utr'])
 
     def test_five_prime(self) -> None:
         annotations = utr_reference.extract_feature(
-            self.path, 'five_prime_utr')
+            self.gtf_df, 'five_prime_utr')
         feature_list = annotations["feature"].unique().tolist()
         self.assertListEqual(feature_list, ['five_prime_utr'])
 
@@ -68,7 +69,8 @@ class TestReduceRegions(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         gtf_path = "../tests/test_data/test_mus_musculus_GRCm38_102.gtf"
-        utr = utr_reference.extract_feature(gtf_path, 'three_prime_utr')
+        gtf_df = utr_reference.open_gtf(gtf_path)
+        utr = utr_reference.extract_feature(gtf_df, 'three_prime_utr')
         cls.utr = utr.sort_values(
             by=['seqname', 'start'])  # sort for bed merge
 

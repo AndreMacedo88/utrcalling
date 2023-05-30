@@ -6,30 +6,40 @@ from gtfparse import read_gtf
 from .module_log import module_logger
 
 
-def extract_feature(gtf_file, feature):
+def extract_feature(gtf_df, feature):
     """
     Extracts a feature from a GTF annotation file.
+
+    Args:
+        gtf_df (pd.DataFrame): Gene annotation DataFrame in Pandas format.
+        feature (str): Feature to filter. e.g. three_prime_utr, five_prime_utr.
+    """
+    logger = module_logger()
+    logger.info(
+        'Filtering GTF reference file to retrieve only the UTR annotations'
+    )
+
+    utr_df = gtf_df[gtf_df["feature"] == feature]
+    return (utr_df)
+
+
+def open_gtf(gtf_file):
+    """
+    Parses a GTF annotation file to a pandas dataframe.
 
     Args:
         gtf_file (typing.BinaryIO): Gene annotation file in GTF format.
     """
     logger = module_logger()
-    logger.info(
-        'Parsing GTF reference file to retrieve only the UTR annotations')
+    logger.info('Parsing GTF reference file, may take a minute')
 
-    gtf_df = open_gtf(gtf_file)
-    utr_df = gtf_df[gtf_df["feature"] == feature]
-
-    logger.info('Finished parsing GTF file')
-    return(utr_df)
-
-
-def open_gtf(gtf_file):
     if gtf_file.endswith(".gz"):
         with gzip.open(gtf_file) as f:
             gtf_df = read_gtf(f)
     else:
         gtf_df = read_gtf(gtf_file)
+
+    logger.info('Finished parsing GTF file')
     return gtf_df
 
 
