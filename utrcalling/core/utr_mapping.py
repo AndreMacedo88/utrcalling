@@ -188,8 +188,18 @@ def extract_read_information(alignment, interval, protocol, bam_name):
 def merge_intronic_utrs(utr_regions, read_mappings):
     from collections import Counter
     transcripts = utr_regions.transcript_id.str.split(",")
+    utr_regions["transcript_number"] = transcripts.str.len()
     transcripts_flat = [t for ts in transcripts for t in ts]
-    print(Counter(transcripts_flat))
+    transcript_counts = Counter(transcripts_flat)
+    transcript_repeated = []
+    for transcript, count in transcript_counts.items():
+        if count > 1:
+            transcript_repeated.append(transcript)
+    for transcript in transcript_repeated:
+        print(transcript)
+        print(utr_regions[utr_regions.transcript_id.str.contains(
+            transcript)].transcript_number)
+        break
     pass
 
 

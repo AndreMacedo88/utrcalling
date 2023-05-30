@@ -35,7 +35,7 @@ from tqdm import tqdm
 from utrcalling.core import helpers
 from utrcalling.core.utr_reference import (
     generate_utr_name, extract_feature, prepare_annotations_index, reduce_regions,
-    generate_utr_name, correct_column_names
+    generate_utr_name, correct_column_names, open_gtf
 )
 from utrcalling.core.utr_mapping import generate_utr_intervals, map_reads_to_utr, module_logger
 from utrcalling.core.peak_calling import (
@@ -48,8 +48,10 @@ def prepare_utr_reference_regions(gtf,
                                   feature,
                                   store=False
                                   ):
+    # open the gtf file
+    gtf_df = open_gtf(gtf)
     # extract 3'UTRs from all the features in the GTF file
-    utr = extract_feature(gtf, feature)
+    utr = extract_feature(gtf_df, feature)
     # sort by chr and start for bed merge
     utr = utr.sort_values(by=['seqname', 'start'])
     annotations = ['gene_id', 'score', 'strand', 'transcript_id', 'gene_name']
