@@ -163,7 +163,7 @@ UTR_REGIONS_MERGED = pd.DataFrame(
         ]
     )
 )
-UTR_REGIONS_MERGED.name = "utr_name"
+UTR_REGIONS_MERGED.index.name = "utr_name"
 
 MAPPED_READS = pd.DataFrame(
     columns=[
