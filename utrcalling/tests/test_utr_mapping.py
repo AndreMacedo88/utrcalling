@@ -454,17 +454,19 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
         self.assertEqual(self.mappings.shape[0], 2)
 
 
-class TestMergeIntronicUtrs(unittest.TestCase):
+class TestMergeUtrsPerGene(unittest.TestCase):
     def setUp(self) -> None:
         utr_regions = synthetic_data.UTR_REGIONS_MERGED
         mapped_reads = synthetic_data.MAPPED_READS
-        self.merged_mapped_reads = utr_mapping.merge_intronic_utrs(
+        self.merged_mapped_reads = utr_mapping.merge_utrs_per_gene(
             utr_regions=utr_regions, read_mappings=mapped_reads
         )
+        print("\n------------------\n")
         print(utr_regions)
         print(mapped_reads)
 
-    def test_intronic_regions(self):
+    def test_utrs_merged_per_gene(self):
+        print("\n------------------\n")
         print(self.merged_mapped_reads)
 
 

@@ -6,6 +6,7 @@ import re
 # data handling tools
 import HTSeq
 import pandas as pd
+import numpy as np
 # QOL tools
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
@@ -185,25 +186,40 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     return information
 
 
-def merge_intronic_utrs(utr_regions, read_mappings):
-    # from collections import Counter
-    # transcripts = utr_regions.transcript_id.str.split(",")
-    # utr_regions["transcript_number"] = transcripts.str.len()
-    # transcripts_flat = [t for ts in transcripts for t in ts]
-    # transcript_counts = Counter(transcripts_flat)
-    # transcript_repeated = []
-    # for transcript, count in transcript_counts.items():
-    #     if count > 1:
-    #         transcript_repeated.append(transcript)
-    # for transcript in transcript_repeated:
-    #     print(transcript)
-    #     print(utr_regions[utr_regions.transcript_id.str.contains(
-    #         transcript)].transcript_number)
-    #     break
-    grouped = utr_regions.groupby("name")
-    for name, group in grouped:
-        print(name)
-        print(group)
+def merge_utrs_per_gene(utr_regions, read_mappings):
+    def join_unique(x):
+        return ",".join(x.unique())
+
+    def split_and_then_join_unique(x):
+        split = x.str.split(",")
+        split = split.explode()
+        return ",".join(np.unique(split))
+
+    def explode_and_then_join(x):
+        explode = x.explode()
+        return explode.to_list()
+
+    def explode_subtract_and_then_join(x, size=0):
+        explode = x.explode()
+        return explode.to_list()
+
+    combined_data = utr_regions.join(read_mappings)
+
+    grouped = combined_data.groupby("name")
+    utr_regions_per_gene = grouped.agg(
+        {
+            "chrom": "first",
+            "start": join_unique,
+            "end": join_unique,
+            # "name": "first",  # this is the same as the new index, but may be needed for legacy purposes?
+            "strand": "first",
+            "transcript_id": split_and_then_join_unique,
+            "gene_name": split_and_then_join_unique,
+            "read_barcodes": explode_and_then_join,
+            "utr_sizes_from_reads": explode_and_then_join,
+        }
+    )
+    print(utr_regions_per_gene)
     return
 
 
