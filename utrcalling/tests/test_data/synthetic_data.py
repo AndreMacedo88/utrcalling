@@ -142,9 +142,11 @@ UTR_REGIONS_MERGED = pd.DataFrame(
     index=[
         "ENSMUSG4",
         "ENSMUSG5",
+        "ENSMUSG5_2",
         "ENSMUSG1",
         "ENSMUSG1,ENSMUSG4",
-        "ENSMUSG5_2",
+        "ENSMUSG5_3",
+        "ENSMUSG5_4",
         "ENSMUSG2",
         "ENSMUSG2_2",
         "ENSMUSG3"
@@ -153,9 +155,11 @@ UTR_REGIONS_MERGED = pd.DataFrame(
         [
             [1, 500, 600, 'ENSMUSG4', '.', '+', 'ENSMUST6', 'Test4'],
             [1, 500, 650, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
+            [1, 800, 900, 'ENSMUSG5', '.', '-', 'ENSMUST8', 'Test5'],
             [1, 1000, 1100, 'ENSMUSG1', '.', '+', 'ENSMUST1,ENSMUST2', 'Test1'],
             [1, 1150, 1350, 'ENSMUSG1,ENSMUSG4', '.',
                 '+', 'ENSMUST1,ENSMUST2,ENSMUST6', 'Test1,Test4'],
+            [1, 1100, 1250, 'ENSMUSG5', '.', '-', 'ENSMUST9', 'Test5'],
             [1, 1200, 1300, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
             [1, 2000, 2200, 'ENSMUSG2', '.', '-', 'ENSMUST3,ENSMUST4', 'Test2'],
             [1, 2400, 2600, 'ENSMUSG2', '.', '-', 'ENSMUST3', 'Test2'],
@@ -175,9 +179,11 @@ MAPPED_READS = pd.DataFrame(
     index=[
         "ENSMUSG4",
         "ENSMUSG5",
+        "ENSMUSG5_2",
         "ENSMUSG1",
         "ENSMUSG1,ENSMUSG4",
-        "ENSMUSG5_2",
+        "ENSMUSG5_3",
+        "ENSMUSG5_4",
         "ENSMUSG2",
         "ENSMUSG2_2",
         "ENSMUSG3"
@@ -186,8 +192,10 @@ MAPPED_READS = pd.DataFrame(
         [
             [["CTAGACGT", "CTGATGA"], [50, 45]],
             [["GTAGACGT"], [50]],
+            [["GTAGCCGT"], [40]],
             [["GAAGACGT"], [60]],
             [["GAAGACGA", "ATGATGA"], [60, 65]],
+            [["ATAGCCGT"], [30]],
             [["TAAGACGA", "TTGATGA"], [20, 25]],
             [["AAAGACGA", "GTGATGA"], [30, 35]],
             [["AAAGACGG"], [50]],
