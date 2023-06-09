@@ -461,15 +461,97 @@ class TestMergeUtrsPerGene(unittest.TestCase):
         self.merged_mapped_reads = utr_mapping.merge_utrs_per_gene(
             utr_regions=utr_regions, read_mappings=mapped_reads
         )
-        print("\n------------------\n")
-        print(utr_regions)
-        print(mapped_reads)
 
-    def test_utrs_merged_per_gene(self):
-        print("\n------------------\n")
-        print(self.merged_mapped_reads)
+    def test_index(self):
+        self.assertListEqual(
+            self.merged_mapped_reads.index.to_list(),
+            ["ENSMUSG1", "ENSMUSG1,ENSMUSG4", "ENSMUSG2", "ENSMUSG3", "ENSMUSG4", "ENSMUSG5"]
+        )
+
+    def test_positive_strand_sizes(self):
+        self.assertListEqual(
+            self.merged_mapped_reads.loc[
+                self.merged_mapped_reads.strand == "+", :
+            ].utr_sizes_from_reads.to_list(),
+            [[60], [60, 65], [90], [50, 45]]
+        )
+
+    def test_negative_strand_sizes(self):
+        self.assertListEqual(
+            self.merged_mapped_reads.loc[
+                self.merged_mapped_reads.strand == "-", :
+            ].utr_sizes_from_reads.to_list(),
+            [[50, 230, 235], [20, 25, 80, 240, 350]]
+        )
+
+    def test_full_dataframe(self):
+        expected = {
+            'chrom': {
+                'ENSMUSG1': '1',
+                'ENSMUSG1,ENSMUSG4': '1',
+                'ENSMUSG2': '1',
+                'ENSMUSG3': '1',
+                'ENSMUSG4': '1', 'ENSMUSG5': '1'
+            },
+            'start': {
+                'ENSMUSG1': '1000',
+                'ENSMUSG1,ENSMUSG4': '1150',
+                'ENSMUSG2': '2000,2400',
+                'ENSMUSG3': '3000',
+                'ENSMUSG4': '500',
+                'ENSMUSG5': '500,800,1100,1200'
+            },
+            'end': {
+                'ENSMUSG1': '1100',
+                'ENSMUSG1,ENSMUSG4': '1350',
+                'ENSMUSG2': '2200,2600',
+                'ENSMUSG3': '3200',
+                'ENSMUSG4': '600', 'ENSMUSG5': '650,900,1250,1300'
+            },
+            'strand': {
+                'ENSMUSG1': '+',
+                'ENSMUSG1,ENSMUSG4': '+',
+                'ENSMUSG2': '-',
+                'ENSMUSG3': '+',
+                'ENSMUSG4': '+',
+                'ENSMUSG5': '-'
+            },
+            'transcript_id': {
+                'ENSMUSG1': 'ENSMUST1,ENSMUST2',
+                'ENSMUSG1,ENSMUSG4': 'ENSMUST1,ENSMUST2,ENSMUST6',
+                'ENSMUSG2': 'ENSMUST3,ENSMUST4',
+                'ENSMUSG3': 'ENSMUST5',
+                'ENSMUSG4': 'ENSMUST6',
+                'ENSMUSG5': 'ENSMUST7,ENSMUST8,ENSMUST9'
+            },
+            'gene_name': {
+                'ENSMUSG1': 'Test1',
+                'ENSMUSG1,ENSMUSG4': 'Test1,Test4',
+                'ENSMUSG2': 'Test2',
+                'ENSMUSG3': 'Test3',
+                'ENSMUSG4': 'Test4',
+                'ENSMUSG5': 'Test5'
+            },
+            'read_barcodes': {
+                'ENSMUSG1': ['GAAGACGT'],
+                'ENSMUSG1,ENSMUSG4': ['GAAGACGA', 'ATGATGA'],
+                'ENSMUSG2': ['AAAGACGA', 'GTGATGA', 'AAAGACGG'],
+                'ENSMUSG3': ['CAAGACGG'],
+                'ENSMUSG4': ['CTAGACGT', 'CTGATGA'],
+                'ENSMUSG5': ['GTAGACGT', 'GTAGCCGT', 'ATAGCCGT', 'TAAGACGA', 'TTGATGA']
+            },
+            'utr_sizes_from_reads': {
+                'ENSMUSG1': [60],
+                'ENSMUSG1,ENSMUSG4': [60, 65],
+                'ENSMUSG2': [50, 230, 235],
+                'ENSMUSG3': [90],
+                'ENSMUSG4': [50, 45],
+                'ENSMUSG5': [20, 25, 80, 240, 350]
+            }
+        }
+        self.assertDictEqual(expected, self.merged_mapped_reads.to_dict())
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=False)
+    unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")
