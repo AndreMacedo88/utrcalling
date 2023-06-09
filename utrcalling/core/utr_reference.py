@@ -1,6 +1,7 @@
 import gzip
 
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 from gtfparse import read_gtf
 
 from .module_log import module_logger
@@ -66,8 +67,10 @@ def reduce_regions(bed, annotations_index=[], operation_list=[]):
 def turn_utr_bed_to_dataframe(utr_table):
     if not isinstance(utr_table, pd.DataFrame):
         utr_table = utr_table.to_dataframe()
-    utr_table["start"] = utr_table["start"].astype(int)
-    utr_table["end"] = utr_table["end"].astype(int)
+    if not is_numeric_dtype(utr_table["start"]):
+        utr_table["start"] = utr_table["start"].astype(int)
+    if not is_numeric_dtype(utr_table["end"]):
+        utr_table["end"] = utr_table["end"].astype(int)
     return utr_table
 
 
