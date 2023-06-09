@@ -34,13 +34,23 @@ from tqdm import tqdm
 
 from utrcalling.core import helpers
 from utrcalling.core.utr_reference import (
-    generate_utr_name, extract_feature, prepare_annotations_index, reduce_regions,
-    generate_utr_name, correct_column_names, open_gtf
+    open_gtf,
+    generate_utr_name,
+    extract_feature,
+    prepare_annotations_index,
+    reduce_regions,
+    generate_utr_name,
+    correct_column_names,
+    turn_utr_bed_to_dataframe
 )
 from utrcalling.core.utr_mapping import generate_utr_intervals, map_reads_to_utr, module_logger
 from utrcalling.core.peak_calling import (
-    subset_reference_data, merge_samples_utr_sizes, filter_barcodes,
-    generate_peak_counts_and_anno, add_to_peaks_var, generate_count_matrix_anndata
+    subset_reference_data,
+    merge_samples_utr_sizes,
+    filter_barcodes,
+    generate_peak_counts_and_anno,
+    add_to_peaks_var,
+    generate_count_matrix_anndata
 )
 
 
@@ -60,7 +70,7 @@ def prepare_utr_reference_regions(gtf,
     utr_bed = pybedtools.BedTool.from_dataframe(utr, columns=ann_cols)
     # find and merge overlapping regions
     utr_reduced = reduce_regions(utr_bed, annotations_index=ann_idx)
-
+    utr_reduced = turn_utr_bed_to_dataframe(utr_reduced)
     utr_reduced = generate_utr_name(utr_reduced)
     utr_reduced = correct_column_names(utr_reduced)
 

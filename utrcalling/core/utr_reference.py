@@ -63,17 +63,22 @@ def reduce_regions(bed, annotations_index=[], operation_list=[]):
     return bed_merged
 
 
-def generate_utr_name(utr_bed):
-    if not isinstance(utr_bed, pd.DataFrame):
-        utr_bed = utr_bed.to_dataframe()
+def turn_utr_bed_to_dataframe(utr_table):
+    if not isinstance(utr_table, pd.DataFrame):
+        utr_table = utr_table.to_dataframe()
+    utr_table["start"] = utr_table["start"].astype(int)
+    utr_table["end"] = utr_table["end"].astype(int)
+    return utr_table
 
+
+def generate_utr_name(utr_df):
     # sort by name so that name incrementation is handled correctly later on.
-    utr_bed.sort_values(by=["chrom", "start", "end"], inplace=True)
+    utr_df.sort_values(by=["chrom", "start", "end"], inplace=True)
 
     names_list = []
     counter = 1
     name_previous = ''
-    for row in utr_bed.itertuples():
+    for row in utr_df.itertuples():
         name_next = row.name
         if name_next == name_previous:
             counter += 1
@@ -82,10 +87,10 @@ def generate_utr_name(utr_bed):
             counter = 1
             name = name_previous = name_next
         names_list.append(name)
-    utr_bed['utr_name'] = names_list
-    utr_bed = utr_bed.set_index('utr_name')
-    utr_bed.sort_values(by=["chrom", "start", "end"], inplace=True)
-    return utr_bed
+    utr_df['utr_name'] = names_list
+    utr_df = utr_df.set_index('utr_name')
+    utr_df.sort_values(by=["chrom", "start", "end"], inplace=True)
+    return utr_df
 
 
 def correct_column_names(utr_df):
