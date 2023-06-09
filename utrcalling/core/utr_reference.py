@@ -68,7 +68,7 @@ def generate_utr_name(utr_bed):
         utr_bed = utr_bed.to_dataframe()
 
     # sort by name so that name incrementation is handled correctly later on.
-    utr_bed.sort_values(by=['name', 'start'], inplace=True)
+    utr_bed.sort_values(by=["chrom", "start", "end"], inplace=True)
 
     names_list = []
     counter = 1
@@ -84,7 +84,7 @@ def generate_utr_name(utr_bed):
         names_list.append(name)
     utr_bed['utr_name'] = names_list
     utr_bed = utr_bed.set_index('utr_name')
-    utr_bed.sort_values(by=['chrom', 'start'], inplace=True)
+    utr_bed.sort_values(by=["chrom", "start", "end"], inplace=True)
     return utr_bed
 
 
