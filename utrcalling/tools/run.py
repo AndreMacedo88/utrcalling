@@ -168,12 +168,18 @@ def create_parser(subparsers):
     parser.add_argument("--batch_merge_method", "-m", type=str,
                         help="""
                         Method used to deal with different UTR coverage in different
-                        samples/batches. If `union`, then the tool outputs UTRs that are not 
-                        represented by all samples/batches. If `intersection` only the reads that
+                        samples/batches. If 'union', then the tool outputs UTRs that are not 
+                        represented by all samples/batches. If 'intersection' only the reads that
                         map to UTRs in common between all samples/batches will be used. Default
                         depends on the protocol used.
                         """,
                         default=None)
+    parser.add_argument("--summarization_level", "-s", type=str,
+                        help="""
+                        Perform UTR size calling at the level of (merged) 'UTRs', 
+                        'transcript', or 'gene' level.
+                        """,
+                        default="UTR")
 
     parser.add_argument("--store_intermediate", "-i", action="store_true",
                         help="""
