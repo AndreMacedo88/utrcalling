@@ -78,10 +78,13 @@ def prepare_utr_reference_regions(gtf,
     utr_reduced = turn_utr_bed_to_dataframe(utr_reduced)
     utr_reduced = generate_utr_name(utr_reduced)
     utr_reduced = correct_column_names(utr_reduced)
+    utr_reduced.chrom = utr_reduced.chrom.astype(str)
 
     if store:
-        utr_bed.saveas("utrs_unmerged.bed")
-        utr_reduced.to_parquet("utr_reference_regions.parquet")
+        directory = './intermediate'
+        helpers.check_if_exists_and_mkdir(directory)
+        utr_bed.saveas(os.path.join(directory, "utrs_unmerged.bed"))
+        utr_reduced.to_parquet(os.path.join(directory, "utr_reference_regions.parquet"))
     return utr_reduced
 
 
