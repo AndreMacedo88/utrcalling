@@ -7,23 +7,6 @@ from gtfparse import read_gtf
 from .module_log import module_logger
 
 
-def extract_feature(gtf_df, feature):
-    """
-    Extracts a feature from a GTF annotation file.
-
-    Args:
-        gtf_df (pd.DataFrame): Gene annotation DataFrame in Pandas format.
-        feature (str): Feature to filter. e.g. three_prime_utr, five_prime_utr.
-    """
-    logger = module_logger()
-    logger.info(
-        'Filtering GTF reference file to retrieve only the UTR annotations'
-    )
-
-    utr_df = gtf_df[gtf_df["feature"] == feature]
-    return (utr_df)
-
-
 def open_gtf(gtf_file):
     """
     Parses a GTF annotation file to a pandas dataframe.
@@ -42,6 +25,23 @@ def open_gtf(gtf_file):
 
     logger.info('Finished parsing GTF file')
     return gtf_df
+
+
+def extract_feature(gtf_df, feature):
+    """
+    Extracts a feature from a GTF annotation file.
+
+    Args:
+        gtf_df (pd.DataFrame): Gene annotation DataFrame in Pandas format.
+        feature (str): Feature to filter. e.g. three_prime_utr, five_prime_utr.
+    """
+    logger = module_logger()
+    logger.info(
+        'Filtering GTF reference file to retrieve only the UTR annotations'
+    )
+
+    utr_df = gtf_df[gtf_df["feature"] == feature]
+    return (utr_df)
 
 
 def prepare_annotations_index(annotations_extra):
@@ -75,24 +75,25 @@ def turn_utr_bed_to_dataframe(utr_table):
 
 
 def generate_utr_name(utr_df):
+    if not isinstance(utr_df, pd.DataFrame):
+        raise TypeError(f"Please turn your {type(utr_df)} object to a pandas DataFrame")
     # sort by name so that name incrementation is handled correctly later on.
     utr_df.sort_values(by=["chrom", "start", "end"], inplace=True)
 
     names_list = []
-    counter = 1
-    name_previous = ''
+    names_dict = {}
     for row in utr_df.itertuples():
         name_next = row.name
-        if name_next == name_previous:
-            counter += 1
-            name = f'{name_next}_{counter}'
+        if name_next in names_dict:
+            names_dict[name_next] += 1
+            name = f'{name_next}_{names_dict[name_next]}'
         else:
-            counter = 1
-            name = name_previous = name_next
+            names_dict[name_next] = 1
+            name = name_next
         names_list.append(name)
+
     utr_df['utr_name'] = names_list
     utr_df = utr_df.set_index('utr_name')
-    utr_df.sort_values(by=["chrom", "start", "end"], inplace=True)
     return utr_df
 
 
