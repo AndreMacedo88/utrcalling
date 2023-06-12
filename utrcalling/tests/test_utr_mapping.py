@@ -458,7 +458,7 @@ class TestMergeUtrsPerGene(unittest.TestCase):
     def setUp(self) -> None:
         utr_regions = synthetic_data.UTR_REGIONS_MERGED
         mapped_reads = synthetic_data.MAPPED_READS
-        self.merged_mapped_reads = utr_mapping.merge_utrs_per_gene(
+        self.utr_regions, self.merged_mapped_reads = utr_mapping.merge_utrs_per_gene(
             utr_regions=utr_regions, read_mappings=mapped_reads
         )
 
@@ -471,7 +471,7 @@ class TestMergeUtrsPerGene(unittest.TestCase):
     def test_positive_strand_sizes(self):
         self.assertListEqual(
             self.merged_mapped_reads.loc[
-                self.merged_mapped_reads.strand == "+", :
+                self.utr_regions.strand == "+", :
             ].utr_sizes_from_reads.to_list(),
             [[60], [60, 65], [90], [50, 45]]
         )
@@ -479,12 +479,12 @@ class TestMergeUtrsPerGene(unittest.TestCase):
     def test_negative_strand_sizes(self):
         self.assertListEqual(
             self.merged_mapped_reads.loc[
-                self.merged_mapped_reads.strand == "-", :
+                self.utr_regions.strand == "-", :
             ].utr_sizes_from_reads.to_list(),
             [[50, 230, 235], [20, 25, 80, 240, 350]]
         )
 
-    def test_full_dataframe(self):
+    def test_utr_regions_dataframe(self):
         expected = {
             'chrom': {
                 'ENSMUSG1': '1',
@@ -532,6 +532,19 @@ class TestMergeUtrsPerGene(unittest.TestCase):
                 'ENSMUSG4': 'Test4',
                 'ENSMUSG5': 'Test5'
             },
+            'name': {
+                'ENSMUSG1': 'ENSMUSG1',
+                'ENSMUSG1,ENSMUSG4': 'ENSMUSG1,ENSMUSG4',
+                'ENSMUSG2': 'ENSMUSG2',
+                'ENSMUSG3': 'ENSMUSG3',
+                'ENSMUSG4': 'ENSMUSG4',
+                'ENSMUSG5': 'ENSMUSG5'
+            },
+        }
+        self.assertDictEqual(expected, self.utr_regions.to_dict())
+
+    def test_read_mappings_dataframe(self):
+        expected = {
             'read_barcodes': {
                 'ENSMUSG1': ['GAAGACGT'],
                 'ENSMUSG1,ENSMUSG4': ['GAAGACGA', 'ATGATGA'],

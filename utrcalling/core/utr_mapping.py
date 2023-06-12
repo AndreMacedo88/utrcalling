@@ -281,7 +281,29 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
     utr_sizes_from_reads.name = "utr_sizes_from_reads"
 
     utr_regions_per_gene = utr_regions_per_gene.join(utr_sizes_from_reads, how="left")
-    return utr_regions_per_gene
+    utr_regions_per_gene.index.name = "utr_name"
+
+    utr_regions = utr_regions_per_gene.loc[
+        :,
+        [
+            "chrom",
+            "start",
+            "end",
+            "strand",
+            "transcript_id",
+            "gene_name",
+        ]
+    ]
+    utr_regions["name"] = utr_regions.index
+
+    read_mappings = utr_regions_per_gene.loc[
+        :,
+        [
+            "read_barcodes",
+            "utr_sizes_from_reads",
+        ]
+    ]
+    return utr_regions, read_mappings
 
 
 """
