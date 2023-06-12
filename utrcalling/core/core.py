@@ -43,7 +43,12 @@ from utrcalling.core.utr_reference import (
     correct_column_names,
     turn_utr_bed_to_dataframe
 )
-from utrcalling.core.utr_mapping import generate_utr_intervals, map_reads_to_utr, module_logger
+from utrcalling.core.utr_mapping import (
+    generate_utr_intervals,
+    map_reads_to_utr,
+    merge_utrs_per_gene,
+    module_logger
+)
 from utrcalling.core.peak_calling import (
     subset_reference_data,
     merge_samples_utr_sizes,
@@ -83,6 +88,7 @@ def prepare_utr_reference_regions(gtf,
 def map_aligned_reads(alignments,
                       utr_regions,
                       protocol,
+                      level="UTR",
                       store=False
                       ):
     intervals = generate_utr_intervals(utr_regions)
@@ -126,6 +132,13 @@ def map_aligned_reads(alignments,
             alignments, intervals, read='first', protocol=protocol, batch=sample_names)
         if store:
             read_mappings.to_parquet(os.path.join(directory, f'{filename}.parquet'))
+
+    if level.lower() == "gene":
+        merge_utrs_per_gene(
+            utr_regions=utr_regions,
+            read_mappings=read_mappings
+        )
+
     return read_mappings
 
 

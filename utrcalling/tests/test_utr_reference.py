@@ -145,6 +145,7 @@ class TestReduceRegionsExtended(TestReduceRegions):
 class TestGenerateUtrName(TestReduceRegionsExtended):
     def setUp(self) -> None:
         super().setUp()
+        self.utr_reduced = utr_reference.turn_utr_bed_to_dataframe(self.utr_reduced)
         self.utr_reduced = utr_reference.generate_utr_name(self.utr_reduced)
 
     def test_names_len(self):
