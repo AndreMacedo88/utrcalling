@@ -154,7 +154,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
     def _get_sample_column(self):
         try:
             sample_column_name = self.annotations.columns.str.extract(
-                r"(.*sample_id.*)", flags=re.IGNORECASE).values[0]
+                r"(.*sample_id.*)", flags=re.IGNORECASE).dropna().values
         except IndexError:
             msg = (
                 f"Please supply a column for `sample_id` in the annotation file. "
@@ -170,13 +170,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 f"their name."
             )
         else:
-            sample_column_name = sample_column_name[0]
+            sample_column_name = sample_column_name[0][0]
         return sample_column_name
 
     def _get_batch_column(self):
         try:
             batch_column_name = self.annotations.columns.str.extract(
-                r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0]
+                r"(.*batch.*)", flags=re.IGNORECASE).dropna().values
         except IndexError:
             msg = (
                 f"If you are working with multiple samples/batches, please supply "
@@ -192,13 +192,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 f"their name."
             )
         else:
-            batch_column_name = batch_column_name[0]
+            batch_column_name = batch_column_name[0][0]
         return batch_column_name
 
     def _get_barcode_column(self):
         try:
             barcode_column_name = self.annotations.columns.str.extract(
-                r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values[0]
+                r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values
         except IndexError:
             msg = (
                 f"If you are working with barcodes, please supply "
@@ -215,7 +215,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 f"their name."
             )
         else:
-            barcode_column_name = barcode_column_name[0]
+            barcode_column_name = barcode_column_name[0][0]
         return barcode_column_name
 
     def _get_batch_information(self):
@@ -433,7 +433,7 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
         umi_match = re.search(ss3_regex, read_seq)
         if umi_match:
             read_umi = umi_match.group(0)[11:19]  # 8 bp UMI
-            assert(len(read_umi) == 8)  # 8 bp UMI
+            assert (len(read_umi) == 8)  # 8 bp UMI
         else:
             return None, read_batch_id
 
@@ -448,7 +448,7 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
 
         read_seq = helpers.to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]
-        assert(len(read_umi) == 8)  # 8 bp UMI
+        assert (len(read_umi) == 8)  # 8 bp UMI
 
         return read_umi, read_batch_id
 
