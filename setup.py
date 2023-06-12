@@ -51,6 +51,7 @@ setuptools.setup(
         "htseq>=0.13.5",
         "pybedtools==0.8.2",
         "tqdm>=4.59.0",
+        "bidict==0.22.1",
         "psutil",
         "pympler",
         "coloredlogs",
