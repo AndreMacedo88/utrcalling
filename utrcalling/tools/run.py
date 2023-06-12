@@ -15,10 +15,11 @@ def run(utr_annotation,
         protocol_platform="10x",
         protocol_version=3,
         label_batches=None,
-        log_level='info',
-        out='UTR_counts.h5ad',
+        summarization_level="UTR",
         raw_sizes=False,
         store_intermediate=False,
+        log_level='info',
+        out='UTR_counts.h5ad',
         ):
     """
     Maps reads to UTRs and returns UTR length peak counts per cell/sample/batch from 
@@ -74,10 +75,17 @@ def run(utr_annotation,
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info('Mapping aligned reads to UTR reference')
     utr_sizes_counts = core.map_aligned_reads(
-        alignments,
-        utr_reference_regions,
-        protocol_,
+        alignments=alignments,
+        utr_regions=utr_reference_regions,
+        protocol=protocol_,
         store=store_intermediate
+    )
+
+    # Collapse UTR size information to gene-level
+    utr_reference_regions, utr_sizes_counts = core.merge_utrs_per_feature(
+        utr_regions=utr_reference_regions,
+        read_mappings=utr_sizes_counts,
+        level=summarization_level
     )
 
     # Call peaks from the UTR sizes for each molecule

@@ -88,7 +88,6 @@ def prepare_utr_reference_regions(gtf,
 def map_aligned_reads(alignments,
                       utr_regions,
                       protocol,
-                      level="UTR",
                       store=False
                       ):
     intervals = generate_utr_intervals(utr_regions)
@@ -133,13 +132,21 @@ def map_aligned_reads(alignments,
         if store:
             read_mappings.to_parquet(os.path.join(directory, f'{filename}.parquet'))
 
+    return read_mappings
+
+
+def merge_utrs_per_feature(utr_regions,
+                           read_mappings,
+                           level="UTR",
+                           ):
+    logger = module_logger()
     if level.lower() == "gene":
-        merge_utrs_per_gene(
+        logger.info("Collapsing UTR size information to gene-level")
+        utr_regions, read_mappings = merge_utrs_per_gene(
             utr_regions=utr_regions,
             read_mappings=read_mappings
         )
-
-    return read_mappings
+    return utr_regions, read_mappings
 
 
 def call_peaks(utr_sizes_counts,
