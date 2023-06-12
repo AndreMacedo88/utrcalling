@@ -15,7 +15,9 @@ ____________
 Before using this module, you must have the following software installed in your environment:
 
 - Python (tested on 3.9 but should work for later versions)
-- BEDTools for generating the UTR reference regions pkl file. To install, visit https://github.com/arq5x/bedtools2. Alternatively, if using Anaconda, run ``conda install -c bioconda bedtools`` to install BEDTools in your current environment. Finally, make sure BEDTools is callable on the command-line.
+- BEDTools for working on the UTR reference regions BED file. 
+To install, visit https://github.com/arq5x/bedtools2. 
+Alternatively, if using Anaconda, run ``conda install -c bioconda bedtools`` to install BEDTools in your current environment. Finally, make sure BEDTools is callable on the command-line.
 
 Using pip
 _________
