@@ -6,13 +6,11 @@ import re
 # data handling tools
 import HTSeq
 import pandas as pd
-import numpy as np
 # QOL tools
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 from utrcalling.core.module_log import module_logger
-from utrcalling.core.helpers import to_string
 
 
 def generate_utr_intervals(utr_regions):
@@ -184,126 +182,6 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     information = read_barcode, read_umi, utr_size
 
     return information
-
-
-def merge_utrs_per_gene(utr_regions, read_mappings):
-    def join_unique(x):
-        return ",".join(x.unique().astype(str))
-
-    def split_and_then_join_unique(x):
-        split = x.str.split(",")
-        split = split.explode()
-        return ",".join(np.unique(split))
-
-    def explode_and_then_join(x):
-        explode = x.explode()
-        return explode.to_list()
-
-    def transform_utr_sizes(df):
-        strand = df.strand[0]
-        if strand == "-":
-            df[["start", "end"]] = df[["end", "start"]]
-            df = df.sort_values(by=["start", "end"], ascending=False)
-
-        start = df.start[0]  # needs sorted df
-        end = df.end[0]
-        left_over = 0
-        to_add = []
-
-        if strand == "+":
-            for row in df.itertuples():
-                if row.start == start:
-                    to_add.append(left_over)
-                    if row.end <= end:
-                        continue
-                    else:
-                        end = row.end
-                    continue
-                elif row.start <= end:
-                    to_add.append(left_over + (row.start - start))
-                    if row.end <= end:
-                        continue
-                    else:
-                        end = row.end
-                    continue
-                elif row.start > end:
-                    left_over += end - start
-                    to_add.append(left_over)
-                    start = row.start
-                    end = row.end
-
-        elif strand == "-":
-            for row in df.itertuples():
-                if row.start == start:
-                    to_add.append(left_over)
-                    if row.end >= end:
-                        continue
-                    else:
-                        end = row.end
-                    continue
-                elif row.start >= end:
-                    to_add.append(left_over + (start - row.start))
-                    if row.end >= end:
-                        continue
-                    else:
-                        end = row.end
-                    continue
-                elif row.start < end:
-                    left_over += start - end
-                    to_add.append(left_over)
-                    start = row.start
-                    end = row.end
-
-        df["to_add"] = to_add
-        explode = df.explode("utr_sizes_from_reads")
-        explode["utr_sizes_from_reads"] = explode["utr_sizes_from_reads"] + explode["to_add"]
-        return explode["utr_sizes_from_reads"].to_list()
-
-    combined_data = utr_regions.join(read_mappings)
-    combined_data = combined_data.sort_values(by=["start", "end"])
-
-    grouped = combined_data.groupby("name")
-    utr_regions_per_gene = grouped.agg(
-        {
-            "chrom": "first",
-            "start": join_unique,
-            "end": join_unique,
-            # "name": "first",  # this is the same as the new index, but may be needed for legacy purposes?
-            "strand": "first",
-            "transcript_id": split_and_then_join_unique,
-            "gene_name": split_and_then_join_unique,
-            "read_barcodes": explode_and_then_join,
-        }
-    )
-    utr_sizes_from_reads = grouped.apply(
-        transform_utr_sizes
-    )
-    utr_sizes_from_reads.name = "utr_sizes_from_reads"
-
-    utr_regions_per_gene = utr_regions_per_gene.join(utr_sizes_from_reads, how="left")
-    utr_regions_per_gene.index.name = "utr_name"
-
-    utr_regions = utr_regions_per_gene.loc[
-        :,
-        [
-            "chrom",
-            "start",
-            "end",
-            "strand",
-            "transcript_id",
-            "gene_name",
-        ]
-    ]
-    utr_regions["name"] = utr_regions.index
-
-    read_mappings = utr_regions_per_gene.loc[
-        :,
-        [
-            "read_barcodes",
-            "utr_sizes_from_reads",
-        ]
-    ]
-    return utr_regions, read_mappings
 
 
 """

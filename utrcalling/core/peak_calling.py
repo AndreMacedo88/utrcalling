@@ -1,127 +1,30 @@
 import os
 import re
-from functools import partial, reduce
 from tempfile import mkstemp
-# import gc
-# import psutil
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)  # silence modin UserWarnings
 
-# import joblib
-# from joblib.externals.loky import get_reusable_executor
 import modin.pandas as mpd
 import pandas as pd
-from rapidfuzz import process, distance
 import anndata
-from tqdm import tqdm as std_tqdm
-tqdm = partial(std_tqdm, dynamic_ncols=True)
 
-from utrcalling.core import helpers, module_log, protocol
+from utrcalling.core import helpers, module_log
 
-
-def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True):
-    """
-    Before calling peaks from position counts, we should merge the datasets we want to
-    compare, so that peaks get called with the pseudo-bulk data from all samples.
-    Merging appends both samples information for each UTR. If `method='intersection'`,
-    UTRs that only one sample mapped to will be discarded. If `method='union'`, then
-    a union merge is performed.
-    If you want to call peaks for a single sample, skip this function.
-
-    Args:
-        utr_sizes (list): List with the objects containing the position
-        counts for each sample.
-
-    Returns:
-        pd.Dataframe: An object with the merged datasets.
-    """
-
-    logger = module_log.module_logger()
-
-    if label_batches:
-        for idx, batch in enumerate(utr_sizes):
-            batch.read_barcodes = [
-                [f"{barcode}-{idx+1}" for barcode in barcodes]
-                for barcodes in batch.read_barcodes
-            ]
-
-    logger.info("Merging all batches' UTR sizes")
-    if method == "union":
-        utr_sizes = pd.concat(utr_sizes)
-        utr_sizes = utr_sizes.groupby(level=0).sum()
-    elif method == "intersection":
-        utr_sizes = reduce(lambda a, b: (a + b).dropna(axis=0), utr_sizes)
-    else:
-        raise AttributeError(f"Method {method} not supported.")
-
-    return utr_sizes
-
-
-def subset_reference_data(utr_sizes, utr_reference_regions):
-    logger = module_log.module_logger()
-    logger.info('Subsetting UTR reference data')
-
-    sub_utr_reference = utr_reference_regions.filter(
-        items=utr_sizes.index, axis=0)
-
-    sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
-
-    return sub_utr_reference_unique
-
-
-def filter_barcodes(utr_sizes, whitelist):
-    logger = module_log.module_logger()
-    logger.info('Filtering cell barcodes')
-
-    barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
-    barcodes_correct = set()
-    barcodes_replace = {}
-    for barcode in barcodes_to_test:
-        if barcode in whitelist:
-            barcodes_correct.add(barcode)
-        else:
-            try:
-                match = process.extract(
-                    barcode, whitelist, scorer=distance.Hamming.distance,
-                    score_cutoff=1
-                )
-            except ValueError as err:
-                logger.error(
-                    f"\nError matching sample barcode/ID: {barcode}\nPlease check if "
-                    f"the barcodes in the annotation file are correct or, if using "
-                    f"different batches with similar barcodes/IDs, if all the batches "
-                    f"are correctly described in the annotations file."
-                )
-                raise err
-            if match:
-                barcode_correct = [bc[0] for bc in match]
-                for bc in barcode_correct:
-                    try:  # check if the batch is the same between barcodes
-                        if barcode.split("-")[1] == bc.split("-")[1]:
-                            barcodes_correct.add(bc)
-                            barcodes_replace[barcode] = bc
-                        else:
-                            continue
-                    except IndexError:  # if working without batches, no need to check
-                        barcodes_correct.add(bc)
-                        barcodes_replace[barcode] = bc
-                        break
-            else:
-                continue
-
-    utr_sizes = utr_sizes.explode(utr_sizes.columns.to_list())
-    utr_sizes.read_barcodes.replace(barcodes_replace, inplace=True)
-    utr_sizes = utr_sizes[utr_sizes.read_barcodes.isin(barcodes_correct)]
-
-    return utr_sizes.groupby(level=0).agg(list)
+# Legacy imports
+# from functools import partial, reduce
+# import gc
+# import psutil
+# import joblib
+# from joblib.externals.loky import get_reusable_executor
+# from tqdm import tqdm as std_tqdm
+# tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 
 def generate_peak_counts_and_anno(
     utr_sizes,
     protocol,
 ):
-
     logger = module_log.module_logger()
     helpers.init_ray()
 
