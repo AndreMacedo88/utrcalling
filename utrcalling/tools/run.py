@@ -91,9 +91,9 @@ def run(utr_annotation,
     # Call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
     count_matrix_anndata = core.call_peaks(
-        utr_sizes_counts,
-        utr_reference_regions,
-        protocol_,
+        utr_sizes_counts=utr_sizes_counts,
+        utr_reference_regions=utr_reference_regions,
+        protocol=protocol_,
         store=store_intermediate
     )
 
@@ -182,6 +182,7 @@ def create_parser(subparsers):
                         depends on the protocol used.
                         """,
                         default=None)
+
     parser.add_argument("--summarization_level", "-s", type=str,
                         help="""
                         Perform UTR size calling at the level of (merged) 'UTRs', 
