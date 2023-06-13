@@ -33,30 +33,10 @@ import joblib
 from tqdm import tqdm
 
 from utrcalling.core import helpers
-from utrcalling.core.utr_reference import (
-    open_gtf,
-    generate_utr_name,
-    extract_feature,
-    prepare_annotations_index,
-    reduce_regions,
-    generate_utr_name,
-    correct_column_names,
-    turn_utr_bed_to_dataframe
-)
-from utrcalling.core.utr_mapping import (
-    generate_utr_intervals,
-    map_reads_to_utr,
-    merge_utrs_per_gene,
-    module_logger
-)
-from utrcalling.core.peak_calling import (
-    subset_reference_data,
-    merge_samples_utr_sizes,
-    filter_barcodes,
-    generate_peak_counts_and_anno,
-    add_to_peaks_var,
-    generate_count_matrix_anndata
-)
+from utrcalling.core.module_log import module_logger
+from utrcalling.core import utr_reference
+from utrcalling.core import utr_mapping
+from utrcalling.core import peak_calling
 
 
 def prepare_utr_reference_regions(gtf,
@@ -64,20 +44,20 @@ def prepare_utr_reference_regions(gtf,
                                   store=False
                                   ):
     # open the gtf file
-    gtf_df = open_gtf(gtf)
+    gtf_df = utr_reference.open_gtf(gtf)
     # extract 3'UTRs from all the features in the GTF file
-    utr = extract_feature(gtf_df, feature)
+    utr = utr_reference.extract_feature(gtf_df, feature)
     # sort by chr and start for bed merge
     utr = utr.sort_values(by=['seqname', 'start'])
     annotations = ['gene_id', 'score', 'strand', 'transcript_id', 'gene_name']
-    ann_cols, ann_idx = prepare_annotations_index(annotations)
+    ann_cols, ann_idx = utr_reference.prepare_annotations_index(annotations)
     # Create BedTool obj using the GTF dataframe
     utr_bed = pybedtools.BedTool.from_dataframe(utr, columns=ann_cols)
     # find and merge overlapping regions
-    utr_reduced = reduce_regions(utr_bed, annotations_index=ann_idx)
-    utr_reduced = turn_utr_bed_to_dataframe(utr_reduced)
-    utr_reduced = generate_utr_name(utr_reduced)
-    utr_reduced = correct_column_names(utr_reduced)
+    utr_reduced = utr_reference.reduce_regions(utr_bed, annotations_index=ann_idx)
+    utr_reduced = utr_reference.turn_utr_bed_to_dataframe(utr_reduced)
+    utr_reduced = utr_reference.generate_utr_name(utr_reduced)
+    utr_reduced = utr_reference.correct_column_names(utr_reduced)
     utr_reduced.chrom = utr_reduced.chrom.astype(str)
 
     if store:
@@ -93,7 +73,7 @@ def map_aligned_reads(alignments,
                       protocol,
                       store=False
                       ):
-    intervals = generate_utr_intervals(utr_regions)
+    intervals = utr_mapping.generate_utr_intervals(utr_regions)
     sample_names = protocol.sample_names
 
     if store:
@@ -109,18 +89,18 @@ def map_aligned_reads(alignments,
                 samples.append(sample_names[alignment])
             read_mappings = joblib.Parallel(n_jobs=n_cores)(
                 joblib.delayed(
-                    map_reads_to_utr)(alignment, intervals,
-                                      read="first", protocol=protocol,
-                                      batch=sample
-                                      ) for alignment, sample in tqdm(
+                    utr_mapping.map_reads_to_utr)(alignment, intervals,
+                                                  read="first", protocol=protocol,
+                                                  batch=sample
+                                                  ) for alignment, sample in tqdm(
                     zip(alignments, samples), colour="#ffb700", ascii=" ■"))
         else:
             read_mappings = joblib.Parallel(n_jobs=n_cores)(
                 joblib.delayed(
-                    map_reads_to_utr)(alignment, intervals,
-                                      read="first", protocol=protocol,
-                                      batch=None
-                                      ) for alignment in tqdm(
+                    utr_mapping.map_reads_to_utr)(alignment, intervals,
+                                                  read="first", protocol=protocol,
+                                                  batch=None
+                                                  ) for alignment in tqdm(
                     alignments, colour="#ffb700", ascii=" ■"))
 
         if store:
@@ -130,7 +110,7 @@ def map_aligned_reads(alignments,
                 utr_sizes_counts.to_parquet(file_path)
 
     else:
-        read_mappings = map_reads_to_utr(
+        read_mappings = utr_mapping.map_reads_to_utr(
             alignments, intervals, read='first', protocol=protocol, batch=sample_names)
         if store:
             read_mappings.to_parquet(os.path.join(directory, f'{filename}.parquet'))
@@ -138,14 +118,28 @@ def map_aligned_reads(alignments,
     return read_mappings
 
 
+def merge_samples_utr_sizes(utr_sizes_counts,
+                            protocol,
+                            store=False
+                            ):
+    helpers.init_ray()
+    utr_sizes_counts = utr_mapping.merge_samples_utr_sizes(utr_sizes_counts,
+                                                           method=protocol.merge_method,
+                                                           label_batches=protocol.label_batches,
+                                                           )
+    if store:
+        directory = './intermediate'
+        helpers.check_if_exists_and_mkdir(directory)
+        utr_sizes_counts.to_parquet(os.path.join(
+            directory, f'UTR_sizes_counts_merged_{protocol.merge_method}.parquet'))
+
+
 def merge_utrs_per_feature(utr_regions,
                            read_mappings,
                            level="UTR",
                            ):
-    logger = module_logger()
     if level.lower() == "gene":
-        logger.info("Collapsing UTR size information to gene-level")
-        utr_regions, read_mappings = merge_utrs_per_gene(
+        utr_regions, read_mappings = utr_mapping.merge_utrs_per_gene(
             utr_regions=utr_regions,
             read_mappings=read_mappings
         )
@@ -160,31 +154,9 @@ def call_peaks(utr_sizes_counts,
     logger = module_logger()
     helpers.init_ray()
 
-    # if more than one counts file is provided, they must be merged before peak calling
-    if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
-        utr_sizes_counts = [
-            helpers.check_if_path_and_open(element, method="parquet")
-            for element in utr_sizes_counts
-        ]
-
-        utr_sizes_counts = merge_samples_utr_sizes(utr_sizes_counts,
-                                                   method=protocol.merge_method,
-                                                   label_batches=protocol.label_batches,
-                                                   )
-        if store:
-            directory = './intermediate'
-            helpers.check_if_exists_and_mkdir(directory)
-            utr_sizes_counts.to_parquet(os.path.join(
-                directory, f'UTR_sizes_counts_merged_{protocol.merge_method}.parquet'))
-    elif isinstance(utr_sizes_counts, list):
-        utr_sizes_counts = utr_sizes_counts[0]
-
-    # utr_size_counts can still be a path if merging was not applied
-    utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts,
-                                                      method='parquet')
-
     # if we are to add the reference data to the results later, we must subset the UTRs
-    utr_reference_subset = subset_reference_data(utr_sizes_counts, utr_reference_regions)
+    utr_reference_subset = peak_calling.subset_reference_data(
+        utr_sizes_counts, utr_reference_regions)
 
     del utr_reference_regions  # to save memory
 
@@ -207,20 +179,20 @@ def call_peaks(utr_sizes_counts,
             )
 
             filtered_list = [
-                filter_barcodes(
+                peak_calling.filter_barcodes(
                     pos, whitelist=protocol.barcode_whitelist
                 ) for pos in split_generator
             ]
 
             filtered_positions = pd.concat(filtered_list)
         else:
-            filtered_positions = filter_barcodes(
+            filtered_positions = peak_calling.filter_barcodes(
                 filtered_positions,
                 whitelist=protocol.barcode_whitelist
             )
 
     # calculate broad peaks based on individual UMI utr sizes
-    peaks_count_matrix, *peaks_var_and_obs = generate_peak_counts_and_anno(
+    peaks_count_matrix, *peaks_var_and_obs = peak_calling.generate_peak_counts_and_anno(
         filtered_positions, protocol=protocol)
 
     try:
@@ -236,7 +208,7 @@ def call_peaks(utr_sizes_counts,
         peaks_obs = None
 
     # append the reference information to the new UTR peaks
-    peaks_var = add_to_peaks_var(peaks_var, utr_reference_subset)
+    peaks_var = peak_calling.add_to_peaks_var(peaks_var, utr_reference_subset)
 
     if store:  # store the final DFs. Useful for debugging or to change annotations.
         logger.info('Storing intermediate results')
@@ -252,6 +224,6 @@ def call_peaks(utr_sizes_counts,
             directory, f'peaks_obs_{protocol.merge_method}.parquet'))
 
     # merge results and annotations into
-    count_matrix_anndata = generate_count_matrix_anndata(
+    count_matrix_anndata = peak_calling.generate_count_matrix_anndata(
         peaks_count_matrix, peaks_var, obs=peaks_obs)
     return count_matrix_anndata
