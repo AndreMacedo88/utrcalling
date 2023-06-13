@@ -146,10 +146,6 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 sample_idx_dict[sample_bam[0]] = self.batches_range[idx]
 
         return sample_names_dict, sample_idx_dict
-    """
-        sample_column_name = self._get_sample_column()
-        sample_names = self.annotations.loc[:, sample_column_name]
-    """
 
     def _get_sample_column(self):
         try:
@@ -382,9 +378,15 @@ class ProtocolSmartseq(ProtocolThreePrime):
 
         if self.label_batches is None:
             self.label_batches = False
-        self.sample_names, self.sample_idx = self.get_sample_names(
-            alignments=alignments
-        )
+        try:
+            self.sample_names, self.sample_idx = self.get_sample_names(
+                alignments=alignments
+            )
+        except TypeError as err:
+            if alignments is None:
+                self.sample_names, self.sample_idx = None, None
+            else:
+                raise err
 
 
 class ProtocolSmartseq3(ProtocolSmartseq):
@@ -417,9 +419,15 @@ class ProtocolCapseq(ProtocolFivePrime):
 
         if self.label_batches is None:
             self.label_batches = False
-        self.sample_names, self.sample_idx = self.get_sample_names(
-            alignments=alignments
-        )
+        try:
+            self.sample_names, self.sample_idx = self.get_sample_names(
+                alignments=alignments
+            )
+        except TypeError as err:
+            if alignments is None:
+                self.sample_names, self.sample_idx = None, None
+            else:
+                raise err
 
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
