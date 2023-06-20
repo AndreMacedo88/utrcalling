@@ -38,28 +38,24 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
 
     logger.info("Merging all batches' UTR sizes")
     if method == "union":
-        print(utr_sizes)
-        print(utr_sizes[0].columns)
-        print(utr_sizes[0].index)
-        print(utr_sizes[0].index.name)
-        print("------------------\n")
-
         utr_sizes = mpd.concat(utr_sizes)
-        utr_sizes = utr_sizes.reset_index()
 
-        print(utr_sizes)
-        print(utr_sizes.columns)
-        print(utr_sizes.index)
-        print(utr_sizes.index.name)
-        print(len(utr_sizes.utr_name.unique()))
-        print(utr_sizes.index.get_level_values(level=0))
-        print(utr_sizes.dtypes)
-        print("------------------\n")
+        try:
+            utr_sizes = utr_sizes.groupby(level=0, observed=True).sum()
+        except ValueError as err:
+            message = (
+                f"During sample UTR size merging, the following error arised:\n{err}\n",
+                "Bypassing this error may take a while."
+            )
+            logger.warning(message)
 
-        utr_sizes = utr_sizes.rename(columns={"utr_name": "test"})
+            utr_sizes = utr_sizes.groupby(level=0).agg(
+                {
+                    "read_barcodes": lambda grp: [i for lst in grp.to_numpy().flatten() for i in lst],
+                    "utr_sizes_from_reads": lambda grp: [i for lst in grp.to_numpy().flatten() for i in lst]
+                }
+            )
 
-        utr_sizes = utr_sizes.groupby("test", observed=True).sum()
-        print(utr_sizes)
     elif method == "intersection":
         utr_sizes = reduce(lambda a, b: (a + b).dropna(axis=0), utr_sizes)
     else:
@@ -69,9 +65,6 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
 
 
 def merge_utrs_per_gene(utr_regions, read_mappings):
-    print(utr_regions)
-    print("-----------------\n")
-    print(read_mappings)
 
     def join_unique(x):
         return ",".join(x.unique().astype(str))
