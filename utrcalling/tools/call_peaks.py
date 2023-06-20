@@ -13,10 +13,11 @@ def call_peaks(utr_annotation,
                protocol_platform="10x",
                protocol_version=2,
                label_batches=None,
-               log_level='info',
-               out="UTR_results.h5ad",
+               summarization_level="UTR",
                raw_sizes=False,
                store_intermediate=False,
+               log_level='info',
+               out="UTR_results.h5ad",
                ):
     """
     Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR 
@@ -39,24 +40,60 @@ def call_peaks(utr_annotation,
         logger.info(f'║ Argument {arg}: {value}\n')
 
     # set up the protocol for this specific run
-    protocol = protocol.create(
+    protocol_ = protocol.create(
         protocol_platform,
         int(protocol_version),
         merge_method=batch_merge_method,
         label_batches=label_batches,
         call_peaks=not raw_sizes,
-        annotations=annotations_file)
+        annotations=annotations_file
+    )
 
     # load UTR reference file
-    utr_reference_annotations = helpers.load_annotations(utr_annotation)
+    utr_reference_regions = helpers.load_annotations(utr_annotation)
+
+    # load UTR counts file/s
+    utr_sizes_counts = helpers.check_if_dir_and_list_files(utr_sizes_counts,
+                                                           suffix='.parquet')
+
+    # if more than one counts file is provided, they must be merged before peak calling
+    if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
+        utr_sizes_counts = [
+            helpers.check_if_path_and_open(element, method="parquet")
+            for element in utr_sizes_counts
+        ]
+
+        utr_sizes_counts = core.merge_samples_utr_sizes(
+            utr_sizes_counts=utr_sizes_counts,
+            protocol=protocol_,
+            store=store_intermediate
+        )
+
+    elif isinstance(utr_sizes_counts, list):
+        utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts[0],
+                                                          method='parquet')
+    else:
+        # utr_size_counts can still be a path if merging was not applied
+        utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts,
+                                                          method='parquet')
+
+    # Collapse UTR size information to gene-level
+    if summarization_level.lower() != "utr":
+        logger.info(f"Collapsing UTR size information to {summarization_level}-level")
+        utr_reference_regions, utr_sizes_counts = core.merge_utrs_per_feature(
+            utr_regions=utr_reference_regions,
+            read_mappings=utr_sizes_counts,
+            level=summarization_level
+        )
 
     # call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
-    utr_sizes_counts = helpers.check_if_dir_and_list_files(utr_sizes_counts,
-                                                           suffix='.parquet')
     count_matrix_anndata = core.call_peaks(
-        utr_sizes_counts, utr_reference_annotations, protocol,
-        annotations=annotations_file, store=store_intermediate)
+        utr_sizes_counts=utr_sizes_counts,
+        utr_reference_regions=utr_reference_regions,
+        protocol=protocol_,
+        store=store_intermediate
+    )
 
     helpers.log_metrics_anndata(count_matrix_anndata)
 
@@ -141,6 +178,13 @@ def create_parser(subparsers):
                         depends on the protocol used.
                         """,
                         default=None)
+
+    parser.add_argument("--summarization_level", "-s", type=str,
+                        help="""
+                        Perform UTR size calling at the level of (merged) 'UTRs', 
+                        'transcript', or 'gene' level.
+                        """,
+                        default="UTR")
 
     parser.add_argument("--store_intermediate", "-i", action="store_true",
                         help="""
