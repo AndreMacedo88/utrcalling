@@ -27,7 +27,7 @@ import os
 import psutil
 
 import numpy as np
-import modin.pandas as pd
+import modin.pandas as mpd
 import pybedtools
 import joblib
 from tqdm import tqdm
@@ -36,6 +36,7 @@ from utrcalling.core import helpers
 from utrcalling.core.module_log import module_logger
 from utrcalling.core import utr_reference
 from utrcalling.core import utr_mapping
+from utrcalling.core import process_mapped_reads
 from utrcalling.core import peak_calling
 
 
@@ -123,15 +124,17 @@ def merge_samples_utr_sizes(utr_sizes_counts,
                             store=False
                             ):
     helpers.init_ray()
-    utr_sizes_counts = utr_mapping.merge_samples_utr_sizes(utr_sizes_counts,
-                                                           method=protocol.merge_method,
-                                                           label_batches=protocol.label_batches,
-                                                           )
+    utr_sizes_counts = process_mapped_reads.merge_samples_utr_sizes(
+        utr_sizes_counts,
+        method=protocol.merge_method,
+        label_batches=protocol.label_batches,
+    )
     if store:
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
         utr_sizes_counts.to_parquet(os.path.join(
             directory, f'UTR_sizes_counts_merged_{protocol.merge_method}.parquet'))
+    return utr_sizes_counts
 
 
 def merge_utrs_per_feature(utr_regions,
@@ -139,7 +142,7 @@ def merge_utrs_per_feature(utr_regions,
                            level="UTR",
                            ):
     if level.lower() == "gene":
-        utr_regions, read_mappings = utr_mapping.merge_utrs_per_gene(
+        utr_regions, read_mappings = process_mapped_reads.merge_utrs_per_gene(
             utr_regions=utr_regions,
             read_mappings=read_mappings
         )
@@ -155,7 +158,7 @@ def call_peaks(utr_sizes_counts,
     helpers.init_ray()
 
     # if we are to add the reference data to the results later, we must subset the UTRs
-    utr_reference_subset = peak_calling.subset_reference_data(
+    utr_reference_subset = process_mapped_reads.subset_reference_data(
         utr_sizes_counts, utr_reference_regions)
 
     del utr_reference_regions  # to save memory
@@ -179,14 +182,14 @@ def call_peaks(utr_sizes_counts,
             )
 
             filtered_list = [
-                peak_calling.filter_barcodes(
+                process_mapped_reads.filter_barcodes(
                     pos, whitelist=protocol.barcode_whitelist
                 ) for pos in split_generator
             ]
 
-            filtered_positions = pd.concat(filtered_list)
+            filtered_positions = mpd.concat(filtered_list)
         else:
-            filtered_positions = peak_calling.filter_barcodes(
+            filtered_positions = process_mapped_reads.filter_barcodes(
                 filtered_positions,
                 whitelist=protocol.barcode_whitelist
             )
