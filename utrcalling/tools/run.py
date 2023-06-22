@@ -81,12 +81,24 @@ def run(utr_annotation,
         store=store_intermediate
     )
 
+    if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
+        utr_sizes_counts = core.merge_samples_utr_sizes(
+            utr_sizes_counts=utr_sizes_counts,
+            protocol=protocol_,
+            store=store_intermediate
+        )
+
+    elif isinstance(utr_sizes_counts, list):
+        utr_sizes_counts = utr_sizes_counts[0]
+
     # Collapse UTR size information to gene-level
-    utr_reference_regions, utr_sizes_counts = core.merge_utrs_per_feature(
-        utr_regions=utr_reference_regions,
-        read_mappings=utr_sizes_counts,
-        level=summarization_level
-    )
+    if summarization_level.lower() != "utr":
+        logger.info(f"Collapsing UTR size information to {summarization_level}-level")
+        utr_reference_regions, utr_sizes_counts = core.merge_utrs_per_feature(
+            utr_regions=utr_reference_regions,
+            read_mappings=utr_sizes_counts,
+            level=summarization_level
+        )
 
     # Call peaks from the UTR sizes for each molecule
     logger.info('Calling peaks from mapped data')
