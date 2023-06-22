@@ -4,6 +4,7 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)  # silence modin UserWarnings
 
 import modin.pandas as mpd
+from modin.utils import to_pandas
 import numpy as np
 from rapidfuzz import process, distance
 
@@ -138,7 +139,15 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
         explode["utr_sizes_from_reads"] = explode["utr_sizes_from_reads"] + explode["to_add"]
         return explode["utr_sizes_from_reads"].to_list()
 
-    combined_data = utr_regions.join(read_mappings)
+    logger = module_log.module_logger()
+    mpd_switch = False
+
+    # join the 2 dataframes so that we can do the operations only once
+    # note that `how="inner"` is needed so that there are no NaN values in the UTR sizes
+    combined_data = utr_regions.join(read_mappings, how="inner")
+    # we must also change the genes without name from NaN to a string
+    combined_data["gene_name"] = combined_data["gene_name"].fillna(value="None")
+    # sorting is necessary to then apply the `transform_utr_sizes` function
     combined_data = combined_data.sort_values(by=["start", "end"])
 
     grouped = combined_data.groupby("name")
@@ -154,10 +163,24 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
             "read_barcodes": explode_and_then_join,
         }
     )
+
+    if isinstance(combined_data, mpd.dataframe.DataFrame):
+        # Modin groupBy.apply splits the partitions column-wise
+        # so unfortunately for now we must revert back to pandas to use all columns
+        mpd_switch = True
+        logger.info("Converting Modin dataframe back to pandas as fallback.")
+        combined_data = to_pandas(combined_data)
+        grouped = combined_data.groupby("name")
+
     utr_sizes_from_reads = grouped.apply(
         transform_utr_sizes
     )
     utr_sizes_from_reads.name = "utr_sizes_from_reads"
+
+    if mpd_switch:
+        # then we must re-distribute the dataframe
+        logger.info("Re-distributing the pandas dataframe.")
+        utr_sizes_from_reads = mpd.DataFrame(utr_sizes_from_reads)
 
     utr_regions_per_gene = utr_regions_per_gene.join(utr_sizes_from_reads, how="left")
     utr_regions_per_gene.index.name = "utr_name"
