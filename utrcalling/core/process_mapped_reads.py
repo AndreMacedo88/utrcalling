@@ -233,7 +233,9 @@ def filter_barcodes(utr_sizes, whitelist):
         else:
             try:
                 match = process.extract(
-                    barcode, whitelist, scorer=distance.Hamming.distance,
+                    barcode,
+                    whitelist,
+                    scorer=distance.Hamming.distance,
                     score_cutoff=1
                 )
             except ValueError as err:
@@ -243,6 +245,7 @@ def filter_barcodes(utr_sizes, whitelist):
                     f"different batches with similar barcodes/IDs, if all the batches "
                     f"are correctly described in the annotations file."
                 )
+                print(whitelist)
                 raise err
             if match:
                 barcode_correct = [bc[0] for bc in match]
