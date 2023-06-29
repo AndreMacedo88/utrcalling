@@ -169,7 +169,7 @@ def call_peaks(utr_sizes_counts,
     del utr_sizes_counts  # to save memory
 
     if protocol.barcode_whitelist is not None:
-        if psutil.virtual_memory().percent > 20:  # if there are memory issues
+        if psutil.virtual_memory().percent > 70:  # if there are memory issues
             logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
             num, div = filtered_positions.shape[0], 10
             idx_tenths = np.cumsum([
@@ -228,5 +228,8 @@ def call_peaks(utr_sizes_counts,
 
     # merge results and annotations into
     count_matrix_anndata = peak_calling.generate_count_matrix_anndata(
-        peaks_count_matrix, peaks_var, obs=peaks_obs)
+        count_matrix=peaks_count_matrix,
+        var=peaks_var,
+        obs=peaks_obs
+    )
     return count_matrix_anndata
