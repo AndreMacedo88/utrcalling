@@ -101,8 +101,8 @@ def call_peaks(utr_annotation,
         count_matrix_anndata.write(filename=out)
     except TypeError:
         count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(str)
-        count_matrix_anndata.obs["Sample_Name"] = count_matrix_anndata.obs["Sample_Name"].astype(
-            str)
+        # count_matrix_anndata.obs["Sample_Name"] = count_matrix_anndata.obs["Sample_Name"].astype(
+        #     str)
         try:
             count_matrix_anndata.write(filename=out)
         except TypeError as e:
