@@ -213,6 +213,11 @@ def call_peaks(utr_sizes_counts,
     # append the reference information to the new UTR peaks
     peaks_var = peak_calling.add_to_peaks_var(peaks_var, utr_reference_subset)
 
+    # convert to pandas the final objects
+    peaks_count_matrix = helpers.check_if_modin_and_convert_to_pandas(peaks_count_matrix)
+    peaks_var = helpers.check_if_modin_and_convert_to_pandas(peaks_var)
+    peaks_obs = helpers.check_if_modin_and_convert_to_pandas(peaks_obs)
+
     if store:  # store the final DFs. Useful for debugging or to change annotations.
         logger.info('Storing intermediate results')
         directory = './intermediate'

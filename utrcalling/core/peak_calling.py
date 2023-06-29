@@ -1,11 +1,11 @@
 import os
-import re
 from tempfile import mkstemp
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)  # silence modin UserWarnings
 
 import modin.pandas as mpd
+from modin.utils import to_pandas
 import pandas as pd
 import anndata
 
@@ -113,6 +113,13 @@ def add_to_peaks_var(peak_var, annotations):
 
     peak_var_new = peak_var.copy(deep=True)
     peak_var_new['utr_name'] = peak_var_new.index.str.split(pat=r"-").str[0]
+
+    # Modin join does not allow joins not using the index.
+    # so unfortunately for now we must revert back to pandas to use all columns
+    if isinstance(annotations, mpd.dataframe.DataFrame):
+        annotations = to_pandas(annotations)
+    if isinstance(peak_var_new, mpd.dataframe.DataFrame):
+        annotations = to_pandas(annotations)
 
     peak_var_new = peak_var_new.join(
         annotations, on='utr_name', how='left', rsuffix='_right')

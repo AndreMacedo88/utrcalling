@@ -5,7 +5,8 @@ import pickle
 from collections import defaultdict
 
 import pybedtools
-import modin.pandas as pd
+import modin.pandas as mpd
+from modin.utils import to_pandas
 import ray
 import scanpy as sc
 
@@ -98,16 +99,16 @@ def check_if_path_and_open(to_check, method='parquet'):
     if isinstance(to_check, (str, pathlib.PurePath)):
         method = method.lower()
         if method == 'parquet':
-            output = pd.read_parquet(to_check)
+            output = mpd.read_parquet(to_check)
         elif method == 'pickle':
             with open(to_check, "rb") as input_file:
                 output = pickle.load(input_file)
         elif method == "pickle_pandas":
-            output = pd.read_pickle(to_check)
+            output = mpd.read_pickle(to_check)
         elif method == "h5ad":
             output = sc.read_h5ad(to_check)
         elif method == "csv":
-            output = pd.read_csv(to_check, sep=",")  # , engine="python"
+            output = mpd.read_csv(to_check, sep=",")  # , engine="python"
         else:
             raise RuntimeError(f'Method {method} not implemented yet')
         return output
@@ -128,11 +129,11 @@ def check_file_exists_and_return_unique(filepath, append=1):
 def load_annotations(annotation_path):
     init_ray()
     if annotation_path.endswith('.parquet'):
-        output = pd.read_parquet(annotation_path)
+        output = mpd.read_parquet(annotation_path)
     elif annotation_path.endswith('.bed'):
         output = pybedtools.BedTool(annotation_path)
     elif annotation_path.endswith('.pkl'):
-        output = pd.read_pickle(annotation_path)
+        output = mpd.read_pickle(annotation_path)
     else:
         raise RuntimeError(
             f'Annotation file {annotation_path} is of a not recognized type.')
@@ -201,3 +202,9 @@ def check_file_suffix_and_append_before(path, to_append, suffix):
         path = path.replace(suffix, "")
 
     return f"{path}{to_append}{suffix}"
+
+
+def check_if_modin_and_convert_to_pandas(df):
+    if isinstance(df, mpd.DataFrame):
+        df = to_pandas(df)
+    return df
