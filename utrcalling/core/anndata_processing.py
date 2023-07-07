@@ -49,13 +49,15 @@ def generate_utr_site_names_from_gene_name(
 
         utr_info = utr.split("_")
         if len(utr_info) > 1:
-            if pd.isnull(gene_name):
-                name = f"{utr_info[0]}_UTR{utr_info[1]}_site{counter}"
+            if pd.isnull(gene_name) or gene_name == "None":
+                gene_name_ensembl = utr_name.split("-")[0]
+                name = f"{gene_name_ensembl}_UTR{utr_info[1]}_site{counter}"
             else:
                 name = f"{gene_name}_UTR{utr_info[1]}_site{counter}"
         else:
-            if pd.isnull(gene_name):
-                name = f"{utr_info[0]}_site{counter}"
+            if pd.isnull(gene_name) or gene_name == "None":
+                gene_name_ensembl = utr_name.split("-")[0]
+                name = f"{gene_name_ensembl}_site{counter}"
             else:
                 name = f"{gene_name}_site{counter}"
 
@@ -194,7 +196,7 @@ def concatenate_adata(adata_list):
 
     adata_result = anndata.AnnData(X=adata_concat, obs=obs_new, var=var_new)
 
-    return(adata_result)
+    return (adata_result)
 
 
 def split_train_test_data(adata, train_fraction, seed):
