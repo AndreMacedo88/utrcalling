@@ -222,14 +222,40 @@ def call_peaks(utr_sizes_counts,
         logger.info('Storing intermediate results')
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
-        peaks_count_matrix.to_parquet(os.path.join(
-            directory, f'peaks_count_matrix_{protocol.merge_method}.parquet'))
-        peaks_var.to_parquet(os.path.join(
-            directory, f'peaks_var_{protocol.merge_method}.parquet'))
-        utr_reference_subset.to_parquet(os.path.join(
-            directory, f'UTR_reference_subset_{protocol.merge_method}.parquet'))
-        peaks_obs.to_parquet(os.path.join(
-            directory, f'peaks_obs_{protocol.merge_method}.parquet'))
+
+        # store count matrix
+        try:
+            peaks_count_matrix.to_parquet(os.path.join(
+                directory, f'peaks_count_matrix_{protocol.merge_method}.parquet'))
+        except Exception:
+            peaks_count_matrix.to_csv(os.path.join(
+                directory, f'peaks_count_matrix_{protocol.merge_method}.csv'))
+
+        # store var dataframe
+        try:
+            peaks_var.to_parquet(os.path.join(
+                directory, f'peaks_var_{protocol.merge_method}.parquet'))
+        except Exception:
+            peaks_var.to_csv(os.path.join(
+                directory, f'peaks_var_{protocol.merge_method}.csv'))
+
+        # store subsetted UTR reference dataframe
+        utr_reference_subset = helpers.check_if_modin_and_convert_to_pandas(
+            utr_reference_subset)
+        try:
+            utr_reference_subset.to_parquet(os.path.join(
+                directory, f'UTR_reference_subset_{protocol.merge_method}.parquet'))
+        except Exception:
+            utr_reference_subset.to_csv(os.path.join(
+                directory, f'UTR_reference_subset_{protocol.merge_method}.csv'))
+
+        # store obs dataframe
+        try:
+            peaks_obs.to_parquet(os.path.join(
+                directory, f'peaks_obs_{protocol.merge_method}.parquet'))
+        except Exception:
+            peaks_obs.to_csv(os.path.join(
+                directory, f'peaks_obs_{protocol.merge_method}.csv'))
 
     # merge results and annotations into
     count_matrix_anndata = peak_calling.generate_count_matrix_anndata(
