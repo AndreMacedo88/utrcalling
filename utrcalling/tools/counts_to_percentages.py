@@ -28,7 +28,7 @@ def create_parser(subparsers):
         description=f"DESCRIPTION: {description}",
         epilog="""
     Example use:
-    $ utrcalling counts-to-percentages adata.h5ad adata_percentages -u utr_name
+    $ utrcalling counts-to-percentages adata.h5ad adata_percentages.h5ad -u utr_name
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
@@ -36,8 +36,7 @@ def create_parser(subparsers):
                         help="Path to input AnnData object file (h5ad format).")
     parser.add_argument("out_path", type=str,
                         help="""
-                        Path where output will be stored. '_bw' plus the bandwidth used
-                        will be appended to out_path.
+                        Path where output will be stored.
                         """)
     parser.add_argument("-u", "--utr_name_column", type=str, default="utr_name",
                         help="""
