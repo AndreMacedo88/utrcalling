@@ -1,15 +1,15 @@
+from utrcalling.core import helpers, module_log
+import anndata
+import pandas as pd
+from modin.utils import to_pandas
+import modin.pandas as mpd
 import os
 from tempfile import mkstemp
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=UserWarning)  # silence modin UserWarnings
+# silence modin UserWarnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
-import modin.pandas as mpd
-from modin.utils import to_pandas
-import pandas as pd
-import anndata
-
-from utrcalling.core import helpers, module_log
 
 # Legacy imports
 # from functools import partial, reduce
@@ -53,10 +53,16 @@ def generate_peak_counts_and_anno(
     # Free some RAM by deleting biggest variables
     del utr_sizes
 
+    count_matrix_list = [
+        count_mtx.fillna(0).apply(
+            mpd.to_numeric, downcast="unsigned"
+        ) for count_mtx in count_matrix_list
+    ]
     count_matrix = pd.concat(count_matrix_list, axis=1,
                              ignore_index=False, copy=False)
     del count_matrix_list  # Free some RAM
-    count_matrix = count_matrix.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
+    count_matrix = count_matrix.fillna(0).apply(
+        mpd.to_numeric, downcast="unsigned")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
@@ -84,7 +90,8 @@ def call_peaks(utr, func_):
     # store this info in a new key on the original container
     info["peaks"] = peaks
     # group by each peak size and cell and count the number of each peak each cell has
-    info_grouped_by_peaks = info.groupby(["peaks", "read_barcodes"])["peaks"].agg("count")
+    info_grouped_by_peaks = info.groupby(["peaks", "read_barcodes"])[
+        "peaks"].agg("count")
 
     # append this information to the containers created above
     count = 1
@@ -99,7 +106,8 @@ def call_peaks(utr, func_):
         peak_counts = barcodes.droplevel(0)
         count_matrix[peak_name] = peak_counts
 
-    peaks_var = pd.DataFrame.from_dict(peaks_var, orient="index", columns=["utr_size"])
+    peaks_var = pd.DataFrame.from_dict(
+        peaks_var, orient="index", columns=["utr_size"])
     count_matrix = pd.DataFrame(count_matrix)
 
     return count_matrix, peaks_var
