@@ -53,8 +53,8 @@ def call_peaks(utr_annotation,
     utr_reference_regions = helpers.load_annotations(utr_annotation)
 
     # load UTR counts file/s
-    utr_sizes_counts = helpers.check_if_dir_and_list_files(utr_sizes_counts,
-                                                           suffix='.parquet')
+    # utr_sizes_counts = helpers.check_if_dir_and_list_files(utr_sizes_counts,
+    #                                                        suffix='.parquet')
 
     # if more than one counts file is provided, they must be merged before peak calling
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
@@ -79,7 +79,8 @@ def call_peaks(utr_annotation,
 
     # Collapse UTR size information to gene-level
     if summarization_level.lower() != "utr":
-        logger.info(f"Collapsing UTR size information to {summarization_level}-level")
+        logger.info(
+            f"Collapsing UTR size information to {summarization_level}-level")
         utr_reference_regions, utr_sizes_counts = core.merge_utrs_per_feature(
             utr_regions=utr_reference_regions,
             read_mappings=utr_sizes_counts,
@@ -100,7 +101,8 @@ def call_peaks(utr_annotation,
     try:
         count_matrix_anndata.write(filename=out)
     except TypeError:
-        count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(str)
+        count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(
+            str)
         # count_matrix_anndata.obs["Sample_Name"] = count_matrix_anndata.obs["Sample_Name"].astype(
         #     str)
         try:
@@ -139,7 +141,7 @@ def create_parser(subparsers):
         description=f"DESCRIPTION: {description}",
         epilog="""
     Example on how to use in command-line:
-    $ utrcalling call_peaks mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet 
+    $ utrcalling call-peaks mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet 
     -A experiment.csv -p 10x -v 2 -i -o results.h5ad
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
