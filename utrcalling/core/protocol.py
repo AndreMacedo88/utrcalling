@@ -40,7 +40,6 @@ class CombinedMeta(Meta, ABCMeta):
     This is necessary for use in abstract protocols that want to inherit behaviour from
     both those metaclasses.
     """
-    pass
 
 
 class Protocol(ABC, metaclass=CombinedMeta):
@@ -102,7 +101,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def protocol_log(self):
         self.logger.info(
-            f'Protocol:\n' +
+            'Protocol:\n' +
             f'║ Position counts merging method: {self.merge_method}\n' +
             f'║ Call peaks? {self.call_peaks}\n' +
             f'║ Peak calling method: {self.peak_calling}\n' +
@@ -127,18 +126,18 @@ class Protocol(ABC, metaclass=CombinedMeta):
             sample_bam_len = len(sample_bam)
             if sample_bam_len > 1:
                 msg = (
-                    f"The `sample_id` column in the annotation file should contain "
-                    f"IDs that are uniquely identifiable to the provided alignment "
-                    f"bam files' path/names."
+                    "The `sample_id` column in the annotation file should contain "
+                    "IDs that are uniquely identifiable to the provided alignment "
+                    "bam files' path/names."
                 )
                 self.logger.error(msg)
                 raise ValueError(msg)
             elif sample_bam_len == 0:
                 if not_found_trigger:
                     msg = (
-                        f"Some samples IDs not found in the provided alignment bam files."
-                        f"The `sample_id` column in the annotation file should contain "
-                        f"IDs that match the provided alignment bam files' path/names."
+                        "Some samples IDs not found in the provided alignment bam files."
+                        "The `sample_id` column in the annotation file should contain "
+                        "IDs that match the provided alignment bam files' path/names."
                     )
                     self.logger.warning(msg)
                     not_found_trigger = False
@@ -152,19 +151,19 @@ class Protocol(ABC, metaclass=CombinedMeta):
         try:
             sample_column_name = self.annotations.columns.str.extract(
                 r"(.*sample_id.*)", flags=re.IGNORECASE).dropna().values
-        except IndexError:
+        except IndexError as exc:
             msg = (
-                f"Please supply a column for `sample_id` in the annotation file. "
-                f"This column should contain the names of each sample, corresponding "
-                f"to the name in the bam file."
+                "Please supply a column for `sample_id` in the annotation file. "
+                "This column should contain the names of each sample, corresponding "
+                "to the name in the bam file."
             )
             self.logger.error(msg)
-            raise IndexError(msg)
+            raise IndexError(msg) from exc
 
         if len(sample_column_name) > 1:
             raise ValueError(
-                f"Too many columns in the annotation file with 'sample_id' in "
-                f"their name."
+                "Too many columns in the annotation file with 'sample_id' in "
+                "their name."
             )
         else:
             sample_column_name = sample_column_name[0][0]
@@ -176,17 +175,17 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 r"(.*batch.*)", flags=re.IGNORECASE).dropna().values
         except IndexError:
             msg = (
-                f"If you are working with multiple samples/batches, please supply "
-                f"a column for `batch` in the annotation file. "
-                f"This column should contain the batch ID for each sample."
+                "If you are working with multiple samples/batches, please supply "
+                "a column for `batch` in the annotation file. "
+                "This column should contain the batch ID for each sample."
             )
             self.logger.warning(msg)
             return None
 
         if len(batch_column_name) > 1:
             raise ValueError(
-                f"Too many columns in the annotation file with 'batch' in "
-                f"their name."
+                "Too many columns in the annotation file with 'batch' in "
+                "their name."
             )
         else:
             batch_column_name = batch_column_name[0][0]
@@ -198,18 +197,18 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values
         except IndexError:
             msg = (
-                f"If you are working with barcodes, please supply "
-                f"a column for `barcode` in the annotation file. "
-                f"This column should contain the barcode for each sample/cell, "
-                f"as appropriate."
+                "If you are working with barcodes, please supply "
+                "a column for `barcode` in the annotation file. "
+                "This column should contain the barcode for each sample/cell, "
+                "as appropriate."
             )
             self.logger.warning(msg)
             return None
 
         if len(barcode_column_name) > 1:
             raise ValueError(
-                f"Too many columns in the annotation file with 'barcode' in "
-                f"their name."
+                "Too many columns in the annotation file with 'barcode' in "
+                "their name."
             )
         else:
             barcode_column_name = barcode_column_name[0][0]
@@ -239,7 +238,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             return annotations
         elif self.label_batches:
             msg = (
-                f"Please use a column in your annotation file with the"
+                "Please use a column in your annotation file with the"
                 " batch information"
             )
             self.logger.error(msg)
@@ -278,7 +277,8 @@ class Protocol(ABC, metaclass=CombinedMeta):
 class ProtocolThreePrime(Protocol):
 
     def filter_utr_sizes(self, utr_sizes, threshold=1):
-        self.logger.info(f"Filtering UTR sizes using threshold of {threshold} counts.")
+        self.logger.info(
+            "Filtering UTR sizes using threshold of %s counts.", threshold)
         utr_sizes_exploded = utr_sizes.explode(utr_sizes.columns.to_list(),
                                                ignore_index=False)
         utr_sizes_exploded = utr_sizes_exploded[
@@ -457,7 +457,7 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
 
         read_seq = helpers.to_string(alignment.read.name)
         read_umi = read_seq.split('_')[1]
-        assert (len(read_umi) == 8)  # 8 bp UMI
+        assert len(read_umi) == 8  # 8 bp UMI
 
         return read_umi, read_batch_id
 
@@ -470,22 +470,17 @@ def create(platform, version, **kwargs):
             return ProtocolTenx2(**kwargs)
         if version == 3:
             return ProtocolTenx3(**kwargs)
-        else:
-            raise NotImplementedError(error_message)
-    elif platform.lower() in ('smart-seq', 'smartseq'):
+        raise NotImplementedError(error_message)
+    if platform.lower() in ('smart-seq', 'smartseq'):
         if version == 3:
             return ProtocolSmartseq3(**kwargs)
-        else:
-            raise NotImplementedError(error_message)
-    elif platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
+        raise NotImplementedError(error_message)
+    if platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
         if version == 3:
             return ProtocolCapseqSmartseq3(**kwargs)
-        else:
-            raise NotImplementedError(error_message)
-    elif platform.lower() in ('smart-seq_cap-readname', 'smartseq_cap-readname'):
+        raise NotImplementedError(error_message)
+    if platform.lower() in ('smart-seq_cap-readname', 'smartseq_cap-readname'):
         if version == 3:
             return ProtocolCapseqSmartseq3ReadName(**kwargs)
-        else:
-            raise NotImplementedError(error_message)
-    else:
         raise NotImplementedError(error_message)
+    raise NotImplementedError(error_message)
