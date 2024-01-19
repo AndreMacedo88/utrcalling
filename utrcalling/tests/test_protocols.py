@@ -4,7 +4,8 @@ import unittest
 import copy
 
 import pandas as pd
-from utrcalling.core import peak_calling, protocol, utr_mapping, module_log
+
+from utrcalling.core import protocol, utr_mapping, process_mapped_reads, module_log
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
@@ -33,12 +34,13 @@ class Test10x(unittest.TestCase):
 
 class TestFilterUtrSizes(Test10x):
     def setUp(self) -> None:
-        merged = peak_calling.merge_samples_utr_sizes(copy.deepcopy(self.mappings),
-                                                      method=self.protocol.merge_method)
+        merged = process_mapped_reads.merge_samples_utr_sizes(copy.deepcopy(self.mappings),
+                                                              method=self.protocol.merge_method)
 
         # modify the data to check for successfull filtering.
         # Original was [772, 756, 751, 753, 811, 751].
-        merged.at["ENSMUSG00000001036", "utr_sizes_from_reads"] = [1, 798, 1, 798, 1, 798]
+        merged.at["ENSMUSG00000001036", "utr_sizes_from_reads"] = [
+            1, 798, 1, 798, 1, 798]
         self.filtered = self.protocol.filter_utr_sizes(merged, threshold=1)
 
     def test_number_of_features(self) -> None:
@@ -58,7 +60,8 @@ class TestFilterUtrSizes(Test10x):
 class TestSmartSeqCapPhosphoReadname(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        utr_regions = pd.read_parquet('./test_data/test_UTR_reference_5prime.parquet')
+        utr_regions = pd.read_parquet(
+            './test_data/test_UTR_reference_5prime.parquet')
         intervals = utr_mapping.generate_utr_intervals(utr_regions=utr_regions)
         cls.alignment = './test_data/test_CapPhospho_genome_102_coordsort.bam'
         cls.protocol = protocol.create(
@@ -74,7 +77,8 @@ class TestSmartSeqCapPhosphoReadname(unittest.TestCase):
 class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
     def setUp(self) -> None:
         # modify the data to check for successfull filtering. Original was [44, 23, 19].
-        self.mappings.loc["ENSMUSG00000023905"].utr_sizes_from_reads = [44, 1, 19]
+        self.mappings.loc["ENSMUSG00000023905"].utr_sizes_from_reads = [
+            44, 1, 19]
         self.filtered = self.protocol.filter_utr_sizes(self.mappings)
 
     def test_number_of_features(self) -> None:

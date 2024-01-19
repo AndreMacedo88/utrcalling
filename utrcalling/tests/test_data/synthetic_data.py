@@ -200,7 +200,7 @@ MAPPED_READS = pd.DataFrame(
             [["AAAGACGA", "GTGATGA"], [30, 35]],
             [["AAAGACGG"], [50]],
             [["CAAGACGG"], [90]],
-        ]
+        ], dtype="object"
     )
 )
 MAPPED_READS.name = "utr_name"

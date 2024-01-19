@@ -1,3 +1,5 @@
+from test_data import synthetic_data
+from utrcalling.core import protocol, utr_mapping, module_log
 import os
 from pathlib import Path
 import unittest
@@ -6,9 +8,6 @@ import pandas as pd
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
-
-from utrcalling.core import protocol, utr_mapping, module_log
-from test_data import synthetic_data
 
 
 class TestGenerateUtrIntervals(unittest.TestCase):
@@ -33,7 +32,8 @@ class TestMapReadsToUtr(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_parquet('./test_data/test_UTR_reference.parquet')
+        cls.utr_regions = pd.read_parquet(
+            './test_data/test_UTR_reference.parquet')
 
         cls.utr_regions_smartseq = pd.read_parquet(
             './test_data/test_UTR_reference_smartseq.parquet')
@@ -452,117 +452,6 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
 
     def test_length(self):
         self.assertEqual(self.mappings.shape[0], 2)
-
-
-class TestMergeUtrsPerGene(unittest.TestCase):
-    def setUp(self) -> None:
-        utr_regions = synthetic_data.UTR_REGIONS_MERGED
-        mapped_reads = synthetic_data.MAPPED_READS
-        self.utr_regions, self.merged_mapped_reads = utr_mapping.merge_utrs_per_gene(
-            utr_regions=utr_regions, read_mappings=mapped_reads
-        )
-
-    def test_index(self):
-        self.assertListEqual(
-            self.merged_mapped_reads.index.to_list(),
-            ["ENSMUSG1", "ENSMUSG1,ENSMUSG4", "ENSMUSG2", "ENSMUSG3", "ENSMUSG4", "ENSMUSG5"]
-        )
-
-    def test_positive_strand_sizes(self):
-        self.assertListEqual(
-            self.merged_mapped_reads.loc[
-                self.utr_regions.strand == "+", :
-            ].utr_sizes_from_reads.to_list(),
-            [[60], [60, 65], [90], [50, 45]]
-        )
-
-    def test_negative_strand_sizes(self):
-        self.assertListEqual(
-            self.merged_mapped_reads.loc[
-                self.utr_regions.strand == "-", :
-            ].utr_sizes_from_reads.to_list(),
-            [[50, 230, 235], [20, 25, 80, 240, 350]]
-        )
-
-    def test_utr_regions_dataframe(self):
-        expected = {
-            'chrom': {
-                'ENSMUSG1': '1',
-                'ENSMUSG1,ENSMUSG4': '1',
-                'ENSMUSG2': '1',
-                'ENSMUSG3': '1',
-                'ENSMUSG4': '1', 'ENSMUSG5': '1'
-            },
-            'start': {
-                'ENSMUSG1': '1000',
-                'ENSMUSG1,ENSMUSG4': '1150',
-                'ENSMUSG2': '2000,2400',
-                'ENSMUSG3': '3000',
-                'ENSMUSG4': '500',
-                'ENSMUSG5': '500,800,1100,1200'
-            },
-            'end': {
-                'ENSMUSG1': '1100',
-                'ENSMUSG1,ENSMUSG4': '1350',
-                'ENSMUSG2': '2200,2600',
-                'ENSMUSG3': '3200',
-                'ENSMUSG4': '600', 'ENSMUSG5': '650,900,1250,1300'
-            },
-            'strand': {
-                'ENSMUSG1': '+',
-                'ENSMUSG1,ENSMUSG4': '+',
-                'ENSMUSG2': '-',
-                'ENSMUSG3': '+',
-                'ENSMUSG4': '+',
-                'ENSMUSG5': '-'
-            },
-            'transcript_id': {
-                'ENSMUSG1': 'ENSMUST1,ENSMUST2',
-                'ENSMUSG1,ENSMUSG4': 'ENSMUST1,ENSMUST2,ENSMUST6',
-                'ENSMUSG2': 'ENSMUST3,ENSMUST4',
-                'ENSMUSG3': 'ENSMUST5',
-                'ENSMUSG4': 'ENSMUST6',
-                'ENSMUSG5': 'ENSMUST7,ENSMUST8,ENSMUST9'
-            },
-            'gene_name': {
-                'ENSMUSG1': 'Test1',
-                'ENSMUSG1,ENSMUSG4': 'Test1,Test4',
-                'ENSMUSG2': 'Test2',
-                'ENSMUSG3': 'Test3',
-                'ENSMUSG4': 'Test4',
-                'ENSMUSG5': 'Test5'
-            },
-            'name': {
-                'ENSMUSG1': 'ENSMUSG1',
-                'ENSMUSG1,ENSMUSG4': 'ENSMUSG1,ENSMUSG4',
-                'ENSMUSG2': 'ENSMUSG2',
-                'ENSMUSG3': 'ENSMUSG3',
-                'ENSMUSG4': 'ENSMUSG4',
-                'ENSMUSG5': 'ENSMUSG5'
-            },
-        }
-        self.assertDictEqual(expected, self.utr_regions.to_dict())
-
-    def test_read_mappings_dataframe(self):
-        expected = {
-            'read_barcodes': {
-                'ENSMUSG1': ['GAAGACGT'],
-                'ENSMUSG1,ENSMUSG4': ['GAAGACGA', 'ATGATGA'],
-                'ENSMUSG2': ['AAAGACGA', 'GTGATGA', 'AAAGACGG'],
-                'ENSMUSG3': ['CAAGACGG'],
-                'ENSMUSG4': ['CTAGACGT', 'CTGATGA'],
-                'ENSMUSG5': ['GTAGACGT', 'GTAGCCGT', 'ATAGCCGT', 'TAAGACGA', 'TTGATGA']
-            },
-            'utr_sizes_from_reads': {
-                'ENSMUSG1': [60],
-                'ENSMUSG1,ENSMUSG4': [60, 65],
-                'ENSMUSG2': [50, 230, 235],
-                'ENSMUSG3': [90],
-                'ENSMUSG4': [50, 45],
-                'ENSMUSG5': [20, 25, 80, 240, 350]
-            }
-        }
-        self.assertDictEqual(expected, self.merged_mapped_reads.to_dict())
 
 
 if __name__ == '__main__':

@@ -1,3 +1,6 @@
+from test_data import synthetic_data
+from utrcalling.core import peak_calling, protocol, utr_mapping, module_log, process_mapped_reads
+
 import os
 from pathlib import Path
 import unittest
@@ -10,15 +13,14 @@ import copy
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import peak_calling, protocol, utr_mapping, module_log, helpers
-from test_data import synthetic_data
-
 
 class TestPeakCalling(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_parquet('./test_data/test_UTR_reference.parquet')
-        intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
+        cls.utr_regions = pd.read_parquet(
+            './test_data/test_UTR_reference.parquet')
+        intervals = utr_mapping.generate_utr_intervals(
+            utr_regions=cls.utr_regions)
         alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
         alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
         cls.annotations = pd.read_csv("./test_data/vivo_anno.csv")
@@ -48,10 +50,10 @@ class TestGeneratePeakCounts(TestPeakCalling):
     @ classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        cls.merged = peak_calling.merge_samples_utr_sizes(
+        cls.merged = process_mapped_reads.merge_samples_utr_sizes(
             utr_sizes=copy.deepcopy(cls.mappings)
         )
-        cls.merged = peak_calling.filter_barcodes(
+        cls.merged = process_mapped_reads.filter_barcodes(
             cls.merged,
             whitelist=cls.protocol_.barcode_whitelist
         )
@@ -181,12 +183,12 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
     @ classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
-        merged = peak_calling.merge_samples_utr_sizes(cls.mappings)
-        subsetted = peak_calling.subset_reference_data(
+        merged = process_mapped_reads.merge_samples_utr_sizes(cls.mappings)
+        subsetted = process_mapped_reads.subset_reference_data(
             utr_sizes=merged,
             utr_reference_regions=cls.utr_regions,
         )
-        filtered = peak_calling.filter_barcodes(
+        filtered = process_mapped_reads.filter_barcodes(
             utr_sizes=merged,
             whitelist=cls.protocol_.barcode_whitelist,
         )
