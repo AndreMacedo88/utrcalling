@@ -170,10 +170,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
         return sample_column_name
 
     def _get_batch_column(self):
-        try:
-            batch_column_name = self.annotations.columns.str.extract(
-                r"(.*batch.*)", flags=re.IGNORECASE).dropna().values
-        except IndexError:
+        batch_column_name = self.annotations.columns.str.extract(
+            r"(.*batch.*)", flags=re.IGNORECASE).dropna().values
+        if not batch_column_name:
             msg = (
                 "If you are working with multiple samples/batches, please supply "
                 "a column for `batch` in the annotation file. "
@@ -192,10 +191,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
         return batch_column_name
 
     def _get_barcode_column(self):
-        try:
-            barcode_column_name = self.annotations.columns.str.extract(
-                r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values
-        except IndexError:
+        barcode_column_name = self.annotations.columns.str.extract(
+            r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values
+        if not barcode_column_name:
             msg = (
                 "If you are working with barcodes, please supply "
                 "a column for `barcode` in the annotation file. "
