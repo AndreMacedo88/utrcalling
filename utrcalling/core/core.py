@@ -55,7 +55,8 @@ def prepare_utr_reference_regions(gtf,
     # Create BedTool obj using the GTF dataframe
     utr_bed = pybedtools.BedTool.from_dataframe(utr, columns=ann_cols)
     # find and merge overlapping regions
-    utr_reduced = utr_reference.reduce_regions(utr_bed, annotations_index=ann_idx)
+    utr_reduced = utr_reference.reduce_regions(
+        utr_bed, annotations_index=ann_idx)
     utr_reduced = utr_reference.turn_utr_bed_to_dataframe(utr_reduced)
     utr_reduced = utr_reference.generate_utr_name(utr_reduced)
     utr_reduced = utr_reference.correct_column_names(utr_reduced)
@@ -65,7 +66,8 @@ def prepare_utr_reference_regions(gtf,
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
         utr_bed.saveas(os.path.join(directory, "utrs_unmerged.bed"))
-        utr_reduced.to_parquet(os.path.join(directory, "utr_reference_regions.parquet"))
+        utr_reduced.to_parquet(os.path.join(
+            directory, "utr_reference_regions.parquet"))
     return utr_reduced
 
 
@@ -82,7 +84,7 @@ def map_aligned_reads(alignments,
         directory = './intermediate'
         helpers.check_if_exists_and_mkdir(directory)
 
-    if isinstance(alignments, (list, tuple)):
+    if isinstance(alignments, (list, tuple)) and len(alignments) > 1:
         n_cores = -2
         if sample_names is not None:
             samples = []
@@ -109,12 +111,17 @@ def map_aligned_reads(alignments,
                 file_path = os.path.join(
                     directory, f'{filename}_{counter + 1}.parquet')
                 utr_sizes_counts.to_parquet(file_path)
-
     else:
+        if isinstance(alignments, (list, tuple)):
+            # if the alignment was supplied as a list of len=1 get that
+            # alignment as a string
+            alignments = alignments[0]
+
         read_mappings = utr_mapping.map_reads_to_utr(
             alignments, intervals, read='first', protocol=protocol, batch=sample_names)
         if store:
-            read_mappings.to_parquet(os.path.join(directory, f'{filename}.parquet'))
+            read_mappings.to_parquet(os.path.join(
+                directory, f'{filename}.parquet'))
 
     return read_mappings
 
@@ -164,13 +171,15 @@ def call_peaks(utr_sizes_counts,
     del utr_reference_regions  # to save memory
 
     # get only utr sizes bigger than X bp
-    filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, threshold=1)
+    filtered_positions = protocol.filter_utr_sizes(
+        utr_sizes_counts, threshold=1)
 
     del utr_sizes_counts  # to save memory
 
     if protocol.barcode_whitelist is not None:
         if psutil.virtual_memory().percent > 70:  # if there are memory issues
-            logger.info(f"Dataset is too large. Splitting in 10 and analysing sequentially")
+            logger.info(
+                f"Dataset is too large. Splitting in 10 and analysing sequentially")
             num, div = filtered_positions.shape[0], 10
             idx_tenths = np.cumsum([
                 num // div + (1 if x < num % div else 0) for x in range(div)
@@ -214,7 +223,8 @@ def call_peaks(utr_sizes_counts,
     peaks_var = peak_calling.add_to_peaks_var(peaks_var, utr_reference_subset)
 
     # convert to pandas the final objects
-    peaks_count_matrix = helpers.check_if_modin_and_convert_to_pandas(peaks_count_matrix)
+    peaks_count_matrix = helpers.check_if_modin_and_convert_to_pandas(
+        peaks_count_matrix)
     peaks_var = helpers.check_if_modin_and_convert_to_pandas(peaks_var)
     peaks_obs = helpers.check_if_modin_and_convert_to_pandas(peaks_obs)
 

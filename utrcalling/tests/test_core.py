@@ -1,4 +1,6 @@
 from __future__ import annotations
+from utrcalling.tests.test_data import synthetic_data
+from utrcalling.core import core, module_log, protocol
 import os
 from pathlib import Path
 import unittest
@@ -9,9 +11,6 @@ import anndata as ad
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
-
-from utrcalling.core import core, module_log, protocol
-from utrcalling.tests.test_data import synthetic_data
 
 
 class TestPrepareUtrReferenceRegionsSynthetic(unittest.TestCase):
@@ -42,20 +41,22 @@ class TestPrepareUtrReferenceRegionsSynthetic(unittest.TestCase):
             ],
             data=np.array(
                 [
-                    [1, 500, 600, 'ENSMUSG4', '.', '+', 'ENSMUST6', 'Test4'],
-                    [1, 500, 650, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
-                    [1, 1000, 1100, 'ENSMUSG1', '.', '+', 'ENSMUST1,ENSMUST2', 'Test1'],
-                    [1, 1150, 1350, 'ENSMUSG1,ENSMUSG4', '.',
-                        '+', 'ENSMUST1,ENSMUST2,ENSMUST6', 'Test1,Test4'],
-                    [1, 1200, 1300, 'ENSMUSG5', '.', '-', 'ENSMUST7', 'Test5'],
-                    [1, 2000, 2200, 'ENSMUSG2', '.', '-', 'ENSMUST3,ENSMUST4', 'Test2'],
-                    [1, 2400, 2600, 'ENSMUSG2', '.', '-', 'ENSMUST3', 'Test2'],
-                    [1, 3000, 3200, 'ENSMUSG3', '.', '+', 'ENSMUST5', 'Test3']
+                    ["1", 500, 600, "ENSMUSG4", ".", "+", "ENSMUST6", "Test4"],
+                    ["1", 500, 650, "ENSMUSG5", ".", "-", "ENSMUST7", "Test5"],
+                    ["1", 1000, 1100, "ENSMUSG1", ".", "+",
+                        "ENSMUST1,ENSMUST2", "Test1"],
+                    ["1", 1150, 1350, "ENSMUSG1,ENSMUSG4", ".",
+                        "+", "ENSMUST1,ENSMUST2,ENSMUST6", "Test1,Test4"],
+                    ["1", 1200, 1300, "ENSMUSG5", ".", "-", "ENSMUST7", "Test5"],
+                    ["1", 2000, 2200, "ENSMUSG2", ".", "-",
+                        "ENSMUST3,ENSMUST4", "Test2"],
+                    ["1", 2400, 2600, "ENSMUSG2", ".", "-", "ENSMUST3", "Test2"],
+                    ["1", 3000, 3200, "ENSMUSG3", ".", "+", "ENSMUST5", "Test3"]
                 ]
             )
         )
         expected.index.name = "utr_name"
-        for i in range(3):
+        for i in range(1, 3):
             expected.isetitem(i, expected.iloc[:, i].astype("int64"))
 
         pd.testing.assert_frame_equal(
@@ -105,7 +106,7 @@ class TestMapAlignedReads(unittest.TestCase):
 class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = {
+        utr_regions = {
             "utr_name": ["UTR1", "UTR1-1", "UTR2", "UTR3", "UTR4"],
             "chrom": [1, 1, 1, 1, 1],
             "start": [14190, 16400, 184700, 628000, 1200000],
@@ -116,11 +117,14 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
             "transcript_id": ["UTR1_t", "UTR1_t", "UTR2_t", "UTR3_t", "UTR4_t"],
             "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
         }
-        cls.utr_regions = pd.DataFrame(cls.utr_regions).set_index("utr_name")
-        cls.alignments = ['./test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam']
+        cls.utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
+        cls.alignments = [
+            './test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam'
+        ]
         annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
         cls.annotations = annotations.query("Sample_ID=='AS-740066-LR-59119'")
-        cls.annotations = cls.annotations.drop_duplicates(subset=["Sample_Barcode"])
+        cls.annotations = cls.annotations.drop_duplicates(
+            subset=["Sample_Barcode"])
 
         # objects for testing without label_batches
         cls.protocol_ = protocol.create(
@@ -173,7 +177,8 @@ class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertTupleEqual(self.results_label.shape, (1, 2))
 
     def test_utr_sizes(self):
-        self.assertListEqual(self.results_label.var.utr_size.to_list(), [223, 158])
+        self.assertListEqual(
+            self.results_label.var.utr_size.to_list(), [223, 158])
 
     def test_barcode(self):
         self.assertEqual(self.results_label.obs_names[0], "CACTGT-1")
@@ -192,7 +197,8 @@ class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertTupleEqual(self.results_nolabel.shape, (1, 2))
 
     def test_utr_sizes(self):
-        self.assertListEqual(self.results_nolabel.var.utr_size.to_list(), [223, 158])
+        self.assertListEqual(
+            self.results_nolabel.var.utr_size.to_list(), [223, 158])
 
     def test_barcode(self):
         self.assertEqual(self.results_nolabel.obs_names[0], "CACTGT")
