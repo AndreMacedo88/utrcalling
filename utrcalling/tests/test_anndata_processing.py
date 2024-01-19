@@ -1,4 +1,6 @@
 # import general purpose tools
+from utrcalling.core import anndata_processing as ap
+from utrcalling.core import module_log
 import os
 from pathlib import Path
 import unittest
@@ -9,8 +11,6 @@ import anndata as ad
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
 # import internal tools
-from utrcalling.core import module_log
-from utrcalling.core import anndata_processing as ap
 
 
 class TestComputeMeanSizes(unittest.TestCase):
@@ -77,7 +77,8 @@ class TestComputeMeanSizes(unittest.TestCase):
             [100, 150, (200 + 400) / 2, 100],
             [np.nan, ((4 * 100) + (2 * 200)) / 6,
              (300 + 200 + 300 + 400) / (3 + 1 + 1 + 1), 100],
-            [100, (300 + 200) / 4, (300 + 400 + 600 + (4 * 400)) / (3 + 2 + 2 + 4), 100],
+            [100, (300 + 200) / 4, (300 + 400 + 600 +
+                                    (4 * 400)) / (3 + 2 + 2 + 4), 100],
             [np.nan, 100, 300, 100]
         ])
         np.testing.assert_array_almost_equal(self.adata_means.X, expected)

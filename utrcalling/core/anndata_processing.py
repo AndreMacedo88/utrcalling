@@ -29,6 +29,9 @@ def generate_utr_site_names_from_gene_name(
         adata (anndata.AnnData): The AnnData object to change the var_names.
         out (str, optional): The path to write the output.
     """
+    # TODO: This method breaks down if the utr_name is not sorted.
+    # Maybe sort the AnnData first, or try another method that does not modify the order
+    # Anyway this should not be a problem for most cases
 
     adata = adata.copy()
 
@@ -50,7 +53,7 @@ def generate_utr_site_names_from_gene_name(
         utr_info = utr.split("_")
         if len(utr_info) > 1:
             if pd.isnull(gene_name) or gene_name == "None":
-                gene_name_ensembl = utr_name.split("-")[0]
+                gene_name_ensembl = re.split("-|_", utr_name)[0]
                 name = f"{gene_name_ensembl}_UTR{utr_info[1]}_site{counter}"
             else:
                 name = f"{gene_name}_UTR{utr_info[1]}_site{counter}"
@@ -67,7 +70,8 @@ def generate_utr_site_names_from_gene_name(
     adata.var['UTR_site_named'] = new
 
     # Deal with duplicates in the UTR site names
-    dups = adata[:, adata.var.UTR_site_named.duplicated(keep='first')].var.UTR_site_named
+    dups = adata[:, adata.var.UTR_site_named.duplicated(
+        keep='first')].var.UTR_site_named
     for dup in dups:
         counter = 1
         for row in adata[:, adata.var.UTR_site_named == dup].var.itertuples():
@@ -172,7 +176,8 @@ def concatenate_adata(adata_list):
     # prepare X object
     adata_df_list = [adata.to_df() for adata in adata_list]
     for df, adata in zip(adata_df_list, adata_list):
-        df.columns = pd.MultiIndex.from_frame(adata.var[["utr_name", "utr_size"]])
+        df.columns = pd.MultiIndex.from_frame(
+            adata.var[["utr_name", "utr_size"]])
 
     adata_concat = pd.concat(adata_df_list, join="outer",
                              axis=0, sort=False).fillna(0)
@@ -182,7 +187,8 @@ def concatenate_adata(adata_list):
         "utr_size", axis=1).drop_duplicates()
 
     concat_cols_frame = adata_concat.columns.to_frame().reset_index(drop=True)
-    var_new = pd.merge(concat_cols_frame, adatas_var, on="utr_name", how="left")
+    var_new = pd.merge(concat_cols_frame, adatas_var,
+                       on="utr_name", how="left")
     var_new["polyA"] = var_new["utr_name"] + "-" + \
         (var_new.groupby("utr_name").cumcount() + 1).astype(str)
     var_new = var_new.set_index("polyA")
