@@ -1,16 +1,21 @@
+"""
+This module contains functions to get UTR sizes from Pandas DataFrames representing
+BED files with UTR regions annotations
+
+"""
+
 # general tools
+from utrcalling.core.module_log import module_logger
+import re
 from functools import partial
 import psutil
 from pympler import asizeof
-import re
 # data handling tools
 import HTSeq
 import pandas as pd
 # QOL tools
 from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
-
-from utrcalling.core.module_log import module_logger
 
 
 def generate_utr_intervals(utr_regions):
@@ -32,7 +37,7 @@ def generate_utr_intervals(utr_regions):
 def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
     logger = module_logger()
     logger.info(
-        f'Extracting reads from {bam} and mapping them to the reference UTR')
+        "Extracting reads from %s and mapping them to the reference UTR", bam)
 
     label_batches = protocol.label_batches
 
@@ -56,8 +61,8 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
             batch = protocol.batch_codes.get(batch_name, None)
         except AttributeError:
             logger.warning(
-                f"Batch ID for sample {bam} was not able to be extracted. "
-                f"Please check if this behaviour is intended."
+                "Batch ID for sample %s was not able to be extracted. "
+                "Please check if this behaviour is intended.", bam
             )
             batch = None
 
@@ -120,7 +125,8 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
 
     utr_mappings.index.name = "utr_name"
 
-    logger.info("Mapping statistics: %s", mapping_stats)  # most performant method to log
+    # most performant method to log
+    logger.info("Mapping statistics: %s", mapping_stats)
     logger.debug("Size of mapped reads object in bytes: %s \nMemory usage: %s",
                  asizeof.asizeof(utr_mappings),
                  psutil.virtual_memory().percent)

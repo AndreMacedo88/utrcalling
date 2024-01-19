@@ -1,10 +1,15 @@
+"""
+This module contains functions that retrieve UTR information from annotation files
+such as GTF and GFF
+"""
+
 import gzip
 
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from gtfparse import read_gtf
 
-from .module_log import module_logger
+from utrcalling.core.module_log import module_logger
 
 
 def open_gtf(gtf_file):
@@ -41,7 +46,7 @@ def extract_feature(gtf_df, feature):
     )
 
     utr_df = gtf_df[gtf_df["feature"] == feature]
-    return (utr_df)
+    return utr_df
 
 
 def prepare_annotations_index(annotations_extra):
@@ -76,7 +81,8 @@ def turn_utr_bed_to_dataframe(utr_table):
 
 def generate_utr_name(utr_df):
     if not isinstance(utr_df, pd.DataFrame):
-        raise TypeError(f"Please turn your {type(utr_df)} object to a pandas DataFrame")
+        raise TypeError(
+            f"Please turn your {type(utr_df)} object to a pandas DataFrame")
     # sort by name so that name incrementation is handled correctly later on.
     utr_df.sort_values(by=["chrom", "start", "end"], inplace=True)
 
