@@ -107,6 +107,7 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
         except ValueError:  # intervals can be from genome annotations with more chroms
             continue
 
+        # TODO: change deduplicate_reads to filter per read_barcode as well
         # Deduplicate reads using the UMIs
         if read_umis:
             mapped_read_information = deduplicate_reads(
