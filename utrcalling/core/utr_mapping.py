@@ -134,6 +134,14 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
 
     return utr_mappings
 
+# Make idx_unique a dictionary with read_barcodes as keys.
+# then, the for loop must loop through the read_barcodes in the same order as UMIs
+# and the `if umi not in umis_unique` check must be `umis_unique.get(read_barcode)`.
+# finally, don't forget to change the umis_unique.append() to update the dictionary at
+# the correct key.
+# This approach should not break the smartseq protocols, since the read_barcode per
+# sample is the same, so it will only incur a small performance change (dictionary lookup)
+
 
 def deduplicate_reads(read_umis, read_info):
     umis_unique = []
