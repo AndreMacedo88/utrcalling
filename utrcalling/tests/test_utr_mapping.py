@@ -285,7 +285,7 @@ class TestProtocolNotSupported(TestMapReadsToUtr):
 
 
 class TestMapReadsToUtrMinimal(unittest.TestCase):
-    @ classmethod
+    @classmethod
     def setUpClass(cls) -> None:
         utr_regions = {"utr_name": ["UTR1", "UTR1-1", "UTR2", "UTR3", "UTR4"],
                        "chrom": [1, 1, 1, 1, 1],
@@ -358,7 +358,7 @@ class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
 
 
 class TestMapReadsToUtrMinimalCap(unittest.TestCase):
-    @ classmethod
+    @classmethod
     def setUpClass(cls) -> None:
         utr_regions = {"utr_name": ["UTR1", "UTR2", "UTR2-1", "UTR3", "UTR4"],
                        "chrom": [1, 1, 1, 1, 1],
@@ -452,6 +452,12 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
 
     def test_length(self):
         self.assertEqual(self.mappings.shape[0], 2)
+
+
+class TestMapReadsToUtrSynthetic(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        pass
 
 
 if __name__ == '__main__':

@@ -143,10 +143,10 @@ def deduplicate_reads(read_umis, read_info):
         if umi not in umis_unique.get(barcode):
             idx_unique.append(idx)
             umis_unique[barcode].append(umi)
-    read_info = [
+    read_info_output = [
         [element[i] for i in idx_unique] for element in read_info
     ]
-    return read_info
+    return read_info_output
 
 
 # TODO: Delete this function when the tests have been done
