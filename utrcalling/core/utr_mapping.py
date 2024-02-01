@@ -134,16 +134,23 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
 
     return utr_mappings
 
-# Make idx_unique a dictionary with read_barcodes as keys.
-# then, the for loop must loop through the read_barcodes in the same order as UMIs
-# and the `if umi not in umis_unique` check must be `umis_unique.get(read_barcode)`.
-# finally, don't forget to change the umis_unique.append() to update the dictionary at
-# the correct key.
-# This approach should not break the smartseq protocols, since the read_barcode per
-# sample is the same, so it will only incur a small performance change (dictionary lookup)
-
 
 def deduplicate_reads(read_umis, read_info):
+    barcodes = read_info[0]
+    umis_unique = {barcode: [] for barcode in barcodes}
+    idx_unique = []
+    for idx, (umi, barcode) in enumerate(zip(read_umis.copy(), barcodes)):
+        if umi not in umis_unique.get(barcode):
+            idx_unique.append(idx)
+            umis_unique[barcode].append(umi)
+    read_info = [
+        [element[i] for i in idx_unique] for element in read_info
+    ]
+    return read_info
+
+
+# TODO: Delete this function when the tests have been done
+def deduplicate_reads_old(read_umis, read_info):
     umis_unique = []
     idx_unique = []
     for idx, umi in enumerate(read_umis.copy()):
