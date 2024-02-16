@@ -457,7 +457,52 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
 class TestMapReadsToUtrSynthetic(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        pass
+        utr_regions = {"utr_name": ["UTR1", "UTR2", "UTR2-1", "UTR3", "UTR4"],
+                       "chrom": [1, 1, 1, 1, 1],
+                       "start": [3102600, 3340260, 3154500, 3536770, 4846300],
+                       "end": [3102750, 3340670, 3154600, 3536840, 4846300],
+                       "name": ["UTR1", "UTR2", "UTR2", "UTR3", "UTR4"],
+                       "score": [0.0] * 5,
+                       "strand": ["+", "-", "+", "+", "+"],
+                       "transcript_id": ["UTR1_t", "UTR2_t", "UTR2_t", "UTR3_t", "UTR4_t"],
+                       "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
+                       }
+        utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
+        cls.intervals = utr_mapping.generate_utr_intervals(
+            utr_regions=utr_regions)
+        cls.data = synthetic_data.SmartSeqBam()
+
+
+class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
+    def setUp(self) -> None:
+        self.maxDiff = None
+        protocol_ = protocol.create(
+            platform='smart-seq_cap',
+            version=3,
+            alignments=self.data.alignment,
+            annotations="./test_data/smartseq3_anno.csv"
+        )
+        with self.data:
+            self.mappings = utr_mapping.map_reads_to_utr(
+                self.data.alignment,
+                self.intervals,
+                protocol_,
+                read='first',
+                batch="Test",
+            )
+
+    def test_details(self):
+        dict_true = {
+            'read_barcodes': [[self.data.alignment], [self.data.alignment]],
+            'utr_sizes_from_reads': [[404], [69]]
+        }
+        self.assertDictEqual(
+            self.mappings.to_dict(orient="list"), dict_true)
+
+    def test_length(self):
+        self.assertEqual(self.mappings.shape[0], 2)
+
+# TODO: do similar class as TestSmartSeqPhosphoSynthetic, but for 10x to test UMI deduplication
 
 
 if __name__ == '__main__':
