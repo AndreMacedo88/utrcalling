@@ -473,11 +473,14 @@ class TestMapReadsToUtrSynthetic(unittest.TestCase):
         cls.data = synthetic_data.SmartSeqBam()
 
 
+# TODO: this was copied over from Cap seq, modify it to take into account that reads are
+# matched from the end of the sequence and the read strand is assumed to be opposite of
+# the genome
 class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
     def setUp(self) -> None:
         self.maxDiff = None
         protocol_ = protocol.create(
-            platform='smart-seq_cap',
+            platform='smart-seq',
             version=3,
             alignments=self.data.alignment,
             annotations="./test_data/smartseq3_anno.csv"
@@ -506,5 +509,5 @@ class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")
