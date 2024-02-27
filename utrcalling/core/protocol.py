@@ -392,13 +392,14 @@ class ProtocolSmartseq3(ProtocolSmartseq):
 
     def get_reads_identity(self, alignment, **kwargs):
         bam_name = kwargs.get("bam_name")
-        read_sample_idx = self.sample_idx[bam_name]
-
         read_seq = alignment.read.seq
+
         if self.label_batches:
+            read_sample_idx = self.sample_idx[bam_name]
             read_barcode = f"{helpers.to_string(read_seq[:6])}-{read_sample_idx}"
         else:
             read_barcode = helpers.to_string(read_seq[:6])
+
         read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
         return read_umi, read_barcode
 
