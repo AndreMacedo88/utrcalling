@@ -207,6 +207,18 @@ MAPPED_READS.name = "utr_name"
 
 
 class SmartSeqCapSeqBam:
+    """
+    Generates synthetic BAM alignment data in conformity with what a Cap-Seq would look
+    like (5' smartseq-like)
+
+    Notes:
+    - reverse strand read 1 will have the real 5'UTR start at `reference_start` + number 
+    of matches in the CIGAR string. This is because the bam file annotates the start and
+    the CIGAR string in relation to the genome, but since this read 1 is in the reverse 
+    strand the start is actually in the other side of the read (minus the soft clipped
+    regions)
+    """
+
     def __init__(self) -> None:
         fd, self.alignment = mkstemp(suffix=".bam", dir="./test_data/")
 
@@ -324,18 +336,19 @@ class SmartSeqBam:  # TODO: Change this alignment to 3'UTR smartseq. Add duplica
             a1 = pysam.AlignedSegment()
             a1.query_name = "VH00211:1:AAAFH3LHV:1:1403:73731:41910"
             a1.query_sequence = (
-                "TGAGAGATAACCTTTGATCACTCCACAGGGCCTGGAAATGAGGGTTTTCAGGAAGAAAGGAATTCCAAACAATGTTTTCAAACACGCAGACATTGCGCAAT"
+                "TGAGAGATAACCTTTGATCACTCCACAGGGCCTGGAAATGAGGGTTTTCAGGAAGAAAGGAATTCCAAACAATGTTTTCAAACACGCAGACATTGCGCAA"
             )
             a1.flag = 83  # proper pair, first in pair, reverse strand
             a1.reference_id = 0
-            a1.reference_start = 3340581  # Add 82 to get start. Inside the UTR by 9/10bp
+            a1.reference_start = 3340581  # Add 80 to get start. Inside the UTR by 9/10bp
             a1.mapping_quality = 255
-            a1.cigar = ((0, 82), (4, 19))
+            # 20 soft-clipped (UMI, etc) + 80 matched
+            a1.cigar = ((0, 80), (4, 20))
             a1.next_reference_id = 0
             a1.next_reference_start = 3340293  # inside the UTR
             a1.template_length = -370
             a1.query_qualities = pysam.qualitystring_to_array(
-                "CCC;CCCCC;CCCCCC-;CCC-CCCCCCCC;CCCCCCCCCC-;CCCCCCCCCCCCCCCCCC-CCCCCCCCC-CCCCCCCCCCCCCCCCCCCC-CCCCC;C-"
+                "CCC;CCCCC;CCCCCC-;CCC-CCCCCCCC;CCCCCCCCCC-;CCCCCCCCCCCCCCCCCC-CCCCCCCCC-CCCCCCCCCCCCCCCCCCCC-CCCCC;C"
             )
             a1.tags = (("NM", 1),
                        ("NM", 0))
@@ -347,11 +360,11 @@ class SmartSeqBam:  # TODO: Change this alignment to 3'UTR smartseq. Add duplica
             )
             a2.flag = 163  # proper pair, second in pair, mate in reverse strand
             a2.reference_id = 0
-            a2.reference_start = 3340293  # inside the UTR by 9/10bp
+            a2.reference_start = 3340293  # inside the UTR
             a2.mapping_quality = 255
             a2.cigar = ((0, 101),)
             a2.next_reference_id = 0
-            a2.next_reference_start = 3340581  # inside the UTR
+            a2.next_reference_start = 3340581  # inside the UTR by 9/10bp
             a2.template_length = 370
             a2.query_qualities = pysam.qualitystring_to_array(
                 "CCCC;-CCCCCCCCCCCCC-CC;CCCCC;CC;;C-CCCC-CCCCCCCCCCCC;C-CC;CCCC-C-CC---CCCC;CC-CC-C----C-C-CC;CCCCCC;C"

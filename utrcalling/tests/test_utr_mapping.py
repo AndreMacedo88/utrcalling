@@ -463,7 +463,7 @@ class TestMapReadsToUtrSynthetic(unittest.TestCase):
                        "end": [3102750, 3340670, 3154600, 3536840, 4846300],
                        "name": ["UTR1", "UTR2", "UTR2", "UTR3", "UTR4"],
                        "score": [0.0] * 5,
-                       "strand": ["+", "-", "+", "+", "+"],
+                       "strand": ["+", "-", "+", "-", "+"],
                        "transcript_id": ["UTR1_t", "UTR2_t", "UTR2_t", "UTR3_t", "UTR4_t"],
                        "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
                        }
@@ -496,8 +496,8 @@ class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
 
     def test_details(self):
         dict_true = {
-            'read_barcodes': [[self.data.alignment], [self.data.alignment]],
-            'utr_sizes_from_reads': [[404], [69]]
+            'read_barcodes': [["ATTGCG"]],
+            'utr_sizes_from_reads': [[50]]
         }
         self.assertDictEqual(
             self.mappings.to_dict(orient="list"), dict_true)
