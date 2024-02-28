@@ -1,5 +1,4 @@
-from __future__ import annotations
-from utrcalling.tests.test_data import synthetic_data
+from utrcalling.tests.test_data import synthetic_annotations
 from utrcalling.core import core, module_log, protocol
 import os
 from pathlib import Path
@@ -15,7 +14,7 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 
 class TestPrepareUtrReferenceRegionsSynthetic(unittest.TestCase):
     def setUp(self) -> None:
-        gtf = synthetic_data.GtfEnsembl()
+        gtf = synthetic_annotations.GtfEnsembl()
         with gtf:  # context manager so that the GtfMouse class cleans the file at the end
             self.regions = core.prepare_utr_reference_regions(
                 gtf=gtf.file_path,
