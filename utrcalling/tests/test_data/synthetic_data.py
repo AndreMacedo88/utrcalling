@@ -321,98 +321,218 @@ class SmartSeqCapSeqBam:
         os.remove(self.index)
 
 
-class SmartSeqBam:  # TODO: Change this alignment to 3'UTR smartseq. Add duplicated UMI read
+class TenXBam:  # TODO: Add duplicated UMI read
     def __init__(self) -> None:
         fd, self.alignment = mkstemp(suffix=".bam", dir="./test_data/")
 
     def enter(self):
         # set-up the temporary alignment file
         header = {'HD': {'VN': '1.0'},
-                  'SQ': [{'LN': 1575, 'SN': '1'},
-                         {'LN': 1584, 'SN': '2'}]}
+                  'SQ': [{'LN': 195471971, 'SN': '1'},
+                         {'LN': 98207768, 'SN': '16'}]}
 
         with pysam.AlignmentFile(self.alignment, "wb", header=header) as outf:
-            # First alignment read 1
+            # First alignment - read 1
             a1 = pysam.AlignedSegment()
-            a1.query_name = "VH00211:1:AAAFH3LHV:1:1403:73731:41910"
+            a1.query_name = "VH00211:1:AAAGTM7HV:1:2513:14009:16960"
             a1.query_sequence = (
-                "TGAGAGATAACCTTTGATCACTCCACAGGGCCTGGAAATGAGGGTTTTCAGGAAGAAAGGAATTCCAAACAATGTTTTCAAACACGCAGACATTGCGCAA"
+                "ACTGTAGCCGAATTTAACTGGCATTTTATTTGACCTCTAACTATGTCCCTCCGGAACTGTACAGAAAAAAAAAAAAAAAAAAACCAATGTCGAAGAATTGATGACTTGTCAAGAA"
             )
             a1.flag = 83  # proper pair, first in pair, reverse strand
-            a1.reference_id = 0
-            a1.reference_start = 3340581  # Add 80 to get start. Inside the UTR by 9/10bp
+            a1.reference_id = 1  # index of the chromosome in the header
+            a1.reference_start = 91271840  # Add 80 to get start. Inside the UTR by 9/10bp
             a1.mapping_quality = 255
-            # 20 soft-clipped (UMI, etc) + 80 matched
-            a1.cigar = ((0, 80), (4, 20))
+            # 35 soft-clipped (Barcode, UMI, etc) + 80 matched
+            a1.cigartuples = ((0, 80), (4, 35))
             a1.next_reference_id = 0
-            a1.next_reference_start = 3340293  # inside the UTR
-            a1.template_length = -370
+            a1.next_reference_start = 91271713  # inside the UTR
+            a1.template_length = -207
             a1.query_qualities = pysam.qualitystring_to_array(
-                "CCC;CCCCC;CCCCCC-;CCC-CCCCCCCC;CCCCCCCCCC-;CCCCCCCCCCCCCCCCCC-CCCCCCCCC-CCCCCCCCCCCCCCCCCCCC-CCCCC;C"
+                "-C--C---CC--CC--C;;--C;-------C--CC-;---CC-C-C-;C;-C--CCC--;--;C-C;;-;--C--C-C---C;----;CCCCC;CC;CCCCCCCCCCCCCCCCCC"
             )
             a1.tags = (("NM", 1),
                        ("NM", 0))
-            # First alignment read 2
+            # First alignment - read 2
             a2 = pysam.AlignedSegment()
-            a2.query_name = "VH00211:1:AAAFH3LHV:1:1403:73731:41910"
+            a2.query_name = "VH00211:1:AAAGTM7HV:1:2513:14009:16960"
             a2.query_sequence = (
-                "GTGTACTCTGTTTCACCATTTCTCTGTCAACTTCTGCCAACCCCTGATTTTTTTTTTATTTCCTCTACAGTTTTACCATTTTTCAGGATATTCTCTGTTAC"
+                "TGGACGCGTGCGCGCGTGGGTGCCGCGTCTTGGCTTGTGACTAGCGTTAGGAAATTACCCAAGATTATTGCATAATCTTCACCAGCTTGCTTTGATTCTTTTTTATGTTGGAAGT"
             )
             a2.flag = 163  # proper pair, second in pair, mate in reverse strand
-            a2.reference_id = 0
-            a2.reference_start = 3340293  # inside the UTR
+            a2.reference_id = 1  # index of the chromosome in the header
+            a2.reference_start = 91271713  # inside the UTR
             a2.mapping_quality = 255
-            a2.cigar = ((0, 101),)
+            a2.cigar = ((0, 115),)
             a2.next_reference_id = 0
-            a2.next_reference_start = 3340581  # inside the UTR by 9/10bp
-            a2.template_length = 370
+            a2.next_reference_start = 91271840  # inside the UTR by 9/10bp
+            a2.template_length = 207
             a2.query_qualities = pysam.qualitystring_to_array(
-                "CCCC;-CCCCCCCCCCCCC-CC;CCCCC;CC;;C-CCCC-CCCCCCCCCCCC;C-CC;CCCC-C-CC---CCCC;CC-CC-C----C-C-CC;CCCCCC;C"
+                "C-CCCCC--CC-CCCCCC;CCCCCC-CCCCCCCC;CCC-CCCC-CCC-C;CCCCCCCC-CCCCCCCCCC;CCCCCCCCCC-C-C-C-CC-CCCC-CCCC-CCCCCCCCCCC-CCC"
             )
             a2.tags = (("NM", 1),
                        ("NM", 1))
 
-            # Second alignment read 1
+            # Second alignment - read 1
             b1 = pysam.AlignedSegment()
-            b1.query_name = "VH00211:1:AAAFH3LHV:2:1202:74811:33600"
+            b1.query_name = "VH00211:1:AAAGTM7HV:1:1308:23628:30438"
             b1.query_sequence = (
-                "ATTGCGCAATGTTGGCAGGCTGAATGCTGAGCATTCCCTTGGAGAGGACACAATGCCCTGAAAATGGATAGCAGTTCCCTTAATCTTCTTGTACTTATGGG"
+                "GACTCTCCACAATGAACGTTCTCGCAAAATAATACGTTCTCTAAAAACATATGTTTACGGTAGAGTCAGTCACCTTTATTCCAGGGTTAGAACAAGGCTGTGCACGCTGCAGACA"
             )
             b1.flag = 99  # proper pair, first in pair, mate in reverse strand
             b1.reference_id = 0
-            b1.reference_start = 3536771  # inside the UTR by 1bp
+            b1.reference_start = 172196728  # inside the UTR by 0bp
             b1.mapping_quality = 255
-            b1.cigar = ((4, 19), (0, 82))  # 11bp TSO + 8bp UMI + 5'UTR
+            b1.cigar = ((4, 55), (0, 60))  # 11bp TSO + 8bp UMI + 5'UTR
             b1.next_reference_id = 0
-            b1.next_reference_start = 3536850  # outside the UTR
-            b1.template_length = 46897
+            b1.next_reference_start = 172196993  # outside the UTR
+            b1.template_length = 380
             b1.query_qualities = pysam.qualitystring_to_array(
-                "CCCCCCCC;CCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCC-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC-CCC-;CC;CCC-CCCCCC;C"
+                "CCCCCCCCCCCCCCC;CCCCCCCC;CCC;C---C----CC--C--;--;--C---;----;--CC------C--;C-;-;--;;-C---;-C---CC--C-C---C--CC-C;-;"
             )
             b1.tags = (("NM", 0),
                        ("NM", 0))
-            # Second alignment read 2
+            # Second alignment - read 2
             b2 = pysam.AlignedSegment()
-            b2.query_name = "VH00211:1:AAAFH3LHV:2:1202:74811:33600"
+            b2.query_name = "VH00211:1:AAAGTM7HV:1:1308:23628:30438"
             b2.query_sequence = (
-                "GGGAGGAAAGAGAAGAGGTGGAGATATGCCCGTGTGCAGTGAGATCTGTTGGATTCTAACGGCTTTGCCTGGATGGCATTTGAAATCTCCAACTCAGACAC"
+                "TCTCCCACCCAGTTGTACAAGGATTTCTTGTCTTAAAGGAGATGCCAGGCAAGACTAGGGAGATTTAGGAAGGACCTTTAAGGCAAAGCTGGAGTCTTCGAGGTGTGAGAGTTAA"
             )
             b2.flag = 147  # proper pair, second in pair, reverse strand
             b2.reference_id = 0
-            b2.reference_start = 3536850  # outside the 5'UTR
+            b2.reference_start = 172196993  # outside the 5'UTR
             b2.mapping_quality = 255
-            b2.cigar = ((0, 61), (3, 19), (0, 40))  # from the gene body
+            b2.cigar = ((0, 115),)  # from the gene body
             b2.next_reference_id = 0
-            b2.next_reference_start = 3536771  # outside the UTR
-            b2.template_length = -46897
+            b2.next_reference_start = 172196728  # outside the UTR
+            b2.template_length = -380
             b2.query_qualities = pysam.qualitystring_to_array(
-                "CCC;CCCCCCCCCCCCCCCCCCC;-CCCCCCCCCCC;CCCC;CCCCCCCCCCCC-CC;CCCCC-CCCCCCCCCCCCC;C-CCCCC;CCCCCCCCCCCCCCC"
+                "-CCC;CCC;C-;-CCCCC--CCCCC-CCC;CCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCC;CCC-CCCCCCCCCCCCCCCCCCC;-C;CCCCCCCC;CCCCCCCCC"
             )
             b2.tags = (("NM", 0),
                        ("NM", 0))
 
+            # Duplicate of first alignment - read 1
+            c1 = pysam.AlignedSegment()
+            c1.query_name = "VH00211:1:AAAGTM7HV:1:2513:14009:16961"
+            c1.query_sequence = (
+                "AGCCGAATTTAACTGGCATTTTATTTGACCTCTAACTATGTCCCTCCGGAACTGTACAGAAAAAAAAAAAAAAAAAAACCAATGTCGAAGAATTGATGACTTGTCAAGAA"
+            )
+            c1.flag = 83  # proper pair, first in pair, reverse strand
+            c1.reference_id = 1  # index of the chromosome in the header
+            c1.reference_start = 91271845  # Add 75 to get start. Inside the UTR by 9/10bp
+            c1.mapping_quality = 255
+            # 35 soft-clipped (Barcode, UMI, etc) + 75 matched
+            c1.cigartuples = ((0, 75), (4, 35))
+            c1.next_reference_id = 0
+            c1.next_reference_start = 91271713  # inside the UTR
+            c1.template_length = -207
+            c1.query_qualities = pysam.qualitystring_to_array(
+                "---CC--CC--C;;--C;-------C--CC-;---CC-C-C-;C;-C--CCC--;--;C-C;;-;--C--C-C---C;----;CCCCC;CC;CCCCCCCCCCCCCCCCCC"
+            )
+            c1.tags = (("NM", 1),
+                       ("NM", 0))
+            # Duplicate of first alignment - read 2
+            c2 = pysam.AlignedSegment()
+            c2.query_name = "VH00211:1:AAAGTM7HV:1:2513:14009:16961"
+            c2.query_sequence = (
+                "TGGACGCGTGCGCGCGTGGGTGCCGCGTCTTGGCTTGTGACTAGCGTTAGGAAATTACCCAAGATTATTGCATAATCTTCACCAGCTTGCTTTGATTCTTTTTTATGTTGGAAGT"
+            )
+            c2.flag = 163  # proper pair, second in pair, mate in reverse strand
+            c2.reference_id = 1  # index of the chromosome in the header
+            c2.reference_start = 91271713  # inside the UTR
+            c2.mapping_quality = 255
+            c2.cigar = ((0, 115),)
+            c2.next_reference_id = 0
+            c2.next_reference_start = 91271840  # inside the UTR by 9/10bp
+            c2.template_length = 207
+            c2.query_qualities = pysam.qualitystring_to_array(
+                "C-CCCCC--CC-CCCCCC;CCCCCC-CCCCCCCC;CCC-CCCC-CCC-C;CCCCCCCC-CCCCCCCCCC;CCCCCCCCCC-C-C-C-CC-CCCC-CCCC-CCCCCCCCCCC-CCC"
+            )
+            c2.tags = (("NM", 1),
+                       ("NM", 1))
+
+            # Almost duplicate of first alignment - read 1
+            d1 = pysam.AlignedSegment()
+            d1.query_name = "VH00211:1:AAAGTM7HV:1:2513:14009:16962"
+            d1.query_sequence = (
+                "AGCCGAATTTAACTGGCATTTTATTTGACCTCTAACTATGTCCCTCCGGAACTGTACAGAAAAAAAAAAAAAAAAAAACCAATGTCGAAGAATcGATGACTTGTCAAGAA"
+            )  # changed a T to C at position 17 (first position of the UMI) from the end
+            d1.flag = 83  # proper pair, first in pair, reverse strand
+            d1.reference_id = 1  # index of the chromosome in the header
+            d1.reference_start = 91271845  # Add 75 to get start. Inside the UTR by 9/10bp
+            d1.mapping_quality = 255
+            # 35 soft-clipped (Barcode, UMI, etc) + 75 matched
+            d1.cigartuples = ((0, 75), (4, 35))
+            d1.next_reference_id = 0
+            d1.next_reference_start = 91271713  # inside the UTR
+            d1.template_length = -207
+            d1.query_qualities = pysam.qualitystring_to_array(
+                "---CC--CC--C;;--C;-------C--CC-;---CC-C-C-;C;-C--CCC--;--;C-C;;-;--C--C-C---C;----;CCCCC;CC;CCCCCCCCCCCCCCCCCC"
+            )
+            d1.tags = (("NM", 1),
+                       ("NM", 0))
+            # Almost duplicate of first alignment - read 2
+            d2 = pysam.AlignedSegment()
+            d2.query_name = "VH00211:1:AAAGTM7HV:1:2513:14009:16962"
+            d2.query_sequence = (
+                "TGGACGCGTGCGCGCGTGGGTGCCGCGTCTTGGCTTGTGACTAGCGTTAGGAAATTACCCAAGATTATTGCATAATCTTCACCAGCTTGCTTTGATTCTTTTTTATGTTGGAAGT"
+            )
+            d2.flag = 163  # proper pair, second in pair, mate in reverse strand
+            d2.reference_id = 1  # index of the chromosome in the header
+            d2.reference_start = 91271713  # inside the UTR
+            d2.mapping_quality = 255
+            d2.cigar = ((0, 115),)
+            d2.next_reference_id = 0
+            d2.next_reference_start = 91271840  # inside the UTR by 9/10bp
+            d2.template_length = 207
+            d2.query_qualities = pysam.qualitystring_to_array(
+                "C-CCCCC--CC-CCCCCC;CCCCCC-CCCCCCCC;CCC-CCCC-CCC-C;CCCCCCCC-CCCCCCCCCC;CCCCCCCCCC-C-C-C-CC-CCCC-CCCC-CCCCCCCCCCC-CCC"
+            )
+            d2.tags = (("NM", 1),
+                       ("NM", 1))
+
+            # Almost duplicate of second alignment - read 1
+            e1 = pysam.AlignedSegment()
+            e1.query_name = "VH00211:1:AAAGTM7HV:1:1308:23628:30439"
+            e1.query_sequence = (
+                "GACTCTCCACAATGAAtGTTCTCGCAAAATAATACGTTCTCTAAAAACATATGTTTACGGTAGAGTCAGTCACCTTTATTCCAGGGTTAGAACAAGGCTGTGCACGCTGC"
+            )  # changed a C to T at position 17 (first position of the UMI)
+            e1.flag = 99  # proper pair, first in pair, mate in reverse strand
+            e1.reference_id = 0
+            e1.reference_start = 172196728  # inside the UTR by 0bp
+            e1.mapping_quality = 255
+            e1.cigar = ((4, 55), (0, 55))  # 16bp Barcode + 12bp UMI + 3'UTR
+            e1.next_reference_id = 0
+            e1.next_reference_start = 172196993  # outside the UTR
+            e1.template_length = 380
+            e1.query_qualities = pysam.qualitystring_to_array(
+                "CCCCCCCCCCCCCCC;CCCCCCCC;CCC;C---C----CC--C--;--;--C---;----;--CC------C--;C-;-;--;;-C---;-C---CC--C-C---C--CC"
+            )
+            e1.tags = (("NM", 0),
+                       ("NM", 0))
+            # Almost duplicate of second alignment - read 2
+            e2 = pysam.AlignedSegment()
+            e2.query_name = "VH00211:1:AAAGTM7HV:1:1308:23628:30439"
+            e2.query_sequence = (
+                "TCTCCCACCCAGTTGTACAAGGATTTCTTGTCTTAAAGGAGATGCCAGGCAAGACTAGGGAGATTTAGGAAGGACCTTTAAGGCAAAGCTGGAGTCTTCGAGGTGTGAGAGTTAA"
+            )
+            e2.flag = 147  # proper pair, second in pair, reverse strand
+            e2.reference_id = 0
+            e2.reference_start = 172196993  # outside the 5'UTR
+            e2.mapping_quality = 255
+            e2.cigar = ((0, 115),)  # from the gene body
+            e2.next_reference_id = 0
+            e2.next_reference_start = 172196728  # outside the UTR
+            e2.template_length = -380
+            e2.query_qualities = pysam.qualitystring_to_array(
+                "-CCC;CCC;C-;-CCCCC--CCCCC-CCC;CCCCCCCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCC;CCC-CCCCCCCCCCCCCCCCCCC;-C;CCCCCCCC;CCCCCCCCC"
+            )
+            e2.tags = (("NM", 0),
+                       ("NM", 0))
+
             # Write all read alignments to a bam file
-            for align in [a2, a1, b1, b2]:  # alignment order must be position sorted
+            # alignment order must be position sorted
+            for align in [a2, c2, d2, a1, c1, d1, b1, e1, b2, e2]:
                 outf.write(align)
 
         pysam.index(self.alignment)
