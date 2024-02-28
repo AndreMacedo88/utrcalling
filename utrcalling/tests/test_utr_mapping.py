@@ -457,30 +457,60 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
 class TestMapReadsToUtrSynthetic(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        utr_regions = {"utr_name": ["UTR1", "UTR2", "UTR2-1", "UTR3", "UTR4"],
-                       "chrom": [1, 1, 1, 1, 1],
-                       "start": [3102600, 3340260, 3154500, 3536770, 4846300],
-                       "end": [3102750, 3340670, 3154600, 3536840, 4846300],
-                       "name": ["UTR1", "UTR2", "UTR2", "UTR3", "UTR4"],
-                       "score": [0.0] * 5,
-                       "strand": ["+", "-", "+", "-", "+"],
-                       "transcript_id": ["UTR1_t", "UTR2_t", "UTR2_t", "UTR3_t", "UTR4_t"],
-                       "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"]
-                       }
+        utr_regions = {
+            "utr_name": [
+                "UTR1",
+                "UTR2",
+                "UTR3"
+            ],
+            "chrom": [
+                1,
+                1,
+                16,
+            ],
+            "start": [
+                3102600,
+                172196728,
+                91270659,
+            ],
+            "end": [
+                3102750,
+                172198626,
+                91271933,
+            ],
+            "name": [
+                "UTR1",
+                "UTR2",
+                "UTR3"
+            ],
+            "strand": [
+                "+",
+                "-",
+                "+",
+            ],
+            "transcript_id": [
+                "UTR1_t",
+                "UTR2_t",
+                "UTR3_t"
+            ],
+            "gene_name": [
+                "Gene1",
+                "Gene2",
+                "Gene3"
+            ],
+            "score": [0.0] * 3,
+        }
         utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
-        cls.data = synthetic_data.SmartSeqBam()
+        cls.data = synthetic_data.TenXBam()
 
 
-# TODO: this was copied over from Cap seq, modify it to take into account that reads are
-# matched from the end of the sequence and the read strand is assumed to be opposite of
-# the genome
-class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
+class TestTenXSynthetic(TestMapReadsToUtrSynthetic):
     def setUp(self) -> None:
         self.maxDiff = None
         protocol_ = protocol.create(
-            platform='smart-seq',
+            platform='10x',
             version=3,
             alignments=self.data.alignment,
             annotations="./test_data/smartseq3_anno.csv"
@@ -495,9 +525,17 @@ class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
             )
 
     def test_details(self):
+        size_true_sense = 172198626 - 172196728 - 1
+        size_true_anti = (91271840 + 80) - 91270659
         dict_true = {
-            'read_barcodes': [["ATTGCG"]],
-            'utr_sizes_from_reads': [[50]]
+            'read_barcodes': [
+                ["GACTCTCCACAATGAA", "GACTCTCCACAATGAA"],
+                ["TTCTTGACAAGTCATC", "TTCTTGACAAGTCATC"],
+            ],
+            'utr_sizes_from_reads': [
+                [size_true_sense, size_true_sense],
+                [size_true_anti, size_true_anti],
+            ]
         }
         self.assertDictEqual(
             self.mappings.to_dict(orient="list"), dict_true)
@@ -505,7 +543,7 @@ class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
     def test_length(self):
         self.assertEqual(self.mappings.shape[0], 2)
 
-# TODO: do similar class as TestSmartSeqPhosphoSynthetic, but for 10x to test UMI deduplication
+# TODO: do similar class as TestTenXSynthetic, but for smartseq to test UMI deduplication
 
 
 if __name__ == '__main__':
