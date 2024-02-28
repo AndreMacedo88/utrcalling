@@ -1,10 +1,14 @@
-from test_data import synthetic_data
-from utrcalling.core import protocol, utr_mapping, module_log
 import os
 from pathlib import Path
 import unittest
 
 import pandas as pd
+
+from utrcalling.tests.test_data import (
+    synthetic_data_smartseqcapseq,
+    synthetic_data_tenx,
+)
+from utrcalling.core import protocol, utr_mapping, module_log
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
@@ -421,7 +425,7 @@ class TestMapReadsToUtrSyntheticCap(unittest.TestCase):
         utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
-        cls.data = synthetic_data.SmartSeqCapSeqBam()
+        cls.data = synthetic_data_smartseqcapseq.SmartSeqCapSeqBam()
 
 
 class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
@@ -454,29 +458,29 @@ class TestSmartSeqCapPhosphoSynthetic(TestMapReadsToUtrSyntheticCap):
         self.assertEqual(self.mappings.shape[0], 2)
 
 
-class TestMapReadsToUtrSynthetic(unittest.TestCase):
+class TestMapReadsToUtrSyntheticTenX(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         utr_regions = {
             "utr_name": [
-                "UTR1",
+                "UTR1",  # UTR that has no reads mapping to it
                 "UTR2",
                 "UTR3"
             ],
             "chrom": [
                 1,
                 1,
-                16,
+                16,  # to test alternative chr
             ],
             "start": [
                 3102600,
-                172196728,
-                91270659,
+                172196728,  # Read 1 is inside the UTR by 0bp
+                91270659,  # Read 2 is inside the UTR
             ],
             "end": [
                 3102750,
-                172198626,
-                91271933,
+                172196828,  # Read 2 outside the UTR
+                91271933,  # Read 1 is inside the UTR by 13bp
             ],
             "name": [
                 "UTR1",
@@ -503,12 +507,12 @@ class TestMapReadsToUtrSynthetic(unittest.TestCase):
         utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
         cls.intervals = utr_mapping.generate_utr_intervals(
             utr_regions=utr_regions)
-        cls.data = synthetic_data.TenXBam()
 
 
-class TestTenXSynthetic(TestMapReadsToUtrSynthetic):
+class TestTenXv3Synthetic(TestMapReadsToUtrSyntheticTenX):
     def setUp(self) -> None:
         self.maxDiff = None
+        self.data = synthetic_data_tenx.TenXBam()
         protocol_ = protocol.create(
             platform='10x',
             version=3,
@@ -525,7 +529,7 @@ class TestTenXSynthetic(TestMapReadsToUtrSynthetic):
             )
 
     def test_details(self):
-        size_true_sense = 172198626 - 172196728 - 1
+        size_true_sense = 172196828 - 172196728 - 1
         size_true_anti = (91271840 + 80) - 91270659
         dict_true = {
             'read_barcodes': [
@@ -543,9 +547,49 @@ class TestTenXSynthetic(TestMapReadsToUtrSynthetic):
     def test_length(self):
         self.assertEqual(self.mappings.shape[0], 2)
 
+
+class TestTenXv2Synthetic(TestMapReadsToUtrSyntheticTenX):
+    def setUp(self) -> None:
+        self.maxDiff = None
+        self.data = synthetic_data_tenx.TenXBam()
+        protocol_ = protocol.create(
+            platform='10x',
+            version=2,
+            alignments=self.data.alignment,
+            annotations="./test_data/smartseq3_anno.csv"
+        )
+        with self.data:
+            self.mappings = utr_mapping.map_reads_to_utr(
+                self.data.alignment,
+                self.intervals,
+                protocol_,
+                read='first',
+                batch="Test",
+            )
+
+    def test_details(self):
+        size_true_sense = 172196828 - 172196728 - 1
+        size_true_anti = (91271840 + 80) - 91270659
+        dict_true = {
+            'read_barcodes': [
+                ["GACTCTCCACAATGAA", "GACTCTCCACAATGAA"],
+                ["TTCTTGACAAGTCATC", "TTCTTGACAAGTCATC"],
+            ],
+            'utr_sizes_from_reads': [
+                [size_true_sense, size_true_sense],
+                [size_true_anti, size_true_anti],
+            ]
+        }
+        self.assertDictEqual(
+            self.mappings.to_dict(orient="list"), dict_true)
+
+    def test_length(self):
+        self.assertEqual(self.mappings.shape[0], 2)
+
+
 # TODO: do similar class as TestTenXSynthetic, but for smartseq to test UMI deduplication
 
 
 if __name__ == '__main__':
-    unittest.main(exit=False, verbosity=2, buffer=False)
+    unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")
