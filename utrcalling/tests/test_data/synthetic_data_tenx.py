@@ -1,3 +1,9 @@
+"""
+This file contains objects that are specific to the 10x-based protocols.
+The goal is to use these objects to test the output of the tool's methods.
+They should represent real objects as closely as possible, while maintaining simplicity
+for test speed.
+"""
 import os
 from tempfile import mkstemp
 import pysam

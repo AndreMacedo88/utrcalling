@@ -1,3 +1,5 @@
+from utrcalling.tests.test_data import synthetic_data
+from utrcalling.core import core, module_log, protocol
 import os
 from pathlib import Path
 import cProfile
@@ -8,15 +10,14 @@ import pandas as pd
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import core, module_log, protocol
-from utrcalling.tests.test_data import synthetic_data
-
 
 class GeneratePeakCounts:
     def __init__(self) -> None:
         # create 2 sets of data
-        data_synthetic = synthetic_data.LargeThreePrimeBarcoded(size=(20000, 1000))
-        data_synthetic_2 = synthetic_data.LargeThreePrimeBarcoded(size=(20000, 1000))
+        data_synthetic = synthetic_data.RandomThreePrimeBarcoded(
+            size=(20000, 1000))
+        data_synthetic_2 = synthetic_data.RandomThreePrimeBarcoded(
+            size=(20000, 1000))
         self.data = [data_synthetic.data, data_synthetic_2.data]
         # change annotation sample_id to include batch
         anno_1 = data_synthetic.anno

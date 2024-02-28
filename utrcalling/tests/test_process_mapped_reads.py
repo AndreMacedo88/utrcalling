@@ -153,8 +153,9 @@ class TestSubsetReferenceData(TestPeakCalling):
 
 class TestMergeUtrsPerGene(unittest.TestCase):
     def setUp(self) -> None:
-        utr_regions = synthetic_data.UTR_REGIONS_MERGED
-        mapped_reads = synthetic_data.MAPPED_READS
+        mapped_data = synthetic_data.MappedData()
+        utr_regions = mapped_data.utr_regions
+        mapped_reads = mapped_data.mapped_reads
         self.utr_regions, self.merged_mapped_reads = process_mapped_reads.merge_utrs_per_gene(
             utr_regions=utr_regions, read_mappings=mapped_reads
         )
@@ -338,7 +339,7 @@ class TestFilterBarcodes(TestPeakCalling):
 
 class TestFilterBarcodesSynthetic(unittest.TestCase):
     def setUp(self) -> None:
-        data_synthetic = synthetic_data.ThreePrimeBarcoded()
+        data_synthetic = synthetic_data.MappedDataThreePrimeTenX()
         self.data = data_synthetic.data_synthetic
         self.anno = data_synthetic.anno
         self.filtered = process_mapped_reads.filter_barcodes(

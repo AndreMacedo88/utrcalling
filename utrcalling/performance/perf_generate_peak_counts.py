@@ -1,3 +1,5 @@
+from utrcalling.tests.test_data import synthetic_data
+from utrcalling.core import peak_calling, module_log, protocol
 import os
 from pathlib import Path
 import cProfile
@@ -6,13 +8,11 @@ import logging
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
-from utrcalling.core import peak_calling, module_log, protocol
-from utrcalling.tests.test_data import synthetic_data
-
 
 class GeneratePeakCounts:
     def __init__(self) -> None:
-        data_synthetic = synthetic_data.LargeThreePrimeBarcoded(size=(20000, 2000))
+        data_synthetic = synthetic_data.RandomThreePrimeBarcoded(
+            size=(20000, 2000))
         self.data = data_synthetic.data
         self.anno = data_synthetic.anno
         self.alignments = data_synthetic.alignments

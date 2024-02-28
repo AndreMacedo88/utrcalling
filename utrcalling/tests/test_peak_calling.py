@@ -110,7 +110,7 @@ class TestObs(TestGeneratePeakCounts):
 class TestGeneratePeakCountsSynthetic(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        data_filtered = synthetic_data.ThreePrimeBarcodedFiltered()
+        data_filtered = synthetic_data.MappedDataThreePrimeTenXFilteredBarcodes()
         cls.data = data_filtered._data_filtered
         anno = data_filtered._anno
         cls.protocol_ = protocol.create(
