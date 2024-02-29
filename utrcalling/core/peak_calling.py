@@ -88,12 +88,10 @@ def call_peaks(utr, func_):
         "peaks"].agg("count")
 
     # append this information to the containers created above
-    count = 1
     for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
         # generate a new name for each peak. Here, it's UTR name (which is gene name
         # plus a counter for each transcript UTR) plus a counter for each peak
-        peak_name = f'{utr.name}-{count}'
-        count += 1
+        peak_name = f"{utr.name}-{utr_size_at_peak}"
         # update the peak observations table
         peaks_var[peak_name] = utr_size_at_peak
         # update the peak count matrix
