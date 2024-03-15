@@ -17,6 +17,7 @@ from distutils.util import strtobool
 import re
 
 # data wrangling packages
+import numpy as np
 import pandas as pd
 from bidict import bidict
 
@@ -233,10 +234,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 None,
             )  # will make the rest of the protocol behave without batches
 
-        batches_df = self.annotations.loc[:, self.batch_column_name]
-        batches_list = batches_df.to_list()
-        batches_range, _ = pd.factorize(batches_df, sort=False)
-        batches_range = (batches_range + 1).astype(str)
+        batches_series = self.annotations.loc[:, self.batch_column_name]
+        batches_list = batches_series.to_list()
+        if np.issubdtype(batches_series.dtype, np.integer):
+            batches_range = batches_series.astype(str)
+        else:
+            batches_range, _ = pd.factorize(batches_series, sort=False)
+            batches_range = (batches_range + 1).astype(str)
         return batches_list, batches_range
 
     def _resolve_barcode_reuse_by_batch(self):
@@ -253,8 +257,8 @@ class Protocol(ABC, metaclass=CombinedMeta):
             return annotations
         elif self.label_batches:
             msg = (
-                "Please use a column in your annotation file with the"
-                " batch information"
+                "Please use a column in your annotation file with the "
+                "batch information"
             )
             self.logger.error(msg)
             raise KeyError(msg)
