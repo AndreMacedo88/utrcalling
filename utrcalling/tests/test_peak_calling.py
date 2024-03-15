@@ -166,6 +166,11 @@ class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
         non_zeros_count = np.count_nonzero(self.var)
         self.assertEqual(non_zeros_count, 6)
 
+    def test_utr_names(self):
+        lengths_names = self.var.index.str.split("-").str[1].astype(int).to_list()
+        print(lengths_names)
+        self.assertListEqual(lengths_names, self.var.utr_size.to_list())
+
 
 class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
@@ -222,5 +227,5 @@ class TestAnnData(TestGenerateCountMatrixAnndata):
 
 
 if __name__ == "__main__":
-    unittest.main(exit=False, verbosity=2, buffer=True)
+    unittest.main(exit=False, verbosity=2, buffer=False)
     module_log.log_end_run("Finished testing")
