@@ -1,24 +1,25 @@
 """
 This file contains objects that are specific to the 5' SmartSeq-based variant protocols,
-more specific the CapSeq protocol.
+more specifically the CapSeq protocol.
 The goal is to use these objects to test the output of the tool's methods.
 They should represent real objects as closely as possible, while maintaining simplicity
 for test speed.
 """
+
 import os
 from tempfile import mkstemp
 import pysam
 
 
-class SmartSeqCapSeqBam:
+class Bam:
     """
     Generates synthetic BAM alignment data in conformity with what a Cap-Seq would look
     like (5' smartseq-like)
 
     Notes:
-    - reverse strand read 1 will have the real 5'UTR start at `reference_start` + number 
+    - reverse strand read 1 will have the real 5'UTR start at `reference_start` + number
     of matches in the CIGAR string. This is because the bam file annotates the start and
-    the CIGAR string in relation to the genome, but since this read 1 is in the reverse 
+    the CIGAR string in relation to the genome, but since this read 1 is in the reverse
     strand the start is actually in the other side of the read (minus the soft clipped
     regions)
     """
@@ -28,20 +29,21 @@ class SmartSeqCapSeqBam:
 
     def enter(self):
         # set-up the temporary alignment file
-        header = {'HD': {'VN': '1.0'},
-                  'SQ': [{'LN': 1575, 'SN': '1'},
-                         {'LN': 1584, 'SN': '2'}]}
+        header = {
+            "HD": {"VN": "1.0"},
+            "SQ": [{"LN": 1575, "SN": "1"}, {"LN": 1584, "SN": "2"}],
+        }
 
         with pysam.AlignmentFile(self.alignment, "wb", header=header) as outf:
             # First alignment read 1
             a1 = pysam.AlignedSegment()
             a1.query_name = "VH00211:1:AAAFH3LHV:1:1403:73731:41910"
-            a1.query_sequence = (
-                "TGAGAGATAACCTTTGATCACTCCACAGGGCCTGGAAATGAGGGTTTTCAGGAAGAAAGGAATTCCAAACAATGTTTTCAAACACGCAGACATTGCGCAAT"
-            )
+            a1.query_sequence = "TGAGAGATAACCTTTGATCACTCCACAGGGCCTGGAAATGAGGGTTTTCAGGAAGAAAGGAATTCCAAACAATGTTTTCAAACACGCAGACATTGCGCAAT"
             a1.flag = 83  # proper pair, first in pair, reverse strand
             a1.reference_id = 0
-            a1.reference_start = 3340581  # Add 82 to get start. Inside the UTR by 9/10bp
+            a1.reference_start = (
+                3340581  # Add 82 to get start. Inside the UTR by 9/10bp
+            )
             a1.mapping_quality = 255
             a1.cigar = ((0, 82), (4, 19))
             a1.next_reference_id = 0
@@ -50,14 +52,11 @@ class SmartSeqCapSeqBam:
             a1.query_qualities = pysam.qualitystring_to_array(
                 "CCC;CCCCC;CCCCCC-;CCC-CCCCCCCC;CCCCCCCCCC-;CCCCCCCCCCCCCCCCCC-CCCCCCCCC-CCCCCCCCCCCCCCCCCCCC-CCCCC;C-"
             )
-            a1.tags = (("NM", 1),
-                       ("NM", 0))
+            a1.tags = (("NM", 1), ("NM", 0))
             # First alignment read 2
             a2 = pysam.AlignedSegment()
             a2.query_name = "VH00211:1:AAAFH3LHV:1:1403:73731:41910"
-            a2.query_sequence = (
-                "GTGTACTCTGTTTCACCATTTCTCTGTCAACTTCTGCCAACCCCTGATTTTTTTTTTATTTCCTCTACAGTTTTACCATTTTTCAGGATATTCTCTGTTAC"
-            )
+            a2.query_sequence = "GTGTACTCTGTTTCACCATTTCTCTGTCAACTTCTGCCAACCCCTGATTTTTTTTTTATTTCCTCTACAGTTTTACCATTTTTCAGGATATTCTCTGTTAC"
             a2.flag = 163  # proper pair, second in pair, mate in reverse strand
             a2.reference_id = 0
             a2.reference_start = 3340293  # inside the UTR by 9/10bp
@@ -69,15 +68,12 @@ class SmartSeqCapSeqBam:
             a2.query_qualities = pysam.qualitystring_to_array(
                 "CCCC;-CCCCCCCCCCCCC-CC;CCCCC;CC;;C-CCCC-CCCCCCCCCCCC;C-CC;CCCC-C-CC---CCCC;CC-CC-C----C-C-CC;CCCCCC;C"
             )
-            a2.tags = (("NM", 1),
-                       ("NM", 1))
+            a2.tags = (("NM", 1), ("NM", 1))
 
             # Second alignment read 1
             b1 = pysam.AlignedSegment()
             b1.query_name = "VH00211:1:AAAFH3LHV:2:1202:74811:33600"
-            b1.query_sequence = (
-                "ATTGCGCAATGTTGGCAGGCTGAATGCTGAGCATTCCCTTGGAGAGGACACAATGCCCTGAAAATGGATAGCAGTTCCCTTAATCTTCTTGTACTTATGGG"
-            )
+            b1.query_sequence = "ATTGCGCAATGTTGGCAGGCTGAATGCTGAGCATTCCCTTGGAGAGGACACAATGCCCTGAAAATGGATAGCAGTTCCCTTAATCTTCTTGTACTTATGGG"
             b1.flag = 99  # proper pair, first in pair, mate in reverse strand
             b1.reference_id = 0
             b1.reference_start = 3536771  # inside the UTR by 1bp
@@ -89,14 +85,11 @@ class SmartSeqCapSeqBam:
             b1.query_qualities = pysam.qualitystring_to_array(
                 "CCCCCCCC;CCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCC-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC-CCC-;CC;CCC-CCCCCC;C"
             )
-            b1.tags = (("NM", 0),
-                       ("NM", 0))
+            b1.tags = (("NM", 0), ("NM", 0))
             # Second alignment read 2
             b2 = pysam.AlignedSegment()
             b2.query_name = "VH00211:1:AAAFH3LHV:2:1202:74811:33600"
-            b2.query_sequence = (
-                "GGGAGGAAAGAGAAGAGGTGGAGATATGCCCGTGTGCAGTGAGATCTGTTGGATTCTAACGGCTTTGCCTGGATGGCATTTGAAATCTCCAACTCAGACAC"
-            )
+            b2.query_sequence = "GGGAGGAAAGAGAAGAGGTGGAGATATGCCCGTGTGCAGTGAGATCTGTTGGATTCTAACGGCTTTGCCTGGATGGCATTTGAAATCTCCAACTCAGACAC"
             b2.flag = 147  # proper pair, second in pair, reverse strand
             b2.reference_id = 0
             b2.reference_start = 3536850  # outside the 5'UTR
@@ -108,8 +101,7 @@ class SmartSeqCapSeqBam:
             b2.query_qualities = pysam.qualitystring_to_array(
                 "CCC;CCCCCCCCCCCCCCCCCCC;-CCCCCCCCCCC;CCCC;CCCCCCCCCCCC-CC;CCCCC-CCCCCCCCCCCCC;C-CCCCC;CCCCCCCCCCCCCCC"
             )
-            b2.tags = (("NM", 0),
-                       ("NM", 0))
+            b2.tags = (("NM", 0), ("NM", 0))
 
             # Write all read alignments to a bam file
             for align in [a2, a1, b1, b2]:  # alignment order must be position sorted

@@ -14,15 +14,15 @@ class GtfEnsembl:
         """
 
         header = (
-            '#!genome-build test_genome.p6\n'
-            '#!genome-version test_genome\n'
-            '#!genome-date 2023-05\n'
-            '#!genome-build-accession NCBI:test_accession.8\n'
-            '#!genebuild-last-updated 2023-05\n'
+            "#!genome-build test_genome.p6\n"
+            "#!genome-version test_genome\n"
+            "#!genome-date 2023-05\n"
+            "#!genome-build-accession NCBI:test_accession.8\n"
+            "#!genebuild-last-updated 2023-05\n"
         )
 
         feature_1 = (
-            '1	ensembl	three_prime_utr	1000	1100	.	+	0	'
+            "1	ensembl	three_prime_utr	1000	1100	.	+	0	"
             'gene_id "ENSMUSG1"; gene_version "5"; '
             'transcript_id "ENSMUST1"; transcript_version "4"; '
             'gene_name "Test1"; transcript_name "Test1-201"; '
@@ -30,7 +30,7 @@ class GtfEnsembl:
         )
 
         feature_2 = (
-            '1	ensembl	three_prime_utr	1200	1350	.	+	0	'
+            "1	ensembl	three_prime_utr	1200	1350	.	+	0	"
             'gene_id "ENSMUSG1"; gene_version "5"; '
             'transcript_id "ENSMUST1"; transcript_version "4"; '
             'gene_name "Test1"; transcript_name "Test1-201"; '
@@ -38,7 +38,7 @@ class GtfEnsembl:
         )
 
         feature_3 = (
-            '1	ensembl	three_prime_utr	1000	1100	.	+	0	'
+            "1	ensembl	three_prime_utr	1000	1100	.	+	0	"
             'gene_id "ENSMUSG1"; gene_version "5"; '
             'transcript_id "ENSMUST2"; transcript_version "1"; '
             'gene_name "Test1"; transcript_name "Test1-202"; '
@@ -46,7 +46,7 @@ class GtfEnsembl:
         )
 
         feature_4 = (
-            '1	ensembl	three_prime_utr	1150	1300	.	+	0	'
+            "1	ensembl	three_prime_utr	1150	1300	.	+	0	"
             'gene_id "ENSMUSG1"; gene_version "5"; '
             'transcript_id "ENSMUST2"; transcript_version "1"; '
             'gene_name "Test1"; transcript_name "Test1-202"; '
@@ -54,7 +54,7 @@ class GtfEnsembl:
         )
 
         feature_5 = (
-            '1	ensembl	three_prime_utr	2400	2600	.	-	0	'
+            "1	ensembl	three_prime_utr	2400	2600	.	-	0	"
             'gene_id "ENSMUSG2"; gene_version "2"; '
             'transcript_id "ENSMUST3"; transcript_version "4"; '
             'gene_name "Test2"; transcript_name "Test2-201"; '
@@ -62,7 +62,7 @@ class GtfEnsembl:
         )
 
         feature_6 = (
-            '1	ensembl	three_prime_utr	2000	2200	.	-	0	'
+            "1	ensembl	three_prime_utr	2000	2200	.	-	0	"
             'gene_id "ENSMUSG2"; gene_version "2"; '
             'transcript_id "ENSMUST3"; transcript_version "4"; '
             'gene_name "Test2"; transcript_name "Test2-201"; '
@@ -70,7 +70,7 @@ class GtfEnsembl:
         )
 
         feature_7 = (
-            '1	ensembl	three_prime_utr	2000	2100	.	-	0	'
+            "1	ensembl	three_prime_utr	2000	2100	.	-	0	"
             'gene_id "ENSMUSG2"; gene_version "2"; '
             'transcript_id "ENSMUST4"; transcript_version "3"; '
             'gene_name "Test2"; transcript_name "Test2-202"; '
@@ -78,7 +78,7 @@ class GtfEnsembl:
         )
 
         feature_8 = (
-            '1	ensembl	three_prime_utr	3000	3200	.	+	0	'
+            "1	ensembl	three_prime_utr	3000	3200	.	+	0	"
             'gene_id "ENSMUSG3"; gene_version "3"; '
             'transcript_id "ENSMUST5"; transcript_version "5"; '
             'gene_name "Test3"; transcript_name "Test3-201"; '
@@ -86,7 +86,7 @@ class GtfEnsembl:
         )
 
         feature_9 = (
-            '1	ensembl	three_prime_utr	500	600	.	+	0	'
+            "1	ensembl	three_prime_utr	500	600	.	+	0	"
             'gene_id "ENSMUSG4"; gene_version "1"; '
             'transcript_id "ENSMUST6"; transcript_version "2"; '
             'gene_name "Test4"; transcript_name "Test4-201"; '
@@ -94,7 +94,7 @@ class GtfEnsembl:
         )
 
         feature_10 = (
-            '1	ensembl	three_prime_utr	1200	1300	.	+	0	'
+            "1	ensembl	three_prime_utr	1200	1300	.	+	0	"
             'gene_id "ENSMUSG4"; gene_version "1"; '
             'transcript_id "ENSMUST6"; transcript_version "2"; '
             'gene_name "Test4"; transcript_name "Test4-201"; '
@@ -102,7 +102,7 @@ class GtfEnsembl:
         )
 
         feature_11 = (
-            '1	ensembl	three_prime_utr	500	650	.	-	0	'
+            "1	ensembl	three_prime_utr	500	650	.	-	0	"
             'gene_id "ENSMUSG5"; gene_version "7"; '
             'transcript_id "ENSMUST7"; transcript_version "7"; '
             'gene_name "Test5"; transcript_name "Test5-201"; '
@@ -110,16 +110,27 @@ class GtfEnsembl:
         )
 
         feature_12 = (
-            '1	ensembl	three_prime_utr	1200	1300	.	-	0	'
+            "1	ensembl	three_prime_utr	1200	1300	.	-	0	"
             'gene_id "ENSMUSG5"; gene_version "7"; '
             'transcript_id "ENSMUST7"; transcript_version "7"; '
             'gene_name "Test5"; transcript_name "Test5-201"; '
             'protein_id "ENSMUSP7"; protein_version "1";\n'
         )
 
-        features = feature_1 + feature_2 + feature_3 + feature_4 + feature_5 + \
-            feature_6 + feature_7 + feature_8 + feature_9 + feature_10 + \
-            feature_11 + feature_12
+        features = (
+            feature_1
+            + feature_2
+            + feature_3
+            + feature_4
+            + feature_5
+            + feature_6
+            + feature_7
+            + feature_8
+            + feature_9
+            + feature_10
+            + feature_11
+            + feature_12
+        )
 
         with os.fdopen(self.fd, "w") as f:
             f.writelines(header + features)
