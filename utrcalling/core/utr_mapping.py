@@ -172,7 +172,8 @@ def deduplicate_reads_old(read_umis, read_info):
 
 def extract_read_information(alignment, interval, protocol, bam_name):
     """
-    Extracts all the relevant information from matching reads in a HTSeq.Alignment object.
+    Extracts all the relevant information from matching reads in a HTSeq.Alignment
+    object.
 
     Args:
         alignment (HTSeq.Alignment): The read alignment object.
@@ -188,7 +189,7 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     # get the read starting position. This may, or may not, be the match start position
     read_start_position = alignment.iv.start_d
 
-    # if the start of the read is not in the reference UTR region then we discard the read
+    # if the start of the read is not in the reference UTR region then we discard it
     if interval.strand == "+":
         if not (
             read_start_position >= interval.start_d

@@ -54,6 +54,7 @@ def generate_peak_counts_and_anno(
         for count_mtx in count_matrix_list
     ]
     count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+
     del count_matrix_list  # Free some RAM
     count_matrix = count_matrix.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
 
@@ -90,7 +91,7 @@ def call_peaks(utr, func_):
     # append this information to the containers created above
     for utr_size_at_peak, barcodes in info_grouped_by_peaks.groupby(level=0):
         # generate a new name for each peak. Here, it's UTR name (which is gene name
-        # plus a counter for each transcript UTR) plus a counter for each peak
+        # plus a counter for each transcript UTR) followed by the peak UTR length
         peak_name = f"{utr.name}-{utr_size_at_peak}"
         # update the peak observations table
         peaks_var[peak_name] = utr_size_at_peak

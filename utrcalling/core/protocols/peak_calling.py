@@ -60,7 +60,8 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=12):
         )
 
     # create a container to hold the UTR peak sizes
-    peaks = np.zeros(len(utr_sizes_vector))
+    peaks = np.zeros(len(utr_sizes_vector), dtype=np.uint32)
+
     # attribute a peak to each cell according to their UTR sizes and the kde model:
     # first iterate over the function' minima
     idx_minimum = 0  # for the unbound warning... change it in the future!
