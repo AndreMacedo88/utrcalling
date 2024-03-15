@@ -40,9 +40,7 @@ def create_parser():
         description="Suite of tools to map reads to the UTR."
     )
     parser.add_argument(
-        '--version', '-V',
-        action='version',
-        version=f"Software version: {version}"
+        "--version", "-V", action="version", version=f"Software version: {version}"
     )
 
     # start adding all the subparsers/commands

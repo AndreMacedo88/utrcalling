@@ -25,13 +25,17 @@ first_forward_proper_notprimary = "VH00211:1:AAANLLGHV:1:2614:73334:12094	355	1	
 
 second_reverse_proper_primary = "VH00211:1:AAANLLGHV:2:2510:26658:20102	147	1	14489	1	100M	=	14404	-185	CCCCCCATGGAGCACAGGCAGACAGAAGTCCCCGCCCCAGCTGTGTGGCCTCAAGCCAGCCTTCCGCTCCTTGAAGCTGGTCTCCACACAGTGCTGGTTC	CCCCCCCCCCCCC;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;C-CCCCC;CCCCCCC;CCCCCCCCCCCCCC;	NH:i:3	HI:i:1	AS:i:184	nM:i:6	NM:i:0	MD:Z:100	jM:B:c,-1	jI:B:i,-1	MC:Z:32S98M"
 
-print("\n".join([
-    header,
-    first_forward_proper_primary,
-    first_reverse_proper_primary,
-    first_forward_unmapped,
-    first_reverse_unmapped,
-    first_forward_notproper,
-    first_forward_proper_notprimary,
-    second_reverse_proper_primary
-]))
+print(
+    "\n".join(
+        [
+            header,
+            first_forward_proper_primary,
+            first_reverse_proper_primary,
+            first_forward_unmapped,
+            first_reverse_unmapped,
+            first_forward_notproper,
+            first_forward_proper_notprimary,
+            second_reverse_proper_primary,
+        ]
+    )
+)

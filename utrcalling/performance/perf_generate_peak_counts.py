@@ -11,13 +11,12 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 
 class GeneratePeakCounts:
     def __init__(self) -> None:
-        data_synthetic = synthetic_data.RandomThreePrimeBarcoded(
-            size=(20000, 2000))
+        data_synthetic = synthetic_data.RandomThreePrimeBarcoded(size=(20000, 2000))
         self.data = data_synthetic.data
         self.anno = data_synthetic.anno
         self.alignments = data_synthetic.alignments
         self.protocol = protocol.create(
-            platform='smartseq',
+            platform="smartseq",
             version=3,
             annotations=self.anno,
             alignments=self.alignments,
@@ -26,9 +25,7 @@ class GeneratePeakCounts:
 
     def perf_test(self):
         peak_calling.generate_peak_counts_and_anno(
-            utr_sizes=self.data,
-            annotations=self.anno,
-            func=self.protocol.peak_calling
+            utr_sizes=self.data, annotations=self.anno, func=self.protocol.peak_calling
         )
 
 
@@ -54,5 +51,5 @@ def generate_peak_counts_perf(lines):
     cum_time.print_stats(lines)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     generate_peak_counts_perf(lines=10)

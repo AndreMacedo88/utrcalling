@@ -1,4 +1,3 @@
-
 from typing import Callable
 
 import numpy as np
@@ -9,18 +8,14 @@ from scipy.signal import argrelextrema
 # Methods to aggregate individual molecules' UTR sizes to consensus peaks:
 
 
-def get_caller(method: str
-               ) -> Callable[[npt.ArrayLike, int], npt.ArrayLike]:
+def get_caller(method: str) -> Callable[[npt.ArrayLike, int], npt.ArrayLike]:
 
     method = method.lower()
     if method == "kde":
         return call_peaks_using_kernel_density_estimator
     else:
         raise NotImplementedError(
-            (
-                f"Method {method} for calling consensus peaks is not "
-                f"implemented."
-            )
+            (f"Method {method} for calling consensus peaks is not " f"implemented.")
         )
 
 
@@ -42,13 +37,12 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=12):
     if np.ndim(utr_sizes_vector) == 1:
         utr_sizes_vector = utr_sizes_vector.reshape(-1, 1)
 
-    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(utr_sizes_vector)
+    kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(utr_sizes_vector)
 
     # calculate an appropriate window to check the model
     minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
     padding = max((maximum_size - minimum_size) * 0.1, 10)
-    window = np.arange(round(minimum_size - padding),
-                       round(maximum_size + padding) + 1)
+    window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
     # get the model predictions for that window. Specifically, the extrema.
     evaluation = kde.score_samples(window.reshape(-1, 1))
     minima = argrelextrema(evaluation, np.less_equal, order=1)[0][1:]
@@ -60,8 +54,10 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=12):
     maxima = [maximum for maximum in maxima if maximum - 1 not in maxima]
 
     if minima[0] < maxima[0]:
-        raise RuntimeError("First minima is larger than the first maxima. \
-            Peak calling using this method is incorrect for this UTR.")
+        raise RuntimeError(
+            "First minima is larger than the first maxima. \
+            Peak calling using this method is incorrect for this UTR."
+        )
 
     # create a container to hold the UTR peak sizes
     peaks = np.zeros(len(utr_sizes_vector))

@@ -27,13 +27,17 @@ first_forward_proper_notprimary = "VH00211:1:AAAFH3LHV:1:1414:24082:40472_CACCAG
 # Fake 147
 second_reverse_proper_primary = "VH00211:1:AAAFH3LHV:2:1612:27169:50297_TTCAGACG	147	1	3152962	0	81M	=	3152913	-130	ATTCAGAGACAATATCCTTTTATTACTTAGGGTTTTAGTTTACTACAAAAGTTTCTACAAAAAATAAAGAAAGCTTTTATA	CCCCCCCCCC;C-CCCCCC;CCCC;C;CCCCCC;CC-C;CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC;CCCC-;;C	NH:i:9	HI:i:4	AS:i:178	nM:i:1	NM:i:0	MD:Z:81	jM:B:c,-1	jI:B:i,-1	MC:Z:101M"
 
-print("\n".join([
-    header,
-    first_forward_proper_primary,
-    first_reverse_proper_primary,
-    first_forward_unmapped,
-    first_reverse_unmapped,
-    first_forward_notproper,
-    first_forward_proper_notprimary,
-    second_reverse_proper_primary
-]))
+print(
+    "\n".join(
+        [
+            header,
+            first_forward_proper_primary,
+            first_reverse_proper_primary,
+            first_forward_unmapped,
+            first_reverse_unmapped,
+            first_forward_notproper,
+            first_forward_proper_notprimary,
+            second_reverse_proper_primary,
+        ]
+    )
+)

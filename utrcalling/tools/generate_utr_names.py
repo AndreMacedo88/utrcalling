@@ -1,5 +1,6 @@
 # import general tools
 import argparse
+
 # import internal tools
 from utrcalling.core import anndata_processing as ap
 from utrcalling.core import helpers
@@ -8,9 +9,7 @@ from utrcalling.core import helpers
 def generate_names(input_path, out_path, utr_name_column, gene_name_column):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata = ap.generate_utr_site_names_from_gene_name(
-        adata=adata,
-        utr_name_column=utr_name_column,
-        gene_name_column=gene_name_column
+        adata=adata, utr_name_column=utr_name_column, gene_name_column=gene_name_column
     )
 
     # Write the data to disk
@@ -40,19 +39,33 @@ def create_parser(subparsers):
     Example use:
     $ utrcalling generate-names adata_old.h5ad adata_new_names.h5ad
     """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
-    parser.add_argument("input_path", type=str,
-                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument(
+        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
+    )
 
     parser.add_argument("out_path", type=str, help="Path where output will be stored.")
 
-    parser.add_argument("--utr_name_column", "-u", type=str, help="""
+    parser.add_argument(
+        "--utr_name_column",
+        "-u",
+        type=str,
+        help="""
         Name of the column in the AnnData object that contains the UTR name.
-        """, default="utr_name")
+        """,
+        default="utr_name",
+    )
 
-    parser.add_argument("--gene_name_column", "-g", type=str, help="""
+    parser.add_argument(
+        "--gene_name_column",
+        "-g",
+        type=str,
+        help="""
         Name of the column in the AnnData object that contains the gene name.
-        """, default="gene_name")
+        """,
+        default="gene_name",
+    )
 
     parser.set_defaults(func=generate_names)

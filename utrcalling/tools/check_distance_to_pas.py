@@ -2,6 +2,7 @@
 import argparse
 import joblib
 import pybedtools
+
 # import internal tools
 from utrcalling.core import peak_calling_anndata as pc
 from utrcalling.core import helpers
@@ -37,17 +38,25 @@ def create_parser(subparsers):
     $ utrcalling check-distance-to-pas adata.h5ad distances_to_pas.joblib
         Homo_sapiens.GRCh38.dna.primary_assembly.fa -H 0
     """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
-    parser.add_argument("input_path", type=str,
-                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument(
+        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
+    )
     parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-    parser.add_argument("genome_path", type=str,
-                        help="Path to a genome file (fasta format).")
-    parser.add_argument("-H", "--hamming", type=int, default=0,
-                        help="""
+    parser.add_argument(
+        "genome_path", type=str, help="Path to a genome file (fasta format)."
+    )
+    parser.add_argument(
+        "-H",
+        "--hamming",
+        type=int,
+        default=0,
+        help="""
                         Number of differences to the canonical PAS hexamer (AATAAA)
                         that can be tolerated
-                        """)
+                        """,
+    )
 
     parser.set_defaults(func=check_distance_to_pas)

@@ -10,11 +10,14 @@ import re
 from functools import partial
 import psutil
 from pympler import asizeof
+
 # data handling tools
 import HTSeq
 import pandas as pd
+
 # QOL tools
 from tqdm import tqdm as std_tqdm
+
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 
@@ -22,22 +25,25 @@ def generate_utr_intervals(utr_regions):
     logger = module_logger()
     intervals = dict()
 
-    logger.info('Generating genomic interval for UTR number')
+    logger.info("Generating genomic interval for UTR number")
     utrs = utr_regions.itertuples()
-    for utr in tqdm(utrs, total=len(utr_regions), colour="#ffb700", ascii=" ■", desc="UTR: "):
+    for utr in tqdm(
+        utrs, total=len(utr_regions), colour="#ffb700", ascii=" ■", desc="UTR: "
+    ):
         try:
             intervals[utr.Index] = HTSeq.GenomicInterval(
-                utr.chrom, utr.start - 1, utr.end, utr.strand)
+                utr.chrom, utr.start - 1, utr.end, utr.strand
+            )
         except TypeError:
             intervals[utr.Index] = HTSeq.GenomicInterval(
-                str(utr.chrom), utr.start - 1, utr.end, utr.strand)
+                str(utr.chrom), utr.start - 1, utr.end, utr.strand
+            )
     return intervals
 
 
-def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
+def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
     logger = module_logger()
-    logger.info(
-        "Extracting reads from %s and mapping them to the reference UTR", bam)
+    logger.info("Extracting reads from %s and mapping them to the reference UTR", bam)
 
     label_batches = protocol.label_batches
 
@@ -48,34 +54,36 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
     mapping_stats = {
         "Reads mapped to the region of interest": 0,
         read_strand_string: 0,
-        "Alignments not proper pair": 0, "PCR duplicates": 0,
+        "Alignments not proper pair": 0,
+        "PCR duplicates": 0,
         "Alignments not primary alignment": 0,
-        "Alignments in interval but wrong strand": 0
+        "Alignments in interval but wrong strand": 0,
     }
     if label_batches and batch is None:  # TODO: make this general
         for record in bam_file:
-            batch_name = re.search(r"([\w|-]*:\w*:[\w|-]*):.*",  # TODO: make this general
-                                   record.get_sam_line()).group(1)
+            batch_name = re.search(
+                r"([\w|-]*:\w*:[\w|-]*):.*",  # TODO: make this general
+                record.get_sam_line(),
+            ).group(1)
             break
         try:
             batch = protocol.batch_codes.get(batch_name, None)
         except AttributeError:
             logger.warning(
                 "Batch ID for sample %s was not able to be extracted. "
-                "Please check if this behaviour is intended.", bam
+                "Please check if this behaviour is intended.",
+                bam,
             )
             batch = None
 
-    for name, interval in tqdm(intervals.items(), colour="#ffb700", ascii=" ■",
-                               desc="Interval: "):
+    for name, interval in tqdm(
+        intervals.items(), colour="#ffb700", ascii=" ■", desc="Interval: "
+    ):
         read_barcodes = []
         read_umis = []
         utr_sizes_from_reads = []
 
-        mapped_read_information = [
-            read_barcodes,
-            utr_sizes_from_reads
-        ]
+        mapped_read_information = [read_barcodes, utr_sizes_from_reads]
         try:
             # BAM_Reader[GenomicInterval] is a generator
             for alignment in bam_file[interval]:
@@ -89,15 +97,16 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
                 elif alignment.not_primary_alignment:
                     mapping_stats["Alignments not primary alignment"] += 1
                 elif not protocol.check_strand_matches(
-                    alignment.iv.strand,
-                    interval.strand
+                    alignment.iv.strand, interval.strand
                 ):
                     mapping_stats["Alignments in interval but wrong strand"] += 1
                 else:
-                    read_info = extract_read_information(alignment=alignment,
-                                                         interval=interval,
-                                                         protocol=protocol,
-                                                         bam_name=bam)
+                    read_info = extract_read_information(
+                        alignment=alignment,
+                        interval=interval,
+                        protocol=protocol,
+                        bam_name=bam,
+                    )
                     if read_info is None:
                         continue
                     else:
@@ -121,16 +130,18 @@ def map_reads_to_utr(bam, intervals, protocol, read='first', batch=None):
     del bam_file
 
     utr_mappings = pd.DataFrame.from_dict(
-        utr_mappings, orient="index",
-        columns=["read_barcodes", "utr_sizes_from_reads"])
+        utr_mappings, orient="index", columns=["read_barcodes", "utr_sizes_from_reads"]
+    )
 
     utr_mappings.index.name = "utr_name"
 
     # most performant method to log
     logger.info("Mapping statistics: %s", mapping_stats)
-    logger.debug("Size of mapped reads object in bytes: %s \nMemory usage: %s",
-                 asizeof.asizeof(utr_mappings),
-                 psutil.virtual_memory().percent)
+    logger.debug(
+        "Size of mapped reads object in bytes: %s \nMemory usage: %s",
+        asizeof.asizeof(utr_mappings),
+        psutil.virtual_memory().percent,
+    )
 
     return utr_mappings
 
@@ -143,9 +154,7 @@ def deduplicate_reads(read_umis, read_info):
         if umi not in umis_unique.get(barcode):
             idx_unique.append(idx)
             umis_unique[barcode].append(umi)
-    read_info_output = [
-        [element[i] for i in idx_unique] for element in read_info
-    ]
+    read_info_output = [[element[i] for i in idx_unique] for element in read_info]
     return read_info_output
 
 
@@ -157,9 +166,7 @@ def deduplicate_reads_old(read_umis, read_info):
         if umi not in umis_unique:
             idx_unique.append(idx)
             umis_unique.append(umi)
-    read_info = [
-        [element[i] for i in idx_unique] for element in read_info
-    ]
+    read_info = [[element[i] for i in idx_unique] for element in read_info]
     return read_info
 
 
@@ -182,24 +189,32 @@ def extract_read_information(alignment, interval, protocol, bam_name):
     read_start_position = alignment.iv.start_d
 
     # if the start of the read is not in the reference UTR region then we discard the read
-    if interval.strand == '+':
-        if not (read_start_position >= interval.start_d and read_start_position <= interval.end_d):
+    if interval.strand == "+":
+        if not (
+            read_start_position >= interval.start_d
+            and read_start_position <= interval.end_d
+        ):
             return None
     else:
-        if not (read_start_position <= interval.start_d and read_start_position >= interval.end_d):
+        if not (
+            read_start_position <= interval.start_d
+            and read_start_position >= interval.end_d
+        ):
             return None
 
     # get the read's barcode and UMI
-    read_umi, read_barcode = protocol.get_reads_identity(alignment=alignment,
-                                                         bam_name=bam_name)
+    read_umi, read_barcode = protocol.get_reads_identity(
+        alignment=alignment, bam_name=bam_name
+    )
     if not read_umi:  # if the UMI was not found, we discard the read
         return None
     if not read_barcode:
         return None
 
     # get the computed size of the UTR for this molecule
-    utr_size = protocol.get_utr_size_from_read(read_start_position=read_start_position,
-                                               interval=interval)
+    utr_size = protocol.get_utr_size_from_read(
+        read_start_position=read_start_position, interval=interval
+    )
 
     information = read_barcode, read_umi, utr_size
 

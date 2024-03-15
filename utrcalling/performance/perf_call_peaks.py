@@ -14,14 +14,12 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 class GeneratePeakCounts:
     def __init__(self) -> None:
         # create 2 sets of data
-        data_synthetic = synthetic_data.RandomThreePrimeBarcoded(
-            size=(20000, 1000))
-        data_synthetic_2 = synthetic_data.RandomThreePrimeBarcoded(
-            size=(20000, 1000))
+        data_synthetic = synthetic_data.RandomThreePrimeBarcoded(size=(20000, 1000))
+        data_synthetic_2 = synthetic_data.RandomThreePrimeBarcoded(size=(20000, 1000))
         self.data = [data_synthetic.data, data_synthetic_2.data]
         # change annotation sample_id to include batch
         anno_1 = data_synthetic.anno
-        anno_1.sample_id = anno_1.sample_id + anno_1. batch.astype(str)
+        anno_1.sample_id = anno_1.sample_id + anno_1.batch.astype(str)
 
         # change the annotation of the second to mimic a second batch
         anno_2 = data_synthetic_2.anno
@@ -31,7 +29,7 @@ class GeneratePeakCounts:
         self.alignments = self.anno.sample_id.to_list()
 
         self.protocol = protocol.create(
-            platform='smartseq',
+            platform="smartseq",
             version=3,
             annotations=self.anno,
             alignments=self.alignments,
@@ -69,5 +67,5 @@ def generate_peak_counts_perf(lines):
     cum_time.print_stats(lines)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     generate_peak_counts_perf(lines=10)

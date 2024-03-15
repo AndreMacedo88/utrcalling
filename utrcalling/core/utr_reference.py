@@ -20,7 +20,7 @@ def open_gtf(gtf_file):
         gtf_file (typing.BinaryIO): Gene annotation file in GTF format.
     """
     logger = module_logger()
-    logger.info('Parsing GTF reference file, may take a minute')
+    logger.info("Parsing GTF reference file, may take a minute")
 
     if gtf_file.endswith(".gz"):
         with gzip.open(gtf_file) as f:
@@ -28,7 +28,7 @@ def open_gtf(gtf_file):
     else:
         gtf_df = read_gtf(gtf_file)
 
-    logger.info('Finished parsing GTF file')
+    logger.info("Finished parsing GTF file")
     return gtf_df
 
 
@@ -41,30 +41,29 @@ def extract_feature(gtf_df, feature):
         feature (str): Feature to filter. e.g. three_prime_utr, five_prime_utr.
     """
     logger = module_logger()
-    logger.info(
-        'Filtering GTF reference file to retrieve only the UTR annotations'
-    )
+    logger.info("Filtering GTF reference file to retrieve only the UTR annotations")
 
     utr_df = gtf_df[gtf_df["feature"] == feature]
     return utr_df
 
 
 def prepare_annotations_index(annotations_extra):
-    main = ['seqname', 'start', 'end']
+    main = ["seqname", "start", "end"]
     annotations_columns = main + annotations_extra
-    annotations_index = list(
-        range(len(main) + 1, len(annotations_columns) + 1))
+    annotations_index = list(range(len(main) + 1, len(annotations_columns) + 1))
     return annotations_columns, annotations_index
 
 
 def reduce_regions(bed, annotations_index=[], operation_list=[]):
     logger = module_logger()
     if not operation_list:
-        operations = ['distinct', ] * len(annotations_index)
+        operations = [
+            "distinct",
+        ] * len(annotations_index)
     else:
         operations = operation_list
 
-    logger.info('Merging overlapping UTR regions')
+    logger.info("Merging overlapping UTR regions")
     bed_merged = bed.merge(c=annotations_index, o=operations, s=True)
     return bed_merged
 
@@ -81,8 +80,7 @@ def turn_utr_bed_to_dataframe(utr_table):
 
 def generate_utr_name(utr_df):
     if not isinstance(utr_df, pd.DataFrame):
-        raise TypeError(
-            f"Please turn your {type(utr_df)} object to a pandas DataFrame")
+        raise TypeError(f"Please turn your {type(utr_df)} object to a pandas DataFrame")
     # sort by name so that name incrementation is handled correctly later on.
     utr_df.sort_values(by=["chrom", "start", "end"], inplace=True)
 
@@ -92,20 +90,21 @@ def generate_utr_name(utr_df):
         name_next = row.name
         if name_next in names_dict:
             names_dict[name_next] += 1
-            name = f'{name_next}_{names_dict[name_next]}'
+            name = f"{name_next}_{names_dict[name_next]}"
         else:
             names_dict[name_next] = 1
             name = name_next
         names_list.append(name)
 
-    utr_df['utr_name'] = names_list
-    utr_df = utr_df.set_index('utr_name')
+    utr_df["utr_name"] = names_list
+    utr_df = utr_df.set_index("utr_name")
     return utr_df
 
 
 def correct_column_names(utr_df):
-    utr_df = utr_df.rename(columns={'thickStart': 'transcript_id',
-                                    'thickEnd': 'gene_name'})
+    utr_df = utr_df.rename(
+        columns={"thickStart": "transcript_id", "thickEnd": "gene_name"}
+    )
     return utr_df
 
 

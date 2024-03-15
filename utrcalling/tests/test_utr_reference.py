@@ -30,39 +30,47 @@ class TestExtractFeature(unittest.TestCase):
         self.gtf_df = utr_reference.open_gtf(path)
 
     def test_three_prime(self) -> None:
-        annotations = utr_reference.extract_feature(
-            self.gtf_df, 'three_prime_utr')
+        annotations = utr_reference.extract_feature(self.gtf_df, "three_prime_utr")
         feature_list = annotations["feature"].unique().tolist()
-        self.assertListEqual(feature_list, ['three_prime_utr'])
+        self.assertListEqual(feature_list, ["three_prime_utr"])
 
     def test_five_prime(self) -> None:
-        annotations = utr_reference.extract_feature(
-            self.gtf_df, 'five_prime_utr')
+        annotations = utr_reference.extract_feature(self.gtf_df, "five_prime_utr")
         feature_list = annotations["feature"].unique().tolist()
-        self.assertListEqual(feature_list, ['five_prime_utr'])
+        self.assertListEqual(feature_list, ["five_prime_utr"])
 
 
 class TestPrepareAnnotationsIndex(unittest.TestCase):
     def setUp(self) -> None:
-        self.annotations = ['gene_id', 'score', 'strand', 'transcript_id']
+        self.annotations = ["gene_id", "score", "strand", "transcript_id"]
 
     def test_columns(self) -> None:
-        ann_columns, _ = utr_reference.prepare_annotations_index(
-            self.annotations)
-        self.assertListEqual(ann_columns, ['seqname', 'start', 'end', 'gene_id',
-                                           'score', 'strand', 'transcript_id'])
+        ann_columns, _ = utr_reference.prepare_annotations_index(self.annotations)
+        self.assertListEqual(
+            ann_columns,
+            ["seqname", "start", "end", "gene_id", "score", "strand", "transcript_id"],
+        )
 
     def test_index(self) -> None:
-        _, ann_index = utr_reference.prepare_annotations_index(
-            self.annotations)
+        _, ann_index = utr_reference.prepare_annotations_index(self.annotations)
         self.assertListEqual(ann_index, [4, 5, 6, 7])
 
     def test_different_annotations(self) -> None:
-        annotations = self.annotations + ['gene_name']
-        ann_columns, _ = utr_reference.prepare_annotations_index(
-            annotations)
-        self.assertListEqual(ann_columns, ['seqname', 'start', 'end', 'gene_id',
-                                           'score', 'strand', 'transcript_id', 'gene_name'])
+        annotations = self.annotations + ["gene_name"]
+        ann_columns, _ = utr_reference.prepare_annotations_index(annotations)
+        self.assertListEqual(
+            ann_columns,
+            [
+                "seqname",
+                "start",
+                "end",
+                "gene_id",
+                "score",
+                "strand",
+                "transcript_id",
+                "gene_name",
+            ],
+        )
 
 
 class TestReduceRegions(unittest.TestCase):
@@ -70,18 +78,18 @@ class TestReduceRegions(unittest.TestCase):
     def setUpClass(cls) -> None:
         gtf_path = "../tests/test_data/test_mus_musculus_GRCm38_102.gtf"
         gtf_df = utr_reference.open_gtf(gtf_path)
-        utr = utr_reference.extract_feature(gtf_df, 'three_prime_utr')
-        cls.utr = utr.sort_values(
-            by=['seqname', 'start'])  # sort for bed merge
+        utr = utr_reference.extract_feature(gtf_df, "three_prime_utr")
+        cls.utr = utr.sort_values(by=["seqname", "start"])  # sort for bed merge
 
 
 class TestReduceRegionsStandard(TestReduceRegions):
     def setUp(self) -> None:
-        annotations = ['gene_id', 'score', 'strand', 'transcript_id']
+        annotations = ["gene_id", "score", "strand", "transcript_id"]
         columns, ann_idx = utr_reference.prepare_annotations_index(annotations)
         utr_bed = pybedtools.BedTool.from_dataframe(self.utr, columns=columns)
         self.utr_reduced = utr_reference.reduce_regions(
-            utr_bed, annotations_index=ann_idx)
+            utr_bed, annotations_index=ann_idx
+        )
 
     def test_number_of_features(self) -> None:
         """
@@ -92,30 +100,37 @@ class TestReduceRegionsStandard(TestReduceRegions):
 
     def test_number_of_fields(self) -> None:
         """
-        Number of fields in the annotation BED file should be equal to the optional 
+        Number of fields in the annotation BED file should be equal to the optional
         fields (in variable 'annotations') plus the mandatory fields 'seqname', 'start',
-        'end' and finally the count field, that tell us how many features were merged 
+        'end' and finally the count field, that tell us how many features were merged
         at each new feature (row).
         """
         self.assertEqual(self.utr_reduced.field_count(1), 7)
 
     def test_fields_are_proper(self) -> None:
-        proper_fields = ['1', '7160892', '7161063', 'ENSMUSG00000051285', '.', '+',
-                         'ENSMUST00000182675']
+        proper_fields = [
+            "1",
+            "7160892",
+            "7161063",
+            "ENSMUSG00000051285",
+            ".",
+            "+",
+            "ENSMUST00000182675",
+        ]
         self.assertListEqual(self.utr_reduced[0].fields, proper_fields)
 
     def test_strand_is_correct(self) -> None:
-        self.assertEqual(self.utr_reduced[0].strand, '+')
+        self.assertEqual(self.utr_reduced[0].strand, "+")
 
 
 class TestReduceRegionsExtended(TestReduceRegions):
     def setUp(self) -> None:
-        annotations = ['gene_id', 'score',
-                       'strand', 'transcript_id', 'gene_name']
+        annotations = ["gene_id", "score", "strand", "transcript_id", "gene_name"]
         columns, ann_idx = utr_reference.prepare_annotations_index(annotations)
         utr_bed = pybedtools.BedTool.from_dataframe(self.utr, columns=columns)
         self.utr_reduced = utr_reference.reduce_regions(
-            utr_bed, annotations_index=ann_idx)
+            utr_bed, annotations_index=ann_idx
+        )
 
     def test_number_of_features(self) -> None:
         """
@@ -126,20 +141,28 @@ class TestReduceRegionsExtended(TestReduceRegions):
 
     def test_number_of_fields(self) -> None:
         """
-        Number of fields in the annotation BED file should be equal to the optional 
+        Number of fields in the annotation BED file should be equal to the optional
         fields (in variable 'annotations') plus the mandatory fields 'seqname', 'start',
-        'end' and finally the count field, that tell us how many features were merged 
+        'end' and finally the count field, that tell us how many features were merged
         at each new feature (row).
         """
         self.assertEqual(self.utr_reduced.field_count(1), 8)
 
     def test_fields_are_proper(self) -> None:
-        proper_fields = ['1', '7160892', '7161063', 'ENSMUSG00000051285', '.', '+',
-                         'ENSMUST00000182675', 'Pcmtd1']
+        proper_fields = [
+            "1",
+            "7160892",
+            "7161063",
+            "ENSMUSG00000051285",
+            ".",
+            "+",
+            "ENSMUST00000182675",
+            "Pcmtd1",
+        ]
         self.assertListEqual(self.utr_reduced[0].fields, proper_fields)
 
     def test_strand_is_correct(self) -> None:
-        self.assertEqual(self.utr_reduced[0].strand, '+')
+        self.assertEqual(self.utr_reduced[0].strand, "+")
 
 
 class TestGenerateUtrName(TestReduceRegionsExtended):
@@ -149,7 +172,7 @@ class TestGenerateUtrName(TestReduceRegionsExtended):
         self.utr_reduced = utr_reference.generate_utr_name(self.utr_reduced)
 
     def test_names_len(self):
-        self.assertEqual(self.utr_reduced.index[2], 'ENSMUSG00000025911_2')
+        self.assertEqual(self.utr_reduced.index[2], "ENSMUSG00000025911_2")
 
     def test_number_of_features(self) -> None:
         """
@@ -160,21 +183,28 @@ class TestGenerateUtrName(TestReduceRegionsExtended):
 
     def test_number_of_fields(self) -> None:
         """
-        Number of fields in the annotation BED file should be equal to the optional 
+        Number of fields in the annotation BED file should be equal to the optional
         fields (in variable 'annotations') plus the mandatory fields 'seqname', 'start',
-        'end' and finally the count field, that tell us how many features were merged 
+        'end' and finally the count field, that tell us how many features were merged
         at each new feature (row).
         """
         self.assertEqual(self.utr_reduced.shape[1], 8)
 
     def test_fields_are_proper(self) -> None:
-        proper_fields = ['1', 7160892, 7161063, 'ENSMUSG00000051285', '.', '+',
-                         'ENSMUST00000182675', 'Pcmtd1']
-        self.assertListEqual(
-            self.utr_reduced.iloc[0].values.tolist(), proper_fields)
+        proper_fields = [
+            "1",
+            7160892,
+            7161063,
+            "ENSMUSG00000051285",
+            ".",
+            "+",
+            "ENSMUST00000182675",
+            "Pcmtd1",
+        ]
+        self.assertListEqual(self.utr_reduced.iloc[0].values.tolist(), proper_fields)
 
     def test_strand_is_correct(self) -> None:
-        self.assertEqual(self.utr_reduced.iloc[0].strand, '+')
+        self.assertEqual(self.utr_reduced.iloc[0].strand, "+")
 
 
 class TestCorrectColumnNames(TestGenerateUtrName):
@@ -183,11 +213,19 @@ class TestCorrectColumnNames(TestGenerateUtrName):
         self.utr_reduced = utr_reference.correct_column_names(self.utr_reduced)
 
     def test_column_names(self):
-        proper_names = ['chrom', 'start', 'end', 'name', 'score', 'strand',
-                        'transcript_id', 'gene_name']
+        proper_names = [
+            "chrom",
+            "start",
+            "end",
+            "name",
+            "score",
+            "strand",
+            "transcript_id",
+            "gene_name",
+        ]
         self.assertListEqual(self.utr_reduced.columns.tolist(), proper_names)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

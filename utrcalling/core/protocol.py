@@ -10,13 +10,16 @@ Note:
 2- New protocols should, then, extend the necessary class in this file.
 
 """
+
 # built-in packages
 from abc import ABC, ABCMeta, abstractmethod
 from distutils.util import strtobool
 import re
+
 # data wrangling packages
 import pandas as pd
 from bidict import bidict
+
 # internal packages
 from utrcalling.core import module_log, helpers
 from utrcalling.core.protocols import peak_calling as pc
@@ -26,6 +29,7 @@ class Meta(type):
     """
     Allows logging at the end of the protocol initialization.
     """
+
     def __call__(cls, *args, **kwargs):
         instance = super().__call__(*args, **kwargs)
         instance.protocol_log()
@@ -101,11 +105,11 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def protocol_log(self):
         self.logger.info(
-            'Protocol:\n' +
-            f'║ Position counts merging method: {self.merge_method}\n' +
-            f'║ Call peaks? {self.call_peaks}\n' +
-            f'║ Peak calling method: {self.peak_calling}\n' +
-            f'║ Add a number to batch names while merging batches? {self.label_batches}\n'
+            "Protocol:\n"
+            + f"║ Position counts merging method: {self.merge_method}\n"
+            + f"║ Call peaks? {self.call_peaks}\n"
+            + f"║ Peak calling method: {self.peak_calling}\n"
+            + f"║ Add a number to batch names while merging batches? {self.label_batches}\n"
         )
 
     # set-up methods
@@ -149,8 +153,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def _get_sample_column(self):
         try:
-            sample_column_name = self.annotations.columns.str.extract(
-                r"(.*sample_id.*)", flags=re.IGNORECASE).dropna().values
+            sample_column_name = (
+                self.annotations.columns.str.extract(
+                    r"(.*sample_id.*)", flags=re.IGNORECASE
+                )
+                .dropna()
+                .values
+            )
         except IndexError as exc:
             msg = (
                 "Please supply a column for `sample_id` in the annotation file. "
@@ -170,8 +179,11 @@ class Protocol(ABC, metaclass=CombinedMeta):
         return sample_column_name
 
     def _get_batch_column(self):
-        batch_column_name = self.annotations.columns.str.extract(
-            r"(.*batch.*)", flags=re.IGNORECASE).dropna().values
+        batch_column_name = (
+            self.annotations.columns.str.extract(r"(.*batch.*)", flags=re.IGNORECASE)
+            .dropna()
+            .values
+        )
         if not batch_column_name:
             msg = (
                 "If you are working with multiple samples/batches, please supply "
@@ -183,16 +195,18 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         if len(batch_column_name) > 1:
             raise ValueError(
-                "Too many columns in the annotation file with 'batch' in "
-                "their name."
+                "Too many columns in the annotation file with 'batch' in " "their name."
             )
         else:
             batch_column_name = batch_column_name[0][0]
         return batch_column_name
 
     def _get_barcode_column(self):
-        barcode_column_name = self.annotations.columns.str.extract(
-            r"(.*barcode.*)", flags=re.IGNORECASE).dropna().values
+        barcode_column_name = (
+            self.annotations.columns.str.extract(r"(.*barcode.*)", flags=re.IGNORECASE)
+            .dropna()
+            .values
+        )
         if not barcode_column_name:
             msg = (
                 "If you are working with barcodes, please supply "
@@ -214,7 +228,10 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def _get_batch_information(self):
         if self.batch_column_name is None:
-            return None, None  # will make the rest of the protocol behave without batches
+            return (
+                None,
+                None,
+            )  # will make the rest of the protocol behave without batches
 
         batches_df = self.annotations.loc[:, self.batch_column_name]
         batches_list = batches_df.to_list()
@@ -230,9 +247,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 pass
             else:
                 barcodes_suffix = [f"-{val}" for val in self.batches_range]
-                annotations.loc[
-                    :, self.barcode_column_name
-                ] = barcodes.astype(str) + barcodes_suffix
+                annotations.loc[:, self.barcode_column_name] = (
+                    barcodes.astype(str) + barcodes_suffix
+                )
             return annotations
         elif self.label_batches:
             msg = (
@@ -250,24 +267,24 @@ class Protocol(ABC, metaclass=CombinedMeta):
         return barcodes_whitelist
 
     # Methods to get read information from the read alignments
-    @ staticmethod
-    @ abstractmethod
+    @staticmethod
+    @abstractmethod
     def get_reads_identity(alignment, **kwargs):
         pass
 
-    @ staticmethod
-    @ abstractmethod
+    @staticmethod
+    @abstractmethod
     def check_strand_matches(alignment, **kwargs):
         pass
 
-    @ staticmethod
-    @ abstractmethod
+    @staticmethod
+    @abstractmethod
     def get_utr_size_from_read(read_start_position, interval):
         pass
 
     # Methods to process UTR sizes
-    @ staticmethod
-    @ abstractmethod
+    @staticmethod
+    @abstractmethod
     def filter_utr_sizes(alignment, **kwargs):
         pass
 
@@ -275,48 +292,57 @@ class Protocol(ABC, metaclass=CombinedMeta):
 class ProtocolThreePrime(Protocol):
 
     def filter_utr_sizes(self, utr_sizes, threshold=1):
-        self.logger.info(
-            "Filtering UTR sizes using threshold of %s counts.", threshold)
-        utr_sizes_exploded = utr_sizes.explode(utr_sizes.columns.to_list(),
-                                               ignore_index=False)
+        self.logger.info("Filtering UTR sizes using threshold of %s counts.", threshold)
+        utr_sizes_exploded = utr_sizes.explode(
+            utr_sizes.columns.to_list(), ignore_index=False
+        )
         utr_sizes_exploded = utr_sizes_exploded[
             utr_sizes_exploded.utr_sizes_from_reads > threshold
         ]
         utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
         return utr_sizes
 
-    @ staticmethod
+    @staticmethod
     def check_strand_matches(read_strand, utr_strand):
         return read_strand != utr_strand
 
-    @ staticmethod
+    @staticmethod
     def get_utr_size_from_read(read_start_position, interval):
         return abs(read_start_position - interval.start_d)
 
 
 class ProtocolFivePrime(Protocol):
 
-    @ staticmethod
+    @staticmethod
     def check_strand_matches(read_strand, utr_strand):
         return read_strand == utr_strand
 
-    @ staticmethod
+    @staticmethod
     def filter_utr_sizes(utr_sizes, **kwargs):
         logger = module_log.module_logger()
-        logger.info("""
+        logger.info(
+            """
         For 5'UTR protocols, no UTR size filtering is performed because having transcripts
         with 5'UTR size 0 means these transcripts start at the ATG site.
-        """)
+        """
+        )
         return utr_sizes
 
-    @ staticmethod
+    @staticmethod
     def get_utr_size_from_read(read_start_position, interval):
         return abs(read_start_position - interval.end_d)
 
 
 class ProtocolTenx(ProtocolThreePrime):
-    def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, alignments=None, annotations=None) -> None:
+    def __init__(
+        self,
+        merge_method="union",
+        call_peaks=True,
+        call_peaks_method="kde",
+        label_batches=None,
+        alignments=None,
+        annotations=None,
+    ) -> None:
 
         super().__init__(
             merge_method=merge_method,
@@ -333,7 +359,7 @@ class ProtocolTenx(ProtocolThreePrime):
 
 class ProtocolTenx3(ProtocolTenx):
 
-    @ staticmethod
+    @staticmethod
     def get_reads_identity(alignment, **_):
         read_seq = alignment.read.seq
         read_barcode = helpers.to_string(read_seq[:16])
@@ -343,7 +369,7 @@ class ProtocolTenx3(ProtocolTenx):
 
 class ProtocolTenx2(ProtocolTenx):
 
-    @ staticmethod
+    @staticmethod
     def get_reads_identity(alignment, **_):
         """
         Get read UMI and barcode from 10x version 2
@@ -363,8 +389,15 @@ class ProtocolTenx2(ProtocolTenx):
 
 
 class ProtocolSmartseq(ProtocolThreePrime):
-    def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, alignments=None, annotations=None) -> None:
+    def __init__(
+        self,
+        merge_method="union",
+        call_peaks=True,
+        call_peaks_method="kde",
+        label_batches=None,
+        alignments=None,
+        annotations=None,
+    ) -> None:
 
         super().__init__(
             merge_method=merge_method,
@@ -405,8 +438,15 @@ class ProtocolSmartseq3(ProtocolSmartseq):
 
 
 class ProtocolCapseq(ProtocolFivePrime):
-    def __init__(self, merge_method="union", call_peaks=True, call_peaks_method="kde",
-                 label_batches=None, alignments=None, annotations=None) -> None:
+    def __init__(
+        self,
+        merge_method="union",
+        call_peaks=True,
+        call_peaks_method="kde",
+        label_batches=None,
+        alignments=None,
+        annotations=None,
+    ) -> None:
 
         super().__init__(
             merge_method=merge_method,
@@ -432,16 +472,16 @@ class ProtocolCapseq(ProtocolFivePrime):
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
-    @ staticmethod
+    @staticmethod
     def get_reads_identity(alignment, **kwargs):
-        read_batch_id = kwargs.get('bam_name', 'S')
+        read_batch_id = kwargs.get("bam_name", "S")
         read_seq = helpers.to_string(alignment.read.seq)
 
         ss3_regex = "(ATTGCGCAATG)[NGCAT]{8}"
         umi_match = re.search(ss3_regex, read_seq)
         if umi_match:
             read_umi = umi_match.group(0)[11:19]  # 8 bp UMI
-            assert (len(read_umi) == 8)  # 8 bp UMI
+            assert len(read_umi) == 8  # 8 bp UMI
         else:
             return None, read_batch_id
 
@@ -450,12 +490,12 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
 class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
 
-    @ staticmethod
+    @staticmethod
     def get_reads_identity(alignment, **kwargs):
-        read_batch_id = kwargs.get('bam_name', 'S')
+        read_batch_id = kwargs.get("bam_name", "S")
 
         read_seq = helpers.to_string(alignment.read.name)
-        read_umi = read_seq.split('_')[1]
+        read_umi = read_seq.split("_")[1]
         assert len(read_umi) == 8  # 8 bp UMI
 
         return read_umi, read_batch_id
@@ -470,15 +510,15 @@ def create(platform, version, **kwargs):
         if version == 3:
             return ProtocolTenx3(**kwargs)
         raise NotImplementedError(error_message)
-    if platform.lower() in ('smart-seq', 'smartseq'):
+    if platform.lower() in ("smart-seq", "smartseq"):
         if version == 3:
             return ProtocolSmartseq3(**kwargs)
         raise NotImplementedError(error_message)
-    if platform.lower() in ('smart-seq_cap', 'smartseq_cap'):
+    if platform.lower() in ("smart-seq_cap", "smartseq_cap"):
         if version == 3:
             return ProtocolCapseqSmartseq3(**kwargs)
         raise NotImplementedError(error_message)
-    if platform.lower() in ('smart-seq_cap-readname', 'smartseq_cap-readname'):
+    if platform.lower() in ("smart-seq_cap-readname", "smartseq_cap-readname"):
         if version == 3:
             return ProtocolCapseqSmartseq3ReadName(**kwargs)
         raise NotImplementedError(error_message)

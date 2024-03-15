@@ -15,9 +15,11 @@ from utrcalling._metadata import __version__, __author__, __license__
 
 
 def show_logo():
-    print(f"\n{Style.BRIGHT}{Fore.MAGENTA}/{Fore.RED}/{Fore.YELLOW}/" +
-          f" {Fore.WHITE}utrcalling {Fore.YELLOW}\\{Fore.RED}\\{Fore.MAGENTA}\\" +
-          f"{Style.RESET_ALL} 🧬 v{__version__} 🧬\n")
+    print(
+        f"\n{Style.BRIGHT}{Fore.MAGENTA}/{Fore.RED}/{Fore.YELLOW}/"
+        + f" {Fore.WHITE}utrcalling {Fore.YELLOW}\\{Fore.RED}\\{Fore.MAGENTA}\\"
+        + f"{Style.RESET_ALL} 🧬 v{__version__} 🧬\n"
+    )
 
 
 # Print a header/logo to show that the utrcalling tool has started

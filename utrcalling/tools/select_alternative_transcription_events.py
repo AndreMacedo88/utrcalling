@@ -1,5 +1,6 @@
 # import general tools
 import argparse
+
 # import internal tools
 from utrcalling.core import anndata_processing as ap
 from utrcalling.core import helpers
@@ -13,9 +14,7 @@ def select_alternative_transcription_events(input_path, out_path):
 
 def create_parser(subparsers):
 
-    help = (
-        "Removes UTRs that have less than 2 alternative transcription sites."
-    )
+    help = "Removes UTRs that have less than 2 alternative transcription sites."
 
     description = (
         f"{help} "
@@ -31,10 +30,12 @@ def create_parser(subparsers):
     Example use:
     $ utrcalling select-alternative-transcription-events adata_old.h5ad adata_new.h5ad
     """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
-    parser.add_argument("input_path", type=str,
-                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument(
+        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
+    )
     parser.add_argument("out_path", type=str, help="Path where output will be stored.")
 
     parser.set_defaults(func=select_alternative_transcription_events)

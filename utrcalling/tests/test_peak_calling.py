@@ -1,5 +1,11 @@
 from test_data import synthetic_data
-from utrcalling.core import peak_calling, protocol, utr_mapping, module_log, process_mapped_reads
+from utrcalling.core import (
+    peak_calling,
+    protocol,
+    utr_mapping,
+    module_log,
+    process_mapped_reads,
+)
 
 import os
 from pathlib import Path
@@ -17,45 +23,40 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 class TestPeakCalling(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_parquet(
-            './test_data/test_UTR_reference.parquet')
-        intervals = utr_mapping.generate_utr_intervals(
-            utr_regions=cls.utr_regions)
-        alignment_1 = './test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam'
-        alignment_2 = './test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam'
+        cls.utr_regions = pd.read_parquet("./test_data/test_UTR_reference.parquet")
+        intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
+        alignment_1 = "./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam"
+        alignment_2 = "./test_data/test_UTRyoungNSCgenome_bwt2_102_sort.bam"
         cls.annotations = pd.read_csv("./test_data/vivo_anno.csv")
         cls.protocol_ = protocol.create(
-            platform='10x',
+            platform="10x",
             version=2,
             annotations=cls.annotations,
             merge_method="intersection",
         )
         cls.protocol_union = protocol.create(
-            platform='10x',
+            platform="10x",
             version=2,
             annotations=cls.annotations,
             merge_method="union",
         )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(
-                bam=alignment,
-                intervals=intervals,
-                protocol=cls.protocol_,
-                read='first'
-            ) for alignment in [alignment_1, alignment_2]
+                bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first"
+            )
+            for alignment in [alignment_1, alignment_2]
         ]
 
 
 class TestGeneratePeakCounts(TestPeakCalling):
-    @ classmethod
+    @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         cls.merged = process_mapped_reads.merge_samples_utr_sizes(
             utr_sizes=copy.deepcopy(cls.mappings)
         )
         cls.merged = process_mapped_reads.filter_barcodes(
-            cls.merged,
-            whitelist=cls.protocol_.barcode_whitelist
+            cls.merged, whitelist=cls.protocol_.barcode_whitelist
         )
 
 
@@ -114,7 +115,7 @@ class TestGeneratePeakCountsSynthetic(unittest.TestCase):
         cls.data = data_filtered._data_filtered
         anno = data_filtered._anno
         cls.protocol_ = protocol.create(
-            platform='10x',
+            platform="10x",
             version=2,
             annotations=anno,
             merge_method="intersection",
@@ -140,11 +141,13 @@ class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
 
     def test_matrix_composition(self):
         reality = np.array(
-            [[0, 0, 2, 0, 0, 0],
-             [1, 0, 0, 1, 0, 0],
-             [0, 1, 0, 0, 1, 0],
-             [0, 0, 0, 0, 0, 1],
-             [0, 1, 1, 0, 1, 0]]
+            [
+                [0, 0, 2, 0, 0, 0],
+                [1, 0, 0, 1, 0, 0],
+                [0, 1, 0, 0, 1, 0],
+                [0, 0, 0, 0, 0, 1],
+                [0, 1, 1, 0, 1, 0],
+            ]
         )
         npt.assert_allclose(self.matrix.sort_index().to_numpy(), reality)
 
@@ -180,7 +183,7 @@ class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
 
 
 class TestGenerateCountMatrixAnndata(TestPeakCalling):
-    @ classmethod
+    @classmethod
     def setUpClass(cls) -> None:
         super().setUpClass()
         merged = process_mapped_reads.merge_samples_utr_sizes(cls.mappings)
@@ -202,7 +205,8 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
 class TestAnnData(TestGenerateCountMatrixAnndata):
     def setUp(self) -> None:
         self.matrix_anndata = peak_calling.generate_count_matrix_anndata(
-            self.matrix, self.var, self.obs)
+            self.matrix, self.var, self.obs
+        )
 
     def test_matrix_values_count(self):
         non_zeros_count = np.count_nonzero(self.matrix_anndata.X)
@@ -217,6 +221,6 @@ class TestAnnData(TestGenerateCountMatrixAnndata):
         self.assertEqual(non_zeros_count, 670 * 4)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

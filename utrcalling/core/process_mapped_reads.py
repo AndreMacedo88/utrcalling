@@ -1,5 +1,6 @@
 from functools import reduce
 import warnings
+
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=UserWarning)  # silence modin UserWarnings
 
@@ -11,7 +12,7 @@ from rapidfuzz import process, distance
 from utrcalling.core import helpers, module_log
 
 
-def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True):
+def merge_samples_utr_sizes(utr_sizes, method="intersection", label_batches=True):
     """
     Before calling peaks from position counts, we should merge the datasets we want to
     compare, so that peaks get called with the pseudo-bulk data from all samples.
@@ -32,8 +33,12 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
 
     if label_batches:
         if not (
-            utr_sizes[0]["read_barcodes"].sample(
-                n=20).explode().str.split("-").apply(len) > 1
+            utr_sizes[0]["read_barcodes"]
+            .sample(n=20)
+            .explode()
+            .str.split("-")
+            .apply(len)
+            > 1
         ).any():  # confirm that the batches haven't already been labelled
             for idx, batch in enumerate(utr_sizes):
                 batch.read_barcodes = [
@@ -50,14 +55,18 @@ def merge_samples_utr_sizes(utr_sizes, method='intersection', label_batches=True
         except ValueError as err:
             message = (
                 f"During sample UTR size merging, the following error arised:\n{err}\n",
-                "Bypassing this error may take a while."
+                "Bypassing this error may take a while.",
             )
             logger.warning(message)
 
             utr_sizes = utr_sizes.groupby(level=0).agg(
                 {
-                    "read_barcodes": lambda grp: [i for lst in grp.to_numpy().flatten() for i in lst],
-                    "utr_sizes_from_reads": lambda grp: [i for lst in grp.to_numpy().flatten() for i in lst]
+                    "read_barcodes": lambda grp: [
+                        i for lst in grp.to_numpy().flatten() for i in lst
+                    ],
+                    "utr_sizes_from_reads": lambda grp: [
+                        i for lst in grp.to_numpy().flatten() for i in lst
+                    ],
                 }
             )
 
@@ -140,7 +149,9 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
 
         df["to_add"] = to_add
         explode = df.explode("utr_sizes_from_reads")
-        explode["utr_sizes_from_reads"] = explode["utr_sizes_from_reads"] + explode["to_add"]
+        explode["utr_sizes_from_reads"] = (
+            explode["utr_sizes_from_reads"] + explode["to_add"]
+        )
         return explode["utr_sizes_from_reads"].to_list()
 
     logger = module_log.module_logger()
@@ -176,9 +187,7 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
         combined_data = to_pandas(combined_data)
         grouped = combined_data.groupby("name")
 
-    utr_sizes_from_reads = grouped.apply(
-        transform_utr_sizes
-    )
+    utr_sizes_from_reads = grouped.apply(transform_utr_sizes)
     utr_sizes_from_reads.name = "utr_sizes_from_reads"
 
     if mpd_switch:
@@ -198,7 +207,7 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
             "strand",
             "transcript_id",
             "gene_name",
-        ]
+        ],
     ]
     utr_regions["name"] = utr_regions.index
 
@@ -207,17 +216,16 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
         [
             "read_barcodes",
             "utr_sizes_from_reads",
-        ]
+        ],
     ]
     return utr_regions, read_mappings
 
 
 def subset_reference_data(utr_sizes, utr_reference_regions):
     logger = module_log.module_logger()
-    logger.info('Subsetting UTR reference data')
+    logger.info("Subsetting UTR reference data")
 
-    sub_utr_reference = utr_reference_regions.filter(
-        items=utr_sizes.index, axis=0)
+    sub_utr_reference = utr_reference_regions.filter(items=utr_sizes.index, axis=0)
 
     sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
 
@@ -226,7 +234,7 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
 
 def filter_barcodes(utr_sizes, whitelist):
     logger = module_log.module_logger()
-    logger.info('Filtering cell barcodes')
+    logger.info("Filtering cell barcodes")
 
     barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
     barcodes_correct = set()
@@ -237,10 +245,7 @@ def filter_barcodes(utr_sizes, whitelist):
         else:
             try:
                 match = process.extract(
-                    barcode,
-                    whitelist,
-                    scorer=distance.Hamming.distance,
-                    score_cutoff=1
+                    barcode, whitelist, scorer=distance.Hamming.distance, score_cutoff=1
                 )
             except ValueError as err:
                 logger.error(

@@ -14,12 +14,13 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 class MapAlignedReads:
     def __init__(self) -> None:
         self.utr_regions = pd.read_parquet(
-            '../tests/test_data/test_UTR_reference.parquet')
-        self.protocol = protocol.create(platform='10x', version=2)
+            "../tests/test_data/test_UTR_reference.parquet"
+        )
+        self.protocol = protocol.create(platform="10x", version=2)
 
         alignments_n = 5
         self.alignments = [
-            '../tests/test_data/test_UTRoldNSCgenome_bwt2_102_duplicates_sort.bam',
+            "../tests/test_data/test_UTRoldNSCgenome_bwt2_102_duplicates_sort.bam",
         ] * alignments_n
 
     def perf_test(self):
@@ -48,5 +49,5 @@ def map_aligned_reads_perf(lines):
     cum_time.print_stats(lines)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     map_aligned_reads_perf(lines=20)

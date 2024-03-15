@@ -1,25 +1,31 @@
 """
 File containg functions relating to peak calling, but on AnnData objects.
 """
+
 # import general tools
 import os
 from urllib.error import HTTPError
 import time
 import regex
+
 # import numerical methods
 import numpy as np
 import math
 from sklearn.neighbors import KernelDensity
 import scipy
 from scipy.signal import argrelextrema
+
 # import data processing tools
 import pandas as pd
 import anndata as ad
+
 # import biological tools
 import pybedtools
+
 # import quality of life tools
 import joblib
 from tqdm import tqdm
+
 # import internal tools
 from utrcalling.core import module_log
 
@@ -41,7 +47,8 @@ def peak_call_anndata_parallel(adata, method, **kwargs):
 
         # generate a vector of one UTR size per UMI count
         umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-            adata_utr.X.astype(int), adata_utr.var.utr_size)
+            adata_utr.X.astype(int), adata_utr.var.utr_size
+        )
 
         if str.lower(method) == "kde":
             peaks = _call_peaks_using_kernel_density_estimator(
@@ -58,8 +65,9 @@ def peak_call_anndata_parallel(adata, method, **kwargs):
 
         # create new polyA names
         umi_utr_sizes_new = mtx_new.columns
-        polya_names = [f"{gene}_{utr_number}pA{x}" for x in range(
-            1, len(umi_utr_sizes_new) + 1)]
+        polya_names = [
+            f"{gene}_{utr_number}pA{x}" for x in range(1, len(umi_utr_sizes_new) + 1)
+        ]
 
         # generate new utr_var
         utr_var_new = pd.DataFrame([utr_var] * len(umi_utr_sizes_new))
@@ -75,8 +83,8 @@ def peak_call_anndata_parallel(adata, method, **kwargs):
     utrs = adata.var.utr_name.unique()
 
     parallel_results = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(peak_call)(adata=adata, method=method, utr=utr) for utr in tqdm(
-            utrs, colour="#ffb700", ascii=" ■")
+        joblib.delayed(peak_call)(adata=adata, method=method, utr=utr)
+        for utr in tqdm(utrs, colour="#ffb700", ascii=" ■")
     )
 
     mtx_list, var_list = list(zip(*parallel_results))
@@ -119,7 +127,8 @@ def peak_call_anndata(adata, method, **kwargs):
 
         # generate a vector of one UTR size per UMI count
         umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-            adata_utr.X.astype(int), adata_utr.var.utr_size)
+            adata_utr.X.astype(int), adata_utr.var.utr_size
+        )
 
         if str.lower(method) == "kde":
             peaks = _call_peaks_using_kernel_density_estimator(
@@ -137,8 +146,9 @@ def peak_call_anndata(adata, method, **kwargs):
 
         # create new polyA names
         umi_utr_sizes_new = mtx_new.columns
-        polya_names = [f"{gene}_{utr_number}pA{x}" for x in range(
-            1, len(umi_utr_sizes_new) + 1)]
+        polya_names = [
+            f"{gene}_{utr_number}pA{x}" for x in range(1, len(umi_utr_sizes_new) + 1)
+        ]
 
         # generate new utr_var
         utr_var_new = pd.DataFrame([utr_var] * len(umi_utr_sizes_new))
@@ -167,7 +177,7 @@ def remove_peaks_below_count(adata, threshold=10):
 
     Args:
         adata (ad.AnnData): The AnnData object to filter.
-        threshold (int, optional): The minimum counts number each peak must have. 
+        threshold (int, optional): The minimum counts number each peak must have.
             Defaults to 10.
 
     Returns:
@@ -184,20 +194,31 @@ def remove_peaks_below_count(adata, threshold=10):
     return ad.AnnData(X=x_, var=var_, obs=adata.obs)
 
 
-def estimate_best_bandwidth(adata, method="kde", hamming=1,
-                            bandwidths=(0.5, 1, 1.5, 2, 2.5, 3),
-                            return_distances_to_hex=False):
+def estimate_best_bandwidth(
+    adata,
+    method="kde",
+    hamming=1,
+    bandwidths=(0.5, 1, 1.5, 2, 2.5, 3),
+    return_distances_to_hex=False,
+):
 
     if isinstance(bandwidths, int):
         bandwidths = [bandwidths]
 
     peak_data = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(peak_call_anndata)(adata=adata, method=method, bandwidth=bandwidth) for bandwidth in bandwidths
+        joblib.delayed(peak_call_anndata)(
+            adata=adata, method=method, bandwidth=bandwidth
+        )
+        for bandwidth in bandwidths
     )
 
     estimation_results = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(_score_peak_assignment)(adata=adata_bandwidth, hamming=hamming,
-                                               return_distances_to_hex=return_distances_to_hex) for adata_bandwidth in peak_data
+        joblib.delayed(_score_peak_assignment)(
+            adata=adata_bandwidth,
+            hamming=hamming,
+            return_distances_to_hex=return_distances_to_hex,
+        )
+        for adata_bandwidth in peak_data
     )
     return estimation_results
 
@@ -225,18 +246,19 @@ def pas_distance(adata, genome, hamming=1):
 
         # generate a vector of one UTR size per UMI count
         umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-            adata_utr.X.astype(int), adata_utr.var.utr_size)
+            adata_utr.X.astype(int), adata_utr.var.utr_size
+        )
 
-        distances = _calculate_umi_distance_to_pas(umi_utr_sizes=umi_utr_sizes,
-                                                   pas_end=pas_end,
-                                                   seq_strand=seq_strand)
+        distances = _calculate_umi_distance_to_pas(
+            umi_utr_sizes=umi_utr_sizes, pas_end=pas_end, seq_strand=seq_strand
+        )
         return distances.to_numpy().flatten()
 
     utrs = adata.var.utr_name.unique()
 
     distances_list = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(get_distances_per_utr)(utr=utr) for utr in tqdm(
-            utrs, colour="#ffb700", ascii=" ■")
+        joblib.delayed(get_distances_per_utr)(utr=utr)
+        for utr in tqdm(utrs, colour="#ffb700", ascii=" ■")
     )
 
     # remove None from the list
@@ -258,11 +280,12 @@ def _score_peak_assignment(adata, hamming=1, return_distances_to_hex=False):
 
         # generate a vector of one UTR size per UMI count
         umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-            adata_utr.X.astype(int), adata_utr.var.utr_size)
+            adata_utr.X.astype(int), adata_utr.var.utr_size
+        )
 
-        distances = _calculate_umi_distance_to_pas(umi_utr_sizes=umi_utr_sizes,
-                                                   pas_end=pas_end,
-                                                   seq_strand=seq_strand)
+        distances = _calculate_umi_distance_to_pas(
+            umi_utr_sizes=umi_utr_sizes, pas_end=pas_end, seq_strand=seq_strand
+        )
 
         distances_ = distances.to_numpy().flatten()
 
@@ -280,8 +303,8 @@ def _score_peak_assignment(adata, hamming=1, return_distances_to_hex=False):
 
     logger.info("Scoring peaks for each UTR")
     results_per_utr = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(get_distances)(utr=utr) for utr in tqdm(utrs, colour="#ffb700",
-                                                               ascii=" ■", desc="UTR: ")
+        joblib.delayed(get_distances)(utr=utr)
+        for utr in tqdm(utrs, colour="#ffb700", ascii=" ■", desc="UTR: ")
     )
 
     scores = []
@@ -308,7 +331,9 @@ def _find_pas(adata, genome, hamming=1):
     seq_strand = adata.var.strand[0]
 
     query = pybedtools.BedTool(
-        f"{seq_chrom} {seq_start} {seq_stop} three_prime_utr 0 {seq_strand}", from_string=True)
+        f"{seq_chrom} {seq_start} {seq_stop} three_prime_utr 0 {seq_strand}",
+        from_string=True,
+    )
     query = query.sequence(fi=genome, s=True)
 
     with open(query.seqfn) as q:
@@ -320,7 +345,7 @@ def _find_pas(adata, genome, hamming=1):
     start_cut = 0
     while True:
         if hamming > 0:
-            expression = fr"(AATAAA){{s<={hamming}}}"
+            expression = rf"(AATAAA){{s<={hamming}}}"
             hex = regex.compile(expression)
         elif hamming == 0:
             hex = regex.compile(r"(AATAAA)")
@@ -335,9 +360,9 @@ def _find_pas(adata, genome, hamming=1):
         start_cut += span[0] + 1
         pas_end.append(end)
         pas_seq.append(search.group(0))
-        utr_seq = utr_seq[span[0] + 1:]
+        utr_seq = utr_seq[span[0] + 1 :]
 
-    return(pas_end, pas_seq, seq_strand)
+    return (pas_end, pas_seq, seq_strand)
 
 
 def _calculate_umi_distance_to_pas(umi_utr_sizes, pas_end, seq_strand):
@@ -373,7 +398,10 @@ def _calculate_umi_distance_to_pas(umi_utr_sizes, pas_end, seq_strand):
 
         idx, cols = pd.factorize(closest_to_pas)
 
-        return pd.Series(distances.reindex(cols, axis=1).to_numpy()[np.arange(len(distances)), idx], index=distances.index)
+        return pd.Series(
+            distances.reindex(cols, axis=1).to_numpy()[np.arange(len(distances)), idx],
+            index=distances.index,
+        )
 
 
 def _utr_sizes_vector_from_read_counts(counts_arr, sizes_arr):
@@ -403,13 +431,12 @@ def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=1):
     if np.ndim(utr_sizes_vector) == 1:
         utr_sizes_vector = utr_sizes_vector.reshape(-1, 1)
 
-    kde = KernelDensity(kernel='gaussian', bandwidth=bandwidth).fit(utr_sizes_vector)
+    kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(utr_sizes_vector)
 
     # calculate an appropriate window to check the model
     minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
     padding = (maximum_size - minimum_size) * 0.1
-    window = np.arange(round(minimum_size - padding),
-                       round(maximum_size + padding) + 1)
+    window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
     # get the model predictions for that window. Specifically, the extrema.
     evaluation = kde.score_samples(window.reshape(-1, 1))
     minima = argrelextrema(evaluation, np.less)[0]

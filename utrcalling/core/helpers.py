@@ -18,14 +18,14 @@ def init_ray():
         try:
             n_cores = int(os.environ["MODIN_CPUS"])
             ray.init(
-                runtime_env={'env_vars': {'__MODIN_AUTOIMPORT_PANDAS__': '1'}},
+                runtime_env={"env_vars": {"__MODIN_AUTOIMPORT_PANDAS__": "1"}},
                 include_dashboard=False,
-                num_cpus=n_cores
+                num_cpus=n_cores,
             )
             print(f"Running Ray on {n_cores} CPUs")
         except KeyError:
             ray.init(
-                runtime_env={'env_vars': {'__MODIN_AUTOIMPORT_PANDAS__': '1'}},
+                runtime_env={"env_vars": {"__MODIN_AUTOIMPORT_PANDAS__": "1"}},
                 include_dashboard=False,
             )
 
@@ -39,7 +39,7 @@ def flatten(list_):
         might have another list, list of lists, an int, str, etc.
 
     Yields:
-        Any: Yields the next element in the list, but flattened 
+        Any: Yields the next element in the list, but flattened
         (with one nest level removed).
     """
     for element in list_:
@@ -57,28 +57,28 @@ def get_number_cores(left_out=1):
 
 def to_string(x):
     """
-    Converts type=bytes to type=str without decoding. 
+    Converts type=bytes to type=str without decoding.
     Because HTSeq gives us bytes instead of strings.
 
     Args:
         x (bytes): The object in bytes, that in fact represent a string.
 
     Returns:
-        str 
+        str
     """
     return repr(x)[2:-1]
 
 
 def log_metrics_anndata(adata):
     logger = module_log.module_logger()
-    metrics = f'Called {adata.X.shape[1]} peaks in {adata.X.shape[1]} samples/cells'
+    metrics = f"Called {adata.X.shape[1]} peaks in {adata.X.shape[1]} samples/cells"
     logger.info(metrics)
     logger.info(adata)
 
 
-def get_paths_from_folders(folders_path, suffix='.bam'):
+def get_paths_from_folders(folders_path, suffix=".bam"):
     file_list = []
-    for path in pathlib.Path(folders_path).rglob(f'*{suffix}'):
+    for path in pathlib.Path(folders_path).rglob(f"*{suffix}"):
         file_list.append(os.path.join(folders_path, path))
     return file_list
 
@@ -94,13 +94,13 @@ def check_if_exists_and_mkdir(folders_path):
         os.makedirs(folders_path)
 
 
-def check_if_path_and_open(to_check, method='parquet'):
+def check_if_path_and_open(to_check, method="parquet"):
     init_ray()
     if isinstance(to_check, (str, pathlib.PurePath)):
         method = method.lower()
-        if method == 'parquet':
+        if method == "parquet":
             output = mpd.read_parquet(to_check)
-        elif method == 'pickle':
+        elif method == "pickle":
             with open(to_check, "rb") as input_file:
                 output = pickle.load(input_file)
         elif method == "pickle_pandas":
@@ -110,7 +110,7 @@ def check_if_path_and_open(to_check, method='parquet'):
         elif method == "csv":
             output = mpd.read_csv(to_check, sep=",")  # , engine="python"
         else:
-            raise RuntimeError(f'Method {method} not implemented yet')
+            raise RuntimeError(f"Method {method} not implemented yet")
         return output
     else:
         return to_check
@@ -128,19 +128,20 @@ def check_file_exists_and_return_unique(filepath, append=1):
 
 def load_annotations(annotation_path):
     init_ray()
-    if annotation_path.endswith('.parquet'):
+    if annotation_path.endswith(".parquet"):
         output = mpd.read_parquet(annotation_path)
-    elif annotation_path.endswith('.bed'):
+    elif annotation_path.endswith(".bed"):
         output = pybedtools.BedTool(annotation_path)
-    elif annotation_path.endswith('.pkl'):
+    elif annotation_path.endswith(".pkl"):
         output = mpd.read_pickle(annotation_path)
     else:
         raise RuntimeError(
-            f'Annotation file {annotation_path} is of a not recognized type.')
+            f"Annotation file {annotation_path} is of a not recognized type."
+        )
     return output
 
 
-def check_if_dir_and_list_files(path, suffix='.parquet'):
+def check_if_dir_and_list_files(path, suffix=".parquet"):
     if isinstance(path, (list, tuple)):
         paths = []
         for p in path:
@@ -155,7 +156,7 @@ def check_if_dir_and_list_files(path, suffix='.parquet'):
 
 def hamming_distance(a, b):
     if len(a) != len(b):
-        raise RuntimeError('Hamming distance is valid for only equal length string')
+        raise RuntimeError("Hamming distance is valid for only equal length string")
     distance = sum(x != y for x, y in zip(a, b))
 
     return distance
@@ -192,7 +193,7 @@ def count_duplicates(list_of_strings, hamming=0):
 
 def split_list(a, n):
     k, m = divmod(len(a), n)
-    return (a[i * k + min(i, m):(i + 1) * k + min(i + 1, m)] for i in range(n))
+    return (a[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
 def check_file_suffix_and_append_before(path, to_append, suffix):

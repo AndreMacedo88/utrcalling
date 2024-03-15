@@ -1,6 +1,7 @@
 # import general tools
 import argparse
 import joblib
+
 # import internal tools
 from utrcalling.core import peak_calling_anndata as pc
 from utrcalling.core import helpers
@@ -10,7 +11,8 @@ def estimate_best_bandwidth(input_path, out_path, bandwidths):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
 
     fit_score = pc.estimate_best_bandwidth(
-        adata=adata, hamming=1, bandwidths=bandwidths, return_distances_to_hex=False)
+        adata=adata, hamming=1, bandwidths=bandwidths, return_distances_to_hex=False
+    )
 
     scores = {bandwidth: score for bandwidth, score in zip(bandwidths, fit_score)}
 
@@ -19,9 +21,7 @@ def estimate_best_bandwidth(input_path, out_path, bandwidths):
 
 def create_parser(subparsers):
 
-    help = (
-        "Calculates scores per bandwidth given."
-    )
+    help = "Calculates scores per bandwidth given."
 
     description = (
         f"{help} "
@@ -37,12 +37,20 @@ def create_parser(subparsers):
     Example use:
     $ utrcalling estimate-best-bandwidth adata.h5ad estimations_scores.joblib -b 1 7 12
     """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
-    parser.add_argument("input_path", type=str,
-                        help="Path to input AnnData object file (h5ad format).")
+    parser.add_argument(
+        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
+    )
     parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-    parser.add_argument("-b", "--bandwidths", nargs="+", type=int, default=[1, 7, 12, 15],
-                        help="One or more bandwidths to use in the gaussian kernel")
+    parser.add_argument(
+        "-b",
+        "--bandwidths",
+        nargs="+",
+        type=int,
+        default=[1, 7, 12, 15],
+        help="One or more bandwidths to use in the gaussian kernel",
+    )
 
     parser.set_defaults(func=estimate_best_bandwidth)

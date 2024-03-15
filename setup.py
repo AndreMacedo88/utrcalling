@@ -28,13 +28,13 @@ with open(metadata_file, "rt") as file:
         raise RuntimeError("Unable to find author string in {}.".format(metadata))
 
 setuptools.setup(
-    name='utrcalling',
+    name="utrcalling",
     version=version,
-    description='Package with tools to calculate molecule UTR sizes from RNA sequencing reads.',
+    description="Package with tools to calculate molecule UTR sizes from RNA sequencing reads.",
     long_description=readme(),
     author=author,
-    author_email='andre.lopes.macedo@gmail.com',
-    url='https://github.com/AndreMacedo88/utrcalling',
+    author_email="andre.lopes.macedo@gmail.com",
+    url="https://github.com/AndreMacedo88/utrcalling",
     packages=setuptools.find_packages(),
     install_requires=[
         "numpy>=1.22.3, <1.24",
@@ -56,7 +56,7 @@ setuptools.setup(
         "pympler",
         "coloredlogs",
         "verboselogs",
-        "colorama"
+        "colorama",
     ],
     include_package_data=True,
     classifiers=[
@@ -72,5 +72,5 @@ setuptools.setup(
             # command = package.module:function
             "utrcalling=utrcalling.runtime:main",
         ],
-    }
+    },
 )
