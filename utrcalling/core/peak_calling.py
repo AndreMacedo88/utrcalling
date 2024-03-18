@@ -46,17 +46,17 @@ def generate_peak_counts_and_anno(
 
     logger.info("Finished generating and counting UTR size peaks")
 
-    # Free some RAM by deleting biggest variables
+    # Free some RAM by deleting the biggest variables
     del utr_sizes
 
     count_matrix_list = [
         count_mtx.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
         for count_mtx in count_matrix_list
     ]
+
     count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
 
-    del count_matrix_list  # Free some RAM
-    count_matrix = count_matrix.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
+    count_matrix = count_matrix.fillna(0).apply(pd.to_numeric, downcast="unsigned")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 

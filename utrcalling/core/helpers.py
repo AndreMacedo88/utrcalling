@@ -71,7 +71,7 @@ def to_string(x):
 
 def log_metrics_anndata(adata):
     logger = module_log.module_logger()
-    metrics = f"Called {adata.X.shape[1]} peaks in {adata.X.shape[1]} samples/cells"
+    metrics = f"Called {adata.X.shape[1]} peaks in {adata.X.shape[0]} samples/cells"
     logger.info(metrics)
     logger.info(adata)
 
