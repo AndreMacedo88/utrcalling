@@ -86,6 +86,10 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
         mapped_read_information = [read_barcodes, utr_sizes_from_reads]
         try:
             # BAM_Reader[GenomicInterval] is a generator
+            # subsetting with `interval` gets the reads that have at least
+            # some overlap with the interval (not the paired reads coordinates)
+            # so, if even if read 1 Match CIGAR starts and ends outside the interval,
+            # as long as it spans the interval it will enter this `for loop`
             for alignment in bam_file[interval]:
                 mapping_stats["Reads mapped to the region of interest"] += 1
                 if not alignment.pe_which == read:  # get only one of the 2 paired reads
