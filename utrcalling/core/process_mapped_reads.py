@@ -254,7 +254,7 @@ def filter_barcodes(utr_sizes, whitelist):
                     f"different batches with similar barcodes/IDs, if all the batches "
                     f"are correctly described in the annotations file."
                 )
-                print(whitelist)
+                logger.error(f"Barcodes from the annotation file:\n{whitelist}")
                 raise err
             if match:
                 barcode_correct = [bc[0] for bc in match]

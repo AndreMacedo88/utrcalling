@@ -168,7 +168,7 @@ def call_peaks(
     del utr_sizes_counts  # to save memory
 
     if protocol.barcode_whitelist is not None:
-        if psutil.virtual_memory().percent > 70:  # if there are memory issues
+        if psutil.virtual_memory().percent > 60:  # if there are memory issues
             logger.info(
                 f"Dataset is too large. Splitting in 10 and analysing sequentially"
             )

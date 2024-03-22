@@ -59,22 +59,22 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
         "Alignments not primary alignment": 0,
         "Alignments in interval but wrong strand": 0,
     }
-    if label_batches and batch is None:  # TODO: make this general
-        for record in bam_file:
-            batch_name = re.search(
-                r"([\w|-]*:\w*:[\w|-]*):.*",  # TODO: make this general
-                record.get_sam_line(),
-            ).group(1)
-            break
-        try:
-            batch = protocol.batch_codes.get(batch_name, None)
-        except AttributeError:
-            logger.warning(
-                "Batch ID for sample %s was not able to be extracted. "
-                "Please check if this behaviour is intended.",
-                bam,
-            )
-            batch = None
+    # if label_batches and batch is None:  # TODO: make this general
+    #     for record in bam_file:
+    #         batch_name = re.search(
+    #             r"([\w|-]*:\w*:[\w|-]*):.*",  # TODO: make this general
+    #             record.get_sam_line(),
+    #         ).group(1)
+    #         break
+    #     try:
+    #         batch = protocol.batch_codes.get(batch_name, None)
+    #     except AttributeError:
+    #         logger.warning(
+    #             "Batch ID for sample %s was not able to be extracted. "
+    #             "Please check if this behaviour is intended.",
+    #             bam,
+    #         )
+    #         batch = None
 
     for name, interval in tqdm(
         intervals.items(), colour="#ffb700", ascii=" ■", desc="Interval: "
