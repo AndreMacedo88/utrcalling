@@ -29,10 +29,15 @@ class TestExtractFeature(unittest.TestCase):
         path = "./test_data/test_mus_musculus_GRCm38_102.gtf"
         self.gtf_df = utr_reference.open_gtf(path)
 
-    def test_three_prime(self) -> None:
+    def test_three_prime_unique(self) -> None:
         annotations = utr_reference.extract_feature(self.gtf_df, "three_prime_utr")
         feature_list = annotations["feature"].unique().tolist()
         self.assertListEqual(feature_list, ["three_prime_utr"])
+
+    def test_three_prime_number(self) -> None:
+        annotations = utr_reference.extract_feature(self.gtf_df, "three_prime_utr")
+        expected_number_3utrs = 1032
+        self.assertEqual(expected_number_3utrs, len(annotations["feature"]))
 
     def test_five_prime(self) -> None:
         annotations = utr_reference.extract_feature(self.gtf_df, "five_prime_utr")
