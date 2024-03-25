@@ -127,7 +127,7 @@ def peak_call_anndata(adata, method, **kwargs):
 
         # generate a vector of one UTR size per UMI count
         umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-            adata_utr.X.astype(int), adata_utr.var.utr_size
+            adata_utr.X.astype(int), adata_utr.var.utr_size.astype(int)
         )
 
         if str.lower(method) == "kde":

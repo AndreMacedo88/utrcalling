@@ -8,6 +8,9 @@ from utrcalling.core import helpers
 
 def call_peaks_different_bandwidths(input_path, out_path, bandwidths):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
+    adata = adata[
+        :, adata.var.sort_values(by=["utr_name", "utr_size"], ascending=True).index
+    ]
     out_path = out_path.split(".h5ad")[0]
     for bandwidth in bandwidths:
         adata_peaks = pc.peak_call_anndata(adata, method="kde", bandwidth=bandwidth)
