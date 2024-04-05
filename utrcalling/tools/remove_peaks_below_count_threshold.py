@@ -5,9 +5,13 @@ from utrcalling.core import peak_calling_anndata as pc
 from utrcalling.core import helpers
 
 
-def remove_peaks_below_count_threshold(input_path, out_path, threshold):
+def remove_peaks_below_count_threshold(input_path, out_path, threshold, minimum_counts):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    adata_new = pc.remove_peaks_below_count(adata=adata, threshold=threshold)
+
+    adata_new = pc.remove_peaks_below_count(
+        adata=adata, threshold=threshold, minimum_counts=minimum_counts
+    )
+
     adata_new.write_h5ad(out_path)
 
 
@@ -42,8 +46,15 @@ def create_parser(subparsers):
     parser.add_argument(
         "-t",
         "--threshold",
+        type=float,
+        help="Percent threshold (fractional) to filter the data.",
+        default=0.05,
+    )
+    parser.add_argument(
+        "-m",
+        "--minimum_counts",
         type=int,
-        help="Count threshold to filter the data.",
+        help="Minimum counts per peak to retain the peak.",
         default=10,
     )
 

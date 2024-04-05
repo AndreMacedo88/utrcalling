@@ -103,8 +103,9 @@ def peak_call_anndata(adata, method, **kwargs):
     sparse_adata = False
     if scipy.sparse.issparse(adata.X):
         sparse_adata = True
-        logger.info("Densifying sparse data for further processing")
-        adata.X = adata.X.toarray()
+        logger.info("Sparse data will be densified for further processing")
+        # logger.info("Densifying sparse data for further processing")
+        # adata.X = adata.X.toarray()
 
     new_obs = adata.obs
 
@@ -117,6 +118,9 @@ def peak_call_anndata(adata, method, **kwargs):
     logger.info("Calling peaks for each UTR")
     for utr in tqdm(utrs, colour="#ffb700", ascii=" ■", desc="UTR: "):
         adata_utr = adata[:, adata.var.utr_name == utr]
+        # if sparse_adata:
+        #     adata_utr.X = adata_utr.X.toarray()
+
         gene = adata_utr.var.gene_name[0]
         utr_name = adata_utr.var.utr_name.str.split("_")[0]
         if len(utr_name) > 1:
@@ -127,7 +131,9 @@ def peak_call_anndata(adata, method, **kwargs):
 
         # generate a vector of one UTR size per UMI count
         umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-            adata_utr.X.astype(int), adata_utr.var.utr_size.astype(int)
+            adata_utr.to_df().values.astype(int),
+            adata_utr.var.utr_size.astype(int),
+            # adata_utr.X.astype(int), adata_utr.var.utr_size.astype(int)
         )
 
         if str.lower(method) == "kde":
@@ -169,7 +175,7 @@ def peak_call_anndata(adata, method, **kwargs):
     return new_adata
 
 
-def remove_peaks_below_count(adata, threshold=10):
+def remove_peaks_below_count(adata, threshold=0.1, minimum_counts=10):
     """
     Removes the UTR location peaks that have less than `threshold` counts in
     the sum of all samples. This effectively curates the peaks, selecting the most common
@@ -184,12 +190,25 @@ def remove_peaks_below_count(adata, threshold=10):
         ad.AnnData: A filtered AnnData object with UTR peaks counts above the threshold.
     """
 
-    bigger_than_10 = adata.X.sum(axis=0) >= threshold
-    if bigger_than_10.ndim > 1:
-        bigger_than_10 = np.asarray(bigger_than_10).reshape(-1)
+    utr_names = adata.var.loc[:, "utr_name"].values
 
-    x_ = adata.X[:, bigger_than_10]
-    var_ = adata.var[bigger_than_10]
+    utrs_thresholds = adata.to_df().T.groupby(utr_names).sum().sum(axis=1)
+    utrs_thresholds = utrs_thresholds.apply(
+        lambda x: max(x * threshold, minimum_counts)
+    )  # Get either threshold percent or a fixed minimum counts
+
+    thresholds = adata.var.join(utrs_thresholds.to_frame("thresh"), on="utr_name")[
+        "thresh"
+    ].to_numpy()
+
+    del utrs_thresholds
+
+    bigger_than_threshold = np.greater_equal(np.sum(adata.X, axis=0), thresholds)
+    if bigger_than_threshold.ndim > 1:
+        bigger_than_threshold = np.asarray(bigger_than_threshold).reshape(-1)
+
+    x_ = adata.X[:, bigger_than_threshold]
+    var_ = adata.var[bigger_than_threshold]
 
     return ad.AnnData(X=x_, var=var_, obs=adata.obs)
 
@@ -479,3 +498,32 @@ def _call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=1):
     # peaks scored
     peaks[peaks == 0] = max_
     return peaks
+
+
+""" Legacy code
+
+def remove_peaks_below_count_OLD(adata, threshold=10):
+    '''
+    Removes the UTR location peaks that have less than `threshold` counts in
+    the sum of all samples. This effectively curates the peaks, selecting the most common
+    and/or more prone to be true peaks.
+
+    Args:
+        adata (ad.AnnData): The AnnData object to filter.
+        threshold (int, optional): The minimum counts number each peak must have.
+            Defaults to 10.
+
+    Returns:
+        ad.AnnData: A filtered AnnData object with UTR peaks counts above the threshold.
+    '''
+
+    bigger_than_threshold = adata.X.sum(axis=0) >= threshold
+    if bigger_than_threshold.ndim > 1:
+        bigger_than_threshold = np.asarray(bigger_than_threshold).reshape(-1)
+
+    x_ = adata.X[:, bigger_than_threshold]
+    var_ = adata.var[bigger_than_threshold]
+
+    return ad.AnnData(X=x_, var=var_, obs=adata.obs)
+
+"""
