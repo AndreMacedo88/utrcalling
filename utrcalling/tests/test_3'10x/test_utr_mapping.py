@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 import unittest
 import pandas as pd
-from utrcalling.tests.test_data import synthetic_data_tenx
+from utrcalling.tests.test_data import synthetic_data_3tenx
 from utrcalling.core import protocol, utr_mapping, module_log
 
 # we change working dir to the base test dir so that relative paths are sane
@@ -150,7 +150,7 @@ class TestMapReadsToUtrSynthetic(unittest.TestCase):
 class TestTenxThreeSynthetic(TestMapReadsToUtrSynthetic):
     def setUp(self) -> None:
         self.maxDiff = None
-        self.data = synthetic_data_tenx.Bam()
+        self.data = synthetic_data_3tenx.Bam()
         protocol_ = protocol.create(
             platform="10x",
             version=3,
@@ -188,7 +188,7 @@ class TestTenxThreeSynthetic(TestMapReadsToUtrSynthetic):
 class TestTenxTwoSynthetic(TestMapReadsToUtrSynthetic):
     def setUp(self) -> None:
         self.maxDiff = None
-        self.data = synthetic_data_tenx.Bam()
+        self.data = synthetic_data_3tenx.Bam()
         protocol_ = protocol.create(
             platform="10x",
             version=2,
