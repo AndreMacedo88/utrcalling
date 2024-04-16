@@ -155,7 +155,7 @@ class TestTenxThreeSynthetic(TestMapReadsToUtrSynthetic):
             platform="10x",
             version=3,
             alignments=self.data.alignment,
-            annotations="./test_data/smartseq3_anno.csv",
+            annotations="./test_data/vivo_anno.csv",  # Placeholder, not needed
         )
         with self.data:
             self.mappings = utr_mapping.map_reads_to_utr(
@@ -193,7 +193,7 @@ class TestTenxTwoSynthetic(TestMapReadsToUtrSynthetic):
             platform="10x",
             version=2,
             alignments=self.data.alignment,
-            annotations="./test_data/smartseq3_anno.csv",
+            annotations="./test_data/vivo_anno.csv",  # Placeholder, not needed
         )
         with self.data:
             self.mappings = utr_mapping.map_reads_to_utr(

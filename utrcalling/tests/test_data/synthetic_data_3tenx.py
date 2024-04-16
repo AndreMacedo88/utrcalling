@@ -48,7 +48,7 @@ class Bam:
             a1.mapping_quality = 255
             # 35 soft-clipped (Barcode, UMI, etc) + 80 matched
             a1.cigartuples = ((0, 80), (4, 35))
-            a1.next_reference_id = 0
+            a1.next_reference_id = 1
             a1.next_reference_start = 91271713
             a1.template_length = -207
             a1.query_qualities = pysam.qualitystring_to_array(
@@ -64,7 +64,7 @@ class Bam:
             a2.reference_start = 91271713
             a2.mapping_quality = 255
             a2.cigar = ((0, 115),)
-            a2.next_reference_id = 0
+            a2.next_reference_id = 1
             a2.next_reference_start = 91271840
             a2.template_length = 207
             a2.query_qualities = pysam.qualitystring_to_array(
@@ -116,7 +116,7 @@ class Bam:
             c1.mapping_quality = 255
             # 35 soft-clipped (Barcode, UMI, etc) + 75 matched
             c1.cigartuples = ((0, 75), (4, 35))
-            c1.next_reference_id = 0
+            c1.next_reference_id = 1
             c1.next_reference_start = 91271713
             c1.template_length = -207
             c1.query_qualities = pysam.qualitystring_to_array(
@@ -132,7 +132,7 @@ class Bam:
             c2.reference_start = 91271713
             c2.mapping_quality = 255
             c2.cigar = ((0, 115),)
-            c2.next_reference_id = 0
+            c2.next_reference_id = 1
             c2.next_reference_start = 91271840
             c2.template_length = 207
             c2.query_qualities = pysam.qualitystring_to_array(
@@ -150,7 +150,7 @@ class Bam:
             d1.mapping_quality = 255
             # 35 soft-clipped (Barcode, UMI, etc) + 75 matched
             d1.cigartuples = ((0, 75), (4, 35))
-            d1.next_reference_id = 0
+            d1.next_reference_id = 1
             d1.next_reference_start = 91271713
             d1.template_length = -207
             d1.query_qualities = pysam.qualitystring_to_array(
@@ -166,7 +166,7 @@ class Bam:
             d2.reference_start = 91271713
             d2.mapping_quality = 255
             d2.cigar = ((0, 115),)
-            d2.next_reference_id = 0
+            d2.next_reference_id = 1
             d2.next_reference_start = 91271840
             d2.template_length = 207
             d2.query_qualities = pysam.qualitystring_to_array(
