@@ -505,6 +505,56 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
         return read_umi, read_batch_id
 
 
+class ProtocolFiveTenx(ProtocolFivePrime):
+    def __init__(
+        self,
+        merge_method="union",
+        call_peaks=True,
+        call_peaks_method="kde",
+        label_batches=None,
+        alignments=None,
+        annotations=None,
+    ) -> None:
+
+        super().__init__(
+            merge_method=merge_method,
+            call_peaks=call_peaks,
+            call_peaks_method=call_peaks_method,
+            label_batches=label_batches,
+            alignments=alignments,
+            annotations=annotations,
+        )
+        if self.label_batches is None:
+            self.label_batches = True
+
+    @staticmethod
+    def get_reads_identity(alignment, **_):
+        """
+        Get read UMI and barcode from 5'10x version 1.1
+
+        Args:
+            alignment (HTSeq.SAM_Alignment): The genome alignment line with the read
+            information.
+
+        Returns:
+            tuple: a tuple of strings, containing the the read UMI and barcode in
+            position 0 and 1, respectively.
+        """
+        # The cell barcode CB tag includes a suffix with a dash separator followed by
+        # a number. This number denotes the GEM well, and is used to virtualize
+        # barcodes in order to achieve a higher effective barcode diversity when
+        # combining samples generated from separate GEM well channel runs. Normally,
+        # this number will be "1" across all barcodes when analyzing a sample generated
+        # from a single GEM well channel. It can either be left in place and treated as
+        # part of a unique barcode identifier, or explicitly parsed out to leave only
+        # the barcode sequence itself.
+        read_barcode = alignment.optional_field("CB")  # 16bp + "-<GEM well number>"
+        print(f"\nREAD BARCODE: {read_barcode}\n")
+        read_umi = alignment.optional_field("UB")  # 10bp
+        print(f"\nREAD UMI: {read_umi}\n")
+        return read_umi, read_barcode
+
+
 def create(platform, version, **kwargs):
     error_message = f"Protocol for {platform} version {version} not implemented."
 
@@ -525,5 +575,9 @@ def create(platform, version, **kwargs):
     if platform.lower() in ("smart-seq_cap-readname", "smartseq_cap-readname"):
         if version == 3:
             return ProtocolCapseqSmartseq3ReadName(**kwargs)
+        raise NotImplementedError(error_message)
+    if platform.lower() in ("5'10x", "5'10_x", "5'tenx", "5prime10x"):
+        if version == 1:
+            return ProtocolFiveTenx(**kwargs)
         raise NotImplementedError(error_message)
     raise NotImplementedError(error_message)
