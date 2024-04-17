@@ -549,9 +549,7 @@ class ProtocolFiveTenx(ProtocolFivePrime):
         # part of a unique barcode identifier, or explicitly parsed out to leave only
         # the barcode sequence itself.
         read_barcode = alignment.optional_field("CB")  # 16bp + "-<GEM well number>"
-        print(f"\nREAD BARCODE: {read_barcode}\n")
         read_umi = alignment.optional_field("UB")  # 10bp
-        print(f"\nREAD UMI: {read_umi}\n")
         return read_umi, read_barcode
 
 

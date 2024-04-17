@@ -168,7 +168,6 @@ class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
 
     def test_utr_names(self):
         lengths_names = self.var.index.str.split("-").str[1].astype(int).to_list()
-        print(lengths_names)
         self.assertListEqual(lengths_names, self.var.utr_size.to_list())
 
 
