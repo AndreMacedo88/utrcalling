@@ -10,6 +10,7 @@ import modin.pandas as mpd
 from modin.utils import to_pandas
 import anndata
 from utrcalling.core import helpers, module_log
+from tqdm import tqdm
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 # silence modin UserWarnings
@@ -54,8 +55,50 @@ def generate_peak_counts_and_anno(
         for count_mtx in count_matrix_list
     ]
 
-    count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+    ######################## patchy patch area ########################
+    """
+    print("passed fillna and downcasting step")
 
+    count_matrix_list = [
+        count_mtx.astype(pd.SparseDtype(int, fill_value=0))
+        for count_mtx in count_matrix_list
+    ]
+
+    print("passed sparsify step")
+    try:
+        print(f"Type of the first count_mtx: {count_matrix_list[0].head()}")
+        print(f"Density of the first count_mtx: {count_matrix_list[0].sparse.density}")
+    except:
+        pass 
+
+    md, hd = "w", True
+    for df in count_matrix_list:
+        df.reset_index().to_csv("df_all.csv", mode=md, header=hd, index=None)
+        md, hd = "a", False
+    del count_matrix_list
+    count_matrix = pd.read_csv("df_all.csv", index_col=0).T
+    # os.remove("df_all.csv")
+    print(count_matrix)
+    """
+
+    def chunks(lst, n):
+        """Yield successive n-sized chunks from lst."""
+        for i in range(0, len(lst), n):
+            yield lst[i : i + n]
+
+    to_concat = []
+    for chunk in chunks(count_matrix_list, 100):
+        to_concat.append(pd.concat(chunk, axis=1, ignore_index=False, copy=False))
+
+    to_concat = [
+        count_mtx.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
+        for count_mtx in to_concat
+    ]
+    count_matrix = pd.concat(to_concat, axis=1, ignore_index=False, copy=False)
+
+    ##################### end of patchy patch area #####################
+
+    # count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
     count_matrix = count_matrix.fillna(0).apply(pd.to_numeric, downcast="unsigned")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
