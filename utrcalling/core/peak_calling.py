@@ -81,24 +81,55 @@ def generate_peak_counts_and_anno(
     print(count_matrix)
     """
 
+    '''
     def chunks(lst, n):
         """Yield successive n-sized chunks from lst."""
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
 
+    import math
+
     to_concat = []
-    for chunk in chunks(count_matrix_list, 100):
+    chunk_size = 400
+
+    chunk_n = math.ceil(len(count_matrix_list) / chunk_size)
+    for chunk in tqdm(chunks(count_matrix_list, chunk_size), total=chunk_n):
         to_concat.append(pd.concat(chunk, axis=1, ignore_index=False, copy=False))
 
+    del count_matrix_list
+
+    print("Filling NAs with 0 and downcasting")
     to_concat = [
         count_mtx.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
         for count_mtx in to_concat
     ]
-    count_matrix = pd.concat(to_concat, axis=1, ignore_index=False, copy=False)
 
+    print("Storing intermediate count matrices")
+    directory = "./intermediate/counts/"
+    ct = 1
+    for peaks_count_matrix in tqdm(to_concat):
+        try:
+            peaks_count_matrix.to_parquet(
+                os.path.join(directory, f"peaks_count_matrix_{ct}.parquet")
+            )
+        except Exception:
+            peaks_count_matrix.to_csv(
+                os.path.join(directory, f"peaks_count_matrix_{ct}.csv")
+            )
+        ct += 1
+
+    del to_concat
+
+    # print(f"Concatenating {chunk_n} chunks into a final data set")
+    # count_matrix = pd.concat(to_concat, axis=1, ignore_index=False, copy=False)
+    # print("Concatenation complete")
+    count_matrix = []  # Remove after solving this issue
+    '''
     ##################### end of patchy patch area #####################
 
-    # count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+    print("Starting Concatenation")
+    count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+    print("Starting fillna")
     count_matrix = count_matrix.fillna(0).apply(pd.to_numeric, downcast="unsigned")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)

@@ -120,6 +120,9 @@ def run(
         count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(
             str
         )
+        count_matrix_anndata.obs["Sample_Name"] = count_matrix_anndata.obs[
+            "Sample_Name"
+        ].astype(str)
         try:
             count_matrix_anndata.write(filename=out)
         except TypeError as e:
@@ -134,6 +137,8 @@ build your h5ad object from the count matrix, obs, and var.
 The error message was:\n{e}
             """
             )
+    # except:  # Remove this after solving the memory issue
+    #     pass
 
     return
 

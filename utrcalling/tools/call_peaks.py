@@ -99,7 +99,7 @@ def call_peaks(
         store=store_intermediate,
     )
 
-    helpers.log_metrics_anndata(count_matrix_anndata)
+    # helpers.log_metrics_anndata(count_matrix_anndata)
 
     try:
         count_matrix_anndata.write(filename=out)
@@ -123,6 +123,8 @@ build your h5ad object from the count matrix, obs, and var.
 The error message was:\n{e}
             """
             )
+    except:  # Remove this after solving the memory issue
+        pass
 
     return
 

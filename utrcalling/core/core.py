@@ -284,3 +284,4 @@ def call_peaks(
         count_matrix=peaks_count_matrix, var=peaks_var, obs=peaks_obs
     )
     return count_matrix_anndata
+    # return
