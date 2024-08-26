@@ -70,7 +70,10 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.annotations = helpers.check_if_path_and_open(
             to_check=annotations, method="csv"
         )
-        self.annotations = self.annotations.dropna(axis=0, how="all")
+        try:
+            self.annotations = self.annotations.dropna(axis=0, how="all")
+        except TypeError:
+            pass
 
         self.merge_method = merge_method
 

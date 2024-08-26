@@ -177,13 +177,16 @@ def peak_call_anndata(adata, method, **kwargs):
 
 def remove_peaks_below_count(adata, threshold=0.1, minimum_counts=10):
     """
-    Removes the UTR location peaks that have less than `threshold` counts in
-    the sum of all samples. This effectively curates the peaks, selecting the most common
-    and/or more prone to be true peaks.
+    Removes the UTR location peaks that have less than `max(threshold, minimum_counts)` 
+    counts in the sum of all samples. This effectively curates the peaks, selecting 
+    the most common and/or more prone to be true peaks.
 
     Args:
         adata (ad.AnnData): The AnnData object to filter.
-        threshold (int, optional): The minimum counts number each peak must have.
+        threshold (int, optional): The minimum percent threshold (fractional) of counts
+            (of the total UTR counts) allowed to retain the peak in the data.
+            Defaults to 0.1 (10%).
+        minimum_counts (int, optional): The minimum counts number each peak must have.
             Defaults to 10.
 
     Returns:
