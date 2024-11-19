@@ -551,8 +551,15 @@ class ProtocolFiveTenx(ProtocolFivePrime):
         # from a single GEM well channel. It can either be left in place and treated as
         # part of a unique barcode identifier, or explicitly parsed out to leave only
         # the barcode sequence itself.
-        read_barcode = alignment.optional_field("CB")  # 16bp + "-<GEM well number>"
-        read_umi = alignment.optional_field("UB")  # 10bp
+        try:
+            read_barcode = alignment.optional_field("CB")  # 16bp + "-<GEM well number>"
+        except KeyError:
+            read_barcode = False
+
+        try:
+            read_umi = alignment.optional_field("UB")  # 10bp
+        except KeyError:
+            read_umi = False
         return read_umi, read_barcode
 
 
