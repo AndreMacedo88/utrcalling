@@ -39,7 +39,7 @@ def call_peaks(
     # Set up logging
     logger = module_logger(disable=False, store_log=False, level=log_level)
     for arg, value in locals().items():
-        logger.info(f"║ Argument {arg}: {value}\n")
+        logger.info(f"║ Argument {arg}: {value}")
 
     # set up the protocol for this specific run
     protocol_ = protocol.create(

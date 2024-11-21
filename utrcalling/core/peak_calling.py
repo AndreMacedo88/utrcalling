@@ -128,7 +128,49 @@ def generate_peak_counts_and_anno(
     ##################### end of patchy patch area #####################
 
     print("Starting Concatenation")
-    count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+    # count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+
+    # Define chunk size
+    chunk_size = 2700
+
+    # Split into groups of n DataFrames
+    chunks = [
+        count_matrix_list[i : i + chunk_size]
+        for i in range(0, len(count_matrix_list), chunk_size)
+    ]
+
+    # Directory to save intermediate files
+    output_dir = "intermediate_chunks"
+    os.makedirs(output_dir, exist_ok=True)
+
+    # Step 1: Concatenate each chunk and save to disk
+    for i, chunk in tqdm(enumerate(chunks), desc="Concating chunk", total=len(chunks)):
+        # Concatenate the current chunk
+        chunk_df = pd.concat(chunk, axis=1, ignore_index=False, copy=False)
+
+        # Save to Parquet
+        file_path = f"{output_dir}/chunk_{i}.parquet"
+        chunk_df.to_parquet(file_path)
+        # print(f"Saved chunk {i+1}/{len(chunks)} to {file_path}")
+
+    # Step 2: Load intermediate files and concatenate them
+    intermediate_files = [f"{output_dir}/chunk_{i}.parquet" for i in range(len(chunks))]
+
+    # Initialize the final DataFrame
+    count_matrix = None
+
+    for file_path in tqdm(
+        intermediate_files, desc="Concating stored dfs", total=len(intermediate_files)
+    ):
+        df = pd.read_parquet(file_path)
+        if count_matrix is None:
+            count_matrix = df
+        else:
+            count_matrix = pd.concat(
+                [count_matrix, df], axis=1, ignore_index=False, copy=False
+            )
+        # print(f"Concatenated file {file_path}")
+
     print("Starting fillna")
     count_matrix = count_matrix.fillna(0).apply(pd.to_numeric, downcast="unsigned")
 
