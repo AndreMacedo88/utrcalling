@@ -55,8 +55,10 @@ def generate_peak_counts_and_anno(
         for count_mtx in count_matrix_list
     ]
 
-    ######################## patchy patch area ########################
+    ######################## patchy patch areas ########################
+
     """
+    print(count_matrix_list[0])
     print("passed fillna and downcasting step")
 
     count_matrix_list = [
@@ -69,21 +71,22 @@ def generate_peak_counts_and_anno(
         print(f"Type of the first count_mtx: {count_matrix_list[0].head()}")
         print(f"Density of the first count_mtx: {count_matrix_list[0].sparse.density}")
     except:
-        pass 
+        pass
 
     md, hd = "w", True
-    for df in count_matrix_list:
+    for df in tqdm(count_matrix_list, total=len(count_matrix_list)):
         df.reset_index().to_csv("df_all.csv", mode=md, header=hd, index=None)
         md, hd = "a", False
     del count_matrix_list
     count_matrix = pd.read_csv("df_all.csv", index_col=0).T
     # os.remove("df_all.csv")
     print(count_matrix)
+
+    """
     """
 
-    '''
     def chunks(lst, n):
-        """Yield successive n-sized chunks from lst."""
+        '''Yield successive n-sized chunks from lst.'''
         for i in range(0, len(lst), n):
             yield lst[i : i + n]
 
@@ -105,7 +108,7 @@ def generate_peak_counts_and_anno(
     ]
 
     print("Storing intermediate count matrices")
-    directory = "./intermediate/counts/"
+    directory = "./intermediate_files/"
     ct = 1
     for peaks_count_matrix in tqdm(to_concat):
         try:
@@ -124,9 +127,11 @@ def generate_peak_counts_and_anno(
     # count_matrix = pd.concat(to_concat, axis=1, ignore_index=False, copy=False)
     # print("Concatenation complete")
     count_matrix = []  # Remove after solving this issue
-    '''
-    ##################### end of patchy patch area #####################
 
+    """
+    ##################### end of patchy patch area 1 #####################
+
+    """
     print("Starting Concatenation")
     # count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
 
@@ -178,8 +183,19 @@ def generate_peak_counts_and_anno(
     else:
         input_files = count_matrix_list
 
+    count_matrix_list = None
+
     # Define chunk size for each round
-    initial_chunk_size = 100  # Adjust based on available memory
+    initial_chunk_sizes = [
+        100,
+        10,
+        5,
+        2,
+        2,
+        2,
+        2,
+        2,
+    ]  # Adjust based on available memory
     current_files = input_files
 
     # Perform multiple rounds of concatenation
@@ -189,12 +205,105 @@ def generate_peak_counts_and_anno(
 
         # Process the current round of files
         current_files = process_chunks(
-            current_files, output_dir, initial_chunk_size, round_number
+            current_files,
+            output_dir,
+            initial_chunk_sizes[round_number - 1],
+            round_number,
         )
 
     count_matrix = current_files[0]
+    """
+    ##################### end of patchy patch area 2 #####################
 
-    print("Starting fillna")
+    '''
+    import numpy as np
+
+    def manual_concat(dataframes, chunk_size=100):
+        """
+        Manually concatenates a list of DataFrames horizontally (axis=1),
+        handling alignment without using Pandas' concat to avoid memory issues.
+
+        Args:
+        - dataframes (list): List of Pandas DataFrames to concatenate.
+        - chunk_size (int): Number of DataFrames to process in each chunk.
+
+        Returns:
+        - pd.DataFrame: The final concatenated DataFrame.
+        """
+        # Step 1: Gather all unique row indices (master index)
+        all_indices = set()
+        for df in dataframes:
+            all_indices.update(df.index)
+        master_index = sorted(all_indices)  # Ensure consistent order
+
+        # Step 2: Prepare for concatenation
+        concatenated_values = []
+        concatenated_columns = []
+
+        # Process DataFrames in chunks
+        for i in tqdm(range(0, len(dataframes), chunk_size), total=len(dataframes)):
+            chunk = dataframes[i : i + chunk_size]
+
+            # Align each DataFrame in the chunk
+            aligned_values = []
+            for df in chunk:
+                # Reindex to match the master index, filling missing rows with NaN
+                aligned_df = df.reindex(master_index)
+
+                # Fill NaN with 0 and downcast to smallest possible unsigned integer type
+                aligned_df = aligned_df.fillna(0).to_numpy(dtype=np.uint16)
+
+                # Append the aligned array to the list
+                aligned_values.append(aligned_df)
+                concatenated_columns.extend(df.columns)
+
+            # Horizontally stack the aligned values
+            chunk_values = np.hstack(aligned_values)
+            concatenated_values.append(chunk_values)
+
+            # Free memory for processed chunk
+            del aligned_values, chunk_values
+
+        # Step 3: Vertically stack all chunks
+        final_values = np.hstack(concatenated_values)
+
+        # Step 4: Reconstruct the final DataFrame
+        final_df = pd.DataFrame(
+            final_values, index=master_index, columns=concatenated_columns
+        )
+        return final_df
+
+    # Concatenate manually
+    count_matrix = manual_concat(count_matrix_list, chunk_size=1000)
+    '''
+    ##################### end of patchy patch area 3 #####################
+
+    print("passed fillna and downcasting")
+
+    all_indices = set()
+    for df in count_matrix_list:
+        all_indices.update(df.index)
+    master_index = sorted(all_indices)  # Ensure consistent order
+
+    print("starting reindexing and sparsify steps")
+    count_matrix_list = [
+        # Reindex to match the master index, filling missing rows with NaN
+        df.reindex(master_index, fill_value=0).astype(pd.SparseDtype(int, fill_value=0))
+        for df in count_matrix_list
+    ]
+
+    try:
+        print(f"First count_mtx: {count_matrix_list[0].head()}")
+        print(f"Density of the first count_mtx: {count_matrix_list[0].sparse.density}")
+    except:
+        pass
+
+    print("passed sparsify step")
+
+    print("concatenating sparse data frames")
+    count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
+
+    print("Starting final fillna and downcasting")
     count_matrix = count_matrix.fillna(0).apply(pd.to_numeric, downcast="unsigned")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
