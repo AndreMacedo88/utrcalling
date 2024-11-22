@@ -293,8 +293,9 @@ def generate_peak_counts_and_anno(
     ]
 
     try:
-        print(f"First count_mtx: {count_matrix_list[0].head()}")
+        print(f"First count_mtx: {count_matrix_list[0].shape}")
         print(f"Density of the first count_mtx: {count_matrix_list[0].sparse.density}")
+        print(f"Total rows expected: {len(master_index)}")
     except:
         pass
 
@@ -303,8 +304,8 @@ def generate_peak_counts_and_anno(
     print("concatenating sparse data frames")
     count_matrix = pd.concat(count_matrix_list, axis=1, ignore_index=False, copy=False)
 
-    print("Starting final fillna and downcasting")
-    count_matrix = count_matrix.fillna(0).apply(pd.to_numeric, downcast="unsigned")
+    # print("Starting final fillna and downcasting")
+    # count_matrix = count_matrix.fillna(0).apply(pd.to_numeric, downcast="unsigned")
 
     peaks_var = pd.concat(peaks_var_list, axis=0, ignore_index=False)
 
