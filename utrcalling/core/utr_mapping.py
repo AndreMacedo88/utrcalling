@@ -162,16 +162,21 @@ def deduplicate_reads(read_umis, read_info):
     return read_info_output
 
 
-# TODO: Delete this function when the tests have been done
-def deduplicate_reads_old(read_umis, read_info):
-    umis_unique = []
+# TODO: This part could replace the filter_barcodes() function in process_mapped_reads
+def deduplicate_reads_with_barcode_filtering(read_umis, read_info, protocol):
+    barcodes = read_info[0]
+    umis_unique = {barcode: [] for barcode in barcodes}
     idx_unique = []
-    for idx, umi in enumerate(read_umis.copy()):
-        if umi not in umis_unique:
+    for idx, (umi, barcode) in enumerate(zip(read_umis.copy(), barcodes)):
+        if (protocol.barcode_whitelist is not None) and (
+            barcode not in protocol.barcode_whitelist
+        ):
+            pass
+        if umi not in umis_unique.get(barcode):
             idx_unique.append(idx)
-            umis_unique.append(umi)
-    read_info = [[element[i] for i in idx_unique] for element in read_info]
-    return read_info
+            umis_unique[barcode].append(umi)
+    read_info_output = [[element[i] for i in idx_unique] for element in read_info]
+    return read_info_output
 
 
 def extract_read_information(alignment, interval, protocol, bam_name):
