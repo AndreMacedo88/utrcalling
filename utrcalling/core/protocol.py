@@ -207,7 +207,8 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def _get_barcode_column(self):
         barcode_column_name = (
-            self.annotations.columns.str.extract(r"(.*barcode.*)", flags=re.IGNORECASE)
+            self.annotations.reset_index()
+            .columns.str.extract(r"(.*barcode.*)", flags=re.IGNORECASE)
             .dropna()
             .values
         )
