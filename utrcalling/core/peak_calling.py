@@ -50,10 +50,10 @@ def generate_peak_counts_and_anno(
     # Free some RAM by deleting the biggest variables
     del utr_sizes
 
-    # count_matrix_list = [
-    #     count_mtx.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
-    #     for count_mtx in count_matrix_list
-    # ]
+    count_matrix_list = [
+        count_mtx.fillna(0).apply(mpd.to_numeric, downcast="unsigned")
+        for count_mtx in count_matrix_list
+    ]
 
     ######################## patchy patch areas ########################
 
@@ -286,8 +286,6 @@ def generate_peak_counts_and_anno(
     master_index = sorted(master_index)  # Ensure consistent order
 
     print(f"Total cells: {len(master_index)}")
-    print(count_matrix_list[0].shape)
-    print(count_matrix_list[1].shape)
 
     print("starting reindexing and sparsify steps")
     count_matrix_list = [
