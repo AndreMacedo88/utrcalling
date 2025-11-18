@@ -103,13 +103,16 @@ def peak_call_anndata(adata, method, **kwargs):
     sparse_adata = False
     if scipy.sparse.issparse(adata.X):
         sparse_adata = True
-        logger.info("Sparse data will be densified for further processing")
+        # logger.info("Sparse data will be densified for further processing")
         # logger.info("Densifying sparse data for further processing")
         # adata.X = adata.X.toarray()
 
     new_obs = adata.obs
 
     utrs = adata.var.utr_name.unique()
+
+    # Get minimum UMIs
+    min_umis = kwargs.get("min_umis", None)
 
     mtx_list = []
     var_list = []
@@ -120,6 +123,15 @@ def peak_call_anndata(adata, method, **kwargs):
         adata_utr = adata[:, adata.var.utr_name == utr]
         # if sparse_adata:
         #     adata_utr.X = adata_utr.X.toarray()
+
+        # Only process utr if it has a minimum number of UMIs, if provided
+        if min_umis:
+            total_umis = adata_utr.X.sum()
+            if total_umis < min_umis:
+                logger.info(
+                    f"Skipping UTR {utr} with only {total_umis} UMIs (< {min_umis})"
+                )
+                continue
 
         gene = adata_utr.var.gene_name[0]
         utr_name = adata_utr.var.utr_name.str.split("_")[0]
@@ -145,7 +157,8 @@ def peak_call_anndata(adata, method, **kwargs):
             peak_sizes_unique = peak_sizes.unique()
 
         # create new matrix with the sum of UMIs for each new peak
-        mtx_new_t = adata_utr.to_df().T
+        mtx_new_t = adata_utr[:, peak_sizes.index.values].to_df().T
+
         mtx_new_t["sizes"] = peak_sizes.tolist()
         mtx_new = mtx_new_t.groupby("sizes").sum().T
         mtx_list.append(mtx_new.to_numpy())
@@ -177,8 +190,8 @@ def peak_call_anndata(adata, method, **kwargs):
 
 def remove_peaks_below_count(adata, threshold=0.1, minimum_counts=10):
     """
-    Removes the UTR location peaks that have less than `max(threshold, minimum_counts)` 
-    counts in the sum of all samples. This effectively curates the peaks, selecting 
+    Removes the UTR location peaks that have less than `max(threshold, minimum_counts)`
+    counts in the sum of all samples. This effectively curates the peaks, selecting
     the most common and/or more prone to be true peaks.
 
     Args:
