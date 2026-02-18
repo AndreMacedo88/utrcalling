@@ -49,7 +49,7 @@ def generate_peak_counts_perf(lines):
     logger = module_log.module_logger()
     logger.setLevel(logging.INFO)
 
-    logger.info("Loading the test data")
+    logger.info("Generating the test data")
     generate_counts = GeneratePeakCounts()
 
     logger.info("Profiling")

@@ -16,11 +16,14 @@ class MapAlignedReads:
         self.utr_regions = pd.read_parquet(
             "../tests/test_data/test_UTR_reference.parquet"
         )
-        self.protocol = protocol.create(platform="10x", version=2)
+        annotations = pd.read_csv("../tests/test_data/vivo_anno.csv")
+        self.protocol = protocol.create(
+            platform="10x", version=2, annotations=annotations
+        )
 
         alignments_n = 5
         self.alignments = [
-            "../tests/test_data/test_UTRoldNSCgenome_bwt2_102_duplicates_sort.bam",
+            "../tests/test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam",
         ] * alignments_n
 
     def perf_test(self):

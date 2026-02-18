@@ -52,4 +52,4 @@ After installation, you can:
 
 - Run all test files at once:
 
-``utrcalling run_tests``
+``utrcalling run-tests``

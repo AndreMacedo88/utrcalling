@@ -25,7 +25,7 @@ class GeneratePeakCounts:
 
     def perf_test(self):
         peak_calling.generate_peak_counts_and_anno(
-            utr_sizes=self.data, annotations=self.anno, func=self.protocol.peak_calling
+            utr_sizes=self.data, protocol=self.protocol
         )
 
 
@@ -33,7 +33,7 @@ def generate_peak_counts_perf(lines):
     logger = module_log.module_logger()
     logger.setLevel(logging.INFO)
 
-    logger.info("Loading the test data")
+    logger.info("Generating the test data")
     generate_counts = GeneratePeakCounts()
 
     logger.info("Profiling")

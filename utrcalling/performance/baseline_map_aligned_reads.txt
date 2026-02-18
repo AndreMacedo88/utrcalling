@@ -1,0 +1,99 @@
+#NOTE: This file contains the output of a performance test run. It is not a code file, but rather a log of the performance test results. The content includes information about the test run, such as the version of utrcalling used, the time taken for various steps, and the mapping statistics. Note also that the test data used in this run is magnitudes smaller than the data used in the actual performance test, so the times reported here are not representative of the actual performance test results.
+
+/// utrcalling \\\ 🧬 v2.1.3 🧬
+
+2026-02-18 18:26:46,490	INFO worker.py:1636 -- Started a local Ray instance.
+
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]
+UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 327725.36it/s]
+
+  0%|          | 0/5 [00:00<?, ?it/s]
+100%|■■■■■■■■■■| 5/5 [00:00<00:00, 215.73it/s]
+[33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Extracting reads from ../tests/test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Extracting reads from ../tests/test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Extracting reads from ../tests/test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Extracting reads from ../tests/test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+[33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Extracting reads from ../tests/test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]
+Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 695/1016 [00:00<00:00, 6874.71it/s]
+Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 694/1016 [00:00<00:00, 6926.05it/s]
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7250.15it/s]
+[33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+
+Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 691/1016 [00:00<00:00, 6894.70it/s]
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7260.39it/s]
+[33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+
+Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 695/1016 [00:00<00:00, 6907.08it/s]
+Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 692/1016 [00:00<00:00, 6917.37it/s]
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7174.65it/s]
+[33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7282.01it/s]
+[33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7246.61it/s]
+[33m║[0m 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+║ 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » SUCCESS - Total internal time:
+         55992 function calls (55935 primitive calls) in 2.331 seconds
+
+   Ordered by: internal time
+   List reduced from 651 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+       27    1.814    0.067    1.814    0.067 {method 'acquire' of '_thread.lock' objects}
+       28    0.356    0.013    0.359    0.013 {built-in method posix.fork}
+       27    0.018    0.001    0.433    0.016 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/popen_loky_posix.py:90(_launch)
+        1    0.009    0.009    0.485    0.485 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/process_executor.py:1096(_adjust_process_count)
+       54    0.008    0.000    0.024    0.000 {function CloudPickler.dump at 0x7fb7ccafa3b0}
+       33    0.005    0.000    0.022    0.001 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/synchronize.py:57(__init__)
+       35    0.005    0.000    0.008    0.000 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/multiprocessing/util.py:171(register_after_fork)
+       61    0.005    0.000    0.005    0.000 {built-in method posix.pipe}
+       27    0.004    0.000    0.439    0.016 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/popen_loky_posix.py:41(__init__)
+       54    0.003    0.000    0.015    0.000 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/reduction.py:152(__init__)
+     2397    0.003    0.000    0.006    0.000 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/os.py:675(__getitem__)
+      108    0.003    0.000    0.003    0.000 {built-in method fromkeys}
+      351    0.003    0.000    0.003    0.000 {built-in method posix.waitpid}
+       28    0.003    0.000    0.025    0.001 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/context.py:257(BoundedSemaphore)
+1905/1893    0.003    0.000    0.003    0.000 {built-in method builtins.getattr}
+       28    0.003    0.000    0.372    0.013 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/fork_exec.py:32(fork_exec)
+       60    0.002    0.000    0.002    0.000 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/multiprocessing/util.py:186(__init__)
+     2408    0.002    0.000    0.004    0.000 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/os.py:698(__iter__)
+      891    0.002    0.000    0.011    0.000 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/cloudpickle/cloudpickle_fast.py:691(reducer_override)
+       27    0.002    0.000    0.003    0.000 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/multiprocessing/process.py:80(__init__)
+
+
+║ 2026-02-18 18:26:49 utrcalling perf_map_aligned_reads.py » SUCCESS - Cumulative time:
+         55992 function calls (55935 primitive calls) in 2.331 seconds
+
+   Ordered by: cumulative time
+   List reduced from 651 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    2.331    2.331 /mnt/weird_vol/mytools/utrcalling_/utrcalling/performance/perf_map_aligned_reads.py:29(perf_test)
+        1    0.000    0.000    2.331    2.331 /mnt/weird_vol/mytools/utrcalling_/utrcalling/core/core.py:69(map_aligned_reads)
+        1    0.000    0.000    2.325    2.325 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/parallel.py:1000(__call__)
+        4    0.000    0.000    1.814    0.453 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/threading.py:288(wait)
+       27    1.814    0.067    1.814    0.067 {method 'acquire' of '_thread.lock' objects}
+        1    0.000    0.000    1.812    1.812 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/parallel.py:960(retrieve)
+        5    0.000    0.000    1.812    0.362 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/_parallel_backends.py:562(wrap_future_result)
+        5    0.000    0.000    1.812    0.362 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/concurrent/futures/_base.py:430(result)
+        6    0.000    0.000    0.489    0.082 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/parallel.py:838(dispatch_one_batch)
+        5    0.000    0.000    0.488    0.098 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/parallel.py:801(_dispatch)
+        5    0.000    0.000    0.488    0.098 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/_parallel_backends.py:554(apply_async)
+        5    0.000    0.000    0.488    0.098 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/reusable_executor.py:174(submit)
+        5    0.000    0.000    0.488    0.098 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/process_executor.py:1126(submit)
+        5    0.000    0.000    0.488    0.098 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/process_executor.py:1118(_ensure_executor_running)
+        1    0.009    0.009    0.485    0.485 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/process_executor.py:1096(_adjust_process_count)
+       27    0.002    0.000    0.447    0.017 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/multiprocessing/process.py:110(start)
+       27    0.001    0.000    0.441    0.016 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/process.py:26(_Popen)
+       27    0.004    0.000    0.439    0.016 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/popen_loky_posix.py:41(__init__)
+       27    0.018    0.001    0.433    0.016 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/popen_loky_posix.py:90(_launch)
+       28    0.003    0.000    0.372    0.013 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/fork_exec.py:32(fork_exec)
+
+
