@@ -80,7 +80,7 @@ utrcalling call-peaks --help   # Peak calling only
 ### Three-Step Core Pipeline (`utrcalling/core/core.py`)
 
 1. **`prepare_utr_reference_regions()`** — Parses GTF, extracts UTR features, merges overlapping regions via pybedtools, returns a reference BED-like DataFrame.
-2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via HTSeq. Parallelizes across samples using `joblib.Parallel(n_jobs=-2, backend="loky")`.
+2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via HTSeq. Parallelizes across samples using `joblib.Parallel(n_jobs=-2)`.
 3. **`call_peaks()`** — Calls consensus peaks on molecule size distributions using Gaussian KDE (sklearn) + `scipy.signal.argrelextrema`. Produces the final AnnData.
 
 ### Protocol System (`utrcalling/core/protocol.py`)
@@ -133,11 +133,12 @@ mapped_reads = pd.DataFrame({
 
 ### Key Dependencies
 
-- **pybedtools** — genomic interval operations (requires BEDTools binary on system)
+- **pybedtools** — genomic interval operations (requires **BEDTools** installed system-wide: `conda install -c bioconda bedtools`)
 - **HTSeq** — BAM/SAM read processing
 - **anndata/scanpy** — single-cell data structures
 - **joblib** — parallelism across BAM files
 - **modin[ray]** — *being removed in this refactor*
+- Python 3.9+ (tested on 3.9)
 
 ### Testing
 
