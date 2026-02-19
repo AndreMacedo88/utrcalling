@@ -39,7 +39,7 @@ setuptools.setup(
     install_requires=[
         "numpy>=1.22.3, <1.24",
         "pandas>=1.3.0",
-        "modin[ray]>=0.19.0, <1",
+
         "scipy>=1.6.2",
         "scikit-learn>=0.23.2",
         "regex>=2022.04.24",

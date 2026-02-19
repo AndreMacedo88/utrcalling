@@ -2,80 +2,49 @@ from functools import reduce
 import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)
-warnings.filterwarnings("ignore", category=UserWarning)  # silence modin UserWarnings
 
-import modin.pandas as mpd
-from modin.utils import to_pandas
+import pandas as pd
 import numpy as np
 from rapidfuzz import process, distance
 
 from utrcalling.core import helpers, module_log
 
 
-def merge_samples_utr_sizes(utr_sizes, method="intersection", label_batches=True):
+def merge_samples_utr_sizes(utr_sizes, method="intersection"):
     """
-    Before calling peaks from position counts, we should merge the datasets we want to
-    compare, so that peaks get called with the pseudo-bulk data from all samples.
-    Merging appends both samples information for each UTR. If `method='intersection'`,
-    UTRs that only one sample mapped to will be discarded. If `method='union'`, then
-    a union merge is performed.
-    If you want to call peaks for a single sample, skip this function.
+    Merge flat-format DataFrames (utr_name, observation_id, utr_size) from multiple
+    samples. If method='intersection', only UTRs present in all samples are kept.
+    If method='union', all UTRs from all samples are kept.
+
+    Batch labeling (the "-N" suffix on observation_ids) is handled at read time
+    via Protocol.get_observation_id(), not here.
 
     Args:
-        utr_sizes (list): List with the objects containing the position
-        counts for each sample.
+        utr_sizes (list): List of flat DataFrames, one per sample.
+        method (str): 'intersection' or 'union'.
 
     Returns:
-        mpd.Dataframe: An object with the merged datasets.
+        pd.DataFrame: Merged flat DataFrame.
     """
-
     logger = module_log.module_logger()
-
-    if label_batches:
-        if not (
-            utr_sizes[0]["read_barcodes"]
-            .sample(n=20)
-            .explode()
-            .str.split("-")
-            .apply(len)
-            > 1
-        ).any():  # confirm that the batches haven't already been labelled
-            for idx, batch in enumerate(utr_sizes):
-                batch.read_barcodes = [
-                    [f"{barcode}-{idx+1}" for barcode in barcodes]
-                    for barcodes in batch.read_barcodes
-                ]
-
     logger.info("Merging all batches' UTR sizes")
     if method == "union":
-        utr_sizes = mpd.concat(utr_sizes)
-
-        try:
-            utr_sizes = utr_sizes.groupby(level=0, observed=True).sum()
-        except ValueError as err:
-            message = (
-                f"During sample UTR size merging, the following error arised:\n{err}\n",
-                "Bypassing this error may take a while.",
-            )
-            logger.warning(message)
-
-            utr_sizes = utr_sizes.groupby(level=0).agg(
-                {
-                    "read_barcodes": lambda grp: [
-                        i for lst in grp.to_numpy().flatten() for i in lst
-                    ],
-                    "utr_sizes_from_reads": lambda grp: [
-                        i for lst in grp.to_numpy().flatten() for i in lst
-                    ],
-                }
-            )
-
+        merged = pd.concat(utr_sizes, ignore_index=True)
     elif method == "intersection":
-        utr_sizes = reduce(lambda a, b: (a + b).dropna(axis=0), utr_sizes)
+        # Keep only UTRs present in ALL samples
+        common_utrs = set(utr_sizes[0]["utr_name"].unique())
+        for batch in utr_sizes[1:]:
+            common_utrs &= set(batch["utr_name"].unique())
+        merged = pd.concat(utr_sizes, ignore_index=True)
+        merged = merged[merged["utr_name"].isin(common_utrs)].copy()
     else:
         raise AttributeError(f"Method {method} not supported.")
 
-    return utr_sizes
+    # Re-categorize after concat
+    merged["utr_name"] = pd.Categorical(merged["utr_name"])
+    merged["observation_id"] = pd.Categorical(merged["observation_id"])
+
+    return merged
 
 
 def merge_utrs_per_gene(utr_regions, read_mappings):
@@ -88,145 +57,150 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
         split = split.explode()
         return ",".join(np.unique(split))
 
-    def explode_and_then_join(x):
-        explode = x.explode()
-        return explode.to_list()
-
-    def transform_utr_sizes(df):
-        strand = df.strand[0]
+    def transform_utr_sizes_flat(df):
+        """Compute per-region offsets and add them to utr_size for a gene group."""
+        strand = df["strand"].iloc[0]
         if strand == "-":
+            df = df.copy()
             df[["start", "end"]] = df[["end", "start"]]
             df = df.sort_values(by=["start", "end"], ascending=False)
+        else:
+            df = df.sort_values(by=["start", "end"])
 
-        start = df.start[0]  # needs sorted df
-        end = df.end[0]
+        # Compute offset per utr_name within this gene
+        seen_utrs = {}
+        start = df["start"].iloc[0]
+        end = df["end"].iloc[0]
         left_over = 0
-        to_add = []
 
-        if strand == "+":
-            for row in df.itertuples():
+        for row in df.itertuples():
+            utr_name = row.utr_name
+            if utr_name in seen_utrs:
+                continue
+
+            if strand == "+":
                 if row.start == start:
-                    to_add.append(left_over)
-                    if row.end <= end:
-                        continue
-                    else:
+                    seen_utrs[utr_name] = left_over
+                    if row.end > end:
                         end = row.end
-                    continue
                 elif row.start <= end:
-                    to_add.append(left_over + (row.start - start))
-                    if row.end <= end:
-                        continue
-                    else:
+                    seen_utrs[utr_name] = left_over + (row.start - start)
+                    if row.end > end:
                         end = row.end
-                    continue
                 elif row.start > end:
                     left_over += end - start
-                    to_add.append(left_over)
+                    seen_utrs[utr_name] = left_over
                     start = row.start
                     end = row.end
-
-        elif strand == "-":
-            for row in df.itertuples():
+            elif strand == "-":
                 if row.start == start:
-                    to_add.append(left_over)
-                    if row.end >= end:
-                        continue
-                    else:
+                    seen_utrs[utr_name] = left_over
+                    if row.end < end:
                         end = row.end
-                    continue
                 elif row.start >= end:
-                    to_add.append(left_over + (start - row.start))
-                    if row.end >= end:
-                        continue
-                    else:
+                    seen_utrs[utr_name] = left_over + (start - row.start)
+                    if row.end < end:
                         end = row.end
-                    continue
                 elif row.start < end:
                     left_over += start - end
-                    to_add.append(left_over)
+                    seen_utrs[utr_name] = left_over
                     start = row.start
                     end = row.end
 
-        df["to_add"] = to_add
-        explode = df.explode("utr_sizes_from_reads")
-        explode["utr_sizes_from_reads"] = (
-            explode["utr_sizes_from_reads"] + explode["to_add"]
-        )
-        return explode["utr_sizes_from_reads"].to_list()
+        return seen_utrs
 
     logger = module_log.module_logger()
-    mpd_switch = False
 
-    # join the 2 dataframes so that we can do the operations only once
-    # note that `how="inner"` is needed so that there are no NaN values in the UTR sizes
-    combined_data = utr_regions.join(read_mappings, how="inner")
-    # we must also change the genes without name from NaN to a string
-    combined_data["gene_name"] = combined_data["gene_name"].fillna(value="None")
-    # sorting is necessary to then apply the `transform_utr_sizes` function
-    combined_data = combined_data.sort_values(by=["start", "end"])
+    # Join read_mappings with utr_regions on utr_name
+    # read_mappings is flat: utr_name, observation_id, utr_size
+    # utr_regions is indexed by utr_name
+    combined = read_mappings.merge(
+        utr_regions.reset_index(), on="utr_name", how="inner"
+    )
+    combined["gene_name"] = combined["gene_name"].fillna(value="None")
 
-    grouped = combined_data.groupby("name")
-    utr_regions_per_gene = grouped.agg(
+    # Build aggregated utr_regions per gene
+    utr_regions_sorted = utr_regions.copy()
+    utr_regions_sorted["gene_name"] = utr_regions_sorted["gene_name"].fillna("None")
+    utr_regions_sorted = utr_regions_sorted.sort_values(by=["start", "end"])
+    utr_regions_sorted["utr_name"] = utr_regions_sorted.index
+
+    grouped_regions = utr_regions_sorted.groupby("name")
+    utr_regions_per_gene = grouped_regions.agg(
         {
             "chrom": "first",
             "start": join_unique,
             "end": join_unique,
-            # "name": "first",  # this is the same as the new index, but may be needed for legacy purposes?
             "strand": "first",
             "transcript_id": split_and_then_join_unique,
             "gene_name": split_and_then_join_unique,
-            "read_barcodes": explode_and_then_join,
         }
     )
-
-    if isinstance(combined_data, mpd.dataframe.DataFrame):
-        # Modin groupBy.apply splits the partitions column-wise
-        # so unfortunately for now we must revert back to pandas to use all columns
-        mpd_switch = True
-        logger.info("Converting Modin dataframe back to pandas as fallback.")
-        combined_data = to_pandas(combined_data)
-        grouped = combined_data.groupby("name")
-
-    utr_sizes_from_reads = grouped.apply(transform_utr_sizes)
-    utr_sizes_from_reads.name = "utr_sizes_from_reads"
-
-    if mpd_switch:
-        # then we must re-distribute the dataframe
-        logger.info("Re-distributing the pandas dataframe.")
-        utr_sizes_from_reads = mpd.DataFrame(utr_sizes_from_reads)
-
-    utr_regions_per_gene = utr_regions_per_gene.join(utr_sizes_from_reads, how="left")
     utr_regions_per_gene.index.name = "utr_name"
+    utr_regions_per_gene["name"] = utr_regions_per_gene.index
 
-    utr_regions = utr_regions_per_gene.loc[
-        :,
-        [
-            "chrom",
-            "start",
-            "end",
-            "strand",
-            "transcript_id",
-            "gene_name",
-        ],
-    ]
-    utr_regions["name"] = utr_regions.index
+    # Compute per-gene offsets for each utr_name
+    offset_map = {}
+    for gene_name, group in utr_regions_sorted.groupby("name"):
+        offsets = transform_utr_sizes_flat(group)
+        offset_map.update(offsets)
 
-    read_mappings = utr_regions_per_gene.loc[
-        :,
-        [
-            "read_barcodes",
-            "utr_sizes_from_reads",
-        ],
-    ]
-    return utr_regions, read_mappings
+    # Build utr_name → gene_name mapping and utr_name → sort order for reads
+    utr_to_gene = utr_regions_sorted.groupby("name").apply(
+        lambda g: g["utr_name"].tolist()
+    )
+    utr_name_to_gene = {}
+    for gene_name, utr_names_list in utr_to_gene.items():
+        for un in utr_names_list:
+            utr_name_to_gene[un] = gene_name
+
+    # For each gene, compute the sort-order position for each utr_name.
+    # For negative strand genes, we need the reverse of the start/end sorted order.
+    utr_sort_order = {}
+    for gene_name, group in utr_regions_sorted.groupby("name"):
+        strand = group["strand"].iloc[0]
+        if strand == "-":
+            # Swap start/end and sort descending (same as old transform_utr_sizes)
+            g = group.copy()
+            g[["start", "end"]] = g[["end", "start"]]
+            g = g.sort_values(by=["start", "end"], ascending=False)
+        else:
+            g = group
+        for pos, utr_name in enumerate(g["utr_name"].values):
+            utr_sort_order[utr_name] = pos
+
+    # Apply offsets to the flat read_mappings
+    combined["offset"] = combined["utr_name"].map(offset_map).fillna(0).astype(np.int32)
+    combined["utr_size"] = combined["utr_size"] + combined["offset"]
+
+    # Add sort key for ordering reads within each gene
+    combined["_sort_order"] = combined["utr_name"].map(utr_sort_order)
+    combined["_gene"] = combined["utr_name"].map(utr_name_to_gene)
+
+    # Sort by gene and then by the per-gene sort order
+    combined = combined.sort_values(by=["_gene", "_sort_order"])
+
+    # Replace utr_name with gene name
+    combined["utr_name"] = combined["_gene"]
+
+    # Build flat result
+    result = combined[["utr_name", "observation_id", "utr_size"]].copy()
+    result["utr_name"] = pd.Categorical(result["utr_name"])
+    result["observation_id"] = pd.Categorical(result["observation_id"])
+    result["utr_size"] = result["utr_size"].astype(np.int32)
+    result = result.reset_index(drop=True)
+
+    return utr_regions_per_gene, result
 
 
 def subset_reference_data(utr_sizes, utr_reference_regions):
     logger = module_log.module_logger()
     logger.info("Subsetting UTR reference data")
 
-    sub_utr_reference = utr_reference_regions.filter(items=utr_sizes.index, axis=0)
-
+    utr_names = utr_sizes["utr_name"].unique()
+    sub_utr_reference = utr_reference_regions[
+        utr_reference_regions.index.isin(utr_names)
+    ]
     sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
 
     return sub_utr_reference_unique
@@ -236,7 +210,7 @@ def filter_barcodes(utr_sizes, whitelist):
     logger = module_log.module_logger()
     logger.info("Filtering cell barcodes")
 
-    barcodes_to_test = set(helpers.flatten(utr_sizes.read_barcodes))
+    barcodes_to_test = set(utr_sizes["observation_id"].unique())
     barcodes_correct = set()
     barcodes_replace = {}
     for barcode in barcodes_to_test:
@@ -272,8 +246,13 @@ def filter_barcodes(utr_sizes, whitelist):
             else:
                 continue
 
-    utr_sizes = utr_sizes.explode(utr_sizes.columns.to_list())
-    utr_sizes.read_barcodes.replace(barcodes_replace, inplace=True)
-    utr_sizes = utr_sizes[utr_sizes.read_barcodes.isin(barcodes_correct)]
+    # Apply replacements and filter — flat format, no explode/regroup needed
+    result = utr_sizes.copy()
+    if barcodes_replace:
+        result["observation_id"] = (
+            result["observation_id"].astype(str).replace(barcodes_replace).astype("category")
+        )
+    result = result[result["observation_id"].isin(barcodes_correct)].copy()
+    result["observation_id"] = pd.Categorical(result["observation_id"])
 
-    return utr_sizes.groupby(level=0).agg(list)
+    return result

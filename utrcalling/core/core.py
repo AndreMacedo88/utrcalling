@@ -27,9 +27,10 @@ import os
 import psutil
 
 import numpy as np
-import modin.pandas as mpd
+import pandas as pd
 import pybedtools
 import joblib
+from scipy.sparse import save_npz
 from tqdm import tqdm
 
 from utrcalling.core import helpers
@@ -77,25 +78,20 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
 
     if isinstance(alignments, (list, tuple)) and len(alignments) > 1:
         n_cores = -2
+        # Compute batch indices for each BAM
         if sample_names is not None:
-            samples = []
-            for alignment in alignments:
-                samples.append(sample_names[alignment])
-            read_mappings = joblib.Parallel(n_jobs=n_cores)(
-                joblib.delayed(utr_mapping.map_reads_to_utr)(
-                    alignment, intervals, read="first", protocol=protocol, batch=sample
-                )
-                for alignment, sample in tqdm(
-                    zip(alignments, samples), colour="#ffb700", ascii=" ■"
-                )
-            )
+            batch_indices = [protocol.sample_idx[a] for a in alignments]
         else:
-            read_mappings = joblib.Parallel(n_jobs=n_cores)(
-                joblib.delayed(utr_mapping.map_reads_to_utr)(
-                    alignment, intervals, read="first", protocol=protocol, batch=None
-                )
-                for alignment in tqdm(alignments, colour="#ffb700", ascii=" ■")
+            batch_indices = [str(i + 1) for i in range(len(alignments))]
+
+        read_mappings = joblib.Parallel(n_jobs=n_cores)(
+            joblib.delayed(utr_mapping.map_reads_to_utr)(
+                alignment, intervals, read="first", protocol=protocol, batch_idx=bidx
             )
+            for alignment, bidx in tqdm(
+                zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"
+            )
+        )
 
         if store:
             for counter, utr_sizes_counts in enumerate(read_mappings):
@@ -103,12 +99,15 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
                 utr_sizes_counts.to_parquet(file_path)
     else:
         if isinstance(alignments, (list, tuple)):
-            # if the alignment was supplied as a list of len=1 get that
-            # alignment as a string
             alignments = alignments[0]
 
+        # For single BAM: use sample_idx if available (SmartSeq), else no batch
+        batch_idx = None
+        if protocol.sample_idx is not None:
+            batch_idx = protocol.sample_idx.get(alignments)
+
         read_mappings = utr_mapping.map_reads_to_utr(
-            alignments, intervals, read="first", protocol=protocol, batch=sample_names
+            alignments, intervals, read="first", protocol=protocol, batch_idx=batch_idx
         )
         if store:
             read_mappings.to_parquet(os.path.join(directory, f"{filename}.parquet"))
@@ -117,11 +116,9 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
 
 
 def merge_samples_utr_sizes(utr_sizes_counts, protocol, store=False):
-    helpers.init_ray()
     utr_sizes_counts = process_mapped_reads.merge_samples_utr_sizes(
         utr_sizes_counts,
         method=protocol.merge_method,
-        label_batches=protocol.label_batches,
     )
     if store:
         directory = "./intermediate"
@@ -153,7 +150,6 @@ def call_peaks(
     store=False,
 ):
     logger = module_logger()
-    helpers.init_ray()
 
     # if we are to add the reference data to the results later, we must subset the UTRs
     utr_reference_subset = process_mapped_reads.subset_reference_data(
@@ -190,7 +186,7 @@ def call_peaks(
                 for pos in split_generator
             ]
 
-            filtered_positions = mpd.concat(filtered_list)
+            filtered_positions = pd.concat(filtered_list)
         else:
             filtered_positions = process_mapped_reads.filter_barcodes(
                 filtered_positions, whitelist=protocol.barcode_whitelist
@@ -216,31 +212,18 @@ def call_peaks(
     # append the reference information to the new UTR peaks
     peaks_var = peak_calling.add_to_peaks_var(peaks_var, utr_reference_subset)
 
-    # convert to pandas the final objects
-    peaks_count_matrix = helpers.check_if_modin_and_convert_to_pandas(
-        peaks_count_matrix
-    )
-    peaks_var = helpers.check_if_modin_and_convert_to_pandas(peaks_var)
-    peaks_obs = helpers.check_if_modin_and_convert_to_pandas(peaks_obs)
-
     if store:  # store the final DFs. Useful for debugging or to change annotations.
         logger.info("Storing intermediate results")
         directory = "./intermediate"
         helpers.check_if_exists_and_mkdir(directory)
 
-        # store count matrix
-        try:
-            peaks_count_matrix.to_parquet(
-                os.path.join(
-                    directory, f"peaks_count_matrix_{protocol.merge_method}.parquet"
-                )
-            )
-        except Exception:
-            peaks_count_matrix.to_csv(
-                os.path.join(
-                    directory, f"peaks_count_matrix_{protocol.merge_method}.csv"
-                )
-            )
+        # store count matrix (sparse)
+        save_npz(
+            os.path.join(
+                directory, f"peaks_count_matrix_{protocol.merge_method}.npz"
+            ),
+            peaks_count_matrix,
+        )
 
         # store var dataframe
         try:
@@ -253,9 +236,6 @@ def call_peaks(
             )
 
         # store subsetted UTR reference dataframe
-        utr_reference_subset = helpers.check_if_modin_and_convert_to_pandas(
-            utr_reference_subset
-        )
         try:
             utr_reference_subset.to_parquet(
                 os.path.join(

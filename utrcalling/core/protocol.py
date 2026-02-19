@@ -274,6 +274,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
         barcodes_whitelist = barcodes_series.unique()
         return barcodes_whitelist
 
+    # Observation identity
+    def get_observation_id(self, barcode, batch_idx=None):
+        """Return the final observation ID, applying batch suffix if needed."""
+        if self.label_batches and batch_idx is not None:
+            return f"{barcode}-{batch_idx}"
+        return barcode
+
     # Methods to get read information from the read alignments
     @staticmethod
     @abstractmethod
@@ -301,14 +308,7 @@ class ProtocolThreePrime(Protocol):
 
     def filter_utr_sizes(self, utr_sizes, threshold=1):
         self.logger.info("Filtering UTR sizes using threshold of %s counts.", threshold)
-        utr_sizes_exploded = utr_sizes.explode(
-            utr_sizes.columns.to_list(), ignore_index=False
-        )
-        utr_sizes_exploded = utr_sizes_exploded[
-            utr_sizes_exploded.utr_sizes_from_reads > threshold
-        ]
-        utr_sizes = utr_sizes_exploded.groupby(level=0).agg(list)
-        return utr_sizes
+        return utr_sizes[utr_sizes["utr_size"] > threshold].copy()
 
     @staticmethod
     def check_strand_matches(read_strand, utr_strand):
@@ -431,16 +431,10 @@ class ProtocolSmartseq(ProtocolThreePrime):
 
 class ProtocolSmartseq3(ProtocolSmartseq):
 
-    def get_reads_identity(self, alignment, **kwargs):
-        bam_name = kwargs.get("bam_name")
+    @staticmethod
+    def get_reads_identity(alignment, **kwargs):
         read_seq = alignment.read.seq
-
-        if self.label_batches:
-            read_sample_idx = self.sample_idx[bam_name]
-            read_barcode = f"{helpers.to_string(read_seq[:6])}-{read_sample_idx}"
-        else:
-            read_barcode = helpers.to_string(read_seq[:6])
-
+        read_barcode = helpers.to_string(read_seq[:6])
         read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
         return read_umi, read_barcode
 
@@ -480,6 +474,10 @@ class ProtocolCapseq(ProtocolFivePrime):
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
+    def get_observation_id(self, barcode, batch_idx=None):
+        """CapSeq uses the BAM-derived sample name as identity directly."""
+        return barcode
+
     @staticmethod
     def get_reads_identity(alignment, **kwargs):
         read_batch_id = kwargs.get("bam_name", "S")
@@ -497,6 +495,10 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
 
 class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
+
+    def get_observation_id(self, barcode, batch_idx=None):
+        """CapSeq uses the BAM-derived sample name as identity directly."""
+        return barcode
 
     @staticmethod
     def get_reads_identity(alignment, **kwargs):

@@ -13,6 +13,7 @@ from pympler import asizeof
 
 # data handling tools
 import HTSeq
+import numpy as np
 import pandas as pd
 
 # QOL tools
@@ -41,14 +42,18 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 
-def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
+def map_reads_to_utr(bam, intervals, protocol, read="first", batch_idx=None):
     logger = module_logger()
     logger.info("Extracting reads from %s and mapping them to the reference UTR", bam)
 
     label_batches = protocol.label_batches
 
     bam_file = HTSeq.BAM_Reader(bam)
-    utr_mappings = dict()
+
+    # Flat accumulators — one row per (utr, observation, size)
+    all_utr_names = []
+    all_observation_ids = []
+    all_utr_sizes = []
 
     read_strand_string = f"Reads not '{read}'"
     mapping_stats = {
@@ -59,22 +64,6 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
         "Alignments not primary alignment": 0,
         "Alignments in interval but wrong strand": 0,
     }
-    # if label_batches and batch is None:  # TODO: make this general
-    #     for record in bam_file:
-    #         batch_name = re.search(
-    #             r"([\w|-]*:\w*:[\w|-]*):.*",  # TODO: make this general
-    #             record.get_sam_line(),
-    #         ).group(1)
-    #         break
-    #     try:
-    #         batch = protocol.batch_codes.get(batch_name, None)
-    #     except AttributeError:
-    #         logger.warning(
-    #             "Batch ID for sample %s was not able to be extracted. "
-    #             "Please check if this behaviour is intended.",
-    #             bam,
-    #         )
-    #         batch = None
 
     for name, interval in tqdm(
         intervals.items(), colour="#ffb700", ascii=" ■", desc="Interval: "
@@ -85,14 +74,9 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
 
         mapped_read_information = [read_barcodes, utr_sizes_from_reads]
         try:
-            # BAM_Reader[GenomicInterval] is a generator
-            # subsetting with `interval` gets the reads that have at least
-            # some overlap with the interval (not the paired reads coordinates)
-            # so, if even if read 1 Match CIGAR starts and ends outside the interval,
-            # as long as it spans the interval it will enter this `for loop`
             for alignment in bam_file[interval]:
                 mapping_stats["Reads mapped to the region of interest"] += 1
-                if not alignment.pe_which == read:  # get only one of the 2 paired reads
+                if not alignment.pe_which == read:
                     mapping_stats[read_strand_string] += 1
                 elif not alignment.proper_pair:
                     mapping_stats["Alignments not proper pair"] += 1
@@ -110,6 +94,7 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
                         interval=interval,
                         protocol=protocol,
                         bam_name=bam,
+                        batch_idx=batch_idx,
                     )
                     if read_info is None:
                         continue
@@ -117,10 +102,9 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
                         read_barcodes.append(read_info[0])
                         read_umis.append(read_info[1])
                         utr_sizes_from_reads.append(read_info[2])
-        except ValueError:  # intervals can be from genome annotations with more chroms
+        except ValueError:
             continue
 
-        # TODO: change deduplicate_reads to filter per read_barcode as well
         # Deduplicate reads using the UMIs
         if read_umis:
             mapped_read_information = deduplicate_reads(
@@ -128,16 +112,19 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch=None):
                 read_info=mapped_read_information,
             )
 
-            # store the read information for this UTR
-            utr_mappings[name] = mapped_read_information
+            # Extend flat accumulators
+            n_reads = len(mapped_read_information[0])
+            all_utr_names.extend([name] * n_reads)
+            all_observation_ids.extend(mapped_read_information[0])
+            all_utr_sizes.extend(mapped_read_information[1])
 
     del bam_file
 
-    utr_mappings = pd.DataFrame.from_dict(
-        utr_mappings, orient="index", columns=["read_barcodes", "utr_sizes_from_reads"]
-    )
-
-    utr_mappings.index.name = "utr_name"
+    utr_mappings = pd.DataFrame({
+        "utr_name": pd.Categorical(all_utr_names),
+        "observation_id": pd.Categorical(all_observation_ids),
+        "utr_size": np.array(all_utr_sizes, dtype=np.int32),
+    })
 
     # most performant method to log
     logger.info("Mapping statistics: %s", mapping_stats)
@@ -179,7 +166,7 @@ def deduplicate_reads_with_barcode_filtering(read_umis, read_info, protocol):
     return read_info_output
 
 
-def extract_read_information(alignment, interval, protocol, bam_name):
+def extract_read_information(alignment, interval, protocol, bam_name, batch_idx=None):
     """
     Extracts all the relevant information from matching reads in a HTSeq.Alignment
     object.
@@ -226,7 +213,8 @@ def extract_read_information(alignment, interval, protocol, bam_name):
         read_start_position=read_start_position, interval=interval
     )
 
-    information = read_barcode, read_umi, utr_size
+    observation_id = protocol.get_observation_id(read_barcode, batch_idx)
+    information = observation_id, read_umi, utr_size
 
     return information
 
