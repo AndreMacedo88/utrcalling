@@ -40,9 +40,10 @@ class TestPeakCalling(unittest.TestCase):
         )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(
-                bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first"
+                bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first",
+                batch_idx=str(i + 1)
             )
-            for alignment in [alignment_1, alignment_2]
+            for i, alignment in enumerate([alignment_1, alignment_2])
         ]
 
 
@@ -54,27 +55,29 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
         )
 
     def test_details(self):
-        details_true = {
-            "read_barcodes": [
-                "CGTTGGGCAGTCAGAG-1",
-                "CCGTGGAGTCTCGTTC-1",
-                "GTAGTCAAGCTATGCT-1",
-                "TGCGCAGAGGCATGTG-1",
-                "CGACCTTTCTGCTGCT-2",
-                "TGTTCCGAGGGTCGAT-2",
-                "GTACGTAAGCGTTTAC-2",
-                "GTGCGGTAGGACAGCT-2",
-                "GCTGCAGCACTGTGTA-2",
-                "GTCCTCAGTAAACGCG-2",
-            ],
-            "utr_sizes_from_reads": [153, 148, 148, 144, 375, 151, 148, 148, 142, 138],
-        }
-        self.assertDictEqual(
-            self.merged.loc["ENSMUSG00000025917"].to_dict(), details_true
-        )
+        utr_data = self.merged[
+            self.merged["utr_name"] == "ENSMUSG00000025917"
+        ]
+        obs = utr_data["observation_id"].tolist()
+        sizes = utr_data["utr_size"].tolist()
+        expected_obs = [
+            "CGTTGGGCAGTCAGAG-1",
+            "CCGTGGAGTCTCGTTC-1",
+            "GTAGTCAAGCTATGCT-1",
+            "TGCGCAGAGGCATGTG-1",
+            "CGACCTTTCTGCTGCT-2",
+            "TGTTCCGAGGGTCGAT-2",
+            "GTACGTAAGCGTTTAC-2",
+            "GTGCGGTAGGACAGCT-2",
+            "GCTGCAGCACTGTGTA-2",
+            "GTCCTCAGTAAACGCG-2",
+        ]
+        expected_sizes = [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
+        self.assertListEqual(obs, expected_obs)
+        self.assertListEqual(sizes, expected_sizes)
 
     def test_length(self):
-        self.assertEqual(self.merged.shape[0], 63)
+        self.assertEqual(len(self.merged["utr_name"].unique()), 63)
 
 
 class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
@@ -86,48 +89,53 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
         )
 
     def test_identical_index(self):
-        details_true = {
-            "read_barcodes": [
-                "CGTTGGGCAGTCAGAG-1",
-                "CCGTGGAGTCTCGTTC-1",
-                "GTAGTCAAGCTATGCT-1",
-                "TGCGCAGAGGCATGTG-1",
-                "CGACCTTTCTGCTGCT-2",
-                "TGTTCCGAGGGTCGAT-2",
-                "GTACGTAAGCGTTTAC-2",
-                "GTGCGGTAGGACAGCT-2",
-                "GCTGCAGCACTGTGTA-2",
-                "GTCCTCAGTAAACGCG-2",
-            ],
-            "utr_sizes_from_reads": [153, 148, 148, 144, 375, 151, 148, 148, 142, 138],
-        }
-        self.assertDictEqual(
-            self.merged.loc["ENSMUSG00000025917"].to_dict(), details_true
-        )
+        utr_data = self.merged[
+            self.merged["utr_name"] == "ENSMUSG00000025917"
+        ]
+        obs = utr_data["observation_id"].tolist()
+        sizes = utr_data["utr_size"].tolist()
+        expected_obs = [
+            "CGTTGGGCAGTCAGAG-1",
+            "CCGTGGAGTCTCGTTC-1",
+            "GTAGTCAAGCTATGCT-1",
+            "TGCGCAGAGGCATGTG-1",
+            "CGACCTTTCTGCTGCT-2",
+            "TGTTCCGAGGGTCGAT-2",
+            "GTACGTAAGCGTTTAC-2",
+            "GTGCGGTAGGACAGCT-2",
+            "GCTGCAGCACTGTGTA-2",
+            "GTCCTCAGTAAACGCG-2",
+        ]
+        expected_sizes = [153, 148, 148, 144, 375, 151, 148, 148, 142, 138]
+        self.assertListEqual(obs, expected_obs)
+        self.assertListEqual(sizes, expected_sizes)
 
     def test_index_on_first_df(self):
-        details_true = {
-            "read_barcodes": ["CGAGAAGGTGCAACGA-1", "CAGTCCTAGAAGGACA-1"],
-            "utr_sizes_from_reads": [53, 28],
-        }
-        self.assertDictEqual(
-            self.merged.loc["ENSMUSG00000115423"].to_dict(), details_true
-        )
+        utr_data = self.merged[
+            self.merged["utr_name"] == "ENSMUSG00000115423"
+        ]
+        obs = utr_data["observation_id"].tolist()
+        sizes = utr_data["utr_size"].tolist()
+        self.assertListEqual(obs, ["CGAGAAGGTGCAACGA-1", "CAGTCCTAGAAGGACA-1"])
+        self.assertListEqual(sizes, [53, 28])
 
     def test_index_on_second_df(self):
-        details_true = {
-            "read_barcodes": ["ACAGCTATCCTTAATC-2"],
-            "utr_sizes_from_reads": [192],
-        }
-        self.assertDictEqual(
-            self.merged.loc["ENSMUSG00000079334"].to_dict(), details_true
-        )
+        utr_data = self.merged[
+            self.merged["utr_name"] == "ENSMUSG00000079334"
+        ]
+        obs = utr_data["observation_id"].tolist()
+        sizes = utr_data["utr_size"].tolist()
+        self.assertListEqual(obs, ["ACAGCTATCCTTAATC-2"])
+        self.assertListEqual(sizes, [192])
 
     def test_length(self):
-        self.assertEqual(
-            self.merged.shape[0],
-            self.mappings[0].index.union(self.mappings[1].index).shape[0],
+        n_unique_utrs = len(self.merged["utr_name"].unique())
+        expected = len(
+            self.mappings[0]["utr_name"].unique().tolist()
+            + [u for u in self.mappings[1]["utr_name"].unique()
+               if u not in self.mappings[0]["utr_name"].unique().tolist()]
         )
+        self.assertEqual(n_unique_utrs, expected)
 
 
 class TestSubsetReferenceData(TestPeakCalling):
@@ -143,12 +151,6 @@ class TestSubsetReferenceData(TestPeakCalling):
         self.assertEqual(self.subsetted.shape[0], 63)
 
     def test_number_of_fields(self) -> None:
-        """
-        Number of fields in the annotation BED file should be equal to the optional
-        fields (in variable 'annotations') plus the mandatory fields 'seqname', 'start',
-        'end' and finally the count field, that tell us how many features were merged
-        at each new feature (row).
-        """
         self.assertEqual(self.subsetted.shape[1], 8)
 
     def test_values_are_proper(self) -> None:
@@ -183,7 +185,7 @@ class TestMergeUtrsPerGene(unittest.TestCase):
 
     def test_index(self):
         self.assertListEqual(
-            self.merged_mapped_reads.index.to_list(),
+            sorted(self.merged_mapped_reads["utr_name"].unique().tolist()),
             [
                 "ENSMUSG1",
                 "ENSMUSG1,ENSMUSG4",
@@ -195,20 +197,43 @@ class TestMergeUtrsPerGene(unittest.TestCase):
         )
 
     def test_positive_strand_sizes(self):
-        self.assertListEqual(
-            self.merged_mapped_reads.loc[
-                self.utr_regions.strand == "+", :
-            ].utr_sizes_from_reads.to_list(),
-            [[60], [60, 65], [90], [50, 45]],
-        )
+        pos_strand_genes = self.utr_regions[
+            self.utr_regions["strand"] == "+"
+        ].index.tolist()
+        pos_data = self.merged_mapped_reads[
+            self.merged_mapped_reads["utr_name"].isin(pos_strand_genes)
+        ]
+        # Group by utr_name and get sizes as lists, preserving gene order
+        result = {}
+        for gene in pos_strand_genes:
+            gene_data = pos_data[pos_data["utr_name"] == gene]
+            result[gene] = gene_data["utr_size"].tolist()
+
+        expected = {
+            "ENSMUSG1": [60],
+            "ENSMUSG1,ENSMUSG4": [60, 65],
+            "ENSMUSG3": [90],
+            "ENSMUSG4": [50, 45],
+        }
+        self.assertDictEqual(result, expected)
 
     def test_negative_strand_sizes(self):
-        self.assertListEqual(
-            self.merged_mapped_reads.loc[
-                self.utr_regions.strand == "-", :
-            ].utr_sizes_from_reads.to_list(),
-            [[50, 230, 235], [20, 25, 80, 240, 350]],
-        )
+        neg_strand_genes = self.utr_regions[
+            self.utr_regions["strand"] == "-"
+        ].index.tolist()
+        neg_data = self.merged_mapped_reads[
+            self.merged_mapped_reads["utr_name"].isin(neg_strand_genes)
+        ]
+        result = {}
+        for gene in neg_strand_genes:
+            gene_data = neg_data[neg_data["utr_name"] == gene]
+            result[gene] = gene_data["utr_size"].tolist()
+
+        expected = {
+            "ENSMUSG2": [50, 230, 235],
+            "ENSMUSG5": [20, 25, 80, 240, 350],
+        }
+        self.assertDictEqual(result, expected)
 
     def test_utr_regions_dataframe(self):
         expected = {
@@ -272,25 +297,33 @@ class TestMergeUtrsPerGene(unittest.TestCase):
         self.assertDictEqual(expected, self.utr_regions.to_dict())
 
     def test_read_mappings_dataframe(self):
+        # Check that observation_id and utr_size are correctly paired per gene.
+        # In the flat format, each row correctly associates an observation with its
+        # offset-adjusted size. For negative strand genes the sort order differs from
+        # the old list-in-cells code, but the pairings are now correct.
         expected = {
-            "read_barcodes": {
-                "ENSMUSG1": ["GAAGACGT"],
-                "ENSMUSG1,ENSMUSG4": ["GAAGACGA", "ATGATGA"],
-                "ENSMUSG2": ["AAAGACGA", "GTGATGA", "AAAGACGG"],
-                "ENSMUSG3": ["CAAGACGG"],
-                "ENSMUSG4": ["CTAGACGT", "CTGATGA"],
-                "ENSMUSG5": ["GTAGACGT", "GTAGCCGT", "ATAGCCGT", "TAAGACGA", "TTGATGA"],
-            },
-            "utr_sizes_from_reads": {
-                "ENSMUSG1": [60],
-                "ENSMUSG1,ENSMUSG4": [60, 65],
-                "ENSMUSG2": [50, 230, 235],
-                "ENSMUSG3": [90],
-                "ENSMUSG4": [50, 45],
-                "ENSMUSG5": [20, 25, 80, 240, 350],
-            },
+            "ENSMUSG1": [("GAAGACGT", 60)],
+            "ENSMUSG1,ENSMUSG4": [("GAAGACGA", 60), ("ATGATGA", 65)],
+            "ENSMUSG2": [("AAAGACGG", 50), ("AAAGACGA", 230), ("GTGATGA", 235)],
+            "ENSMUSG3": [("CAAGACGG", 90)],
+            "ENSMUSG4": [("CTAGACGT", 50), ("CTGATGA", 45)],
+            "ENSMUSG5": [
+                ("TAAGACGA", 20), ("TTGATGA", 25),
+                ("ATAGCCGT", 80), ("GTAGCCGT", 240), ("GTAGACGT", 350),
+            ],
         }
-        self.assertDictEqual(expected, self.merged_mapped_reads.to_dict())
+        for gene, expected_pairs in expected.items():
+            gene_data = self.merged_mapped_reads[
+                self.merged_mapped_reads["utr_name"] == gene
+            ]
+            actual_pairs = list(zip(
+                gene_data["observation_id"].tolist(),
+                gene_data["utr_size"].tolist(),
+            ))
+            self.assertListEqual(
+                actual_pairs, expected_pairs,
+                msg=f"mismatch for {gene}"
+            )
 
 
 class TestFilterBarcodes(TestPeakCalling):
@@ -302,12 +335,14 @@ class TestFilterBarcodes(TestPeakCalling):
 
     @staticmethod
     def are_all_barcodes_in_anno(data, annotations):
+        barcodes_real = set(annotations.CellBarcode)
+        unique_utrs = data["utr_name"].unique()
         counter = 0
         control = 0
-        barcodes_real = annotations.CellBarcode
-        for barcodes in data.read_barcodes:
+        for utr in unique_utrs:
             control += 1
-            if set(barcodes).issubset(barcodes_real):
+            utr_obs = set(data[data["utr_name"] == utr]["observation_id"].unique())
+            if utr_obs.issubset(barcodes_real):
                 counter += 1
         return counter, control
 
@@ -332,10 +367,13 @@ class TestFilterBarcodes(TestPeakCalling):
         filtered = process_mapped_reads.filter_barcodes(
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
-        self.assertNotEqual(
-            len(self.merged.loc["ENSMUSG00000025917"]["read_barcodes"]),
-            len(filtered.loc["ENSMUSG00000025917"]["read_barcodes"]),
+        merged_count = len(
+            self.merged[self.merged["utr_name"] == "ENSMUSG00000025917"]
         )
+        filtered_count = len(
+            filtered[filtered["utr_name"] == "ENSMUSG00000025917"]
+        )
+        self.assertNotEqual(merged_count, filtered_count)
 
     def test_specific_utr_2(self):
         barcodes_real = [
@@ -352,8 +390,9 @@ class TestFilterBarcodes(TestPeakCalling):
         filtered = process_mapped_reads.filter_barcodes(
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
+        utr_data = filtered[filtered["utr_name"] == "ENSMUSG00000025917"]
         self.assertListEqual(
-            filtered.loc["ENSMUSG00000025917"]["read_barcodes"], barcodes_real
+            utr_data["observation_id"].tolist(), barcodes_real
         )
 
     def test_using_annotations_as_dataframe(self):
@@ -375,7 +414,7 @@ class TestFilterBarcodesSynthetic(unittest.TestCase):
         self.filtered = process_mapped_reads.filter_barcodes(
             utr_sizes=self.data, whitelist=self.anno["barcodes"].unique()
         )
-        self.barcodes_filtered = list(helpers.flatten(self.filtered.read_barcodes))
+        self.barcodes_filtered = self.filtered["observation_id"].tolist()
 
     def test_barcodes_in_anno(self):
         self.assertFalse(

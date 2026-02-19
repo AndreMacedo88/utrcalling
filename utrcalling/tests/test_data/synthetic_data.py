@@ -1,5 +1,5 @@
 """
-This file contains objects that represent the ideal/correct initial or intermediate 
+This file contains objects that represent the ideal/correct initial or intermediate
 objects that are yielded or used by this tool's core functions.
 """
 
@@ -12,9 +12,8 @@ import pandas as pd
 
 class MappedData:
     """
-    Class with data containng synthetic objects representing the results after UTR
+    Class with data containing synthetic objects representing the results after UTR
     mapping.
-
     """
 
     def __init__(self) -> None:
@@ -69,40 +68,49 @@ class MappedData:
         self.utr_regions["start"] = self.utr_regions["start"].astype(int)
         self.utr_regions["end"] = self.utr_regions["end"].astype(int)
 
-        self.mapped_reads = pd.DataFrame(
-            columns=[
-                "read_barcodes",
-                "utr_sizes_from_reads",
-            ],
-            index=[
-                "ENSMUSG4",
-                "ENSMUSG5",
-                "ENSMUSG5_2",
-                "ENSMUSG1",
-                "ENSMUSG1,ENSMUSG4",
-                "ENSMUSG5_3",
-                "ENSMUSG5_4",
-                "ENSMUSG2",
-                "ENSMUSG2_2",
-                "ENSMUSG3",
-            ],
-            data=np.array(
-                [
-                    [["CTAGACGT", "CTGATGA"], [50, 45]],
-                    [["GTAGACGT"], [50]],
-                    [["GTAGCCGT"], [40]],
-                    [["GAAGACGT"], [60]],
-                    [["GAAGACGA", "ATGATGA"], [60, 65]],
-                    [["ATAGCCGT"], [30]],
-                    [["TAAGACGA", "TTGATGA"], [20, 25]],
-                    [["AAAGACGA", "GTGATGA"], [30, 35]],
-                    [["AAAGACGG"], [50]],
-                    [["CAAGACGG"], [90]],
-                ],
-                dtype="object",
-            ),
-        )
-        self.mapped_reads.name = "utr_name"
+        # Flat format: one row per (utr_name, observation_id, utr_size)
+        utr_names = [
+            "ENSMUSG4", "ENSMUSG4",
+            "ENSMUSG5",
+            "ENSMUSG5_2",
+            "ENSMUSG1",
+            "ENSMUSG1,ENSMUSG4", "ENSMUSG1,ENSMUSG4",
+            "ENSMUSG5_3",
+            "ENSMUSG5_4", "ENSMUSG5_4",
+            "ENSMUSG2", "ENSMUSG2",
+            "ENSMUSG2_2",
+            "ENSMUSG3",
+        ]
+        observation_ids = [
+            "CTAGACGT", "CTGATGA",
+            "GTAGACGT",
+            "GTAGCCGT",
+            "GAAGACGT",
+            "GAAGACGA", "ATGATGA",
+            "ATAGCCGT",
+            "TAAGACGA", "TTGATGA",
+            "AAAGACGA", "GTGATGA",
+            "AAAGACGG",
+            "CAAGACGG",
+        ]
+        utr_sizes = [
+            50, 45,
+            50,
+            40,
+            60,
+            60, 65,
+            30,
+            20, 25,
+            30, 35,
+            50,
+            90,
+        ]
+
+        self.mapped_reads = pd.DataFrame({
+            "utr_name": pd.Categorical(utr_names),
+            "observation_id": pd.Categorical(observation_ids),
+            "utr_size": np.array(utr_sizes, dtype=np.int32),
+        })
 
 
 ANNOTATION_THREE_PRIME_TENX = pd.DataFrame(
@@ -132,34 +140,31 @@ class MappedDataThreePrimeTenX:
     """
 
     def __init__(self) -> None:
-        # Build the data
-        read_barcodes = [
-            [
-                "AAAAAAAAAAAAAAAA-1",
-                "AAAAAAAAAAAAAAAA-1",
-                "GAAAAAAAAAAAAAAT-2",
-                "GAAAAAAAAAAAAAAT-2",
-                "AAAAAAAAAAAAAAAG-2",
-                "AAAAAAAAAAAAAAAG-1",
-            ],
-            [
-                "AAAAAAAAAAAAAAAG-1",
-                "AAAAAAAAAAAAAGGG-2",
-                "AAAAAAAAAAAAAAAT-2",
-                "AAAAAAAAAAAAAATT-1",
-                "ATATATATATATATAT-1",
-            ],
-        ]
-        utr_sizes_from_reads = [
-            [500, 499, 500, 400, 398, 300],
-            [100, 200, 202, 300, 300],
-        ]
-
-        self._data_synthetic = pd.DataFrame(
-            columns=["read_barcodes", "utr_sizes_from_reads"],
-            index=["ENSMUSG00000000001", "ENSMUSG00000000002"],
-            data=list(zip(read_barcodes, utr_sizes_from_reads)),
+        # Build the data in flat format
+        utr_names = (
+            ["ENSMUSG00000000001"] * 6 +
+            ["ENSMUSG00000000002"] * 5
         )
+        observation_ids = [
+            "AAAAAAAAAAAAAAAA-1",
+            "AAAAAAAAAAAAAAAA-1",
+            "GAAAAAAAAAAAAAAT-2",
+            "GAAAAAAAAAAAAAAT-2",
+            "AAAAAAAAAAAAAAAG-2",
+            "AAAAAAAAAAAAAAAG-1",
+            "AAAAAAAAAAAAAAAG-1",
+            "AAAAAAAAAAAAAGGG-2",
+            "AAAAAAAAAAAAAAAT-2",
+            "AAAAAAAAAAAAAATT-1",
+            "ATATATATATATATAT-1",
+        ]
+        utr_sizes = [500, 499, 500, 400, 398, 300, 100, 200, 202, 300, 300]
+
+        self._data_synthetic = pd.DataFrame({
+            "utr_name": pd.Categorical(utr_names),
+            "observation_id": pd.Categorical(observation_ids),
+            "utr_size": np.array(utr_sizes, dtype=np.int32),
+        })
 
         # Build the annotations
         self._anno = ANNOTATION_THREE_PRIME_TENX
@@ -182,35 +187,30 @@ class MappedDataThreePrimeTenXFilteredBarcodes:
     """
 
     def __init__(self) -> None:
-        # Build the data
-        read_barcodes = [
-            [
-                "AAAAAAAAAAAAAAAA-1",
-                "AAAAAAAAAAAAAAAA-1",
-                "GAAAAAAAAAAAAAAT-2",
-                "GAAAAAAAAAAAAAAT-2",
-                "AAAAAAAAAAAAAAGG-2",
-                "AAAAAAAAAAAAAAAG-1",
-            ],
-            [
-                "AAAAAAAAAAAAAAAG-1",
-                "AAAAAAAAAAAAAAGG-2",
-                "GAAAAAAAAAAAAAAT-2",
-                "AAAAAAAAAAAAATTT-1",
-            ],
-        ]
-        utr_sizes_from_reads = [[500, 499, 500, 400, 398, 300], [100, 200, 202, 300]]
-
-        self._data_filtered = pd.DataFrame(
-            columns=["read_barcodes", "utr_sizes_from_reads"],
-            index=["ENSMUSG00000000001", "ENSMUSG00000000002"],
-            data=list(
-                zip(
-                    read_barcodes,
-                    utr_sizes_from_reads,
-                )
-            ),
+        # Build the data in flat format
+        utr_names = (
+            ["ENSMUSG00000000001"] * 6 +
+            ["ENSMUSG00000000002"] * 4
         )
+        observation_ids = [
+            "AAAAAAAAAAAAAAAA-1",
+            "AAAAAAAAAAAAAAAA-1",
+            "GAAAAAAAAAAAAAAT-2",
+            "GAAAAAAAAAAAAAAT-2",
+            "AAAAAAAAAAAAAAGG-2",
+            "AAAAAAAAAAAAAAAG-1",
+            "AAAAAAAAAAAAAAAG-1",
+            "AAAAAAAAAAAAAAGG-2",
+            "GAAAAAAAAAAAAAAT-2",
+            "AAAAAAAAAAAAATTT-1",
+        ]
+        utr_sizes = [500, 499, 500, 400, 398, 300, 100, 200, 202, 300]
+
+        self._data_filtered = pd.DataFrame({
+            "utr_name": pd.Categorical(utr_names),
+            "observation_id": pd.Categorical(observation_ids),
+            "utr_size": np.array(utr_sizes, dtype=np.int32),
+        })
 
         # Build the annotations
         self._anno = ANNOTATION_THREE_PRIME_TENX
@@ -233,22 +233,8 @@ class RandomThreePrimeBarcoded:
     """
 
     def __init__(self, size=(10000, 15)) -> None:
-        # Build the data
+        # Build the data in flat format
         rng = np.random.default_rng(123)
-
-        read_barcodes = [
-            list(i) for i in rng.choice(list(string.ascii_uppercase), size=size)
-        ]
-
-        utr_sizes = (
-            rng.multinomial(n=100, pvals=[0.25, 0.75], size=size).astype(int).tolist()
-        )
-        utr_sizes_from_reads = []
-        for i in utr_sizes:
-            i_list = []
-            for z in i:
-                i_list.append(int(rng.choice(z, 1)))
-            utr_sizes_from_reads.append(i_list)
 
         utr_len = 15
         utr_bases = list(string.ascii_uppercase)
@@ -257,19 +243,28 @@ class RandomThreePrimeBarcoded:
             for i in range(size[0])
         ]
 
-        self._data = pd.DataFrame(
-            data=list(
-                zip(
-                    read_barcodes,
-                    utr_sizes_from_reads,
-                )
-            ),
-            columns=["read_barcodes", "utr_sizes_from_reads"],
-            index=utrs,
-        )
+        all_utr_names = []
+        all_observation_ids = []
+        all_utr_sizes = []
+
+        barcodes_pool = list(string.ascii_uppercase)
+        for i in range(size[0]):
+            n_reads = size[1]
+            obs = list(rng.choice(barcodes_pool, size=n_reads))
+            sizes = rng.multinomial(n=100, pvals=[0.25, 0.75], size=n_reads)
+            utr_sizes_list = [int(rng.choice(s, 1)) for s in sizes]
+            all_utr_names.extend([utrs[i]] * n_reads)
+            all_observation_ids.extend(obs)
+            all_utr_sizes.extend(utr_sizes_list)
+
+        self._data = pd.DataFrame({
+            "utr_name": pd.Categorical(all_utr_names),
+            "observation_id": pd.Categorical(all_observation_ids),
+            "utr_size": np.array(all_utr_sizes, dtype=np.int32),
+        })
 
         # Build the annotations
-        barcodes = self._data.read_barcodes.explode().unique()
+        barcodes = self._data["observation_id"].unique()
         anno_length = len(barcodes)
         sample_id = [
             i

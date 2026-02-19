@@ -27,9 +27,10 @@ class Test10x(unittest.TestCase):
         )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(
-                alignment, intervals, cls.protocol, read="first"
+                alignment, intervals, cls.protocol, read="first",
+                batch_idx=str(i + 1)
             )
-            for alignment in [alignment_1, alignment_2]
+            for i, alignment in enumerate([alignment_1, alignment_2])
         ]
 
 
@@ -39,32 +40,35 @@ class TestFilterUtrSizes(Test10x):
             copy.deepcopy(self.mappings), method=self.protocol.merge_method
         )
 
-        # modify the data to check for successfull filtering.
-        # Original was [772, 756, 751, 753, 811, 751].
-        merged.at["ENSMUSG00000001036", "utr_sizes_from_reads"] = [
-            1,
-            798,
-            1,
-            798,
-            1,
-            798,
-        ]
+        # modify the data to check for successful filtering.
+        # Replace utr_size values for ENSMUSG00000001036 with alternating 1 and 798
+        mask = merged["utr_name"] == "ENSMUSG00000001036"
+        utr_rows = merged[mask].index
+        new_sizes = [1, 798, 1, 798, 1, 798]
+        for i, idx in enumerate(utr_rows):
+            merged.at[idx, "utr_size"] = new_sizes[i]
+
         self.filtered = self.protocol.filter_utr_sizes(merged, threshold=1)
 
     def test_number_of_features(self) -> None:
-        self.assertEqual(self.filtered.shape, (63, 2))
+        n_unique_utrs = len(self.filtered["utr_name"].unique())
+        self.assertEqual(n_unique_utrs, 63)
 
     def test_is_filtered(self):
-        dict_true = {
-            "read_barcodes": [
+        utr_data = self.filtered[
+            self.filtered["utr_name"] == "ENSMUSG00000001036"
+        ]
+        self.assertListEqual(
+            utr_data["observation_id"].tolist(),
+            [
                 "CTAATGGCATTCGACA-1",
                 "CCCAGTTTCGCTTGTC-1",
                 "TATTACCAGGATTCGG-2",
             ],
-            "utr_sizes_from_reads": [798, 798, 798],
-        }
-        self.assertDictEqual(
-            self.filtered.loc["ENSMUSG00000001036"].to_dict(), dict_true
+        )
+        self.assertListEqual(
+            utr_data["utr_size"].tolist(),
+            [798, 798, 798],
         )
 
 
@@ -81,28 +85,40 @@ class TestSmartSeqCapPhosphoReadname(unittest.TestCase):
             annotations="./test_data/smartseq3_anno.csv",
         )
         cls.mappings = utr_mapping.map_reads_to_utr(
-            cls.alignment, intervals, cls.protocol, read="first", batch="test_sample"
+            cls.alignment, intervals, cls.protocol, read="first"
         )
 
 
 class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
     def setUp(self) -> None:
-        # modify the data to check for successfull filtering. Original was [44, 23, 19].
-        self.mappings.loc["ENSMUSG00000023905"].utr_sizes_from_reads = [44, 1, 19]
-        self.filtered = self.protocol.filter_utr_sizes(self.mappings)
+        mappings = self.mappings.copy()
+        # modify the data to check for successful filtering. Original was [44, 23, 19].
+        # Replace the second utr_size with 1 for ENSMUSG00000023905
+        mask = mappings["utr_name"] == "ENSMUSG00000023905"
+        utr_rows = mappings[mask].index
+        new_sizes = [44, 1, 19]
+        for i, idx in enumerate(utr_rows):
+            mappings.at[idx, "utr_size"] = new_sizes[i]
+
+        self.filtered = self.protocol.filter_utr_sizes(mappings)
 
     def test_number_of_features(self) -> None:
-        # For 5'UTRs we don't want filtering by default
-        self.assertEqual(len(self.filtered), 31)
+        # For 5'UTRs we don't want filtering by default — all rows stay
+        total_rows = len(self.filtered)
+        self.assertEqual(total_rows, len(self.mappings))
 
     def test_is_filtered(self):
-        # For 5'UTRs we don't want filtering by default
-        dict_true = {
-            "read_barcodes": [self.alignment] * 3,
-            "utr_sizes_from_reads": [44, 1, 19],
-        }
-        self.assertDictEqual(
-            self.filtered.loc["ENSMUSG00000023905"].to_dict(), dict_true
+        # For 5'UTRs we don't want filtering by default — all rows stay including size=1
+        utr_data = self.filtered[
+            self.filtered["utr_name"] == "ENSMUSG00000023905"
+        ]
+        self.assertListEqual(
+            utr_data["observation_id"].tolist(),
+            [self.alignment] * 3,
+        )
+        self.assertListEqual(
+            utr_data["utr_size"].tolist(),
+            [44, 1, 19],
         )
 
 

@@ -42,9 +42,10 @@ class TestPeakCalling(unittest.TestCase):
         )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(
-                bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first"
+                bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first",
+                batch_idx=str(i + 1)
             )
-            for alignment in [alignment_1, alignment_2]
+            for i, alignment in enumerate([alignment_1, alignment_2])
         ]
 
 
@@ -71,11 +72,11 @@ class TestMatrix(TestGeneratePeakCounts):
         self.assertTupleEqual(self.matrix.shape, (670, 99))
 
     def test_matrix_values_count(self):
-        non_zeros_count = np.count_nonzero(self.matrix)
+        non_zeros_count = np.count_nonzero(self.matrix.toarray())
         self.assertEqual(non_zeros_count, 755)
 
     def test_matrix_maximum(self):
-        self.assertEqual(np.max(self.matrix.values), 3)
+        self.assertEqual(self.matrix.data.max(), 3)
 
 
 class TestVar(TestGeneratePeakCounts):
@@ -133,11 +134,11 @@ class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
         self.assertTupleEqual(self.matrix.shape, (5, 6))
 
     def test_matrix_values_count(self):
-        non_zeros_count = np.count_nonzero(self.matrix)
+        non_zeros_count = np.count_nonzero(self.matrix.toarray())
         self.assertEqual(non_zeros_count, 9)
 
     def test_matrix_maximum(self):
-        self.assertEqual(np.max(self.matrix.values), 2)
+        self.assertEqual(self.matrix.data.max(), 2)
 
     def test_matrix_composition(self):
         reality = np.array(
@@ -149,7 +150,7 @@ class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
                 [0, 1, 1, 0, 1, 0],
             ]
         )
-        npt.assert_allclose(self.matrix.sort_index().to_numpy(), reality)
+        npt.assert_allclose(self.matrix.toarray(), reality)
 
 
 class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
@@ -213,7 +214,7 @@ class TestAnnData(TestGenerateCountMatrixAnndata):
         )
 
     def test_matrix_values_count(self):
-        non_zeros_count = np.count_nonzero(self.matrix_anndata.X)
+        non_zeros_count = np.count_nonzero(self.matrix_anndata.X.toarray())
         self.assertEqual(non_zeros_count, 755)
 
     def test_vars_values_count(self):

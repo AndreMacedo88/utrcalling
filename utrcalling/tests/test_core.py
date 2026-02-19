@@ -121,20 +121,28 @@ class TestMapAlignedReads(unittest.TestCase):
             "utr_sizes_from_reads": [1468, 1458, 1466],
         }
 
-    def expect_dict_equal(self, i, first, second, msg=None):
-        with self.subTest(i=i):
-            self.assertDictEqual(first, second, msg)
-
     def test_length(self):
         self.assertEqual(len(self.read_mappings), self.alignments_n)
 
     def test_read_mappings(self):
         for i in range(self.alignments_n):
-            self.expect_dict_equal(
-                i,
-                self.read_mappings[i].loc["ENSMUSG00000005804"].to_dict(),
-                self.true_results_5804,
-            )
+            with self.subTest(i=i):
+                utr_data = self.read_mappings[i][
+                    self.read_mappings[i]["utr_name"] == "ENSMUSG00000005804"
+                ]
+                result = {
+                    "observation_id": utr_data["observation_id"].tolist(),
+                    "utr_size": utr_data["utr_size"].tolist(),
+                }
+                # Each BAM gets a batch suffix from get_observation_id()
+                expected_barcodes = [
+                    f"{bc}-{i + 1}" for bc in self.true_results_5804["read_barcodes"]
+                ]
+                expected = {
+                    "observation_id": expected_barcodes,
+                    "utr_size": self.true_results_5804["utr_sizes_from_reads"],
+                }
+                self.assertDictEqual(result, expected)
 
 
 class TestCallPeaksSmartseq3Minimal(unittest.TestCase):

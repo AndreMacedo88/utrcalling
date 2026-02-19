@@ -36,24 +36,23 @@ class TestSmartSeq3(TestMapReadsToUtr):
             self.intervals_5prime,
             protocol_,
             read="first",
-            batch="test_sample",
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [
-                self.alignment,
-                self.alignment,
-                self.alignment,
-            ],
-            "utr_sizes_from_reads": [4, 25, 29],
-        }
-        self.assertDictEqual(
-            self.mappings.loc["ENSMUSG00000023905"].to_dict(), dict_true
+        utr_data = self.mappings[
+            self.mappings["utr_name"] == "ENSMUSG00000023905"
+        ]
+        self.assertListEqual(
+            utr_data["observation_id"].tolist(),
+            [self.alignment, self.alignment, self.alignment],
+        )
+        self.assertListEqual(
+            utr_data["utr_size"].tolist(),
+            [4, 25, 29],
         )
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 31)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 31)
 
 
 class TestMapReadsToUtrMinimal(unittest.TestCase):
@@ -85,18 +84,22 @@ class TestSmartSeq3ReadnameMinimal(TestMapReadsToUtrMinimal):
             annotations="./test_data/smartseq3_anno.csv",
         )
         self.mappings = utr_mapping.map_reads_to_utr(
-            self.alignment, self.intervals, protocol_, read="first", batch="Test"
+            self.alignment, self.intervals, protocol_, read="first"
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [[self.alignment], [self.alignment]],
-            "utr_sizes_from_reads": [[68], [143]],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        utrs = sorted(self.mappings["utr_name"].unique().tolist())
+        obs_per_utr = []
+        sizes_per_utr = []
+        for utr in utrs:
+            utr_data = self.mappings[self.mappings["utr_name"] == utr]
+            obs_per_utr.append(utr_data["observation_id"].tolist())
+            sizes_per_utr.append(utr_data["utr_size"].tolist())
+        self.assertListEqual(obs_per_utr, [[self.alignment], [self.alignment]])
+        self.assertListEqual(sizes_per_utr, [[68], [143]])
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 class TestMapReadsToUtrSynthetic(unittest.TestCase):
@@ -133,18 +136,23 @@ class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
                 self.intervals,
                 protocol_,
                 read="first",
-                batch="Test",
             )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [[self.data.alignment], [self.data.alignment]],
-            "utr_sizes_from_reads": [[404], [69]],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        utrs = sorted(self.mappings["utr_name"].unique().tolist())
+        obs_per_utr = []
+        sizes_per_utr = []
+        for utr in utrs:
+            utr_data = self.mappings[self.mappings["utr_name"] == utr]
+            obs_per_utr.append(utr_data["observation_id"].tolist())
+            sizes_per_utr.append(utr_data["utr_size"].tolist())
+        self.assertListEqual(
+            obs_per_utr, [[self.data.alignment], [self.data.alignment]]
+        )
+        self.assertListEqual(sizes_per_utr, [[404], [69]])
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 if __name__ == "__main__":

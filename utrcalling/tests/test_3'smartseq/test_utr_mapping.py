@@ -37,21 +37,25 @@ class TestSmartSeq3(TestMapReadsToUtr):
             self.intervals,
             protocol_,
             read="first",
+            batch_idx=protocol_.sample_idx[self.alignment],
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [["CACTGT-2"], ["CACTGT-2"]],
-            "utr_sizes_from_reads": [[300], [30]],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        # Check that all observations and sizes are present (order-independent per UTR)
+        all_obs = sorted(self.mappings["observation_id"].tolist())
+        all_sizes = sorted(self.mappings["utr_size"].tolist())
+        self.assertListEqual(all_obs, ["CACTGT-2", "CACTGT-2"])
+        self.assertListEqual(all_sizes, [30, 300])
 
     def test_details_one(self):
-        dict_true = {"read_barcodes": ["CACTGT-2"], "utr_sizes_from_reads": [300]}
-        self.assertDictEqual(self.mappings.loc["ENSG00000188976"].to_dict(), dict_true)
+        utr_data = self.mappings[
+            self.mappings["utr_name"] == "ENSG00000188976"
+        ]
+        self.assertListEqual(utr_data["observation_id"].tolist(), ["CACTGT-2"])
+        self.assertListEqual(utr_data["utr_size"].tolist(), [300])
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 class TestSmartSeq3NoBarcodes(TestMapReadsToUtr):
@@ -74,21 +78,24 @@ class TestSmartSeq3NoBarcodes(TestMapReadsToUtr):
             self.intervals,
             protocol_,
             read="first",
+            batch_idx=protocol_.sample_idx[self.alignment],
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [["CACTGT-2"], ["CACTGT-2"]],
-            "utr_sizes_from_reads": [[300], [30]],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        all_obs = sorted(self.mappings["observation_id"].tolist())
+        all_sizes = sorted(self.mappings["utr_size"].tolist())
+        self.assertListEqual(all_obs, ["CACTGT-2", "CACTGT-2"])
+        self.assertListEqual(all_sizes, [30, 300])
 
     def test_details_one(self):
-        dict_true = {"read_barcodes": ["CACTGT-2"], "utr_sizes_from_reads": [300]}
-        self.assertDictEqual(self.mappings.loc["ENSG00000188976"].to_dict(), dict_true)
+        utr_data = self.mappings[
+            self.mappings["utr_name"] == "ENSG00000188976"
+        ]
+        self.assertListEqual(utr_data["observation_id"].tolist(), ["CACTGT-2"])
+        self.assertListEqual(utr_data["utr_size"].tolist(), [300])
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 class TestMapReadsToUtrMinimal(unittest.TestCase):
@@ -123,14 +130,18 @@ class TestSmartSeq3Minimal(TestMapReadsToUtrMinimal):
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [["CACTGT"], ["CACTGT"]],
-            "utr_sizes_from_reads": [[223], [158]],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        utrs = sorted(self.mappings["utr_name"].unique().tolist())
+        obs_per_utr = []
+        sizes_per_utr = []
+        for utr in utrs:
+            utr_data = self.mappings[self.mappings["utr_name"] == utr]
+            obs_per_utr.append(utr_data["observation_id"].tolist())
+            sizes_per_utr.append(utr_data["utr_size"].tolist())
+        self.assertListEqual(obs_per_utr, [["CACTGT"], ["CACTGT"]])
+        self.assertListEqual(sizes_per_utr, [[223], [158]])
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
@@ -143,18 +154,23 @@ class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
             annotations="./test_data/smartseq3_anno.csv",
         )
         self.mappings = utr_mapping.map_reads_to_utr(
-            self.alignment, self.intervals, protocol_, read="first"
+            self.alignment, self.intervals, protocol_, read="first",
+            batch_idx=protocol_.sample_idx[self.alignment],
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [["CACTGT-2"], ["CACTGT-2"]],
-            "utr_sizes_from_reads": [[223], [158]],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        utrs = sorted(self.mappings["utr_name"].unique().tolist())
+        obs_per_utr = []
+        sizes_per_utr = []
+        for utr in utrs:
+            utr_data = self.mappings[self.mappings["utr_name"] == utr]
+            obs_per_utr.append(utr_data["observation_id"].tolist())
+            sizes_per_utr.append(utr_data["utr_size"].tolist())
+        self.assertListEqual(obs_per_utr, [["CACTGT-2"], ["CACTGT-2"]])
+        self.assertListEqual(sizes_per_utr, [[223], [158]])
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 if __name__ == "__main__":

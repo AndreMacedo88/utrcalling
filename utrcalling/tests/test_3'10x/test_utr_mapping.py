@@ -34,20 +34,20 @@ class TestTenxTwo(TestMapReadsToUtr):
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [
-                "GATGAAACATTAACCG",
-                "TGCGCAGAGTCCATAC",
-                "GCTGGGTGTACGCACC",
-            ],
-            "utr_sizes_from_reads": [1468, 1458, 1466],
-        }
-        self.assertDictEqual(
-            self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true
+        utr_data = self.mappings[
+            self.mappings["utr_name"] == "ENSMUSG00000005804"
+        ]
+        self.assertListEqual(
+            utr_data["observation_id"].tolist(),
+            ["GATGAAACATTAACCG", "TGCGCAGAGTCCATAC", "GCTGGGTGTACGCACC"],
+        )
+        self.assertListEqual(
+            utr_data["utr_size"].tolist(),
+            [1468, 1458, 1466],
         )
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 110)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 110)
 
 
 class TestTenxThree(TestMapReadsToUtr):
@@ -66,20 +66,20 @@ class TestTenxThree(TestMapReadsToUtr):
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [
-                "GATGAAACATTAACCG",
-                "TGCGCAGAGTCCATAC",
-                "GCTGGGTGTACGCACC",
-            ],
-            "utr_sizes_from_reads": [1468, 1458, 1466],
-        }
-        self.assertDictEqual(
-            self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true
+        utr_data = self.mappings[
+            self.mappings["utr_name"] == "ENSMUSG00000005804"
+        ]
+        self.assertListEqual(
+            utr_data["observation_id"].tolist(),
+            ["GATGAAACATTAACCG", "TGCGCAGAGTCCATAC", "GCTGGGTGTACGCACC"],
+        )
+        self.assertListEqual(
+            utr_data["utr_size"].tolist(),
+            [1468, 1458, 1466],
         )
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 110)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 110)
 
 
 class TestTenxThreeNoBarcodes(TestMapReadsToUtr):
@@ -97,20 +97,20 @@ class TestTenxThreeNoBarcodes(TestMapReadsToUtr):
         )
 
     def test_details(self):
-        dict_true = {
-            "read_barcodes": [
-                "GATGAAACATTAACCG",
-                "TGCGCAGAGTCCATAC",
-                "GCTGGGTGTACGCACC",
-            ],
-            "utr_sizes_from_reads": [1468, 1458, 1466],
-        }
-        self.assertDictEqual(
-            self.mappings.loc["ENSMUSG00000005804"].to_dict(), dict_true
+        utr_data = self.mappings[
+            self.mappings["utr_name"] == "ENSMUSG00000005804"
+        ]
+        self.assertListEqual(
+            utr_data["observation_id"].tolist(),
+            ["GATGAAACATTAACCG", "TGCGCAGAGTCCATAC", "GCTGGGTGTACGCACC"],
+        )
+        self.assertListEqual(
+            utr_data["utr_size"].tolist(),
+            [1468, 1458, 1466],
         )
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 110)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 110)
 
 
 class TestMapReadsToUtrSynthetic(unittest.TestCase):
@@ -163,26 +163,35 @@ class TestTenxThreeSynthetic(TestMapReadsToUtrSynthetic):
                 self.intervals,
                 protocol_,
                 read="first",
-                batch="Test",
             )
 
     def test_details(self):
         size_true_sense = 172196828 - 172196728 - 1
         size_true_anti = (91271840 + 80) - 91270659
-        dict_true = {
-            "read_barcodes": [
-                ["GACTCTCCACAATGAA", "GACTCTCCACAATGAA"],
-                ["TTCTTGACAAGTCATC", "TTCTTGACAAGTCATC"],
-            ],
-            "utr_sizes_from_reads": [
-                [size_true_sense, size_true_sense],
-                [size_true_anti, size_true_anti],
-            ],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        # Group by utr_name and check
+        utrs = self.mappings["utr_name"].unique().tolist()
+        self.assertEqual(len(utrs), 2)
+
+        obs_per_utr = []
+        sizes_per_utr = []
+        for utr in sorted(utrs):
+            utr_data = self.mappings[self.mappings["utr_name"] == utr]
+            obs_per_utr.append(utr_data["observation_id"].tolist())
+            sizes_per_utr.append(utr_data["utr_size"].tolist())
+
+        expected_obs = [
+            ["GACTCTCCACAATGAA", "GACTCTCCACAATGAA"],
+            ["TTCTTGACAAGTCATC", "TTCTTGACAAGTCATC"],
+        ]
+        expected_sizes = [
+            [size_true_sense, size_true_sense],
+            [size_true_anti, size_true_anti],
+        ]
+        self.assertListEqual(obs_per_utr, expected_obs)
+        self.assertListEqual(sizes_per_utr, expected_sizes)
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 class TestTenxTwoSynthetic(TestMapReadsToUtrSynthetic):
@@ -201,26 +210,34 @@ class TestTenxTwoSynthetic(TestMapReadsToUtrSynthetic):
                 self.intervals,
                 protocol_,
                 read="first",
-                batch="Test",
             )
 
     def test_details(self):
         size_true_sense = 172196828 - 172196728 - 1
         size_true_anti = (91271840 + 80) - 91270659
-        dict_true = {
-            "read_barcodes": [
-                ["GACTCTCCACAATGAA", "GACTCTCCACAATGAA"],
-                ["TTCTTGACAAGTCATC", "TTCTTGACAAGTCATC"],
-            ],
-            "utr_sizes_from_reads": [
-                [size_true_sense, size_true_sense],
-                [size_true_anti, size_true_anti],
-            ],
-        }
-        self.assertDictEqual(self.mappings.to_dict(orient="list"), dict_true)
+        utrs = self.mappings["utr_name"].unique().tolist()
+        self.assertEqual(len(utrs), 2)
+
+        obs_per_utr = []
+        sizes_per_utr = []
+        for utr in sorted(utrs):
+            utr_data = self.mappings[self.mappings["utr_name"] == utr]
+            obs_per_utr.append(utr_data["observation_id"].tolist())
+            sizes_per_utr.append(utr_data["utr_size"].tolist())
+
+        expected_obs = [
+            ["GACTCTCCACAATGAA", "GACTCTCCACAATGAA"],
+            ["TTCTTGACAAGTCATC", "TTCTTGACAAGTCATC"],
+        ]
+        expected_sizes = [
+            [size_true_sense, size_true_sense],
+            [size_true_anti, size_true_anti],
+        ]
+        self.assertListEqual(obs_per_utr, expected_obs)
+        self.assertListEqual(sizes_per_utr, expected_sizes)
 
     def test_length(self):
-        self.assertEqual(self.mappings.shape[0], 2)
+        self.assertEqual(len(self.mappings["utr_name"].unique()), 2)
 
 
 # TODO: do similar class as TestTenxSynthetic, but for smartseq to test UMI deduplication
