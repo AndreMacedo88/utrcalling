@@ -1,5 +1,4 @@
 # import general purpose tools
-from cmath import isnan
 import warnings
 import re
 import joblib

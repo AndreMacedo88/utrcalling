@@ -54,8 +54,10 @@ def prepare_annotations_index(annotations_extra):
     return annotations_columns, annotations_index
 
 
-def reduce_regions(bed, annotations_index=[], operation_list=[]):
+def reduce_regions(bed, annotations_index=None, operation_list=None):
     logger = module_logger()
+    if annotations_index is None:
+        annotations_index = []
     if not operation_list:
         operations = [
             "distinct",

@@ -48,19 +48,25 @@ utrcalling run --help          # Main pipeline
 utrcalling call-peaks --help   # Peak calling only
 ```
 
-## Active Improvement Plan
+## Completed Improvement Plan
 
-**`PLAN.md` is the authoritative guide for the current improvement work.** It defines 6 phases (cleanup, performance, type hints, testing, parallelism) to be executed in order. Read it before making changes to core modules.
+**`PLAN.md` documents the 6-phase improvement plan executed on the `core-overhaul` branch.** All 6 phases are complete (182 tests pass). The plan covered cleanup, performance, type hints, testing, and parallelism.
 
-### Completed Refactor (background)
+### What was done
 
-The `core-overhaul` branch completed a major refactor from `master`:
+The `core-overhaul` branch completed a major refactor from `master`, followed by a 6-phase improvement plan:
 
-1. **modin/ray eliminated** — All modin/ray usage replaced with plain pandas + joblib.
+1. **modin/ray eliminated** — All modin/ray usage replaced with plain pandas + joblib. Dead modin helpers, ray checks, and stale `requirements.txt` references cleaned up (Phase 1).
 2. **Flat intermediate data model** — `map_reads_to_utr()` returns a flat DataFrame (one row per molecule: `utr_name`, `observation_id`, `utr_size`).
 3. **Sparse count matrix assembly** — `generate_peak_counts_and_anno()` builds `scipy.sparse.csr_matrix` directly from accumulated `(row, col, data)` arrays.
 4. **Unified observation identity** — `Protocol.get_observation_id(barcode, batch_idx)` constructs the final cell/sample ID at read time.
-5. **joblib parallelism standardized** — Workers return flat DataFrames, main process concatenates once.
+5. **joblib parallelism standardized** — BAM-level parallelism in `map_aligned_reads()` (workers return flat DataFrames, main process concatenates once). UTR-level parallelism in `generate_peak_counts_and_anno()` when >50 UTRs (Phase 6).
+6. **O(n²) UMI deduplication fixed** — `deduplicate_reads()` now uses `set` for O(1) UMI lookup instead of `list` (Phase 2).
+7. **Python 3.12 compatibility** — Deprecated `distutils.strtobool` replaced with inline `_strtobool()` in `protocol.py` (Phase 1).
+8. **Memory-aware barcode filtering** — `call_peaks()` compares estimated data size vs available RAM instead of a hard-coded 30% threshold, scales chunk count dynamically (Phase 3).
+9. **Unnecessary DataFrame copies removed** — `filter_barcodes()` skips the full `.copy()` when no barcode replacements are needed; re-categorizes both `utr_name` and `observation_id` after filtering (Phase 3).
+10. **Type hints and docstrings** — All public functions in the 6 core modules annotated with `from __future__ import annotations`, typed signatures, and Google-style docstrings (Phase 4).
+11. **Test coverage expanded** — 182 tests total (up from 136). New test files for `helpers.py` and `Protocol.get_observation_id()`. Edge case tests for peak calling and process_mapped_reads (Phase 5).
 
 ### Hard Constraints
 
@@ -87,7 +93,7 @@ The `core-overhaul` branch completed a major refactor from `master`:
 
 1. **`prepare_utr_reference_regions()`** — Parses GTF, extracts UTR features, merges overlapping regions via pybedtools, returns a reference BED-like DataFrame.
 2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via HTSeq. Parallelizes across samples using `joblib.Parallel(n_jobs=-2)`. Returns a flat DataFrame (or list of DataFrames for multi-BAM).
-3. **`call_peaks()`** — Filters UTR sizes, optionally filters barcodes, then calls consensus peaks on molecule size distributions using Gaussian KDE (sklearn) + `scipy.signal.argrelextrema`. Produces the final AnnData with a sparse count matrix.
+3. **`call_peaks()`** — Filters UTR sizes, optionally filters barcodes (with memory-aware chunking), then calls consensus peaks on molecule size distributions using Gaussian KDE (sklearn) + `scipy.signal.argrelextrema`. Peak calling parallelizes across UTRs with `joblib.Parallel` when >50 UTRs. Produces the final AnnData with a sparse count matrix.
 
 ### Intermediate Data Model
 
@@ -142,13 +148,13 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 - **pybedtools** — genomic interval operations (requires **BEDTools** system-wide)
 - **HTSeq** — BAM/SAM read processing
 - **anndata/scanpy** — single-cell data structures
-- **joblib** — parallelism across BAM files
+- **joblib** — parallelism across BAM files and across UTRs during peak calling
 - **rapidfuzz** — fuzzy barcode matching (Hamming distance ≤1)
-- Python 3.9+ (tested on 3.9)
+- Python 3.9+ (compatible through 3.12+)
 
 ### Testing
 
-Tests use Python's `unittest` framework. Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`.
+Tests use Python's `unittest` framework (182 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`.
 
 Tests `chdir` into `utrcalling/tests/` at setup time, so test data paths are relative to that directory.
 

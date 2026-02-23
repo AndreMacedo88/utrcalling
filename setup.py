@@ -1,6 +1,5 @@
 import setuptools
 import re
-from pathlib import Path
 
 
 def readme():
@@ -37,7 +36,7 @@ setuptools.setup(
     url="https://github.com/AndreMacedo88/utrcalling",
     packages=setuptools.find_packages(),
     install_requires=[
-        "numpy>=1.22.3, <1.24",
+        "numpy>=1.22.3",
         "pandas>=1.3.0",
         "scipy>=1.6.2",
         "scikit-learn>=0.23.2",
@@ -48,9 +47,9 @@ setuptools.setup(
         "scanpy>=1.9.1",
         "gtfparse>=1.2.1, <2",
         "htseq>=0.13.5",
-        "pybedtools==0.8.2",
+        "pybedtools>=0.8.2",
         "tqdm>=4.59.0",
-        "bidict==0.22.1",
+        "bidict>=0.22.0",
         "psutil",
         "pympler",
         "coloredlogs",
@@ -65,7 +64,6 @@ setuptools.setup(
         "Programming Language :: Python :: 3.9",
         "Operating System :: OS Independent",
     ],
-    scripts=[x.as_posix() for x in Path("./tools/").glob("*.py")],
     entry_points={
         "console_scripts": [
             # command = package.module:function

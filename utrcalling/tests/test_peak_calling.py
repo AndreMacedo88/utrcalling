@@ -226,6 +226,65 @@ class TestAnnData(TestGenerateCountMatrixAnndata):
         self.assertEqual(non_zeros_count, 670 * 4)
 
 
+class TestPeakCallingEdgeCases(unittest.TestCase):
+    """Edge case tests for generate_peak_counts_and_anno()."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.protocol_ = protocol.create(
+            platform="10x",
+            version=2,
+            annotations=synthetic_data.ANNOTATION_THREE_PRIME_TENX,
+        )
+
+    def test_empty_dataframe(self):
+        """Empty input should produce an empty sparse matrix and empty var."""
+        empty_df = pd.DataFrame({
+            "utr_name": pd.Categorical([]),
+            "observation_id": pd.Categorical([]),
+            "utr_size": np.array([], dtype=np.int32),
+        })
+        matrix, var, obs = peak_calling.generate_peak_counts_and_anno(
+            utr_sizes=empty_df, protocol=self.protocol_,
+        )
+        self.assertEqual(matrix.shape, (0, 0))
+        self.assertEqual(len(var), 0)
+
+    def test_single_observation(self):
+        """Single observation should produce a 1-row matrix."""
+        single_obs = pd.DataFrame({
+            "utr_name": pd.Categorical(["UTR1", "UTR1"]),
+            "observation_id": pd.Categorical([
+                "AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
+            ]),
+            "utr_size": np.array([100, 200], dtype=np.int32),
+        })
+        matrix, var, obs = peak_calling.generate_peak_counts_and_anno(
+            utr_sizes=single_obs, protocol=self.protocol_,
+        )
+        self.assertEqual(matrix.shape[0], 1)
+        self.assertGreater(matrix.shape[1], 0)
+
+    def test_single_utr(self):
+        """Single UTR with multiple observations should produce peaks from that UTR only."""
+        single_utr = pd.DataFrame({
+            "utr_name": pd.Categorical(["UTR1"] * 3),
+            "observation_id": pd.Categorical([
+                "AAAAAAAAAAAAAAAA-1",
+                "AAAAAAAAAAAAAAAG-1",
+                "GAAAAAAAAAAAAAAT-2",
+            ]),
+            "utr_size": np.array([100, 100, 200], dtype=np.int32),
+        })
+        matrix, var, obs = peak_calling.generate_peak_counts_and_anno(
+            utr_sizes=single_utr, protocol=self.protocol_,
+        )
+        self.assertEqual(matrix.shape[0], 3)
+        # All peak names should start with "UTR1-"
+        for name in var.index:
+            self.assertTrue(name.startswith("UTR1-"), f"Unexpected peak name: {name}")
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

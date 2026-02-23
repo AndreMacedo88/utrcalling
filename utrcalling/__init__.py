@@ -23,11 +23,11 @@ def show_logo():
 
 
 # Print a header/logo to show that the utrcalling tool has started
-# But prevent joblib and ray instances from printing the header
+# But prevent joblib worker processes from printing the header
 caller_process = psutil.Process().cmdline()
 initialize = True
 for element in caller_process:
-    if ("ray::IDLE" in element) or ("joblib" in element):
+    if "joblib" in element:
         initialize = False
         break
 if initialize:

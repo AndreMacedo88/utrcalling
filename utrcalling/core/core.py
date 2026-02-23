@@ -22,10 +22,12 @@ genomic coordinates
 - Output should inherit single cell annotations, as well as gene annotation like the
 genomic coordinates and optionally UTR sequence information.
 """
+from __future__ import annotations
 
 import os
 import psutil
 
+import anndata
 import numpy as np
 import pandas as pd
 import pybedtools
@@ -41,7 +43,21 @@ from utrcalling.core import process_mapped_reads
 from utrcalling.core import peak_calling
 
 
-def prepare_utr_reference_regions(gtf, feature, store=False):
+def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:
+    """Parse a GTF file and build a non-overlapping UTR reference.
+
+    Extracts UTR features from the GTF, sorts by chromosome and start position,
+    merges overlapping regions via pybedtools, and returns a cleaned DataFrame
+    indexed by UTR name.
+
+    Args:
+        gtf: Path to a GTF annotation file (gzipped or plain).
+        feature: GTF feature type to extract (e.g., 'three_prime_utr').
+        store: If True, save intermediate BED and Parquet files to ./intermediate/.
+
+    Returns:
+        A DataFrame of merged, non-overlapping UTR regions indexed by utr_name.
+    """
     # open the gtf file
     gtf_df = utr_reference.open_gtf(gtf)
     # extract 3'UTRs from all the features in the GTF file
@@ -67,7 +83,26 @@ def prepare_utr_reference_regions(gtf, feature, store=False):
     return utr_reduced
 
 
-def map_aligned_reads(alignments, utr_regions, protocol, store=False):
+def map_aligned_reads(
+    alignments: str | list[str],
+    utr_regions: pd.DataFrame,
+    protocol: object,
+    store: bool = False,
+) -> pd.DataFrame | list[pd.DataFrame]:
+    """Map BAM-aligned reads to UTR intervals and deduplicate by UMI.
+
+    For multiple BAM files, parallelizes across samples using joblib. Each BAM
+    produces a flat DataFrame of (utr_name, observation_id, utr_size) rows.
+
+    Args:
+        alignments: Path to a single BAM file, or a list of BAM file paths.
+        utr_regions: UTR reference DataFrame (from prepare_utr_reference_regions).
+        protocol: A Protocol instance defining read parsing and identity extraction.
+        store: If True, save per-sample Parquet files to ./intermediate/.
+
+    Returns:
+        A single flat DataFrame (one BAM) or list of flat DataFrames (multiple BAMs).
+    """
     intervals = utr_mapping.generate_utr_intervals(utr_regions)
     sample_names = protocol.sample_names
 
@@ -115,7 +150,24 @@ def map_aligned_reads(alignments, utr_regions, protocol, store=False):
     return read_mappings
 
 
-def merge_samples_utr_sizes(utr_sizes_counts, protocol, store=False):
+def merge_samples_utr_sizes(
+    utr_sizes_counts: list[pd.DataFrame],
+    protocol: object,
+    store: bool = False,
+) -> pd.DataFrame:
+    """Merge flat DataFrames from multiple BAM samples into one.
+
+    Delegates to process_mapped_reads.merge_samples_utr_sizes using the
+    protocol's merge_method ('union' or 'intersection').
+
+    Args:
+        utr_sizes_counts: List of flat DataFrames, one per sample.
+        protocol: A Protocol instance with a merge_method attribute.
+        store: If True, save the merged Parquet file to ./intermediate/.
+
+    Returns:
+        A single merged flat DataFrame.
+    """
     utr_sizes_counts = process_mapped_reads.merge_samples_utr_sizes(
         utr_sizes_counts,
         method=protocol.merge_method,
@@ -132,10 +184,24 @@ def merge_samples_utr_sizes(utr_sizes_counts, protocol, store=False):
 
 
 def merge_utrs_per_feature(
-    utr_regions,
-    read_mappings,
-    level="UTR",
-):
+    utr_regions: pd.DataFrame,
+    read_mappings: pd.DataFrame,
+    level: str = "UTR",
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Optionally merge per-UTR data up to gene level.
+
+    When level='gene', UTR regions belonging to the same gene are merged and
+    UTR sizes are offset-adjusted so they represent position within the full
+    gene UTR span.
+
+    Args:
+        utr_regions: UTR reference DataFrame indexed by utr_name.
+        read_mappings: Flat DataFrame of (utr_name, observation_id, utr_size) rows.
+        level: Aggregation level — 'UTR' (no-op) or 'gene'.
+
+    Returns:
+        A (utr_regions, read_mappings) tuple, potentially merged to gene level.
+    """
     if level.lower() == "gene":
         utr_regions, read_mappings = process_mapped_reads.merge_utrs_per_gene(
             utr_regions=utr_regions, read_mappings=read_mappings
@@ -144,11 +210,26 @@ def merge_utrs_per_feature(
 
 
 def call_peaks(
-    utr_sizes_counts,
-    utr_reference_regions,
-    protocol,
-    store=False,
-):
+    utr_sizes_counts: pd.DataFrame,
+    utr_reference_regions: pd.DataFrame,
+    protocol: object,
+    store: bool = False,
+) -> anndata.AnnData:
+    """Filter, optionally barcode-filter, and call consensus UTR peaks.
+
+    Applies UTR size filtering, optional barcode whitelist filtering (with
+    memory-aware chunking), then runs peak calling on each UTR's size
+    distribution to produce a sparse AnnData count matrix.
+
+    Args:
+        utr_sizes_counts: Flat DataFrame of (utr_name, observation_id, utr_size) rows.
+        utr_reference_regions: Full UTR reference DataFrame.
+        protocol: A Protocol instance with peak calling and filtering config.
+        store: If True, save intermediate sparse matrix and DataFrames to ./intermediate/.
+
+    Returns:
+        An AnnData object with cells/samples as obs and UTR peaks as var.
+    """
     logger = module_logger()
 
     # if we are to add the reference data to the results later, we must subset the UTRs
@@ -164,19 +245,28 @@ def call_peaks(
     del utr_sizes_counts  # to save memory
 
     if protocol.barcode_whitelist is not None:
-        if psutil.virtual_memory().percent > 30:  # if there are memory issues
+        # Estimate whether barcode filtering will fit in available RAM.
+        # filter_barcodes() copies the DataFrame and does string operations,
+        # so peak usage is roughly 3x the data size.
+        data_bytes = filtered_positions.memory_usage(deep=True).sum()
+        available_bytes = psutil.virtual_memory().available
+        headroom = data_bytes * 3
+
+        if headroom > available_bytes:
+            n_chunks = max(2, int(np.ceil(headroom / available_bytes)))
             logger.info(
-                f"Dataset is too large. Splitting in 10 and analysing sequentially"
+                "Splitting barcode filtering into %d chunks to fit in available memory",
+                n_chunks,
             )
-            num, div = filtered_positions.shape[0], 10
-            idx_tenths = np.cumsum(
-                [num // div + (1 if x < num % div else 0) for x in range(div)]
+            num = filtered_positions.shape[0]
+            idx_splits = np.cumsum(
+                [num // n_chunks + (1 if x < num % n_chunks else 0) for x in range(n_chunks)]
             )
-            idx_mod = np.insert(idx_tenths, 0, 0)
+            idx_splits = np.insert(idx_splits, 0, 0)
 
             split_generator = (
-                filtered_positions.iloc[idx_mod[n] : idx_mod[n + 1]]
-                for n in range(len(idx_mod) - 1)
+                filtered_positions.iloc[idx_splits[n] : idx_splits[n + 1]]
+                for n in range(n_chunks)
             )
 
             filtered_list = [
@@ -186,7 +276,10 @@ def call_peaks(
                 for pos in split_generator
             ]
 
-            filtered_positions = pd.concat(filtered_list)
+            filtered_positions = pd.concat(filtered_list, ignore_index=True)
+            # Re-categorize after concat to merge category codes
+            filtered_positions["utr_name"] = pd.Categorical(filtered_positions["utr_name"])
+            filtered_positions["observation_id"] = pd.Categorical(filtered_positions["observation_id"])
         else:
             filtered_positions = process_mapped_reads.filter_barcodes(
                 filtered_positions, whitelist=protocol.barcode_whitelist

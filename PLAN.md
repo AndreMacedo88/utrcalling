@@ -8,9 +8,11 @@ The `core-overhaul` refactor is complete (modin removed, flat data model, sparse
 
 ---
 
-## Phase 1: Cleanup — Dead Code, Deprecations, Packaging Fixes
+## Phase 1: Cleanup — Dead Code, Deprecations, Packaging Fixes ✅
 
 **Goal**: Remove refactor leftovers, fix a Python 3.12 blocker, and correct packaging bugs.
+
+**Status**: Complete. 136 tests pass.
 
 ### Changes
 
@@ -33,9 +35,11 @@ pip install -e .
 
 ---
 
-## Phase 2: Performance — Fix O(n²) `deduplicate_reads()`
+## Phase 2: Performance — Fix O(n²) `deduplicate_reads()` ✅
 
 **Goal**: Fix the single biggest per-BAM bottleneck. Currently uses Python lists for UMI lookup, making `if umi not in list` O(n) per call — quadratic overall.
+
+**Status**: Complete. 144 tests pass (136 existing + 8 new).
 
 ### Changes
 
@@ -53,9 +57,11 @@ python -m unittest discover -s utrcalling/tests -p "test_*.py"
 
 ---
 
-## Phase 3: Performance — Memory Heuristic and Unnecessary Copies
+## Phase 3: Performance — Memory Heuristic and Unnecessary Copies ✅
 
 **Goal**: Replace the fragile hard-coded memory splitting (30% threshold, always 10 chunks) with a data-size-aware approach, and remove redundant DataFrame copies.
+
+**Status**: Complete. 144 tests pass.
 
 ### Changes
 
@@ -71,9 +77,11 @@ python -m unittest discover -s utrcalling/tests -p "test_*.py"
 
 ---
 
-## Phase 4: Type Hints and Docstrings
+## Phase 4: Type Hints and Docstrings ✅
 
 **Goal**: Add type annotations and docstrings to all public functions in the 5 core pipeline modules. Use `from __future__ import annotations` for Python 3.9 compatibility.
+
+**Status**: Complete. 144 tests pass. All 6 modules annotated with `from __future__ import annotations`, typed signatures, and Google-style docstrings.
 
 ### Modules (in order)
 
@@ -95,9 +103,11 @@ python -c "from utrcalling.core import core, protocol, utr_mapping, process_mapp
 
 ---
 
-## Phase 5: Testing Improvements
+## Phase 5: Testing Improvements ✅
 
 **Goal**: Fill the most critical testing gaps — unit tests for functions that have zero direct coverage, and edge case tests for data handling.
+
+**Status**: Complete. 182 tests pass (144 existing + 38 new).
 
 ### New test files and additions
 
@@ -115,9 +125,11 @@ python -m unittest discover -s utrcalling/tests -p "test_*.py"
 
 ---
 
-## Phase 6: Performance — Parallelize Peak Calling
+## Phase 6: Performance — Parallelize Peak Calling ✅
 
 **Goal**: KDE peak calling in `generate_peak_counts_and_anno()` iterates sequentially over UTRs, but each UTR is independent. Parallelize with joblib (already used in `map_aligned_reads()`).
+
+**Status**: Complete. 182 tests pass.
 
 ### Changes
 
@@ -140,11 +152,13 @@ python -m utrcalling.performance.perf_call_peaks  # measure speedup
 
 ## Summary
 
-| Phase | Focus | Risk | Key benefit |
-|-------|-------|------|-------------|
-| 1 | Cleanup & packaging | Very low | Python 3.12 compat, remove dead code, fix packaging |
-| 2 | O(n²) dedup fix | Low | Major speedup on high-depth BAMs |
-| 3 | Memory heuristic & copies | Low-Med | Better RAM usage, smarter splitting |
-| 4 | Type hints & docstrings | None | Maintainability, IDE support |
-| 5 | Test coverage | None | Reliability, catch regressions |
-| 6 | Parallel peak calling | Medium | Multi-core speedup on real datasets |
+| Phase | Focus | Risk | Key benefit | Status |
+|-------|-------|------|-------------|--------|
+| 1 | Cleanup & packaging | Very low | Python 3.12 compat, remove dead code, fix packaging | ✅ Done |
+| 2 | O(n²) dedup fix | Low | Major speedup on high-depth BAMs | ✅ Done |
+| 3 | Memory heuristic & copies | Low-Med | Better RAM usage, smarter splitting | ✅ Done |
+| 4 | Type hints & docstrings | None | Maintainability, IDE support | ✅ Done |
+| 5 | Test coverage | None | Reliability, catch regressions | ✅ Done |
+| 6 | Parallel peak calling | Medium | Multi-core speedup on real datasets | ✅ Done |
+
+**All 6 phases complete. 182 tests pass.**

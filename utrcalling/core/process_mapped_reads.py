@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from functools import reduce
 import warnings
 
@@ -10,21 +12,24 @@ from rapidfuzz import process, distance
 from utrcalling.core import helpers, module_log
 
 
-def merge_samples_utr_sizes(utr_sizes, method="intersection"):
-    """
-    Merge flat-format DataFrames (utr_name, observation_id, utr_size) from multiple
-    samples. If method='intersection', only UTRs present in all samples are kept.
+def merge_samples_utr_sizes(
+    utr_sizes: list[pd.DataFrame], method: str = "intersection"
+) -> pd.DataFrame:
+    """Merge flat-format DataFrames from multiple samples.
+
+    If method='intersection', only UTRs present in all samples are kept.
     If method='union', all UTRs from all samples are kept.
 
     Batch labeling (the "-N" suffix on observation_ids) is handled at read time
     via Protocol.get_observation_id(), not here.
 
     Args:
-        utr_sizes (list): List of flat DataFrames, one per sample.
-        method (str): 'intersection' or 'union'.
+        utr_sizes: List of flat DataFrames (utr_name, observation_id, utr_size),
+            one per sample.
+        method: 'intersection' or 'union'.
 
     Returns:
-        pd.DataFrame: Merged flat DataFrame.
+        Merged flat DataFrame with re-categorized string columns.
     """
     logger = module_log.module_logger()
     logger.info("Merging all batches' UTR sizes")
@@ -47,7 +52,22 @@ def merge_samples_utr_sizes(utr_sizes, method="intersection"):
     return merged
 
 
-def merge_utrs_per_gene(utr_regions, read_mappings):
+def merge_utrs_per_gene(
+    utr_regions: pd.DataFrame, read_mappings: pd.DataFrame
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Merge per-UTR regions and read mappings up to gene level.
+
+    For each gene, computes positional offsets so that UTR sizes from different
+    UTR regions of the same gene are placed on a single coordinate axis.
+
+    Args:
+        utr_regions: UTR reference DataFrame indexed by utr_name.
+        read_mappings: Flat DataFrame of (utr_name, observation_id, utr_size) rows.
+
+    Returns:
+        A (gene_regions, gene_read_mappings) tuple where utr_name has been
+        replaced with the gene name and utr_size is offset-adjusted.
+    """
 
     def join_unique(x):
         return ",".join(x.unique().astype(str))
@@ -193,7 +213,18 @@ def merge_utrs_per_gene(utr_regions, read_mappings):
     return utr_regions_per_gene, result
 
 
-def subset_reference_data(utr_sizes, utr_reference_regions):
+def subset_reference_data(
+    utr_sizes: pd.DataFrame, utr_reference_regions: pd.DataFrame
+) -> pd.DataFrame:
+    """Subset the UTR reference to only UTRs present in the read data.
+
+    Args:
+        utr_sizes: Flat DataFrame with a 'utr_name' column.
+        utr_reference_regions: Full UTR reference DataFrame indexed by utr_name.
+
+    Returns:
+        A deduplicated subset of the reference containing only matching UTRs.
+    """
     logger = module_log.module_logger()
     logger.info("Subsetting UTR reference data")
 
@@ -206,7 +237,20 @@ def subset_reference_data(utr_sizes, utr_reference_regions):
     return sub_utr_reference_unique
 
 
-def filter_barcodes(utr_sizes, whitelist):
+def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: np.ndarray) -> pd.DataFrame:
+    """Filter observations to those matching a barcode whitelist.
+
+    Exact matches are kept directly. For non-matching barcodes, a fuzzy match
+    (Hamming distance <= 1) is attempted via rapidfuzz. Matched barcodes are
+    replaced with their whitelist counterpart.
+
+    Args:
+        utr_sizes: Flat DataFrame with an 'observation_id' column.
+        whitelist: Array of allowed barcode strings.
+
+    Returns:
+        Filtered DataFrame with corrected observation_ids and re-categorized dtypes.
+    """
     logger = module_log.module_logger()
     logger.info("Filtering cell barcodes")
 
@@ -247,12 +291,17 @@ def filter_barcodes(utr_sizes, whitelist):
                 continue
 
     # Apply replacements and filter — flat format, no explode/regroup needed
-    result = utr_sizes.copy()
     if barcodes_replace:
+        # Need a copy to mutate observation_id before filtering
+        result = utr_sizes.copy()
         result["observation_id"] = (
             result["observation_id"].astype(str).replace(barcodes_replace).astype("category")
         )
+    else:
+        result = utr_sizes
+
     result = result[result["observation_id"].isin(barcodes_correct)].copy()
     result["observation_id"] = pd.Categorical(result["observation_id"])
+    result["utr_name"] = pd.Categorical(result["utr_name"])
 
     return result

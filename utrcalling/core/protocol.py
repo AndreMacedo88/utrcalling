@@ -10,10 +10,10 @@ Note:
 2- New protocols should, then, extend the necessary class in this file.
 
 """
+from __future__ import annotations
 
 # built-in packages
 from abc import ABC, ABCMeta, abstractmethod
-from distutils.util import strtobool
 import re
 
 # data wrangling packages
@@ -24,6 +24,20 @@ from bidict import bidict
 # internal packages
 from utrcalling.core import module_log, helpers
 from utrcalling.core.protocols import peak_calling as pc
+
+
+def _strtobool(val: str | bool) -> bool:
+    """Convert a string representation of truth to a bool.
+
+    Replacement for the deprecated distutils.util.strtobool (removed in Python 3.12).
+    """
+    val = str(val).lower()
+    if val in ("y", "yes", "t", "true", "on", "1"):
+        return True
+    elif val in ("n", "no", "f", "false", "off", "0"):
+        return False
+    else:
+        raise ValueError(f"invalid truth value {val!r}")
 
 
 class Meta(type):
@@ -56,14 +70,24 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def __init__(
         self,
-        annotations=None,
-        merge_method="union",
-        call_peaks=True,
-        call_peaks_method="kde",
-        label_batches=None,
-        alignments=None,  # TODO: either remove this or use alignments to improve protocol
+        annotations: str | pd.DataFrame | None = None,
+        merge_method: str = "union",
+        call_peaks: bool = True,
+        call_peaks_method: str = "kde",
+        label_batches: bool | str | None = None,
+        alignments: str | list[str] | None = None,
     ) -> None:
+        """Initialize the protocol with pipeline configuration.
 
+        Args:
+            annotations: Path to a CSV annotations file, or a pre-loaded DataFrame.
+            merge_method: How to merge UTRs across samples ('union' or 'intersection').
+            call_peaks: Whether to call consensus peaks on UTR size distributions.
+            call_peaks_method: Peak calling algorithm ('kde' for kernel density estimator).
+            label_batches: Whether to append batch indices to observation IDs.
+                Accepts bool or string representations of bool.
+            alignments: BAM file path(s) for sample name resolution.
+        """
         self.logger = module_log.module_logger()
 
         # set variables from the arguments
@@ -80,7 +104,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         if isinstance(label_batches, bool) or label_batches is None:
             self.label_batches = label_batches
         else:
-            self.label_batches = bool(strtobool(label_batches))
+            self.label_batches = _strtobool(label_batches)
 
         self.call_peaks = call_peaks
 
@@ -275,8 +299,16 @@ class Protocol(ABC, metaclass=CombinedMeta):
         return barcodes_whitelist
 
     # Observation identity
-    def get_observation_id(self, barcode, batch_idx=None):
-        """Return the final observation ID, applying batch suffix if needed."""
+    def get_observation_id(self, barcode: str, batch_idx: str | None = None) -> str:
+        """Return the final observation ID, applying batch suffix if needed.
+
+        Args:
+            barcode: The cell/sample barcode string.
+            batch_idx: Optional batch index to append as a suffix.
+
+        Returns:
+            The observation ID, optionally suffixed with '-{batch_idx}'.
+        """
         if self.label_batches and batch_idx is not None:
             return f"{barcode}-{batch_idx}"
         return barcode
@@ -284,49 +316,83 @@ class Protocol(ABC, metaclass=CombinedMeta):
     # Methods to get read information from the read alignments
     @staticmethod
     @abstractmethod
-    def get_reads_identity(alignment, **kwargs):
-        pass
+    def get_reads_identity(alignment: object, **kwargs: str) -> tuple[str | None, str | None]:
+        """Extract UMI and barcode from a read alignment.
+
+        Args:
+            alignment: An HTSeq SAM_Alignment object.
+            **kwargs: Protocol-specific keyword arguments (e.g., bam_name).
+
+        Returns:
+            A (umi, barcode) tuple. Either value may be None/False if extraction fails.
+        """
 
     @staticmethod
     @abstractmethod
-    def check_strand_matches(alignment, **kwargs):
-        pass
+    def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
+        """Check whether a read's strand matches the UTR interval strand.
+
+        Args:
+            read_strand: Strand of the read alignment ('+' or '-').
+            utr_strand: Strand of the UTR interval ('+' or '-').
+
+        Returns:
+            True if the strand combination is valid for this protocol.
+        """
 
     @staticmethod
     @abstractmethod
-    def get_utr_size_from_read(read_start_position, interval):
-        pass
+    def get_utr_size_from_read(read_start_position: int, interval: object) -> int:
+        """Compute the UTR size from a read's start position and the UTR interval.
+
+        Args:
+            read_start_position: Directional start position of the read.
+            interval: An HTSeq GenomicInterval for the UTR region.
+
+        Returns:
+            The computed UTR size in base pairs.
+        """
 
     # Methods to process UTR sizes
     @staticmethod
     @abstractmethod
-    def filter_utr_sizes(alignment, **kwargs):
-        pass
+    def filter_utr_sizes(utr_sizes: pd.DataFrame, **kwargs: int) -> pd.DataFrame:
+        """Filter UTR size observations based on protocol-specific criteria.
+
+        Args:
+            utr_sizes: Flat DataFrame with columns (utr_name, observation_id, utr_size).
+            **kwargs: Protocol-specific arguments (e.g., threshold).
+
+        Returns:
+            Filtered DataFrame.
+        """
 
 
 class ProtocolThreePrime(Protocol):
+    """Protocol base for 3' UTR sequencing platforms."""
 
-    def filter_utr_sizes(self, utr_sizes, threshold=1):
+    def filter_utr_sizes(self, utr_sizes: pd.DataFrame, threshold: int = 1) -> pd.DataFrame:
         self.logger.info("Filtering UTR sizes using threshold of %s counts.", threshold)
         return utr_sizes[utr_sizes["utr_size"] > threshold].copy()
 
     @staticmethod
-    def check_strand_matches(read_strand, utr_strand):
+    def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
         return read_strand != utr_strand
 
     @staticmethod
-    def get_utr_size_from_read(read_start_position, interval):
+    def get_utr_size_from_read(read_start_position: int, interval: object) -> int:
         return abs(read_start_position - interval.start_d)
 
 
 class ProtocolFivePrime(Protocol):
+    """Protocol base for 5' UTR sequencing platforms."""
 
     @staticmethod
-    def check_strand_matches(read_strand, utr_strand):
+    def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
         return read_strand == utr_strand
 
     @staticmethod
-    def filter_utr_sizes(utr_sizes, **kwargs):
+    def filter_utr_sizes(utr_sizes: pd.DataFrame, **kwargs: int) -> pd.DataFrame:
         logger = module_log.module_logger()
         logger.info(
             """
@@ -337,7 +403,7 @@ class ProtocolFivePrime(Protocol):
         return utr_sizes
 
     @staticmethod
-    def get_utr_size_from_read(read_start_position, interval):
+    def get_utr_size_from_read(read_start_position: int, interval: object) -> int:
         return abs(read_start_position - interval.end_d)
 
 
@@ -366,9 +432,10 @@ class ProtocolTenx(ProtocolThreePrime):
 
 
 class ProtocolTenx3(ProtocolTenx):
+    """10x Chromium v3 protocol (16 bp barcode + 12 bp UMI from read sequence)."""
 
     @staticmethod
-    def get_reads_identity(alignment, **_):
+    def get_reads_identity(alignment: object, **_: str) -> tuple[str, str]:
         read_seq = alignment.read.seq
         read_barcode = helpers.to_string(read_seq[:16])
         read_umi = helpers.to_string(read_seq[16:28])  # 12 bp UMI
@@ -376,19 +443,17 @@ class ProtocolTenx3(ProtocolTenx):
 
 
 class ProtocolTenx2(ProtocolTenx):
+    """10x Chromium v2 protocol (16 bp barcode + 10 bp UMI from read sequence)."""
 
     @staticmethod
-    def get_reads_identity(alignment, **_):
-        """
-        Get read UMI and barcode from 10x version 2
+    def get_reads_identity(alignment: object, **_: str) -> tuple[str, str]:
+        """Get read UMI and barcode from 10x version 2.
 
         Args:
-            alignment (HTSeq.SAM_Alignment): The genome alignment line with the read
-            information.
+            alignment: An HTSeq SAM_Alignment with the read information.
 
         Returns:
-            tuple: a tuple of strings, containing the the read UMI and barcode in
-            position 0 and 1, respectively.
+            A (umi, barcode) tuple of strings.
         """
         read_seq = alignment.read.seq
         read_barcode = helpers.to_string(read_seq[:16])
@@ -430,9 +495,10 @@ class ProtocolSmartseq(ProtocolThreePrime):
 
 
 class ProtocolSmartseq3(ProtocolSmartseq):
+    """Smart-seq3 protocol (6 bp barcode + 8 bp UMI from read sequence)."""
 
     @staticmethod
-    def get_reads_identity(alignment, **kwargs):
+    def get_reads_identity(alignment: object, **_: str) -> tuple[str, str]:
         read_seq = alignment.read.seq
         read_barcode = helpers.to_string(read_seq[:6])
         read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
@@ -473,13 +539,14 @@ class ProtocolCapseq(ProtocolFivePrime):
 
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
+    """CapSeq + Smart-seq3 protocol (regex UMI extraction, BAM path as identity)."""
 
-    def get_observation_id(self, barcode, batch_idx=None):
+    def get_observation_id(self, barcode: str, batch_idx: str | None = None) -> str:
         """CapSeq uses the BAM-derived sample name as identity directly."""
         return barcode
 
     @staticmethod
-    def get_reads_identity(alignment, **kwargs):
+    def get_reads_identity(alignment: object, **kwargs: str) -> tuple[str | None, str]:
         read_batch_id = kwargs.get("bam_name", "S")
         read_seq = helpers.to_string(alignment.read.seq)
 
@@ -495,13 +562,14 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
 
 
 class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
+    """CapSeq + Smart-seq3 protocol (UMI from read name, BAM path as identity)."""
 
-    def get_observation_id(self, barcode, batch_idx=None):
+    def get_observation_id(self, barcode: str, batch_idx: str | None = None) -> str:
         """CapSeq uses the BAM-derived sample name as identity directly."""
         return barcode
 
     @staticmethod
-    def get_reads_identity(alignment, **kwargs):
+    def get_reads_identity(alignment: object, **kwargs: str) -> tuple[str, str]:
         read_batch_id = kwargs.get("bam_name", "S")
 
         read_seq = helpers.to_string(alignment.read.name)
@@ -534,17 +602,14 @@ class ProtocolFiveTenx(ProtocolFivePrime):
             self.label_batches = True
 
     @staticmethod
-    def get_reads_identity(alignment, **_):
-        """
-        Get read UMI and barcode from 5'10x version 1.1
+    def get_reads_identity(alignment: object, **_: str) -> tuple[str | bool, str | bool]:
+        """Get read UMI and barcode from 5' 10x version 1.1 via BAM tags.
 
         Args:
-            alignment (HTSeq.SAM_Alignment): The genome alignment line with the read
-            information.
+            alignment: An HTSeq SAM_Alignment with CB/UB tags.
 
         Returns:
-            tuple: a tuple of strings, containing the the read UMI and barcode in
-            position 0 and 1, respectively.
+            A (umi, barcode) tuple. Either value is False if the BAM tag is missing.
         """
         # The cell barcode CB tag includes a suffix with a dash separator followed by
         # a number. This number denotes the GEM well, and is used to virtualize
@@ -566,7 +631,20 @@ class ProtocolFiveTenx(ProtocolFivePrime):
         return read_umi, read_barcode
 
 
-def create(platform, version, **kwargs):
+def create(platform: str, version: int, **kwargs) -> Protocol:
+    """Create a Protocol instance for the given sequencing platform and version.
+
+    Args:
+        platform: Sequencing platform identifier (e.g., '10x', 'smartseq').
+        version: Protocol version number.
+        **kwargs: Passed to the Protocol constructor (annotations, merge_method, etc.).
+
+    Returns:
+        A Protocol subclass instance configured for the specified platform.
+
+    Raises:
+        NotImplementedError: If the platform/version combination is not supported.
+    """
     error_message = f"Protocol for {platform} version {version} not implemented."
 
     if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):

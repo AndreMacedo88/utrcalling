@@ -12,6 +12,7 @@ from pathlib import Path
 import unittest
 
 import pandas as pd
+import numpy as np
 import copy
 
 # make sure file paths resolve correctly for the test case
@@ -442,6 +443,77 @@ class TestFilterBarcodesSynthetic(unittest.TestCase):
             "AAAAAAAAAAAAATTT-1",
         ]
         self.assertListEqual(correct, self.barcodes_filtered)
+
+
+class TestMergeSamplesEdgeCases(unittest.TestCase):
+    """Edge case tests for merge_samples_utr_sizes()."""
+
+    def _make_df(self, utr_names, obs_ids, sizes):
+        return pd.DataFrame({
+            "utr_name": pd.Categorical(utr_names),
+            "observation_id": pd.Categorical(obs_ids),
+            "utr_size": np.array(sizes, dtype=np.int32),
+        })
+
+    def test_single_sample_union(self):
+        """Single-sample merge should return the same data."""
+        df = self._make_df(["A", "B"], ["obs1", "obs2"], [10, 20])
+        result = process_mapped_reads.merge_samples_utr_sizes([df], method="union")
+        self.assertEqual(len(result), 2)
+        self.assertListEqual(sorted(result["utr_name"].unique().tolist()), ["A", "B"])
+
+    def test_single_sample_intersection(self):
+        """Single-sample intersection should return the same data."""
+        df = self._make_df(["A", "B"], ["obs1", "obs2"], [10, 20])
+        result = process_mapped_reads.merge_samples_utr_sizes([df], method="intersection")
+        self.assertEqual(len(result), 2)
+
+    def test_no_common_utrs_intersection(self):
+        """Intersection with no common UTRs should return empty DataFrame."""
+        df1 = self._make_df(["A"], ["obs1"], [10])
+        df2 = self._make_df(["B"], ["obs2"], [20])
+        result = process_mapped_reads.merge_samples_utr_sizes(
+            [df1, df2], method="intersection"
+        )
+        self.assertEqual(len(result), 0)
+
+    def test_invalid_method_raises(self):
+        """Invalid merge method should raise AttributeError."""
+        df = self._make_df(["A"], ["obs1"], [10])
+        with self.assertRaises(AttributeError):
+            process_mapped_reads.merge_samples_utr_sizes([df], method="invalid")
+
+
+class TestSubsetReferenceDataEdgeCases(unittest.TestCase):
+    """Edge case tests for subset_reference_data()."""
+
+    def test_no_matching_utrs(self):
+        """When no UTR names match the reference, result should be empty."""
+        utr_sizes = pd.DataFrame({
+            "utr_name": pd.Categorical(["NONEXISTENT"]),
+            "observation_id": pd.Categorical(["obs1"]),
+            "utr_size": np.array([10], dtype=np.int32),
+        })
+        utr_ref = pd.DataFrame(
+            {"chrom": ["1"], "start": [100], "end": [200]},
+            index=pd.Index(["SOME_UTR"], name="utr_name"),
+        )
+        result = process_mapped_reads.subset_reference_data(utr_sizes, utr_ref)
+        self.assertEqual(len(result), 0)
+
+    def test_all_matching_utrs(self):
+        """When all UTRs match, result should have the same number of rows."""
+        utr_sizes = pd.DataFrame({
+            "utr_name": pd.Categorical(["UTR1", "UTR2"]),
+            "observation_id": pd.Categorical(["obs1", "obs2"]),
+            "utr_size": np.array([10, 20], dtype=np.int32),
+        })
+        utr_ref = pd.DataFrame(
+            {"chrom": ["1", "1"], "start": [100, 200], "end": [150, 250]},
+            index=pd.Index(["UTR1", "UTR2"], name="utr_name"),
+        )
+        result = process_mapped_reads.subset_reference_data(utr_sizes, utr_ref)
+        self.assertEqual(len(result), 2)
 
 
 if __name__ == "__main__":

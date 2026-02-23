@@ -3,11 +3,12 @@ This module contains functions to get UTR sizes from Pandas DataFrames represent
 BED files with UTR regions annotations
 
 """
+from __future__ import annotations
 
 # general tools
 from utrcalling.core.module_log import module_logger
-import re
 from functools import partial
+import logging
 import psutil
 from pympler import asizeof
 
@@ -22,7 +23,16 @@ from tqdm import tqdm as std_tqdm
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
 
-def generate_utr_intervals(utr_regions):
+def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, HTSeq.GenomicInterval]:
+    """Build a dict mapping UTR names to HTSeq GenomicInterval objects.
+
+    Args:
+        utr_regions: UTR reference DataFrame with columns chrom, start, end, strand,
+            indexed by utr_name.
+
+    Returns:
+        A dict of {utr_name: HTSeq.GenomicInterval}.
+    """
     logger = module_logger()
     intervals = dict()
 
@@ -42,7 +52,29 @@ def generate_utr_intervals(utr_regions):
     return intervals
 
 
-def map_reads_to_utr(bam, intervals, protocol, read="first", batch_idx=None):
+def map_reads_to_utr(
+    bam: str,
+    intervals: dict[str, HTSeq.GenomicInterval],
+    protocol: object,
+    read: str = "first",
+    batch_idx: str | None = None,
+) -> pd.DataFrame:
+    """Extract reads from a BAM file and map them to UTR intervals.
+
+    Iterates over each UTR interval, extracts matching reads, deduplicates
+    by UMI per barcode, and returns a flat DataFrame of molecules.
+
+    Args:
+        bam: Path to a BAM alignment file.
+        intervals: Dict of {utr_name: HTSeq.GenomicInterval} from generate_utr_intervals.
+        protocol: A Protocol instance for read parsing and identity extraction.
+        read: Which mate to use ('first' or 'second').
+        batch_idx: Optional batch index for observation ID suffixing.
+
+    Returns:
+        A flat DataFrame with columns (utr_name, observation_id, utr_size),
+        using Categorical dtypes for string columns and int32 for sizes.
+    """
     logger = module_logger()
     logger.info("Extracting reads from %s and mapping them to the reference UTR", bam)
 
@@ -128,57 +160,61 @@ def map_reads_to_utr(bam, intervals, protocol, read="first", batch_idx=None):
 
     # most performant method to log
     logger.info("Mapping statistics: %s", mapping_stats)
-    logger.debug(
-        "Size of mapped reads object in bytes: %s \nMemory usage: %s",
-        asizeof.asizeof(utr_mappings),
-        psutil.virtual_memory().percent,
-    )
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug(
+            "Size of mapped reads object in bytes: %s \nMemory usage: %s",
+            asizeof.asizeof(utr_mappings),
+            psutil.virtual_memory().percent,
+        )
 
     return utr_mappings
 
 
-def deduplicate_reads(read_umis, read_info):
-    barcodes = read_info[0]
-    umis_unique = {barcode: [] for barcode in barcodes}
-    idx_unique = []
-    for idx, (umi, barcode) in enumerate(zip(read_umis.copy(), barcodes)):
-        if umi not in umis_unique.get(barcode):
-            idx_unique.append(idx)
-            umis_unique[barcode].append(umi)
-    read_info_output = [[element[i] for i in idx_unique] for element in read_info]
-    return read_info_output
-
-
-# TODO: This part could replace the filter_barcodes() function in process_mapped_reads
-def deduplicate_reads_with_barcode_filtering(read_umis, read_info, protocol):
-    barcodes = read_info[0]
-    umis_unique = {barcode: [] for barcode in barcodes}
-    idx_unique = []
-    for idx, (umi, barcode) in enumerate(zip(read_umis.copy(), barcodes)):
-        if (protocol.barcode_whitelist is not None) and (
-            barcode not in protocol.barcode_whitelist
-        ):
-            pass
-        if umi not in umis_unique.get(barcode):
-            idx_unique.append(idx)
-            umis_unique[barcode].append(umi)
-    read_info_output = [[element[i] for i in idx_unique] for element in read_info]
-    return read_info_output
-
-
-def extract_read_information(alignment, interval, protocol, bam_name, batch_idx=None):
-    """
-    Extracts all the relevant information from matching reads in a HTSeq.Alignment
-    object.
+def deduplicate_reads(read_umis: list[str], read_info: list[list]) -> list[list]:
+    """Remove PCR duplicates by keeping the first occurrence of each (barcode, UMI) pair.
 
     Args:
-        alignment (HTSeq.Alignment): The read alignment object.
-        interval (HTSeq.GenomicInterval): The UTR interval coordinates.
-        protocol (utrcalling.Protocol): Protocol for the UTR calling run, based on
-            the RNA-seq platform used.
+        read_umis: List of UMI strings, one per read.
+        read_info: List of parallel lists (barcodes, sizes, ...) to be filtered
+            in sync with read_umis.
 
     Returns:
-        tuple: The relevant read information
+        A filtered copy of read_info with duplicate (barcode, UMI) pairs removed.
+    """
+    barcodes = read_info[0]
+    umis_unique = {barcode: set() for barcode in barcodes}
+    idx_unique = []
+    for idx, (umi, barcode) in enumerate(zip(read_umis, barcodes)):
+        barcode_umis = umis_unique[barcode]
+        if umi not in barcode_umis:
+            idx_unique.append(idx)
+            barcode_umis.add(umi)
+    read_info_output = [[element[i] for i in idx_unique] for element in read_info]
+    return read_info_output
+
+
+
+def extract_read_information(
+    alignment: object,
+    interval: object,
+    protocol: object,
+    bam_name: str,
+    batch_idx: str | None = None,
+) -> tuple[str, str, int] | None:
+    """Extract observation ID, UMI, and UTR size from a single read alignment.
+
+    Validates that the read starts within the UTR interval, extracts barcode
+    and UMI via the protocol, and computes the UTR size.
+
+    Args:
+        alignment: An HTSeq SAM_Alignment object.
+        interval: An HTSeq GenomicInterval for the UTR region.
+        protocol: A Protocol instance for read parsing and identity extraction.
+        bam_name: Path to the source BAM file (used by some protocols for identity).
+        batch_idx: Optional batch index for observation ID suffixing.
+
+    Returns:
+        A (observation_id, umi, utr_size) tuple, or None if the read is invalid.
     """
     # logger = module_logger()
 
@@ -217,35 +253,3 @@ def extract_read_information(alignment, interval, protocol, bam_name, batch_idx=
     information = observation_id, read_umi, utr_size
 
     return information
-
-
-"""
-# Snippet of old code that was used to provide with the read_sequence
-    # get read strand
-    read_strand = alignment.iv.strand
-    
-    # get read sequence
-    read_seq = to_string(alignment.read.seq)
-    query_from = None
-    query_to = None
-    for operation in alignment.cigar:
-        if operation.type in ('M', 'I', '=', 'X'):
-            if query_from is None:
-                query_from = operation.query_from
-            query_to = operation.query_to
-    if query_from is None:
-        match_fail = f'Read {read_seq} has no alignment match! \
-        Please filter your alignments before running the tool.'
-        logger.error(match_fail)
-        raise RuntimeError(match_fail)
-
-    if read_strand == '+':
-        read_sequence = read_seq[query_from:query_to]
-    elif read_strand == "-":
-        if query_from == 0:
-            read_sequence = read_seq[-query_to:]
-        else:
-            read_sequence = read_seq[-query_to:-query_from]
-    else:
-        raise AttributeError(f"Read strand {read_strand} not recognized.")
-"""
