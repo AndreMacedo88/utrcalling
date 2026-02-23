@@ -45,6 +45,7 @@ def generate_peak_counts_and_anno(
         obs = obs[sort_idx]
 
         peaks = func(sizes.reshape(-1, 1))
+        peaks = peaks.flatten()
 
         for peak_val in np.unique(peaks):
             mask = peaks == peak_val

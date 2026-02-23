@@ -39,7 +39,6 @@ setuptools.setup(
     install_requires=[
         "numpy>=1.22.3, <1.24",
         "pandas>=1.3.0",
-
         "scipy>=1.6.2",
         "scikit-learn>=0.23.2",
         "regex>=2022.04.24",
@@ -59,11 +58,11 @@ setuptools.setup(
         "colorama",
     ],
     include_package_data=True,
+    license="BSD License",
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
         "Programming Language :: Python :: 3.9",
-        "License :: OSI Approved :: BSD License",
         "Operating System :: OS Independent",
     ],
     scripts=[x.as_posix() for x in Path("./tools/").glob("*.py")],
