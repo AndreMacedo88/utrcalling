@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-from functools import reduce
 import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 import pandas as pd
 import numpy as np
-from rapidfuzz import process, distance
 
-from utrcalling.core import helpers, module_log
+from utrcalling.core import module_log
+
+# Re-exports for backward compatibility
+from utrcalling.core.barcode_filtering import filter_barcodes  # noqa: F401
+from utrcalling.core.utr_reference import subset_reference_data  # noqa: F401
 
 
 def merge_samples_utr_sizes(
@@ -211,97 +213,3 @@ def merge_utrs_per_gene(
     result = result.reset_index(drop=True)
 
     return utr_regions_per_gene, result
-
-
-def subset_reference_data(
-    utr_sizes: pd.DataFrame, utr_reference_regions: pd.DataFrame
-) -> pd.DataFrame:
-    """Subset the UTR reference to only UTRs present in the read data.
-
-    Args:
-        utr_sizes: Flat DataFrame with a 'utr_name' column.
-        utr_reference_regions: Full UTR reference DataFrame indexed by utr_name.
-
-    Returns:
-        A deduplicated subset of the reference containing only matching UTRs.
-    """
-    logger = module_log.module_logger()
-    logger.info("Subsetting UTR reference data")
-
-    utr_names = utr_sizes["utr_name"].unique()
-    sub_utr_reference = utr_reference_regions[
-        utr_reference_regions.index.isin(utr_names)
-    ]
-    sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
-
-    return sub_utr_reference_unique
-
-
-def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: np.ndarray) -> pd.DataFrame:
-    """Filter observations to those matching a barcode whitelist.
-
-    Exact matches are kept directly. For non-matching barcodes, a fuzzy match
-    (Hamming distance <= 1) is attempted via rapidfuzz. Matched barcodes are
-    replaced with their whitelist counterpart.
-
-    Args:
-        utr_sizes: Flat DataFrame with an 'observation_id' column.
-        whitelist: Array of allowed barcode strings.
-
-    Returns:
-        Filtered DataFrame with corrected observation_ids and re-categorized dtypes.
-    """
-    logger = module_log.module_logger()
-    logger.info("Filtering cell barcodes")
-
-    barcodes_to_test = set(utr_sizes["observation_id"].unique())
-    barcodes_correct = set()
-    barcodes_replace = {}
-    for barcode in barcodes_to_test:
-        if barcode in whitelist:
-            barcodes_correct.add(barcode)
-        else:
-            try:
-                match = process.extract(
-                    barcode, whitelist, scorer=distance.Hamming.distance, score_cutoff=1
-                )
-            except ValueError as err:
-                logger.error(
-                    f"\nError matching sample barcode/ID: {barcode}\nPlease check if "
-                    f"the barcodes in the annotation file are correct or, if using "
-                    f"different batches with similar barcodes/IDs, if all the batches "
-                    f"are correctly described in the annotations file."
-                )
-                logger.error(f"Barcodes from the annotation file:\n{whitelist}")
-                raise err
-            if match:
-                barcode_correct = [bc[0] for bc in match]
-                for bc in barcode_correct:
-                    try:  # check if the batch is the same between barcodes
-                        if barcode.split("-")[1] == bc.split("-")[1]:
-                            barcodes_correct.add(bc)
-                            barcodes_replace[barcode] = bc
-                        else:
-                            continue
-                    except IndexError:  # if working without batches, no need to check
-                        barcodes_correct.add(bc)
-                        barcodes_replace[barcode] = bc
-                        break
-            else:
-                continue
-
-    # Apply replacements and filter — flat format, no explode/regroup needed
-    if barcodes_replace:
-        # Need a copy to mutate observation_id before filtering
-        result = utr_sizes.copy()
-        result["observation_id"] = (
-            result["observation_id"].astype(str).replace(barcodes_replace).astype("category")
-        )
-    else:
-        result = utr_sizes
-
-    result = result[result["observation_id"].isin(barcodes_correct)].copy()
-    result["observation_id"] = pd.Categorical(result["observation_id"])
-    result["utr_name"] = pd.Categorical(result["utr_name"])
-
-    return result

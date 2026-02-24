@@ -179,11 +179,15 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
             protocol=cls.protocol_,
             store=False,
         )
-        cls.results_nolabel = core.call_peaks(
+        cls.filtered_nolabel, cls.ref_subset_nolabel = core.filter_mapped_reads(
             utr_sizes_counts=cls.mapped,
             utr_reference_regions=cls.utr_regions,
             protocol=cls.protocol_,
-            store=False,
+        )
+        cls.results_nolabel = core.call_peaks(
+            filtered_reads=cls.filtered_nolabel,
+            utr_reference_subset=cls.ref_subset_nolabel,
+            protocol=cls.protocol_,
         )
         # objects for testing with label_batches
         cls.protocol_label = protocol.create(
@@ -199,11 +203,15 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
             protocol=cls.protocol_label,
             store=False,
         )
-        cls.results_label = core.call_peaks(
+        cls.filtered_label, cls.ref_subset_label = core.filter_mapped_reads(
             utr_sizes_counts=cls.mapped_label,
             utr_reference_regions=cls.utr_regions,
             protocol=cls.protocol_label,
-            store=False,
+        )
+        cls.results_label = core.call_peaks(
+            filtered_reads=cls.filtered_label,
+            utr_reference_subset=cls.ref_subset_label,
+            protocol=cls.protocol_label,
         )
 
 
@@ -263,11 +271,15 @@ class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
             protocol=self.protocol_,
             store=False,
         )
-        self.results = core.call_peaks(
+        self.filtered, self.ref_subset = core.filter_mapped_reads(
             utr_sizes_counts=self.mapped,
             utr_reference_regions=self.utr_regions,
             protocol=self.protocol_,
-            store=False,
+        )
+        self.results = core.call_peaks(
+            filtered_reads=self.filtered,
+            utr_reference_subset=self.ref_subset,
+            protocol=self.protocol_,
         )
 
     def test_is_anndata(self):

@@ -1,46 +1,34 @@
-"""
-# Goal
-Mapping RNA-seq reads (single cell or bulk) to UTRs.
+"""Core pipeline orchestrator for UTR calling.
 
-# Secondary goal
-Call consensus peaks based on the distribution of molecule sizes.
+Maps RNA-seq reads (single cell or bulk) to UTRs and calls consensus peaks
+based on the distribution of molecule sizes.
 
-# Summary
-This file contains 3 functions for the 3 main steps in this procedure.
+Pipeline steps (each a thin function calling focused modules):
+1. prepare_utr_reference_regions() — parse GTF, extract & merge UTR regions
+2. map_aligned_reads() — map BAM reads to UTR intervals (single or multi-BAM)
+3. merge_samples_utr_sizes() — merge multiple sample DataFrames
+4. merge_utrs_per_feature() — optionally aggregate to gene level
+5. filter_mapped_reads() — subset reference, filter UTR sizes, filter barcodes
+6. call_peaks() — run peak calling, enrich annotations, build AnnData
 
-# General steps
-1. Extract the UTR regions of transcripts (from ENSEMBL)
-2. Map the aligned, filtered reads to the UTR regions from step 1.
-3. Clean-up the data and call consensus peaks if required.
-
-# More detailed steps
-1.1. Resolve overlapping transcripts so that every entry stores unique, non-overlapping,
-genomic coordinates
-
-# Observations
-- Final object is a count matrix in AnnData format.
-- Output should inherit single cell annotations, as well as gene annotation like the
-genomic coordinates and optionally UTR sequence information.
+Output is a count matrix in AnnData format with cells/samples as obs and
+UTR peaks as var.
 """
 from __future__ import annotations
 
-import os
-import psutil
-
 import anndata
-import numpy as np
 import pandas as pd
 import pybedtools
 import joblib
-from scipy.sparse import save_npz
 from tqdm import tqdm
 
-from utrcalling.core import helpers
 from utrcalling.core.module_log import module_logger
 from utrcalling.core import utr_reference
 from utrcalling.core import utr_mapping
 from utrcalling.core import process_mapped_reads
 from utrcalling.core import peak_calling
+from utrcalling.core import barcode_filtering
+from utrcalling.core import storage
 
 
 def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:
@@ -76,11 +64,76 @@ def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -
     utr_reduced.chrom = utr_reduced.chrom.astype(str)
 
     if store:
-        directory = "./intermediate"
-        helpers.check_if_exists_and_mkdir(directory)
-        utr_bed.saveas(os.path.join(directory, "utrs_unmerged.bed"))
-        utr_reduced.to_parquet(os.path.join(directory, "utr_reference_regions.parquet"))
+        storage.store_utr_reference(utr_bed, utr_reduced)
     return utr_reduced
+
+
+def _resolve_batch_idx(alignment: str, protocol: object) -> str | None:
+    """Resolve the batch index for a single BAM file.
+
+    Args:
+        alignment: Path to a BAM file.
+        protocol: A Protocol instance with sample_idx mapping.
+
+    Returns:
+        The batch index string, or None if no sample index is configured.
+    """
+    if protocol.sample_idx is not None:
+        return protocol.sample_idx.get(alignment)
+    return None
+
+
+def _map_single_bam(
+    alignment: str,
+    intervals: dict,
+    protocol: object,
+    batch_idx: str | None = None,
+) -> pd.DataFrame:
+    """Map reads from a single BAM file to UTR intervals.
+
+    Args:
+        alignment: Path to a BAM file.
+        intervals: Dict of {utr_name: HTSeq.GenomicInterval}.
+        protocol: A Protocol instance.
+        batch_idx: Optional batch index for observation ID suffixing.
+
+    Returns:
+        A flat DataFrame of (utr_name, observation_id, utr_size) rows.
+    """
+    return utr_mapping.map_reads_to_utr(
+        alignment, intervals, read="first", protocol=protocol, batch_idx=batch_idx
+    )
+
+
+def _map_multiple_bams(
+    alignments: list[str],
+    intervals: dict,
+    protocol: object,
+) -> list[pd.DataFrame]:
+    """Map reads from multiple BAM files in parallel via joblib.
+
+    Args:
+        alignments: List of BAM file paths.
+        intervals: Dict of {utr_name: HTSeq.GenomicInterval}.
+        protocol: A Protocol instance.
+
+    Returns:
+        List of flat DataFrames, one per BAM file.
+    """
+    if protocol.sample_names is not None:
+        batch_indices = [protocol.sample_idx[a] for a in alignments]
+    else:
+        batch_indices = [str(i + 1) for i in range(len(alignments))]
+
+    return joblib.Parallel(n_jobs=-2)(
+        joblib.delayed(utr_mapping.map_reads_to_utr)(
+            alignment, intervals, read="first", protocol=protocol,
+            batch_idx=bidx, parallel=False,
+        )
+        for alignment, bidx in tqdm(
+            zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"
+        )
+    )
 
 
 def map_aligned_reads(
@@ -104,49 +157,18 @@ def map_aligned_reads(
         A single flat DataFrame (one BAM) or list of flat DataFrames (multiple BAMs).
     """
     intervals = utr_mapping.generate_utr_intervals(utr_regions)
-    sample_names = protocol.sample_names
-
-    if store:
-        filename = "UTR_sizes_counts"
-        directory = "./intermediate"
-        helpers.check_if_exists_and_mkdir(directory)
 
     if isinstance(alignments, (list, tuple)) and len(alignments) > 1:
-        n_cores = -2
-        # Compute batch indices for each BAM
-        if sample_names is not None:
-            batch_indices = [protocol.sample_idx[a] for a in alignments]
-        else:
-            batch_indices = [str(i + 1) for i in range(len(alignments))]
-
-        read_mappings = joblib.Parallel(n_jobs=n_cores)(
-            joblib.delayed(utr_mapping.map_reads_to_utr)(
-                alignment, intervals, read="first", protocol=protocol,
-                batch_idx=bidx, parallel=False,
-            )
-            for alignment, bidx in tqdm(
-                zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"
-            )
-        )
-
+        read_mappings = _map_multiple_bams(alignments, intervals, protocol)
         if store:
-            for counter, utr_sizes_counts in enumerate(read_mappings):
-                file_path = os.path.join(directory, f"{filename}_{counter + 1}.parquet")
-                utr_sizes_counts.to_parquet(file_path)
+            storage.store_read_mappings_multi(read_mappings)
     else:
         if isinstance(alignments, (list, tuple)):
             alignments = alignments[0]
-
-        # For single BAM: use sample_idx if available (SmartSeq), else no batch
-        batch_idx = None
-        if protocol.sample_idx is not None:
-            batch_idx = protocol.sample_idx.get(alignments)
-
-        read_mappings = utr_mapping.map_reads_to_utr(
-            alignments, intervals, read="first", protocol=protocol, batch_idx=batch_idx
-        )
+        batch_idx = _resolve_batch_idx(alignments, protocol)
+        read_mappings = _map_single_bam(alignments, intervals, protocol, batch_idx)
         if store:
-            read_mappings.to_parquet(os.path.join(directory, f"{filename}.parquet"))
+            storage.store_read_mappings_single(read_mappings)
 
     return read_mappings
 
@@ -174,13 +196,7 @@ def merge_samples_utr_sizes(
         method=protocol.merge_method,
     )
     if store:
-        directory = "./intermediate"
-        helpers.check_if_exists_and_mkdir(directory)
-        utr_sizes_counts.to_parquet(
-            os.path.join(
-                directory, f"UTR_sizes_counts_merged_{protocol.merge_method}.parquet"
-            )
-        )
+        storage.store_merged_counts(utr_sizes_counts, protocol.merge_method)
     return utr_sizes_counts
 
 
@@ -210,152 +226,72 @@ def merge_utrs_per_feature(
     return utr_regions, read_mappings
 
 
-def call_peaks(
+def filter_mapped_reads(
     utr_sizes_counts: pd.DataFrame,
     utr_reference_regions: pd.DataFrame,
     protocol: object,
-    store: bool = False,
-) -> anndata.AnnData:
-    """Filter, optionally barcode-filter, and call consensus UTR peaks.
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Filter mapped reads and subset the UTR reference before peak calling.
 
-    Applies UTR size filtering, optional barcode whitelist filtering (with
-    memory-aware chunking), then runs peak calling on each UTR's size
-    distribution to produce a sparse AnnData count matrix.
+    Applies three preparation steps:
+    1. Subset the UTR reference to only UTRs present in the read data.
+    2. Filter out UTR sizes below the threshold.
+    3. Optionally filter barcodes against a whitelist (memory-aware).
 
     Args:
         utr_sizes_counts: Flat DataFrame of (utr_name, observation_id, utr_size) rows.
         utr_reference_regions: Full UTR reference DataFrame.
-        protocol: A Protocol instance with peak calling and filtering config.
-        store: If True, save intermediate sparse matrix and DataFrames to ./intermediate/.
+        protocol: A Protocol instance with filtering config.
+
+    Returns:
+        A (filtered_reads, utr_reference_subset) tuple.
+    """
+    utr_reference_subset = utr_reference.subset_reference_data(
+        utr_sizes_counts, utr_reference_regions
+    )
+    filtered = protocol.filter_utr_sizes(utr_sizes_counts, threshold=1)
+    if protocol.barcode_whitelist is not None:
+        filtered = barcode_filtering.filter_barcodes_memory_aware(
+            filtered, protocol.barcode_whitelist
+        )
+    return filtered, utr_reference_subset
+
+
+def call_peaks(
+    filtered_reads: pd.DataFrame,
+    utr_reference_subset: pd.DataFrame,
+    protocol: object,
+    store: bool = False,
+) -> anndata.AnnData:
+    """Call consensus UTR peaks and build a sparse AnnData count matrix.
+
+    Expects pre-filtered reads and a subsetted UTR reference (from
+    filter_mapped_reads). Runs peak calling on each UTR's size distribution,
+    enriches var with reference annotations, and returns an AnnData object.
+
+    Args:
+        filtered_reads: Filtered flat DataFrame (from filter_mapped_reads).
+        utr_reference_subset: Subsetted UTR reference (from filter_mapped_reads).
+        protocol: A Protocol instance with peak calling config.
+        store: If True, save intermediate files to ./intermediate/.
 
     Returns:
         An AnnData object with cells/samples as obs and UTR peaks as var.
     """
-    logger = module_logger()
-
-    # if we are to add the reference data to the results later, we must subset the UTRs
-    utr_reference_subset = process_mapped_reads.subset_reference_data(
-        utr_sizes_counts, utr_reference_regions
-    )
-
-    del utr_reference_regions  # to save memory
-
-    # get only utr sizes bigger than X bp
-    filtered_positions = protocol.filter_utr_sizes(utr_sizes_counts, threshold=1)
-
-    del utr_sizes_counts  # to save memory
-
-    if protocol.barcode_whitelist is not None:
-        # Estimate whether barcode filtering will fit in available RAM.
-        # filter_barcodes() copies the DataFrame and does string operations,
-        # so peak usage is roughly 3x the data size.
-        data_bytes = filtered_positions.memory_usage(deep=True).sum()
-        available_bytes = psutil.virtual_memory().available
-        headroom = data_bytes * 3
-
-        if headroom > available_bytes:
-            n_chunks = max(2, int(np.ceil(headroom / available_bytes)))
-            logger.info(
-                "Splitting barcode filtering into %d chunks to fit in available memory",
-                n_chunks,
-            )
-            num = filtered_positions.shape[0]
-            idx_splits = np.cumsum(
-                [num // n_chunks + (1 if x < num % n_chunks else 0) for x in range(n_chunks)]
-            )
-            idx_splits = np.insert(idx_splits, 0, 0)
-
-            split_generator = (
-                filtered_positions.iloc[idx_splits[n] : idx_splits[n + 1]]
-                for n in range(n_chunks)
-            )
-
-            filtered_list = [
-                process_mapped_reads.filter_barcodes(
-                    pos, whitelist=protocol.barcode_whitelist
-                )
-                for pos in split_generator
-            ]
-
-            filtered_positions = pd.concat(filtered_list, ignore_index=True)
-            # Re-categorize after concat to merge category codes
-            filtered_positions["utr_name"] = pd.Categorical(filtered_positions["utr_name"])
-            filtered_positions["observation_id"] = pd.Categorical(filtered_positions["observation_id"])
-        else:
-            filtered_positions = process_mapped_reads.filter_barcodes(
-                filtered_positions, whitelist=protocol.barcode_whitelist
-            )
-
-    # calculate broad peaks based on individual UMI utr sizes
     peaks_count_matrix, *peaks_var_and_obs = peak_calling.generate_peak_counts_and_anno(
-        filtered_positions, protocol=protocol
+        filtered_reads, protocol=protocol
     )
-
-    try:
-        del filtered_positions  # to save memory
-    except NameError:
-        pass
-
-    # retrieve var and obs information
     peaks_var = peaks_var_and_obs[0]
-    if len(peaks_var_and_obs) == 2:
-        peaks_obs = peaks_var_and_obs[1]
-    else:
-        peaks_obs = None
+    peaks_obs = peaks_var_and_obs[1] if len(peaks_var_and_obs) == 2 else None
 
-    # append the reference information to the new UTR peaks
     peaks_var = peak_calling.add_to_peaks_var(peaks_var, utr_reference_subset)
 
-    if store:  # store the final DFs. Useful for debugging or to change annotations.
-        logger.info("Storing intermediate results")
-        directory = "./intermediate"
-        helpers.check_if_exists_and_mkdir(directory)
-
-        # store count matrix (sparse)
-        save_npz(
-            os.path.join(
-                directory, f"peaks_count_matrix_{protocol.merge_method}.npz"
-            ),
-            peaks_count_matrix,
+    if store:
+        storage.store_peak_calling_results(
+            peaks_count_matrix, peaks_var, peaks_obs,
+            utr_reference_subset, protocol.merge_method,
         )
 
-        # store var dataframe
-        try:
-            peaks_var.to_parquet(
-                os.path.join(directory, f"peaks_var_{protocol.merge_method}.parquet")
-            )
-        except Exception:
-            peaks_var.to_csv(
-                os.path.join(directory, f"peaks_var_{protocol.merge_method}.csv")
-            )
-
-        # store subsetted UTR reference dataframe
-        try:
-            utr_reference_subset.to_parquet(
-                os.path.join(
-                    directory, f"UTR_reference_subset_{protocol.merge_method}.parquet"
-                )
-            )
-        except Exception:
-            utr_reference_subset.to_csv(
-                os.path.join(
-                    directory, f"UTR_reference_subset_{protocol.merge_method}.csv"
-                )
-            )
-
-        # store obs dataframe
-        try:
-            peaks_obs.to_parquet(
-                os.path.join(directory, f"peaks_obs_{protocol.merge_method}.parquet")
-            )
-        except Exception:
-            peaks_obs.to_csv(
-                os.path.join(directory, f"peaks_obs_{protocol.merge_method}.csv")
-            )
-
-    # merge results and annotations into
-    count_matrix_anndata = peak_calling.generate_count_matrix_anndata(
+    return peak_calling.generate_count_matrix_anndata(
         count_matrix=peaks_count_matrix, var=peaks_var, obs=peaks_obs
     )
-    return count_matrix_anndata
-    # return

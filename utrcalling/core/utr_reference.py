@@ -112,3 +112,27 @@ def correct_column_names(utr_df):
 
 def get_sequences(genome, bed):
     bed.sequence(fi=genome)
+
+
+def subset_reference_data(
+    utr_sizes: pd.DataFrame, utr_reference_regions: pd.DataFrame
+) -> pd.DataFrame:
+    """Subset the UTR reference to only UTRs present in the read data.
+
+    Args:
+        utr_sizes: Flat DataFrame with a 'utr_name' column.
+        utr_reference_regions: Full UTR reference DataFrame indexed by utr_name.
+
+    Returns:
+        A deduplicated subset of the reference containing only matching UTRs.
+    """
+    logger = module_logger()
+    logger.info("Subsetting UTR reference data")
+
+    utr_names = utr_sizes["utr_name"].unique()
+    sub_utr_reference = utr_reference_regions[
+        utr_reference_regions.index.isin(utr_names)
+    ]
+    sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
+
+    return sub_utr_reference_unique

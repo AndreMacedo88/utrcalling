@@ -90,11 +90,19 @@ def call_peaks(
             level=summarization_level,
         )
 
-    # call peaks from the UTR sizes for each molecule
-    logger.info("Calling peaks from mapped data")
-    count_matrix_anndata = core.call_peaks(
+    # Filter mapped reads before peak calling
+    logger.info("Filtering mapped reads")
+    filtered_reads, utr_reference_subset = core.filter_mapped_reads(
         utr_sizes_counts=utr_sizes_counts,
         utr_reference_regions=utr_reference_regions,
+        protocol=protocol_,
+    )
+
+    # Call peaks from the filtered UTR sizes
+    logger.info("Calling peaks from filtered data")
+    count_matrix_anndata = core.call_peaks(
+        filtered_reads=filtered_reads,
+        utr_reference_subset=utr_reference_subset,
         protocol=protocol_,
         store=store_intermediate,
     )
