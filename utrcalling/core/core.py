@@ -121,7 +121,8 @@ def map_aligned_reads(
 
         read_mappings = joblib.Parallel(n_jobs=n_cores)(
             joblib.delayed(utr_mapping.map_reads_to_utr)(
-                alignment, intervals, read="first", protocol=protocol, batch_idx=bidx
+                alignment, intervals, read="first", protocol=protocol,
+                batch_idx=bidx, parallel=False,
             )
             for alignment, bidx in tqdm(
                 zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"

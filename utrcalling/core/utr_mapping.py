@@ -14,14 +14,214 @@ from pympler import asizeof
 
 # data handling tools
 import HTSeq
+import joblib
 import numpy as np
 import pandas as pd
+import pysam
 
 # QOL tools
 from tqdm import tqdm as std_tqdm
 
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
+
+# ---------------------------------------------------------------------------
+# Lightweight adapters so pysam reads satisfy the Protocol interface
+# ---------------------------------------------------------------------------
+
+_COMPLEMENT = str.maketrans('ACGTacgtNn', 'TGCAtgcaNn')
+
+
+def _reverse_complement(seq: str) -> str:
+    """Return the reverse complement of a DNA sequence."""
+    return seq.translate(_COMPLEMENT)[::-1]
+
+
+class _PySamReadAdapter:
+    """Expose pysam sequence/name as HTSeq-compatible .read attributes.
+
+    HTSeq returns the *original* read sequence (reverse-complementing the
+    stored BAM SEQ for reverse-strand reads).  pysam returns the stored
+    sequence as-is.  This adapter bridges the gap so protocol identity
+    extraction sees the same bytes HTSeq would provide.
+    """
+    __slots__ = ('seq', 'name')
+
+    def __init__(self, pysam_read):
+        seq = pysam_read.query_sequence or ''
+        if pysam_read.is_reverse:
+            seq = _reverse_complement(seq)
+        self.seq = seq
+        self.name = pysam_read.query_name or ''
+
+
+class _PySamAdapter:
+    """Make a pysam AlignedSegment quack like an HTSeq SAM_Alignment."""
+    __slots__ = ('read', '_get_tag')
+
+    def __init__(self, pysam_read):
+        self.read = _PySamReadAdapter(pysam_read)
+        self._get_tag = pysam_read.get_tag
+
+    def optional_field(self, tag):
+        return self._get_tag(tag)
+
+
+class _IntervalData:
+    """Picklable snapshot of an HTSeq GenomicInterval's fields."""
+    __slots__ = ('chrom', 'start', 'end', 'strand', 'start_d', 'end_d')
+
+    def __init__(self, interval):
+        self.chrom = interval.chrom
+        self.start = interval.start
+        self.end = interval.end
+        self.strand = interval.strand
+        self.start_d = interval.start_d
+        self.end_d = interval.end_d
+
+
+# ---------------------------------------------------------------------------
+# Interval processing (picklable top-level function for joblib)
+# ---------------------------------------------------------------------------
+
+def _process_interval_batch(
+    bam_path: str,
+    interval_batch: list[tuple[str, _IntervalData]],
+    protocol: object,
+    read: str,
+    batch_idx: str | None,
+    show_progress: bool = False,
+) -> tuple[list, list, list, dict]:
+    """Process a batch of UTR intervals from a BAM file.
+
+    Each call opens its own pysam file handle so the function is safe for
+    use inside joblib workers.
+
+    Args:
+        bam_path: Path to an indexed BAM file.
+        interval_batch: List of (utr_name, _IntervalData) pairs.
+        protocol: A Protocol instance.
+        read: Which mate to use ('first' or 'second').
+        batch_idx: Optional batch index for observation ID.
+        show_progress: Whether to show a tqdm progress bar.
+
+    Returns:
+        A tuple of (utr_names, observation_ids, utr_sizes, mapping_stats).
+    """
+    # Bitmask flag filtering — replaces 4 HTSeq property accesses per read
+    read_flag = 0x40 if read == "first" else 0x80
+    required_flags = 0x2 | read_flag          # proper_pair + correct mate
+    excluded_flags = 0x100 | 0x400            # secondary + duplicate
+
+    read_strand_string = f"Reads not '{read}'"
+    mapping_stats = {
+        "Reads mapped to the region of interest": 0,
+        read_strand_string: 0,
+        "Alignments not proper pair": 0,
+        "PCR duplicates": 0,
+        "Alignments not primary alignment": 0,
+        "Alignments in interval but wrong strand": 0,
+    }
+
+    # Cache protocol method lookups as local variables
+    check_strand = protocol.check_strand_matches
+    get_identity = protocol.get_reads_identity
+    get_utr_size = protocol.get_utr_size_from_read
+    get_obs_id = protocol.get_observation_id
+
+    all_utr_names: list[str] = []
+    all_observation_ids: list[str] = []
+    all_utr_sizes: list[int] = []
+
+    iterator = (
+        tqdm(interval_batch, colour="#ffb700", ascii=" ■", desc="Interval: ")
+        if show_progress
+        else interval_batch
+    )
+
+    with pysam.AlignmentFile(bam_path, "rb") as bam_file:
+        for name, interval in iterator:
+            # Pre-extract interval fields once per interval
+            iv_chrom = interval.chrom
+            iv_start = interval.start
+            iv_end = interval.end
+            iv_strand = interval.strand
+            iv_start_d = interval.start_d
+            iv_end_d = interval.end_d
+
+            read_barcodes: list[str] = []
+            read_umis: list[str] = []
+            utr_sizes_from_reads: list[int] = []
+
+            try:
+                for aln in bam_file.fetch(iv_chrom, iv_start, iv_end):
+                    mapping_stats["Reads mapped to the region of interest"] += 1
+
+                    # Fast-path flag check (2 integer ops for good reads)
+                    flag = aln.flag
+                    if (flag & required_flags) != required_flags or (flag & excluded_flags):
+                        # Categorize rejected reads for stats
+                        if not (flag & read_flag):
+                            mapping_stats[read_strand_string] += 1
+                        elif not (flag & 0x2):
+                            mapping_stats["Alignments not proper pair"] += 1
+                        elif flag & 0x400:
+                            mapping_stats["PCR duplicates"] += 1
+                        elif flag & 0x100:
+                            mapping_stats["Alignments not primary alignment"] += 1
+                        continue
+
+                    # Strand check (inlined)
+                    read_strand = "-" if aln.is_reverse else "+"
+                    if not check_strand(read_strand, iv_strand):
+                        mapping_stats["Alignments in interval but wrong strand"] += 1
+                        continue
+
+                    # Directional start position (matches HTSeq convention)
+                    read_start_d = aln.reference_end - 1 if aln.is_reverse else aln.reference_start
+
+                    # Position bounds check (inlined from extract_read_information)
+                    if iv_strand == "+":
+                        if read_start_d < iv_start_d or read_start_d > iv_end_d:
+                            continue
+                    else:
+                        if read_start_d > iv_start_d or read_start_d < iv_end_d:
+                            continue
+
+                    # Identity extraction via adapter (only for reads that pass all checks)
+                    adapter = _PySamAdapter(aln)
+                    read_umi, read_barcode = get_identity(alignment=adapter, bam_name=bam_path)
+                    if not read_umi or not read_barcode:
+                        continue
+
+                    utr_size = get_utr_size(read_start_d, interval)
+                    observation_id = get_obs_id(read_barcode, batch_idx)
+
+                    read_barcodes.append(observation_id)
+                    read_umis.append(read_umi)
+                    utr_sizes_from_reads.append(utr_size)
+            except ValueError:
+                continue
+
+            # Deduplicate reads using the UMIs
+            if read_umis:
+                mapped_read_information = deduplicate_reads(
+                    read_umis=read_umis,
+                    read_info=[read_barcodes, utr_sizes_from_reads],
+                )
+
+                # Extend flat accumulators
+                n_reads = len(mapped_read_information[0])
+                all_utr_names.extend([name] * n_reads)
+                all_observation_ids.extend(mapped_read_information[0])
+                all_utr_sizes.extend(mapped_read_information[1])
+
+    return all_utr_names, all_observation_ids, all_utr_sizes, mapping_stats
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, HTSeq.GenomicInterval]:
     """Build a dict mapping UTR names to HTSeq GenomicInterval objects.
@@ -58,11 +258,15 @@ def map_reads_to_utr(
     protocol: object,
     read: str = "first",
     batch_idx: str | None = None,
+    parallel: bool = True,
 ) -> pd.DataFrame:
     """Extract reads from a BAM file and map them to UTR intervals.
 
     Iterates over each UTR interval, extracts matching reads, deduplicates
     by UMI per barcode, and returns a flat DataFrame of molecules.
+
+    When *parallel* is True and there are more than 50 intervals, processing
+    is distributed across CPU cores via joblib.
 
     Args:
         bam: Path to a BAM alignment file.
@@ -70,6 +274,9 @@ def map_reads_to_utr(
         protocol: A Protocol instance for read parsing and identity extraction.
         read: Which mate to use ('first' or 'second').
         batch_idx: Optional batch index for observation ID suffixing.
+        parallel: If True, parallelize across intervals when >50. Set to False
+            when already inside a joblib worker (multi-BAM path) to prevent
+            nested parallelism.
 
     Returns:
         A flat DataFrame with columns (utr_name, observation_id, utr_size),
@@ -78,79 +285,54 @@ def map_reads_to_utr(
     logger = module_logger()
     logger.info("Extracting reads from %s and mapping them to the reference UTR", bam)
 
-    label_batches = protocol.label_batches
-
-    bam_file = HTSeq.BAM_Reader(bam)
-
-    # Flat accumulators — one row per (utr, observation, size)
-    all_utr_names = []
-    all_observation_ids = []
-    all_utr_sizes = []
+    # Convert HTSeq intervals to picklable _IntervalData
+    interval_items = [(name, _IntervalData(iv)) for name, iv in intervals.items()]
 
     read_strand_string = f"Reads not '{read}'"
-    mapping_stats = {
-        "Reads mapped to the region of interest": 0,
-        read_strand_string: 0,
-        "Alignments not proper pair": 0,
-        "PCR duplicates": 0,
-        "Alignments not primary alignment": 0,
-        "Alignments in interval but wrong strand": 0,
-    }
+    stat_keys = [
+        "Reads mapped to the region of interest",
+        read_strand_string,
+        "Alignments not proper pair",
+        "PCR duplicates",
+        "Alignments not primary alignment",
+        "Alignments in interval but wrong strand",
+    ]
 
-    for name, interval in tqdm(
-        intervals.items(), colour="#ffb700", ascii=" ■", desc="Interval: "
-    ):
-        read_barcodes = []
-        read_umis = []
-        utr_sizes_from_reads = []
+    if parallel and len(interval_items) > 50:
+        # Parallel path — split intervals across workers
+        n_workers = max(1, joblib.cpu_count() - 1)
+        batch_size = max(1, len(interval_items) // (n_workers * 4))
+        batches = [
+            interval_items[i : i + batch_size]
+            for i in range(0, len(interval_items), batch_size)
+        ]
 
-        mapped_read_information = [read_barcodes, utr_sizes_from_reads]
-        try:
-            for alignment in bam_file[interval]:
-                mapping_stats["Reads mapped to the region of interest"] += 1
-                if not alignment.pe_which == read:
-                    mapping_stats[read_strand_string] += 1
-                elif not alignment.proper_pair:
-                    mapping_stats["Alignments not proper pair"] += 1
-                elif alignment.pcr_or_optical_duplicate:
-                    mapping_stats["PCR duplicates"] += 1
-                elif alignment.not_primary_alignment:
-                    mapping_stats["Alignments not primary alignment"] += 1
-                elif not protocol.check_strand_matches(
-                    alignment.iv.strand, interval.strand
-                ):
-                    mapping_stats["Alignments in interval but wrong strand"] += 1
-                else:
-                    read_info = extract_read_information(
-                        alignment=alignment,
-                        interval=interval,
-                        protocol=protocol,
-                        bam_name=bam,
-                        batch_idx=batch_idx,
-                    )
-                    if read_info is None:
-                        continue
-                    else:
-                        read_barcodes.append(read_info[0])
-                        read_umis.append(read_info[1])
-                        utr_sizes_from_reads.append(read_info[2])
-        except ValueError:
-            continue
-
-        # Deduplicate reads using the UMIs
-        if read_umis:
-            mapped_read_information = deduplicate_reads(
-                read_umis=read_umis,
-                read_info=mapped_read_information,
+        results = joblib.Parallel(n_jobs=-2)(
+            joblib.delayed(_process_interval_batch)(
+                bam, batch, protocol, read, batch_idx, show_progress=False
             )
+            for batch in batches
+        )
 
-            # Extend flat accumulators
-            n_reads = len(mapped_read_information[0])
-            all_utr_names.extend([name] * n_reads)
-            all_observation_ids.extend(mapped_read_information[0])
-            all_utr_sizes.extend(mapped_read_information[1])
-
-    del bam_file
+        # Merge results from all workers
+        all_utr_names: list[str] = []
+        all_observation_ids: list[str] = []
+        all_utr_sizes: list[int] = []
+        merged_stats = {k: 0 for k in stat_keys}
+        for utr_names, obs_ids, utr_sizes, stats in results:
+            all_utr_names.extend(utr_names)
+            all_observation_ids.extend(obs_ids)
+            all_utr_sizes.extend(utr_sizes)
+            for k, v in stats.items():
+                merged_stats[k] += v
+        mapping_stats = merged_stats
+    else:
+        # Sequential path — single batch with progress bar
+        all_utr_names, all_observation_ids, all_utr_sizes, mapping_stats = (
+            _process_interval_batch(
+                bam, interval_items, protocol, read, batch_idx, show_progress=True
+            )
+        )
 
     utr_mappings = pd.DataFrame({
         "utr_name": pd.Categorical(all_utr_names),

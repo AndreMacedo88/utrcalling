@@ -43,18 +43,21 @@ def get_number_cores(left_out: int = 1) -> int:
     return cores_to_use
 
 
-def to_string(x: bytes) -> str:
+def to_string(x: bytes | str) -> str:
     """Convert bytes to str without decoding.
 
     HTSeq returns bytes for sequence data; this extracts the string
-    representation by slicing the repr output.
+    representation by slicing the repr output. pysam returns str
+    directly, which is passed through unchanged.
 
     Args:
-        x: The bytes object representing a string.
+        x: The bytes or str object representing a sequence.
 
     Returns:
         The string content without the b'' wrapper.
     """
+    if isinstance(x, str):
+        return x
     return repr(x)[2:-1]
 
 

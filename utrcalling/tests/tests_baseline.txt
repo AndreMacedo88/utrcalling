@@ -1,82 +1,74 @@
 
 /// utrcalling \\\ 🧬 v2.3.1 🧬
 
-test_details (test_3'10x.test_utr_mapping.TestTenxThree) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 608078.32it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 732/1016 [00:00<00:00, 7298.10it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7709.25it/s]
+test_details (test_3'10x.test_utr_mapping.TestTenxThree) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 627047.21it/s]
 ok
-test_length (test_3'10x.test_utr_mapping.TestTenxThree) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 721539.60it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  74%|■■■■■■■   | 756/1016 [00:00<00:00, 7481.10it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7848.18it/s]
+test_length (test_3'10x.test_utr_mapping.TestTenxThree) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 543062.68it/s]
 ok
-test_details (test_3'10x.test_utr_mapping.TestTenxThreeNoBarcodes) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 660889.09it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 732/1016 [00:00<00:00, 7282.30it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7731.58it/s]
+test_details (test_3'10x.test_utr_mapping.TestTenxThreeNoBarcodes) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 604713.05it/s]
 ok
-test_length (test_3'10x.test_utr_mapping.TestTenxThreeNoBarcodes) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 686438.93it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  74%|■■■■■■■   | 756/1016 [00:00<00:00, 7422.19it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7820.43it/s]
+test_length (test_3'10x.test_utr_mapping.TestTenxThreeNoBarcodes) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 550072.66it/s]
 ok
-UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 51995.50it/s]
-test_details (test_3'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 6982.75it/s]
+UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 31775.03it/s]
+test_details (test_3'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 5866.16it/s]
 ok
-test_length (test_3'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 7472.04it/s]
+test_length (test_3'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 8461.94it/s]
 ok
-test_details (test_3'10x.test_utr_mapping.TestTenxTwo) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 648913.18it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 727/1016 [00:00<00:00, 7257.10it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7695.00it/s]
+test_details (test_3'10x.test_utr_mapping.TestTenxTwo) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 616613.06it/s]
 ok
-test_length (test_3'10x.test_utr_mapping.TestTenxTwo) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 667723.73it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  74%|■■■■■■■   | 756/1016 [00:00<00:00, 7472.41it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7868.57it/s]
+test_length (test_3'10x.test_utr_mapping.TestTenxTwo) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 573387.09it/s]
 ok
-UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 59074.70it/s]
-test_details (test_3'10x.test_utr_mapping.TestTenxTwoSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 7820.33it/s]
+UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 44938.97it/s]
+test_details (test_3'10x.test_utr_mapping.TestTenxTwoSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 9124.66it/s]
 ok
-test_length (test_3'10x.test_utr_mapping.TestTenxTwoSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 7888.97it/s]
+test_length (test_3'10x.test_utr_mapping.TestTenxTwoSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 9376.24it/s]
 ok
-test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 56679.78it/s]
-Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 8015.87it/s]
+test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 58867.42it/s]
+Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 2973.10it/s]
 ok
-test_details_one (test_3'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 70492.50it/s]
-Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 8309.67it/s]
+test_details_one (test_3'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 76260.07it/s]
+Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 17172.18it/s]
 ok
-test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 70789.94it/s]
-Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 9341.43it/s]
+test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 72315.59it/s]
+Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 17296.10it/s]
 ok
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 90006.52it/s]
-test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3LabelSamplesMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 12199.84it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 94466.31it/s]
+test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3LabelSamplesMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 20106.92it/s]
 ok
-test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3LabelSamplesMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11902.11it/s]
+test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3LabelSamplesMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18575.31it/s]
 ok
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 91980.35it/s]
-test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3Minimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 12271.22it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 83886.08it/s]
+test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3Minimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18707.87it/s]
 ok
-test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3Minimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11689.81it/s]
+test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3Minimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18876.26it/s]
 ok
-test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3NoBarcodes) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 67923.95it/s]
-Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 8140.33it/s]
+test_details (test_3'smartseq.test_utr_mapping.TestSmartSeq3NoBarcodes) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 61230.72it/s]
+Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 13969.37it/s]
 ok
-test_details_one (test_3'smartseq.test_utr_mapping.TestSmartSeq3NoBarcodes) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 69327.34it/s]
-Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 8943.08it/s]
+test_details_one (test_3'smartseq.test_utr_mapping.TestSmartSeq3NoBarcodes) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 67108.86it/s]
+Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 17494.49it/s]
 ok
-test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3NoBarcodes) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 71392.41it/s]
-Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 8069.85it/s]
+test_length (test_3'smartseq.test_utr_mapping.TestSmartSeq3NoBarcodes) ... UTR:   0%|          | 0/4 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 67650.06it/s]
+Interval:   0%|          | 0/4 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 4/4 [00:00<00:00, 16209.87it/s]
 ok
-UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 58798.65it/s]
-test_details (test_5'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 7918.76it/s]
+UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 54471.48it/s]
+test_details (test_5'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 9467.95it/s]
 ok
-test_length (test_5'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 8213.39it/s]
+test_length (test_5'10x.test_utr_mapping.TestTenxThreeSynthetic) ... Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 9460.84it/s]
 ok
-test_details (test_5'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/1030 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 684648.67it/s]
-Interval:   0%|          | 0/1030 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 36859.63it/s]
+test_details (test_5'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/1030 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 636812.08it/s]
 ok
-test_length (test_5'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/1030 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 665762.54it/s]
-Interval:   0%|          | 0/1030 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 32244.85it/s]
+test_length (test_5'smartseq.test_utr_mapping.TestSmartSeq3) ... UTR:   0%|          | 0/1030 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 511682.24it/s]
 ok
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 80971.12it/s]
-test_details (test_5'smartseq.test_utr_mapping.TestSmartSeq3ReadnameMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11735.60it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 68089.35it/s]
+test_details (test_5'smartseq.test_utr_mapping.TestSmartSeq3ReadnameMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 3849.40it/s]
 ok
-test_length (test_5'smartseq.test_utr_mapping.TestSmartSeq3ReadnameMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11510.16it/s]
+test_length (test_5'smartseq.test_utr_mapping.TestSmartSeq3ReadnameMinimal) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18591.77it/s]
 ok
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 80350.65it/s]
-test_details (test_5'smartseq.test_utr_mapping.TestSmartSeqPhosphoSynthetic) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 10837.99it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 57614.07it/s]
+test_details (test_5'smartseq.test_utr_mapping.TestSmartSeqPhosphoSynthetic) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 10280.16it/s]
 ok
-test_length (test_5'smartseq.test_utr_mapping.TestSmartSeqPhosphoSynthetic) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18396.07it/s]
+test_length (test_5'smartseq.test_utr_mapping.TestSmartSeqPhosphoSynthetic) ... Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 22381.56it/s]
 ok
 test_columns (test_anndata_processing.TestComputeMeanSizes)
 Columns should be the utr_name ... ok
@@ -88,14 +80,14 @@ test_fills_missing_with_zero (test_anndata_processing.TestConcatenateAdata) ... 
 ok
 test_non_overlapping_obs (test_anndata_processing.TestConcatenateAdata) ... ok
 test_overlapping_vars (test_anndata_processing.TestConcatenateAdata) ... ok
-test_fractions_sum_to_one (test_anndata_processing.TestCountsToPercentages) ...   0%|          | 0/2 [00:00<?, ?it/s]100%|■■■■■■■■■■| 2/2 [00:00<00:00, 832.95it/s]
+test_fractions_sum_to_one (test_anndata_processing.TestCountsToPercentages) ...   0%|          | 0/2 [00:00<?, ?it/s]100%|■■■■■■■■■■| 2/2 [00:00<00:00, 773.57it/s]
 ok
-test_single_peak_utr_is_one (test_anndata_processing.TestCountsToPercentages) ...   0%|          | 0/2 [00:00<?, ?it/s]100%|■■■■■■■■■■| 2/2 [00:00<00:00, 1170.29it/s]
+test_single_peak_utr_is_one (test_anndata_processing.TestCountsToPercentages) ...   0%|          | 0/2 [00:00<?, ?it/s]100%|■■■■■■■■■■| 2/2 [00:00<00:00, 1086.47it/s]
 ok
-test_sparse_input (test_anndata_processing.TestCountsToPercentages) ...   0%|          | 0/2 [00:00<?, ?it/s]100%|■■■■■■■■■■| 2/2 [00:00<00:00, 634.44it/s]
+test_sparse_input (test_anndata_processing.TestCountsToPercentages) ...   0%|          | 0/2 [00:00<?, ?it/s]100%|■■■■■■■■■■| 2/2 [00:00<00:00, 629.59it/s]
 ok
 test_zero_row_handled (test_anndata_processing.TestCountsToPercentages)
-A row with all zeros should not produce NaN/inf. ...   0%|          | 0/1 [00:00<?, ?it/s]100%|■■■■■■■■■■| 1/1 [00:00<00:00, 1155.14it/s]
+A row with all zeros should not produce NaN/inf. ...   0%|          | 0/1 [00:00<?, ?it/s]100%|■■■■■■■■■■| 1/1 [00:00<00:00, 1268.31it/s]
 ok
 test_data_not_changed (test_anndata_processing.TestGenerateUtrSiteNamesFromGeneName) ... ok
 test_new_names (test_anndata_processing.TestGenerateUtrSiteNamesFromGeneName) ... ok
@@ -116,75 +108,75 @@ test_split_fraction (test_anndata_processing.TestSplitTrainTestDataUmiCol) ... o
 test_invalid_type_raises_value_error (test_anndata_processing.TestSubsetAdata) ... ok
 test_obs_subset (test_anndata_processing.TestSubsetAdata) ... ok
 test_var_subset (test_anndata_processing.TestSubsetAdata) ... ok
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 72315.59it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 10928.36it/s]
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 77101.18it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11956.40it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 54755.93it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 14655.15it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 83551.87it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 17549.39it/s]
 test_barcode (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
 test_is_anndata (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
 test_shape_anndata (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
 test_utr_names (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
 test_utr_sizes (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 84562.58it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 10939.76it/s]
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 89621.88it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 12278.41it/s]
-test_is_anndata (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 84222.97it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11484.95it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 78251.94it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18460.85it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 64329.82it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 14403.52it/s]
+test_is_anndata (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 64133.09it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 15420.24it/s]
 ok
-test_shape_anndata (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 80971.12it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 9836.55it/s]
+test_shape_anndata (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 61320.23it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 13962.40it/s]
 ok
-test_utr_names (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 85598.04it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 10905.63it/s]
+test_utr_names (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 62601.55it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 14936.98it/s]
 ok
-test_utr_sizes (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 91980.35it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 12557.80it/s]
+test_utr_sizes (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 55627.37it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 14779.08it/s]
 ok
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 90394.48it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11385.19it/s]
-UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 90394.48it/s]
-Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11942.78it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 59241.58it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 15196.75it/s]
+UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 68985.26it/s]
+Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 15650.39it/s]
 test_barcode (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
 test_is_anndata (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
 test_shape_anndata (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
 test_utr_names (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
 test_utr_sizes (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
-test_length (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 649209.76it/s]
-0it [00:00, ?it/s]5it [00:00, 314.75it/s]
-[33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-[33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 695/1016 [00:00<00:00, 6898.92it/s]Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 692/1016 [00:00<00:00, 6918.87it/s]Interval:  67%|[38;2;255;183;0m■■■■■■    [0m| 681/1016 [00:00<00:00, 6800.67it/s]Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 693/1016 [00:00<00:00, 6914.12it/s]Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7271.56it/s]
-[33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7213.92it/s]
-[33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-Interval:  69%|[38;2;255;183;0m■■■■■■    [0m| 703/1016 [00:00<00:00, 7028.83it/s]Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7250.84it/s]
-Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7206.46it/s]
-[33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-[33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7368.72it/s]
-[33m║[0m 2026-02-24 09:57:40 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+test_length (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 488134.35it/s]
+0it [00:00, ?it/s]5it [00:00, 6974.23it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 14695.39it/s]
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 13043.17it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 12566.91it/s]
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 14713.30it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 13431.42it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
 ok
-test_read_mappings (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 639851.78it/s]
-0it [00:00, ?it/s]5it [00:00, 6786.90it/s]
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
-Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]Interval:  69%|[38;2;255;183;0m■■■■■■    [0m| 702/1016 [00:00<00:00, 6999.86it/s]Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7396.09it/s]
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-Interval:  67%|[38;2;255;183;0m■■■■■■    [0m| 681/1016 [00:00<00:00, 6798.66it/s]Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 692/1016 [00:00<00:00, 6914.34it/s]Interval:  66%|[38;2;255;183;0m■■■■■■    [0m| 674/1016 [00:00<00:00, 6738.11it/s]Interval:  68%|[38;2;255;183;0m■■■■■■    [0m| 695/1016 [00:00<00:00, 6937.83it/s]Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7150.86it/s]
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7322.00it/s]
-Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7230.85it/s]
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 7140.88it/s]
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
-[33m║[0m 2026-02-24 09:57:42 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+test_read_mappings (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 602149.62it/s]
+0it [00:00, ?it/s]5it [00:00, 8943.08it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
+Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s]Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 14388.98it/s]
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 14793.18it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 14675.35it/s]
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 14925.93it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
+Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 14998.16it/s]
+[33m║[0m 2026-02-24 14:50:26 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
 ok
 test_resulting_df (test_core.TestPrepareUtrReferenceRegionsSynthetic) ... ok
 test_all_duplicates (test_deduplicate.TestDeduplicateReads)
@@ -235,15 +227,11 @@ test_with_batch_suffix (test_observation_id.TestGetObservationIdTenx) ... ok
 test_without_batch_ignores_idx (test_observation_id.TestGetObservationIdTenx) ... ok
 test_utrcalling_import (test_package_details.TestImport) ... ok
 test_version (test_package_details.TestVersion) ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 546966.10it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  71%|■■■■■■■   | 722/1016 [00:00<00:00, 7186.95it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7615.23it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  70%|■■■■■■    | 708/1016 [00:00<00:00, 7063.92it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7408.01it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 575322.38it/s]
 test_matrix_values_count (test_peak_calling.TestAnnData) ... ok
 test_obs_values_count (test_peak_calling.TestAnnData) ... ok
 test_vars_values_count (test_peak_calling.TestAnnData) ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 638988.28it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  68%|■■■■■■    | 695/1016 [00:00<00:00, 6884.22it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7358.77it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  70%|■■■■■■    | 711/1016 [00:00<00:00, 6982.54it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7551.13it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 618761.85it/s]
 test_length (test_peak_calling.TestMatrix) ... ok
 test_matrix_maximum (test_peak_calling.TestMatrix) ... ok
 test_matrix_values_count (test_peak_calling.TestMatrix) ... ok
@@ -251,9 +239,7 @@ test_length (test_peak_calling.TestMatrixSynthetic) ... ok
 test_matrix_composition (test_peak_calling.TestMatrixSynthetic) ... ok
 test_matrix_maximum (test_peak_calling.TestMatrixSynthetic) ... ok
 test_matrix_values_count (test_peak_calling.TestMatrixSynthetic) ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 627324.14it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  74%|■■■■■■■   | 756/1016 [00:00<00:00, 7402.54it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7804.23it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  71%|■■■■■■■   | 721/1016 [00:00<00:00, 7203.79it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7712.70it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 554727.01it/s]
 test_length (test_peak_calling.TestObs) ... ok
 test_obs_values_count (test_peak_calling.TestObs) ... ok
 test_length (test_peak_calling.TestObsSynthetic) ... ok
@@ -264,9 +250,7 @@ test_single_observation (test_peak_calling.TestPeakCallingEdgeCases)
 Single observation should produce a 1-row matrix. ... ok
 test_single_utr (test_peak_calling.TestPeakCallingEdgeCases)
 Single UTR with multiple observations should produce peaks from that UTR only. ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 607125.35it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 732/1016 [00:00<00:00, 7212.46it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7625.58it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  69%|■■■■■■    | 704/1016 [00:00<00:00, 7017.39it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7443.59it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 552855.85it/s]
 test_length (test_peak_calling.TestVar) ... ok
 test_vars_values_count (test_peak_calling.TestVar) ... ok
 test_length (test_peak_calling.TestVarSynthetic) ... ok
@@ -285,13 +269,13 @@ Tightly clustered sizes → all assigned same peak. ... ok
 test_two_separated_peaks (test_peak_calling_anndata.TestCallPeaksUsingKDE)
 Two clearly separated clusters → two distinct peaks. ... ok
 test_bandwidth_zero_returns_unchanged (test_peak_calling_anndata.TestPeakCallAnndata) ... ok
-test_min_umis_skips_low_utrs (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 56.31it/s]
+test_min_umis_skips_low_utrs (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR:  50%|■■■■■     | 1/2 [00:00<00:00,  6.85it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 13.63it/s]
 ok
-test_output_has_fewer_or_equal_columns (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 190.25it/s]
+test_output_has_fewer_or_equal_columns (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 170.92it/s]
 ok
-test_output_preserves_obs (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 193.94it/s]
+test_output_preserves_obs (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 183.94it/s]
 ok
-test_sparse_input_sparse_output (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 180.98it/s]
+test_sparse_input_sparse_output (test_peak_calling_anndata.TestPeakCallAnndata) ... UTR:   0%|          | 0/2 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 2/2 [00:00<00:00, 162.25it/s]
 ok
 test_output_shape (test_peak_calling_anndata.TestPeakCallSingleUtr) ... ok
 test_var_has_utr_size (test_peak_calling_anndata.TestPeakCallSingleUtr) ... ok
@@ -303,9 +287,7 @@ test_sparse_input (test_peak_calling_anndata.TestRemovePeaksBelowCount) ... ok
 test_dense_input (test_peak_calling_anndata.TestUtrSizesVectorFromReadCounts) ... ok
 test_preserves_index (test_peak_calling_anndata.TestUtrSizesVectorFromReadCounts) ... ok
 test_sparse_input (test_peak_calling_anndata.TestUtrSizesVectorFromReadCounts) ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 534346.44it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 732/1016 [00:00<00:00, 7264.48it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7669.93it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  70%|■■■■■■    | 711/1016 [00:00<00:00, 7073.75it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7611.23it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 476881.48it/s]
 test_before_filter (test_process_mapped_reads.TestFilterBarcodes) ... ok
 test_filter (test_process_mapped_reads.TestFilterBarcodes) ... ok
 test_specific_utr (test_process_mapped_reads.TestFilterBarcodes) ... ok
@@ -322,14 +304,10 @@ test_single_sample_intersection (test_process_mapped_reads.TestMergeSamplesEdgeC
 Single-sample intersection should return the same data. ... ok
 test_single_sample_union (test_process_mapped_reads.TestMergeSamplesEdgeCases)
 Single-sample merge should return the same data. ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 572155.33it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  70%|■■■■■■    | 708/1016 [00:00<00:00, 7048.00it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7493.46it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  71%|■■■■■■■   | 719/1016 [00:00<00:00, 7189.63it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7705.60it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 596836.54it/s]
 test_details (test_process_mapped_reads.TestMergeSamplesUtrSizesIntersection) ... ok
 test_length (test_process_mapped_reads.TestMergeSamplesUtrSizesIntersection) ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 654293.39it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 732/1016 [00:00<00:00, 7254.46it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7705.31it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  71%|■■■■■■■   | 721/1016 [00:00<00:00, 7195.20it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7724.20it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 570852.36it/s]
 test_identical_index (test_process_mapped_reads.TestMergeSamplesUtrSizesUnion) ... ok
 test_index_on_first_df (test_process_mapped_reads.TestMergeSamplesUtrSizesUnion) ... ok
 test_index_on_second_df (test_process_mapped_reads.TestMergeSamplesUtrSizesUnion) ... ok
@@ -339,9 +317,7 @@ test_negative_strand_sizes (test_process_mapped_reads.TestMergeUtrsPerGene) ... 
 test_positive_strand_sizes (test_process_mapped_reads.TestMergeUtrsPerGene) ... ok
 test_read_mappings_dataframe (test_process_mapped_reads.TestMergeUtrsPerGene) ... ok
 test_utr_regions_dataframe (test_process_mapped_reads.TestMergeUtrsPerGene) ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 637458.92it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 727/1016 [00:00<00:00, 7268.98it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7605.84it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  70%|■■■■■■    | 711/1016 [00:00<00:00, 6976.15it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7577.17it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 507009.26it/s]
 test_number_of_features (test_process_mapped_reads.TestSubsetReferenceData) ... ok
 test_number_of_fields (test_process_mapped_reads.TestSubsetReferenceData) ... ok
 test_strand_is_correct (test_process_mapped_reads.TestSubsetReferenceData) ... ok
@@ -350,17 +326,14 @@ test_all_matching_utrs (test_process_mapped_reads.TestSubsetReferenceDataEdgeCas
 When all UTRs match, result should have the same number of rows. ... ok
 test_no_matching_utrs (test_process_mapped_reads.TestSubsetReferenceDataEdgeCases)
 When no UTR names match the reference, result should be empty. ... ok
-UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 674274.19it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  72%|■■■■■■■   | 732/1016 [00:00<00:00, 7319.15it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7756.82it/s]
-Interval:   0%|          | 0/1016 [00:00<?, ?it/s]Interval:  70%|■■■■■■    | 711/1016 [00:00<00:00, 7089.05it/s]Interval: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 7665.62it/s]
+UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 540925.73it/s]
 test_is_filtered (test_protocols.TestFilterUtrSizes) ... ok
 test_number_of_features (test_protocols.TestFilterUtrSizes) ... ok
-UTR:   0%|          | 0/1030 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 682162.19it/s]
-Interval:   0%|          | 0/1030 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 38204.56it/s]
+UTR:   0%|          | 0/1030 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 544303.03it/s]
 test_is_filtered (test_protocols.TestFilterUtrSizesSmartSeqCap) ... ok
 test_number_of_features (test_protocols.TestFilterUtrSizesSmartSeqCap) ... ok
 test_correct_interval (test_utr_mapping.TestGenerateUtrIntervals)
-Here we test if the intervals are being generated correctly. Please note that ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 685004.48it/s]
+Here we test if the intervals are being generated correctly. Please note that ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 522360.00it/s]
 ok
 test_platform (test_utr_mapping.TestProtocolNotSupported) ... ok
 test_version_smartseq (test_utr_mapping.TestProtocolNotSupported) ... ok
@@ -402,6 +375,6 @@ Number of fields in the annotation BED file should be equal to the optional ... 
 test_strand_is_correct (test_utr_reference.TestReduceRegionsStandard) ... ok
 
 ----------------------------------------------------------------------
-Ran 218 tests in 12.284s
+Ran 218 tests in 11.509s
 
 OK

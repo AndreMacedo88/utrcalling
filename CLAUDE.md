@@ -8,51 +8,60 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Common Commands
 
+### Conda environment
+
+All project dependencies (including system tools like `bedtools`) live in the `utrcalling` conda environment. **Always use `conda run -n utrcalling` or `conda activate utrcalling`** before running tests, the CLI, or any code that imports the package. Do NOT invoke the environment's Python binary directly — that skips PATH setup and will cause missing-tool errors (e.g. BEDTools).
+
+```bash
+# Preferred for non-interactive commands (e.g. from Claude Code):
+conda run --no-capture-output -n utrcalling <command>
+# Or activate interactively:
+conda activate utrcalling
+```
+
 ### Install (development)
 
 ```bash
-pip install -e .
+conda run --no-capture-output -n utrcalling pip install -e .
 ```
-
-**System dependency**: BEDTools must be installed (`conda install -c bioconda bedtools` or `apt install bedtools`).
 
 ### Run all tests
 
 ```bash
-utrcalling run-tests --verbosity 2
-# Or without the CLI:
-python -m unittest discover -s utrcalling/tests -p "test_*.py"
+conda run --no-capture-output -n utrcalling python -m unittest discover -s utrcalling/tests -p "test_*.py"
+# Or with the CLI:
+conda run --no-capture-output -n utrcalling utrcalling run-tests --verbosity 2
 ```
 
 ### Run a single test module
 
 ```bash
-python -m unittest utrcalling.tests.test_core
-python -m unittest utrcalling.tests.test_peak_calling
-python -m unittest utrcalling.tests.test_peak_calling_anndata
-python -m unittest utrcalling.tests.test_anndata_processing
-python -m unittest utrcalling.tests.test_process_mapped_reads
-python -m unittest utrcalling.tests.test_utr_mapping
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_peak_calling
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_peak_calling_anndata
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_anndata_processing
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_process_mapped_reads
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_utr_mapping
 ```
 
 ### Run a single test class or method
 
 ```bash
-python -m unittest utrcalling.tests.test_core.TestCallPeaksSmartseq3LabelMinimal
-python -m unittest utrcalling.tests.test_core.TestCallPeaksSmartseq3LabelMinimal.test_shape_anndata
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.TestCallPeaksSmartseq3LabelMinimal
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.TestCallPeaksSmartseq3LabelMinimal.test_shape_anndata
 ```
 
 ### CLI usage
 
 ```bash
-utrcalling --version
-utrcalling run --help          # Main pipeline
-utrcalling call-peaks --help   # Peak calling only
+conda run --no-capture-output -n utrcalling utrcalling --version
+conda run --no-capture-output -n utrcalling utrcalling run --help          # Main pipeline
+conda run --no-capture-output -n utrcalling utrcalling call-peaks --help   # Peak calling only
 ```
 
 ## Completed Improvement Plans
 
-The `core-overhaul` branch completed a major refactor from `master`, followed by a 6-phase improvement plan (see below), then a cleanup pass on the two remaining post-processing modules. **218 tests pass.**
+The `core-overhaul` branch completed a major refactor from `master`, followed by a 6-phase improvement plan (see below), a cleanup pass on the two remaining post-processing modules, and a pysam-based performance rewrite of the BAM read loop. **218 tests pass.**
 
 ### 6-Phase Improvement Plan (complete)
 
@@ -76,6 +85,19 @@ Brought both post-processing modules up to the same standard as the rest of the 
 13. **peak_calling_anndata.py refactored** — Dead imports removed (`os`, `HTTPError`, `time`). Legacy code block and commented-out debug code deleted. Module-level logger replaced with per-function calls. Shared per-UTR peak calling logic extracted into `_peak_call_single_utr()`. Nested joblib functions (`peak_call`, `get_distances_per_utr`, `get_distances`) extracted to module-level functions for picklability. `**kwargs` replaced with explicit parameters (`bandwidth`, `min_umis`). `_find_pas()` regex compilation moved outside the while loop; `hex` renamed to `pas_pattern`. `_calculate_umi_distance_to_pas()` vectorised with numpy (replaced `.iterrows()`). `_utr_sizes_vector_from_read_counts()` fixed for sparse input and now returns `pd.Series` preserving var-name index. `_call_peaks_using_kernel_density_estimator()` dtype changed from `uint32` to `np.int32`. `remove_peaks_below_count()` made sparse-safe (avoids full dense materialisation).
 14. **Test coverage expanded** — 218 tests total (up from 182). New `test_peak_calling_anndata.py` (23 tests). Expanded `test_anndata_processing.py` with 13 new tests for `select_alternative_transcription_events`, `counts_to_percentages`, `subset_adata`, `concatenate_adata`.
 
+### pysam Performance Rewrite (complete)
+
+Replaced HTSeq's BAM reading with pysam in the hot loop of `map_reads_to_utr()`, plus micro-optimizations and interval-level parallelism:
+
+15. **pysam BAM reading** — `pysam.AlignmentFile.fetch()` replaces `HTSeq.BAM_Reader[interval]`. pysam is a lighter-weight C wrapper and avoids HTSeq's heavyweight alignment object creation. Added as an explicit dependency in `setup.py` (was already a transitive dep of HTSeq).
+16. **Adapter layer for protocol compatibility** — `_PySamAdapter` / `_PySamReadAdapter` classes make pysam `AlignedSegment` objects quack like HTSeq `SAM_Alignment` objects. Critically, the adapter reverse-complements `query_sequence` for reverse-strand reads to match HTSeq's convention of returning the original read orientation (pysam returns the stored/aligned orientation). Uses `__slots__` for minimal overhead.
+17. **Bitmask flag filtering** — Per-read flag checks (pe_which, proper_pair, pcr_duplicate, not_primary) collapsed from 4 property accesses into 2 integer operations on the fast path. Stats categorization only runs for rejected reads.
+18. **Inlined read extraction** — `extract_read_information()` logic inlined into the hot loop, eliminating per-read function call overhead. The function is preserved for backward compatibility but is no longer called from the hot path.
+19. **Local variable caching** — Protocol method lookups (`check_strand_matches`, `get_reads_identity`, `get_utr_size_from_read`, `get_observation_id`) cached as local variables. Interval fields (`chrom`, `start`, `end`, `strand`, `start_d`, `end_d`) pre-extracted once per interval.
+20. **`to_string()` updated** — `helpers.to_string()` now short-circuits for `str` input (pysam returns `str` natively, HTSeq returned `bytes`).
+21. **Interval-level parallelism** — `map_reads_to_utr()` accepts `parallel=True` (default). When >50 intervals, splits work across CPU cores via `joblib.Parallel`. Each worker opens its own `pysam.AlignmentFile` handle. `_IntervalData` snapshots make HTSeq intervals picklable for joblib. Multi-BAM path in `core.py` passes `parallel=False` to prevent nested joblib.
+22. **Shared `_process_interval_batch()`** — Both sequential and parallel paths call the same top-level function, avoiding code duplication. Sequential path runs it as a single batch with tqdm progress; parallel path splits into batches.
+
 ### Hard Constraints
 
 - Never use `modin` or `ray`
@@ -98,7 +120,7 @@ Brought both post-processing modules up to the same standard as the rest of the 
 ### Three-Step Core Pipeline (`utrcalling/core/core.py`)
 
 1. **`prepare_utr_reference_regions()`** — Parses GTF, extracts UTR features, merges overlapping regions via pybedtools, returns a reference BED-like DataFrame.
-2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via HTSeq. Parallelizes across samples using `joblib.Parallel(n_jobs=-2)`. Returns a flat DataFrame (or list of DataFrames for multi-BAM).
+2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via pysam (with HTSeq adapters for protocol compatibility). Parallelizes across samples using `joblib.Parallel(n_jobs=-2)` for multi-BAM, and across intervals within a single BAM when >50 intervals. Returns a flat DataFrame (or list of DataFrames for multi-BAM).
 3. **`call_peaks()`** — Filters UTR sizes, optionally filters barcodes (with memory-aware chunking), then calls consensus peaks on molecule size distributions using Gaussian KDE (sklearn) + `scipy.signal.argrelextrema`. Peak calling parallelizes across UTRs with `joblib.Parallel` when >50 UTRs. Produces the final AnnData with a sparse count matrix.
 
 ### Intermediate Data Model
@@ -152,9 +174,10 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 ### Key Dependencies
 
 - **pybedtools** — genomic interval operations (requires **BEDTools** system-wide)
-- **HTSeq** — BAM/SAM read processing
+- **pysam** — BAM file reading in the hot loop (replaced HTSeq for read extraction)
+- **HTSeq** — still used for `GenomicInterval` creation in `generate_utr_intervals()`
 - **anndata/scanpy** — single-cell data structures
-- **joblib** — parallelism across BAM files and across UTRs during peak calling
+- **joblib** — parallelism across BAM files, across UTR intervals, and across UTRs during peak calling
 - **rapidfuzz** — fuzzy barcode matching (Hamming distance ≤1)
 - Python 3.9+ (compatible through 3.12+)
 
