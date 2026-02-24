@@ -1,37 +1,40 @@
-# import general purpose tools
-import warnings
-import re
-import joblib
+"""Post-processing utilities for AnnData objects produced by the utrcalling pipeline."""
+from __future__ import annotations
 
-# import data wrangling tools
+import re
+
 import numpy as np
 import pandas as pd
 import anndata
+import scipy.sparse
 
-# import stats tools
 from statsmodels.nonparametric.bandwidths import bw_silverman
 from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
 
-# import visualization tools
 from tqdm import tqdm
 
-# import internal tools
-from utrcalling.core import module_log, helpers
+from utrcalling.core import module_log
 
 
 def generate_utr_site_names_from_gene_name(
-    adata, utr_name_column="utr_name", gene_name_column="gene_name"
-):
-    """
-    Generates names for each distinct UTR size (UTR site) based on the gene name and UTR
-    number.
-    It then changes the var_names variable of the AnnData object with those new names.
-    The old names/IDs are kept in .var['UTR_site']
+    adata: anndata.AnnData,
+    utr_name_column: str = "utr_name",
+    gene_name_column: str = "gene_name",
+) -> anndata.AnnData:
+    """Generate human-readable UTR site names from gene names.
+
+    Creates names for each distinct UTR size (UTR site) based on the gene name
+    and UTR number, then replaces ``var_names`` with those new names. The
+    original names/IDs are preserved in ``.var['UTR_site']``.
 
     Args:
-        adata (anndata.AnnData): The AnnData object to change the var_names.
-        out (str, optional): The path to write the output.
+        adata: The AnnData object whose ``var_names`` will be renamed.
+        utr_name_column: Column in ``.var`` containing UTR identifiers.
+        gene_name_column: Column in ``.var`` containing gene name annotations.
+
+    Returns:
+        A copy of *adata* with renamed ``var_names``.
     """
     # TODO: This method breaks down if the utr_name is not sorted.
     # Maybe sort the AnnData first, or try another method that does not modify the order
@@ -91,17 +94,20 @@ def generate_utr_site_names_from_gene_name(
     return adata
 
 
-def select_alternative_transcription_events(adata):
-    """
-    Removes UTRs that have less than 2 alternative transcription sites, effectively
-    selecting alternative poly adenilation (APA) or alternative transcription
-    initiation (ATI) events.
+def select_alternative_transcription_events(
+    adata: anndata.AnnData,
+) -> anndata.AnnData:
+    """Select UTRs with at least two alternative transcription sites.
+
+    Removes UTRs that have fewer than 2 alternative transcription sites,
+    effectively selecting alternative polyadenylation (APA) or alternative
+    transcription initiation (ATI) events.
 
     Args:
-        adata (anndata.AnnData): The AnnData object to select APA events.
+        adata: The AnnData object to filter.
 
     Returns:
-        anndata.AnnData: The modified AnnData.
+        A filtered copy of *adata* containing only multi-site UTRs.
     """
     unique_df = adata.var.groupby("utr_name").nunique()
 
@@ -110,21 +116,55 @@ def select_alternative_transcription_events(adata):
     ].copy()
 
 
-def counts_to_percentages(adata, utr_name_column):
+def counts_to_percentages(
+    adata: anndata.AnnData, utr_name_column: str
+) -> anndata.AnnData:
+    """Convert raw UMI counts to within-UTR percentages.
 
+    For each UTR, divides count values by the row-wise sum so that each
+    observation's counts within a UTR sum to 1.
+
+    Args:
+        adata: The AnnData object with raw counts in ``.X``.
+        utr_name_column: Column in ``.var`` identifying UTR groups.
+
+    Returns:
+        The same *adata* with ``.X`` replaced by fractional values.
+    """
     for utr in tqdm(
         np.unique(adata.var[utr_name_column]), colour="#ffb700", ascii=" ■"
     ):
-        data_utr = adata[:, adata.var[utr_name_column] == utr].X
+        mask = adata.var[utr_name_column] == utr
+        data_utr = adata[:, mask].X
 
-        adata[:, adata.var[utr_name_column] == utr].X = np.divide(
-            data_utr, np.sum(data_utr, axis=1).reshape(-1, 1)
+        if scipy.sparse.issparse(data_utr):
+            data_utr = data_utr.toarray()
+
+        row_sums = np.sum(data_utr, axis=1).reshape(-1, 1)
+        adata[:, mask].X = np.divide(
+            data_utr, row_sums, out=np.zeros_like(data_utr, dtype=float), where=row_sums != 0
         )
 
     return adata
 
 
-def compute_utr_size_means(adata, utr_name_column="utr_name"):
+def compute_utr_size_means(
+    adata: anndata.AnnData, utr_name_column: str = "utr_name"
+) -> anndata.AnnData:
+    """Compute weighted mean UTR sizes per observation and UTR.
+
+    For each (observation, UTR) pair the mean UTR size is calculated as the
+    count-weighted average of individual peak sizes.
+
+    Args:
+        adata: The AnnData object with counts in ``.X`` and ``utr_size`` in
+            ``.var``.
+        utr_name_column: Column in ``.var`` identifying UTR groups.
+
+    Returns:
+        A new AnnData where each value is the mean UTR size for that
+        observation/UTR pair.
+    """
     obs_index_name = adata.obs.index.name
     adata.var = adata.var.set_index(utr_name_column)
 
@@ -149,19 +189,35 @@ def compute_utr_size_means(adata, utr_name_column="utr_name"):
         adata.obs.index
     )
 
-    df_mult_sum = (
-        df_mult_sum.reset_index()
-        .pivot(index=obs_index_name, columns=utr_name_column)["value"]
-        .reindex(adata.obs.index)
-    )
-
     if not (df.columns == var_new.index).all():
         var_new = var_new.reindex(df.columns)
     adata = anndata.AnnData(df, obs=adata.obs, var=var_new, dtype=df.values.dtype)
     return adata
 
 
-def subset_adata(adata, annotations_keep, anno_types):
+def subset_adata(
+    adata: anndata.AnnData,
+    annotations_keep: list[str],
+    anno_types: list[str],
+) -> list[anndata.AnnData]:
+    """Subset an AnnData by external annotation CSV files.
+
+    Each annotation file is loaded and used to filter either the ``obs`` or
+    ``var`` axis of *adata*.
+
+    Args:
+        adata: The AnnData object to subset.
+        annotations_keep: Paths to CSV files whose index values define the
+            subset to keep.
+        anno_types: Parallel list of ``"var"`` or ``"obs"`` indicating which
+            axis each annotation file refers to.
+
+    Returns:
+        A list of AnnData views, one per annotation file.
+
+    Raises:
+        ValueError: If an *anno_type* is neither ``"var"`` nor ``"obs"``.
+    """
     adata_list = []
 
     for annotation, anno_type in zip(annotations_keep, anno_types):
@@ -172,12 +228,26 @@ def subset_adata(adata, annotations_keep, anno_types):
         elif anno_type == "obs":
             adata_list.append(adata[adata.obs.index.isin(annotation_df.index), :])
         else:
-            raise AttributeError(f"Annotation type {anno_type} not supported")
+            raise ValueError(f"Annotation type {anno_type} not supported")
 
     return adata_list
 
 
-def concatenate_adata(adata_list):
+def concatenate_adata(
+    adata_list: list[anndata.AnnData],
+) -> anndata.AnnData:
+    """Concatenate multiple AnnData objects along the obs axis.
+
+    Observations are outer-joined so that all UTR peaks across inputs are
+    represented (missing values filled with 0).
+
+    Args:
+        adata_list: AnnData objects sharing compatible ``.var`` schemas
+            (must contain ``utr_name`` and ``utr_size`` columns).
+
+    Returns:
+        A single concatenated AnnData.
+    """
     # prepare X object
     adata_df_list = [adata.to_df() for adata in adata_list]
     for df, adata in zip(adata_df_list, adata_list):
@@ -216,7 +286,23 @@ def concatenate_adata(adata_list):
     return adata_result
 
 
-def split_train_test_data(adata, train_fraction, seed):
+def split_train_test_data(
+    adata: anndata.AnnData, train_fraction: float, seed: int | None
+) -> tuple[anndata.AnnData, anndata.AnnData]:
+    """Split an AnnData into stratified train and test sets.
+
+    Stratification is performed on UMI-count bins (auto-detected or derived
+    via KDE) and, when present, a batch column.
+
+    Args:
+        adata: The AnnData object to split.
+        train_fraction: Fraction of observations to assign to the training set
+            (e.g. ``0.8``).
+        seed: Random seed for reproducible sampling, or ``None``.
+
+    Returns:
+        A ``(train, test)`` tuple of AnnData views.
+    """
     logger = module_log.module_logger()
 
     try:
@@ -252,10 +338,11 @@ def split_train_test_data(adata, train_fraction, seed):
             .values[0][0]
         )
     except IndexError:
-        batch_columns = False
+        batch_columns = None
 
+    groupby_cols = [c for c in [batch_columns, bins_columns] if c is not None]
     obs_train = adata.obs.groupby(
-        [batch_columns, bins_columns], group_keys=False
+        groupby_cols, group_keys=False
     ).apply(lambda x: x.sample(frac=train_fraction, random_state=seed))
 
     obs_test = adata.obs.drop(labels=obs_train.index, axis=0)

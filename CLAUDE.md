@@ -29,6 +29,8 @@ python -m unittest discover -s utrcalling/tests -p "test_*.py"
 ```bash
 python -m unittest utrcalling.tests.test_core
 python -m unittest utrcalling.tests.test_peak_calling
+python -m unittest utrcalling.tests.test_peak_calling_anndata
+python -m unittest utrcalling.tests.test_anndata_processing
 python -m unittest utrcalling.tests.test_process_mapped_reads
 python -m unittest utrcalling.tests.test_utr_mapping
 ```
@@ -48,13 +50,11 @@ utrcalling run --help          # Main pipeline
 utrcalling call-peaks --help   # Peak calling only
 ```
 
-## Completed Improvement Plan
+## Completed Improvement Plans
 
-**`PLAN.md` documents the 6-phase improvement plan executed on the `core-overhaul` branch.** All 6 phases are complete (182 tests pass). The plan covered cleanup, performance, type hints, testing, and parallelism.
+The `core-overhaul` branch completed a major refactor from `master`, followed by a 6-phase improvement plan (see below), then a cleanup pass on the two remaining post-processing modules. **218 tests pass.**
 
-### What was done
-
-The `core-overhaul` branch completed a major refactor from `master`, followed by a 6-phase improvement plan:
+### 6-Phase Improvement Plan (complete)
 
 1. **modin/ray eliminated** — All modin/ray usage replaced with plain pandas + joblib. Dead modin helpers, ray checks, and stale `requirements.txt` references cleaned up (Phase 1).
 2. **Flat intermediate data model** — `map_reads_to_utr()` returns a flat DataFrame (one row per molecule: `utr_name`, `observation_id`, `utr_size`).
@@ -67,6 +67,14 @@ The `core-overhaul` branch completed a major refactor from `master`, followed by
 9. **Unnecessary DataFrame copies removed** — `filter_barcodes()` skips the full `.copy()` when no barcode replacements are needed; re-categorizes both `utr_name` and `observation_id` after filtering (Phase 3).
 10. **Type hints and docstrings** — All public functions in the 6 core modules annotated with `from __future__ import annotations`, typed signatures, and Google-style docstrings (Phase 4).
 11. **Test coverage expanded** — 182 tests total (up from 136). New test files for `helpers.py` and `Protocol.get_observation_id()`. Edge case tests for peak calling and process_mapped_reads (Phase 5).
+
+### anndata_processing.py & peak_calling_anndata.py Cleanup (complete)
+
+Brought both post-processing modules up to the same standard as the rest of the codebase:
+
+12. **anndata_processing.py cleaned up** — Dead imports removed (`warnings`, `joblib`, `helpers`). Type hints and Google-style docstrings added to all 7 functions. `counts_to_percentages()` made sparse-safe. Dead code removed from `compute_utr_size_means()`. `AttributeError` → `ValueError` in `subset_adata()`. `split_train_test_data()` fixed to use `None` sentinel instead of `False` for missing batch column.
+13. **peak_calling_anndata.py refactored** — Dead imports removed (`os`, `HTTPError`, `time`). Legacy code block and commented-out debug code deleted. Module-level logger replaced with per-function calls. Shared per-UTR peak calling logic extracted into `_peak_call_single_utr()`. Nested joblib functions (`peak_call`, `get_distances_per_utr`, `get_distances`) extracted to module-level functions for picklability. `**kwargs` replaced with explicit parameters (`bandwidth`, `min_umis`). `_find_pas()` regex compilation moved outside the while loop; `hex` renamed to `pas_pattern`. `_calculate_umi_distance_to_pas()` vectorised with numpy (replaced `.iterrows()`). `_utr_sizes_vector_from_read_counts()` fixed for sparse input and now returns `pd.Series` preserving var-name index. `_call_peaks_using_kernel_density_estimator()` dtype changed from `uint32` to `np.int32`. `remove_peaks_below_count()` made sparse-safe (avoids full dense materialisation).
+14. **Test coverage expanded** — 218 tests total (up from 182). New `test_peak_calling_anndata.py` (23 tests). Expanded `test_anndata_processing.py` with 13 new tests for `select_alternative_transcription_events`, `counts_to_percentages`, `subset_adata`, `concatenate_adata`.
 
 ### Hard Constraints
 
@@ -83,8 +91,6 @@ The `core-overhaul` branch completed a major refactor from `master`, followed by
 - `utrcalling/runtime.py` and `utrcalling/tools/` — CLI layer
 - `utrcalling/core/module_log.py` — logging is correct
 - `utrcalling/core/utr_reference.py` — GTF parsing is correct, not a bottleneck (minor bugfixes like mutable defaults are OK)
-- `utrcalling/core/anndata_processing.py` — post-processing on small-to-medium data (dead import cleanup is OK)
-- `utrcalling/core/peak_calling_anndata.py` — secondary peak calling path
 - `utrcalling/core/protocols/peak_calling.py` — KDE logic (sklearn + scipy) is efficient
 
 ## Architecture
@@ -154,7 +160,7 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 
 ### Testing
 
-Tests use Python's `unittest` framework (182 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`.
+Tests use Python's `unittest` framework (218 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`. Post-processing tests in `test_anndata_processing.py` and `test_peak_calling_anndata.py`.
 
 Tests `chdir` into `utrcalling/tests/` at setup time, so test data paths are relative to that directory.
 

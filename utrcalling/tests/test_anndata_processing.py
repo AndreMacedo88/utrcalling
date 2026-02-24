@@ -3,12 +3,14 @@ from utrcalling.core import anndata_processing as ap
 from utrcalling.core import module_log
 import os
 from pathlib import Path
+import tempfile
 import unittest
 
 # import data wrangling tools
 import numpy as np
 import pandas as pd
 import anndata as ad
+import scipy.sparse
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))
@@ -235,6 +237,165 @@ class TestSplitTrainTestData(unittest.TestCase):
 class TestSplitTrainTestDataUmiCol(TestSplitTrainTestData):
     def setUp(self) -> None:
         self.adata.obs["umi_test_bin"] = [1, 1, 2, 1, 2] * 3
+
+
+# ---------------------------------------------------------------------------
+# New test classes for previously untested functions
+# ---------------------------------------------------------------------------
+
+
+def _make_multi_site_adata():
+    """Build a small AnnData with 2 UTRs: UTR1 has 3 sites, UTR2 has 1 site."""
+    X = np.array(
+        [
+            [5, 3, 2, 4],
+            [1, 1, 1, 2],
+            [3, 2, 0, 1],
+        ]
+    )
+    obs = pd.DataFrame({"batch": [1, 1, 2]}, index=["c1", "c2", "c3"])
+    var = pd.DataFrame(
+        {
+            "utr_name": ["UTR1", "UTR1", "UTR1", "UTR2"],
+            "utr_size": [100, 200, 300, 150],
+            "gene_name": ["GeneA", "GeneA", "GeneA", "GeneB"],
+        },
+        index=["p1", "p2", "p3", "p4"],
+    )
+    return ad.AnnData(X=X, obs=obs, var=var, dtype=X.dtype)
+
+
+class TestSelectAlternativeTranscriptionEvents(unittest.TestCase):
+    def test_single_site_utrs_removed(self):
+        adata = _make_multi_site_adata()
+        result = ap.select_alternative_transcription_events(adata)
+        # UTR2 has only 1 site → removed; UTR1 has 3 → kept
+        self.assertNotIn("UTR2", result.var.utr_name.values)
+
+    def test_multi_site_utrs_kept(self):
+        adata = _make_multi_site_adata()
+        result = ap.select_alternative_transcription_events(adata)
+        self.assertEqual(result.shape[1], 3)  # 3 peaks from UTR1
+
+    def test_obs_preserved(self):
+        adata = _make_multi_site_adata()
+        result = ap.select_alternative_transcription_events(adata)
+        self.assertEqual(result.shape[0], 3)
+
+
+class TestCountsToPercentages(unittest.TestCase):
+    def test_fractions_sum_to_one(self):
+        adata = _make_multi_site_adata()
+        adata = adata.copy()
+        adata.X = adata.X.astype(float)
+        result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
+        # For UTR1 (3 columns), each row's values should sum to 1
+        utr1_mask = result.var.utr_name == "UTR1"
+        utr1_X = result[:, utr1_mask].X
+        row_sums = np.sum(utr1_X, axis=1)
+        np.testing.assert_array_almost_equal(row_sums, [1.0, 1.0, 1.0])
+
+    def test_single_peak_utr_is_one(self):
+        adata = _make_multi_site_adata()
+        adata = adata.copy()
+        adata.X = adata.X.astype(float)
+        result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
+        # UTR2 has single column → all values become 1.0
+        utr2_mask = result.var.utr_name == "UTR2"
+        utr2_X = result[:, utr2_mask].X
+        np.testing.assert_array_almost_equal(utr2_X.flatten(), [1.0, 1.0, 1.0])
+
+    def test_zero_row_handled(self):
+        """A row with all zeros should not produce NaN/inf."""
+        X = np.array([[0, 0], [3, 1]])
+        obs = pd.DataFrame(index=["c1", "c2"])
+        var = pd.DataFrame(
+            {"utr_name": ["UTR1", "UTR1"], "utr_size": [100, 200]},
+            index=["p1", "p2"],
+        )
+        adata = ad.AnnData(X=X.astype(float), obs=obs, var=var)
+        result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
+        # Zero-sum row should produce zeros, not NaN
+        self.assertFalse(np.any(np.isnan(result.X)))
+
+    def test_sparse_input(self):
+        adata = _make_multi_site_adata()
+        adata = adata.copy()
+        adata.X = scipy.sparse.csr_matrix(adata.X.astype(float))
+        result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
+        utr1_mask = result.var.utr_name == "UTR1"
+        utr1_X = result[:, utr1_mask].X
+        if scipy.sparse.issparse(utr1_X):
+            utr1_X = utr1_X.toarray()
+        row_sums = np.sum(utr1_X, axis=1)
+        np.testing.assert_array_almost_equal(row_sums, [1.0, 1.0, 1.0])
+
+
+class TestSubsetAdata(unittest.TestCase):
+    def setUp(self):
+        self.adata = _make_multi_site_adata()
+        self.tmpdir = tempfile.mkdtemp()
+
+    def _write_csv(self, index_values, filename):
+        path = os.path.join(self.tmpdir, filename)
+        pd.DataFrame(index=index_values, data={"val": range(len(index_values))}).to_csv(
+            path
+        )
+        return path
+
+    def test_var_subset(self):
+        csv_path = self._write_csv(["p1", "p3"], "var_keep.csv")
+        result = ap.subset_adata(self.adata, [csv_path], ["var"])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].shape[1], 2)
+
+    def test_obs_subset(self):
+        csv_path = self._write_csv(["c1", "c3"], "obs_keep.csv")
+        result = ap.subset_adata(self.adata, [csv_path], ["obs"])
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0].shape[0], 2)
+
+    def test_invalid_type_raises_value_error(self):
+        csv_path = self._write_csv(["c1"], "dummy.csv")
+        with self.assertRaises(ValueError):
+            ap.subset_adata(self.adata, [csv_path], ["invalid"])
+
+
+class TestConcatenateAdata(unittest.TestCase):
+    def test_overlapping_vars(self):
+        adata1 = _make_multi_site_adata()
+        adata2 = _make_multi_site_adata()
+        adata2.obs.index = ["c4", "c5", "c6"]
+        result = ap.concatenate_adata([adata1, adata2])
+        self.assertEqual(result.shape[0], 6)  # 3 + 3 obs
+        self.assertEqual(result.shape[1], 4)  # same vars
+
+    def test_non_overlapping_obs(self):
+        adata1 = _make_multi_site_adata()
+        adata2 = _make_multi_site_adata()
+        adata2.obs.index = ["c4", "c5", "c6"]
+        result = ap.concatenate_adata([adata1, adata2])
+        # All obs should be present
+        self.assertEqual(set(result.obs.index), {"c1", "c2", "c3", "c4", "c5", "c6"})
+
+    def test_fills_missing_with_zero(self):
+        # adata1 has UTR1 (3 peaks) + UTR2 (1 peak)
+        adata1 = _make_multi_site_adata()
+        # adata2 has only UTR1 (3 peaks) — different from adata1 due to different var
+        X2 = np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+        obs2 = pd.DataFrame({"batch": [3, 3, 3]}, index=["c4", "c5", "c6"])
+        var2 = pd.DataFrame(
+            {
+                "utr_name": ["UTR1", "UTR1", "UTR1"],
+                "utr_size": [100, 200, 300],
+                "gene_name": ["GeneA", "GeneA", "GeneA"],
+            },
+            index=["p1", "p2", "p3"],
+        )
+        adata2 = ad.AnnData(X=X2, obs=obs2, var=var2, dtype=X2.dtype)
+        result = ap.concatenate_adata([adata1, adata2])
+        # adata2 doesn't have UTR2, so those values should be 0 for c4-c6
+        self.assertEqual(result.shape[0], 6)
 
 
 if __name__ == "__main__":
