@@ -1,6 +1,7 @@
 import sys
 import argparse
-import re
+
+# import re
 
 from utrcalling.tools import run
 from utrcalling.tools import call_peaks
@@ -81,3 +82,7 @@ def main():
     del args_prepared["func"]
 
     args.func(**args_prepared)
+
+
+if __name__ == "__main__":
+    main()

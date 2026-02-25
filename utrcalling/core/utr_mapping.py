@@ -7,13 +7,13 @@ from __future__ import annotations
 
 # general tools
 from utrcalling.core.module_log import module_logger
+from utrcalling.core.helpers import (
+    JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND, ensure_mapped_reads_dtypes,
+)
 from functools import partial
 import logging
-import psutil
-from pympler import asizeof
 
 # data handling tools
-import HTSeq
 import joblib
 import numpy as np
 import pandas as pd
@@ -38,12 +38,12 @@ def _reverse_complement(seq: str) -> str:
 
 
 class _PySamReadAdapter:
-    """Expose pysam sequence/name as HTSeq-compatible .read attributes.
+    """Expose pysam sequence/name as protocol-compatible .read attributes.
 
-    HTSeq returns the *original* read sequence (reverse-complementing the
-    stored BAM SEQ for reverse-strand reads).  pysam returns the stored
-    sequence as-is.  This adapter bridges the gap so protocol identity
-    extraction sees the same bytes HTSeq would provide.
+    pysam returns the stored BAM sequence as-is, but protocols expect the
+    *original* read sequence (reverse-complemented for reverse-strand reads).
+    This adapter bridges the gap so protocol identity extraction sees the
+    original read sequence.
     """
     __slots__ = ('seq', 'name')
 
@@ -56,7 +56,7 @@ class _PySamReadAdapter:
 
 
 class _PySamAdapter:
-    """Make a pysam AlignedSegment quack like an HTSeq SAM_Alignment."""
+    """Adapt a pysam AlignedSegment to the Protocol interface."""
     __slots__ = ('read', '_get_tag')
 
     def __init__(self, pysam_read):
@@ -68,16 +68,27 @@ class _PySamAdapter:
 
 
 class _IntervalData:
-    """Picklable snapshot of an HTSeq GenomicInterval's fields."""
+    """Lightweight, picklable genomic interval for UTR regions.
+
+    Stores the same fields that protocols use for UTR size calculations:
+    chrom, start, end, strand, plus directional start/end (start_d, end_d).
+    """
     __slots__ = ('chrom', 'start', 'end', 'strand', 'start_d', 'end_d')
 
-    def __init__(self, interval):
-        self.chrom = interval.chrom
-        self.start = interval.start
-        self.end = interval.end
-        self.strand = interval.strand
-        self.start_d = interval.start_d
-        self.end_d = interval.end_d
+    def __init__(self, chrom: str, start: int, end: int, strand: str):
+        self.chrom = str(chrom)
+        self.start = start
+        self.end = end
+        self.strand = strand
+        # Directional start/end convention:
+        # '+' strand: start_d = start, end_d = end
+        # '-' strand: start_d = end - 1, end_d = start - 1
+        if strand == "+":
+            self.start_d = start
+            self.end_d = end
+        else:
+            self.start_d = end - 1
+            self.end_d = start - 1
 
 
 # ---------------------------------------------------------------------------
@@ -108,7 +119,7 @@ def _process_interval_batch(
     Returns:
         A tuple of (utr_names, observation_ids, utr_sizes, mapping_stats).
     """
-    # Bitmask flag filtering — replaces 4 HTSeq property accesses per read
+    # Bitmask flag filtering — fast-path check for read validity
     read_flag = 0x40 if read == "first" else 0x80
     required_flags = 0x2 | read_flag          # proper_pair + correct mate
     excluded_flags = 0x100 | 0x400            # secondary + duplicate
@@ -177,7 +188,7 @@ def _process_interval_batch(
                         mapping_stats["Alignments in interval but wrong strand"] += 1
                         continue
 
-                    # Directional start position (matches HTSeq convention)
+                    # Directional start position
                     read_start_d = aln.reference_end - 1 if aln.is_reverse else aln.reference_start
 
                     # Position bounds check (inlined from extract_read_information)
@@ -223,15 +234,15 @@ def _process_interval_batch(
 # Public API
 # ---------------------------------------------------------------------------
 
-def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, HTSeq.GenomicInterval]:
-    """Build a dict mapping UTR names to HTSeq GenomicInterval objects.
+def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, _IntervalData]:
+    """Build a dict mapping UTR names to genomic interval objects.
 
     Args:
         utr_regions: UTR reference DataFrame with columns chrom, start, end, strand,
             indexed by utr_name.
 
     Returns:
-        A dict of {utr_name: HTSeq.GenomicInterval}.
+        A dict of {utr_name: _IntervalData}.
     """
     logger = module_logger()
     intervals = dict()
@@ -241,20 +252,15 @@ def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, HTSeq.Genomic
     for utr in tqdm(
         utrs, total=len(utr_regions), colour="#ffb700", ascii=" ■", desc="UTR: "
     ):
-        try:
-            intervals[utr.Index] = HTSeq.GenomicInterval(
-                utr.chrom, utr.start - 1, utr.end, utr.strand
-            )
-        except TypeError:
-            intervals[utr.Index] = HTSeq.GenomicInterval(
-                str(utr.chrom), utr.start - 1, utr.end, utr.strand
-            )
+        intervals[utr.Index] = _IntervalData(
+            utr.chrom, utr.start - 1, utr.end, utr.strand
+        )
     return intervals
 
 
 def map_reads_to_utr(
     bam: str,
-    intervals: dict[str, HTSeq.GenomicInterval],
+    intervals: dict[str, _IntervalData],
     protocol: object,
     read: str = "first",
     batch_idx: str | None = None,
@@ -270,7 +276,7 @@ def map_reads_to_utr(
 
     Args:
         bam: Path to a BAM alignment file.
-        intervals: Dict of {utr_name: HTSeq.GenomicInterval} from generate_utr_intervals.
+        intervals: Dict of {utr_name: _IntervalData} from generate_utr_intervals.
         protocol: A Protocol instance for read parsing and identity extraction.
         read: Which mate to use ('first' or 'second').
         batch_idx: Optional batch index for observation ID suffixing.
@@ -285,8 +291,8 @@ def map_reads_to_utr(
     logger = module_logger()
     logger.info("Extracting reads from %s and mapping them to the reference UTR", bam)
 
-    # Convert HTSeq intervals to picklable _IntervalData
-    interval_items = [(name, _IntervalData(iv)) for name, iv in intervals.items()]
+    # _IntervalData is already picklable — no conversion needed
+    interval_items = list(intervals.items())
 
     read_strand_string = f"Reads not '{read}'"
     stat_keys = [
@@ -307,7 +313,7 @@ def map_reads_to_utr(
             for i in range(0, len(interval_items), batch_size)
         ]
 
-        results = joblib.Parallel(n_jobs=-2)(
+        results = joblib.Parallel(n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND)(
             joblib.delayed(_process_interval_batch)(
                 bam, batch, protocol, read, batch_idx, show_progress=False
             )
@@ -335,14 +341,17 @@ def map_reads_to_utr(
         )
 
     utr_mappings = pd.DataFrame({
-        "utr_name": pd.Categorical(all_utr_names),
-        "observation_id": pd.Categorical(all_observation_ids),
-        "utr_size": np.array(all_utr_sizes, dtype=np.int32),
+        "utr_name": all_utr_names,
+        "observation_id": all_observation_ids,
+        "utr_size": all_utr_sizes,
     })
+    utr_mappings = ensure_mapped_reads_dtypes(utr_mappings)
 
     # most performant method to log
     logger.info("Mapping statistics: %s", mapping_stats)
     if logger.isEnabledFor(logging.DEBUG):
+        import psutil
+        from pympler import asizeof
         logger.debug(
             "Size of mapped reads object in bytes: %s \nMemory usage: %s",
             asizeof.asizeof(utr_mappings),
@@ -374,64 +383,3 @@ def deduplicate_reads(read_umis: list[str], read_info: list[list]) -> list[list]
     read_info_output = [[element[i] for i in idx_unique] for element in read_info]
     return read_info_output
 
-
-
-def extract_read_information(
-    alignment: object,
-    interval: object,
-    protocol: object,
-    bam_name: str,
-    batch_idx: str | None = None,
-) -> tuple[str, str, int] | None:
-    """Extract observation ID, UMI, and UTR size from a single read alignment.
-
-    Validates that the read starts within the UTR interval, extracts barcode
-    and UMI via the protocol, and computes the UTR size.
-
-    Args:
-        alignment: An HTSeq SAM_Alignment object.
-        interval: An HTSeq GenomicInterval for the UTR region.
-        protocol: A Protocol instance for read parsing and identity extraction.
-        bam_name: Path to the source BAM file (used by some protocols for identity).
-        batch_idx: Optional batch index for observation ID suffixing.
-
-    Returns:
-        A (observation_id, umi, utr_size) tuple, or None if the read is invalid.
-    """
-    # logger = module_logger()
-
-    # get the read starting position. This may, or may not, be the match start position
-    read_start_position = alignment.iv.start_d
-
-    # if the start of the read is not in the reference UTR region then we discard it
-    if interval.strand == "+":
-        if not (
-            read_start_position >= interval.start_d
-            and read_start_position <= interval.end_d
-        ):
-            return None
-    else:
-        if not (
-            read_start_position <= interval.start_d
-            and read_start_position >= interval.end_d
-        ):
-            return None
-
-    # get the read's barcode and UMI
-    read_umi, read_barcode = protocol.get_reads_identity(
-        alignment=alignment, bam_name=bam_name
-    )
-    if not read_umi:  # if the UMI was not found, we discard the read
-        return None
-    if not read_barcode:
-        return None
-
-    # get the computed size of the UTR for this molecule
-    utr_size = protocol.get_utr_size_from_read(
-        read_start_position=read_start_position, interval=interval
-    )
-
-    observation_id = protocol.get_observation_id(read_barcode, batch_idx)
-    information = observation_id, read_umi, utr_size
-
-    return information

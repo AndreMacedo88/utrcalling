@@ -115,7 +115,8 @@ def store_peak_calling_results(
         peaks_var.to_parquet(
             os.path.join(directory, f"peaks_var_{merge_method}.parquet")
         )
-    except Exception:
+    except (OSError, PermissionError):
+        logger.warning("Parquet write failed for peaks_var, falling back to CSV")
         peaks_var.to_csv(
             os.path.join(directory, f"peaks_var_{merge_method}.csv")
         )
@@ -125,17 +126,20 @@ def store_peak_calling_results(
         utr_reference_subset.to_parquet(
             os.path.join(directory, f"UTR_reference_subset_{merge_method}.parquet")
         )
-    except Exception:
+    except (OSError, PermissionError):
+        logger.warning("Parquet write failed for UTR_reference_subset, falling back to CSV")
         utr_reference_subset.to_csv(
             os.path.join(directory, f"UTR_reference_subset_{merge_method}.csv")
         )
 
     # store obs dataframe
-    try:
-        peaks_obs.to_parquet(
-            os.path.join(directory, f"peaks_obs_{merge_method}.parquet")
-        )
-    except Exception:
-        peaks_obs.to_csv(
-            os.path.join(directory, f"peaks_obs_{merge_method}.csv")
-        )
+    if peaks_obs is not None:
+        try:
+            peaks_obs.to_parquet(
+                os.path.join(directory, f"peaks_obs_{merge_method}.parquet")
+            )
+        except (OSError, PermissionError):
+            logger.warning("Parquet write failed for peaks_obs, falling back to CSV")
+            peaks_obs.to_csv(
+                os.path.join(directory, f"peaks_obs_{merge_method}.csv")
+            )

@@ -120,7 +120,6 @@ dependencies:
     - executing==0.8.2
     - fett==0.3.2
     - gtfparse==1.2.1
-    - htseq==0.13.5
     - idna==2.10
     - ipykernel==6.8.0
     - ipython==8.0.1
@@ -135,7 +134,7 @@ dependencies:
     - pure-eval==0.2.2
     - pybedtools==0.8.2
     - pymongo==3.11.4
-    - pysam==0.16.0.1
+    - pysam>=0.20.0
     - python-jsonrpc-server==0.3.4
     - pyyaml==5.4.1
     - requests==2.25.1

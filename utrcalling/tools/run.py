@@ -42,8 +42,7 @@ def run(
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}")
 
-    # Supply the names of your samples/batches, if applicable:
-    # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.
+    # If a directory is provided instead of individual BAM files, discover them
     if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         alignments = helpers.get_paths_from_folders(alignments, suffix=".bam")
 

@@ -9,10 +9,90 @@ import numpy as np
 
 from utrcalling.core import module_log
 
-# Re-exports for backward compatibility
-from utrcalling.core.barcode_filtering import filter_barcodes  # noqa: F401
-from utrcalling.core.utr_reference import subset_reference_data  # noqa: F401
 
+# ---------------------------------------------------------------------------
+# Module-level private helpers (extracted for testability)
+# ---------------------------------------------------------------------------
+
+def _join_unique(x: pd.Series) -> str:
+    """Join unique values in a Series with '|' delimiter."""
+    return "|".join(x.unique().astype(str))
+
+
+def _split_and_then_join_unique(x: pd.Series) -> str:
+    """Split delimited values, deduplicate, and rejoin with '|'.
+
+    Handles both ',' (from BED merge) and '|' (from prior aggregation) as
+    input delimiters, and always outputs '|' as the bioinformatics convention.
+    """
+    split = x.str.split(r"[,|]", regex=True)
+    split = split.explode()
+    return "|".join(np.unique(split))
+
+
+def _compute_gene_offsets(df: pd.DataFrame) -> dict[str, int]:
+    """Compute per-region offsets for UTR sizes within a single gene group.
+
+    Args:
+        df: DataFrame subset for one gene, with columns start, end, strand, utr_name.
+
+    Returns:
+        Dict mapping utr_name to its positional offset within the gene.
+    """
+    strand = df["strand"].iloc[0]
+    if strand == "-":
+        df = df.copy()
+        df[["start", "end"]] = df[["end", "start"]]
+        df = df.sort_values(by=["start", "end"], ascending=False)
+    else:
+        df = df.sort_values(by=["start", "end"])
+
+    # Compute offset per utr_name within this gene
+    seen_utrs = {}
+    start = df["start"].iloc[0]
+    end = df["end"].iloc[0]
+    left_over = 0
+
+    for row in df.itertuples():
+        utr_name = row.utr_name
+        if utr_name in seen_utrs:
+            continue
+
+        if strand == "+":
+            if row.start == start:
+                seen_utrs[utr_name] = left_over
+                if row.end > end:
+                    end = row.end
+            elif row.start <= end:
+                seen_utrs[utr_name] = left_over + (row.start - start)
+                if row.end > end:
+                    end = row.end
+            elif row.start > end:
+                left_over += end - start
+                seen_utrs[utr_name] = left_over
+                start = row.start
+                end = row.end
+        elif strand == "-":
+            if row.start == start:
+                seen_utrs[utr_name] = left_over
+                if row.end < end:
+                    end = row.end
+            elif row.start >= end:
+                seen_utrs[utr_name] = left_over + (start - row.start)
+                if row.end < end:
+                    end = row.end
+            elif row.start < end:
+                left_over += start - end
+                seen_utrs[utr_name] = left_over
+                start = row.start
+                end = row.end
+
+    return seen_utrs
+
+
+# ---------------------------------------------------------------------------
+# Public API
+# ---------------------------------------------------------------------------
 
 def merge_samples_utr_sizes(
     utr_sizes: list[pd.DataFrame], method: str = "intersection"
@@ -70,67 +150,6 @@ def merge_utrs_per_gene(
         A (gene_regions, gene_read_mappings) tuple where utr_name has been
         replaced with the gene name and utr_size is offset-adjusted.
     """
-
-    def join_unique(x):
-        return ",".join(x.unique().astype(str))
-
-    def split_and_then_join_unique(x):
-        split = x.str.split(",")
-        split = split.explode()
-        return ",".join(np.unique(split))
-
-    def transform_utr_sizes_flat(df):
-        """Compute per-region offsets and add them to utr_size for a gene group."""
-        strand = df["strand"].iloc[0]
-        if strand == "-":
-            df = df.copy()
-            df[["start", "end"]] = df[["end", "start"]]
-            df = df.sort_values(by=["start", "end"], ascending=False)
-        else:
-            df = df.sort_values(by=["start", "end"])
-
-        # Compute offset per utr_name within this gene
-        seen_utrs = {}
-        start = df["start"].iloc[0]
-        end = df["end"].iloc[0]
-        left_over = 0
-
-        for row in df.itertuples():
-            utr_name = row.utr_name
-            if utr_name in seen_utrs:
-                continue
-
-            if strand == "+":
-                if row.start == start:
-                    seen_utrs[utr_name] = left_over
-                    if row.end > end:
-                        end = row.end
-                elif row.start <= end:
-                    seen_utrs[utr_name] = left_over + (row.start - start)
-                    if row.end > end:
-                        end = row.end
-                elif row.start > end:
-                    left_over += end - start
-                    seen_utrs[utr_name] = left_over
-                    start = row.start
-                    end = row.end
-            elif strand == "-":
-                if row.start == start:
-                    seen_utrs[utr_name] = left_over
-                    if row.end < end:
-                        end = row.end
-                elif row.start >= end:
-                    seen_utrs[utr_name] = left_over + (start - row.start)
-                    if row.end < end:
-                        end = row.end
-                elif row.start < end:
-                    left_over += start - end
-                    seen_utrs[utr_name] = left_over
-                    start = row.start
-                    end = row.end
-
-        return seen_utrs
-
     logger = module_log.module_logger()
 
     # Join read_mappings with utr_regions on utr_name
@@ -151,38 +170,32 @@ def merge_utrs_per_gene(
     utr_regions_per_gene = grouped_regions.agg(
         {
             "chrom": "first",
-            "start": join_unique,
-            "end": join_unique,
+            "start": _join_unique,
+            "end": _join_unique,
             "strand": "first",
-            "transcript_id": split_and_then_join_unique,
-            "gene_name": split_and_then_join_unique,
+            "transcript_id": _split_and_then_join_unique,
+            "gene_name": _split_and_then_join_unique,
         }
     )
     utr_regions_per_gene.index.name = "utr_name"
     utr_regions_per_gene["name"] = utr_regions_per_gene.index
 
-    # Compute per-gene offsets for each utr_name
+    # Single pass: compute offsets, utr→gene mapping, and sort order
     offset_map = {}
-    for gene_name, group in utr_regions_sorted.groupby("name"):
-        offsets = transform_utr_sizes_flat(group)
-        offset_map.update(offsets)
-
-    # Build utr_name → gene_name mapping and utr_name → sort order for reads
-    utr_to_gene = utr_regions_sorted.groupby("name").apply(
-        lambda g: g["utr_name"].tolist()
-    )
     utr_name_to_gene = {}
-    for gene_name, utr_names_list in utr_to_gene.items():
-        for un in utr_names_list:
-            utr_name_to_gene[un] = gene_name
-
-    # For each gene, compute the sort-order position for each utr_name.
-    # For negative strand genes, we need the reverse of the start/end sorted order.
     utr_sort_order = {}
     for gene_name, group in utr_regions_sorted.groupby("name"):
+        # Offsets
+        offsets = _compute_gene_offsets(group)
+        offset_map.update(offsets)
+
+        # utr_name → gene_name mapping
+        for un in group["utr_name"].values:
+            utr_name_to_gene[un] = gene_name
+
+        # Sort order for reads within this gene
         strand = group["strand"].iloc[0]
         if strand == "-":
-            # Swap start/end and sort descending (same as old transform_utr_sizes)
             g = group.copy()
             g[["start", "end"]] = g[["end", "start"]]
             g = g.sort_values(by=["start", "end"], ascending=False)

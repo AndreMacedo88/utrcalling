@@ -23,6 +23,7 @@ import joblib
 from tqdm import tqdm
 
 from utrcalling.core.module_log import module_logger
+from utrcalling.core.helpers import JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND
 from utrcalling.core import utr_reference
 from utrcalling.core import utr_mapping
 from utrcalling.core import process_mapped_reads
@@ -93,7 +94,7 @@ def _map_single_bam(
 
     Args:
         alignment: Path to a BAM file.
-        intervals: Dict of {utr_name: HTSeq.GenomicInterval}.
+        intervals: Dict of {utr_name: _IntervalData}.
         protocol: A Protocol instance.
         batch_idx: Optional batch index for observation ID suffixing.
 
@@ -114,7 +115,7 @@ def _map_multiple_bams(
 
     Args:
         alignments: List of BAM file paths.
-        intervals: Dict of {utr_name: HTSeq.GenomicInterval}.
+        intervals: Dict of {utr_name: _IntervalData}.
         protocol: A Protocol instance.
 
     Returns:
@@ -125,7 +126,7 @@ def _map_multiple_bams(
     else:
         batch_indices = [str(i + 1) for i in range(len(alignments))]
 
-    return joblib.Parallel(n_jobs=-2)(
+    return joblib.Parallel(n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND)(
         joblib.delayed(utr_mapping.map_reads_to_utr)(
             alignment, intervals, read="first", protocol=protocol,
             batch_idx=bidx, parallel=False,
@@ -278,11 +279,12 @@ def call_peaks(
     Returns:
         An AnnData object with cells/samples as obs and UTR peaks as var.
     """
-    peaks_count_matrix, *peaks_var_and_obs = peak_calling.generate_peak_counts_and_anno(
+    result = peak_calling.generate_peak_counts_and_anno(
         filtered_reads, protocol=protocol
     )
-    peaks_var = peaks_var_and_obs[0]
-    peaks_obs = peaks_var_and_obs[1] if len(peaks_var_and_obs) == 2 else None
+    peaks_count_matrix = result.count_matrix
+    peaks_var = result.peaks_var
+    peaks_obs = result.peaks_obs
 
     peaks_var = peak_calling.add_to_peaks_var(peaks_var, utr_reference_subset)
 

@@ -16,8 +16,8 @@ class TestGenerateUtrIntervals(unittest.TestCase):
     def test_correct_interval(self) -> None:
         """
         Here we test if the intervals are being generated correctly. Please note that
-        since GTF files use 0 indexing and BAM files start indexing on 1, when converted
-        to the HTSeq object the start location will be a smaller number by 1.
+        since GTF files use 0 indexing and BAM files start indexing on 1, the
+        _IntervalData start location will be a smaller number by 1.
         """
         correct = ["ENSMUSG00000051285", 7160891, 7161063, "+"]
         name, interval = list(self.intervals.items())[0]

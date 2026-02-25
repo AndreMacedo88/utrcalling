@@ -1,8 +1,10 @@
 from test_data import synthetic_data
 from utrcalling.core import (
+    barcode_filtering,
     process_mapped_reads,
     protocol,
     utr_mapping,
+    utr_reference,
     module_log,
     helpers,
 )
@@ -144,7 +146,7 @@ class TestSubsetReferenceData(TestPeakCalling):
         merged = process_mapped_reads.merge_samples_utr_sizes(
             utr_sizes=copy.deepcopy(self.mappings)
         )
-        self.subsetted = process_mapped_reads.subset_reference_data(
+        self.subsetted = utr_reference.subset_reference_data(
             utr_sizes=merged, utr_reference_regions=self.utr_regions
         )
 
@@ -249,18 +251,18 @@ class TestMergeUtrsPerGene(unittest.TestCase):
             "start": {
                 "ENSMUSG1": "1000",
                 "ENSMUSG1,ENSMUSG4": "1150",
-                "ENSMUSG2": "2000,2400",
+                "ENSMUSG2": "2000|2400",
                 "ENSMUSG3": "3000",
                 "ENSMUSG4": "500",
-                "ENSMUSG5": "500,800,1100,1200",
+                "ENSMUSG5": "500|800|1100|1200",
             },
             "end": {
                 "ENSMUSG1": "1100",
                 "ENSMUSG1,ENSMUSG4": "1350",
-                "ENSMUSG2": "2200,2600",
+                "ENSMUSG2": "2200|2600",
                 "ENSMUSG3": "3200",
                 "ENSMUSG4": "600",
-                "ENSMUSG5": "650,900,1250,1300",
+                "ENSMUSG5": "650|900|1250|1300",
             },
             "strand": {
                 "ENSMUSG1": "+",
@@ -271,16 +273,16 @@ class TestMergeUtrsPerGene(unittest.TestCase):
                 "ENSMUSG5": "-",
             },
             "transcript_id": {
-                "ENSMUSG1": "ENSMUST1,ENSMUST2",
-                "ENSMUSG1,ENSMUSG4": "ENSMUST1,ENSMUST2,ENSMUST6",
-                "ENSMUSG2": "ENSMUST3,ENSMUST4",
+                "ENSMUSG1": "ENSMUST1|ENSMUST2",
+                "ENSMUSG1,ENSMUSG4": "ENSMUST1|ENSMUST2|ENSMUST6",
+                "ENSMUSG2": "ENSMUST3|ENSMUST4",
                 "ENSMUSG3": "ENSMUST5",
                 "ENSMUSG4": "ENSMUST6",
-                "ENSMUSG5": "ENSMUST7,ENSMUST8,ENSMUST9",
+                "ENSMUSG5": "ENSMUST7|ENSMUST8|ENSMUST9",
             },
             "gene_name": {
                 "ENSMUSG1": "Test1",
-                "ENSMUSG1,ENSMUSG4": "Test1,Test4",
+                "ENSMUSG1,ENSMUSG4": "Test1|Test4",
                 "ENSMUSG2": "Test2",
                 "ENSMUSG3": "Test3",
                 "ENSMUSG4": "Test4",
@@ -355,7 +357,7 @@ class TestFilterBarcodes(TestPeakCalling):
         self.assertNotEqual(barcodes_in_data, barcodes_in_annotations)
 
     def test_filter(self):
-        filtered = process_mapped_reads.filter_barcodes(
+        filtered = barcode_filtering.filter_barcodes(
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
         annotations = pd.read_csv(self.annotations)
@@ -365,7 +367,7 @@ class TestFilterBarcodes(TestPeakCalling):
         self.assertEqual(barcodes_in_data, barcodes_in_annotations)
 
     def test_specific_utr(self):
-        filtered = process_mapped_reads.filter_barcodes(
+        filtered = barcode_filtering.filter_barcodes(
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
         merged_count = len(
@@ -388,7 +390,7 @@ class TestFilterBarcodes(TestPeakCalling):
             "GCTGCAGCACTGTGTA-2",
             "GTCCTCAGTAAACGCG-2",
         ]
-        filtered = process_mapped_reads.filter_barcodes(
+        filtered = barcode_filtering.filter_barcodes(
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
         utr_data = filtered[filtered["utr_name"] == "ENSMUSG00000025917"]
@@ -398,7 +400,7 @@ class TestFilterBarcodes(TestPeakCalling):
 
     def test_using_annotations_as_dataframe(self):
         annotations = pd.read_csv(self.annotations)
-        filtered = process_mapped_reads.filter_barcodes(
+        filtered = barcode_filtering.filter_barcodes(
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
         barcodes_in_data, barcodes_in_annotations = self.are_all_barcodes_in_anno(
@@ -412,7 +414,7 @@ class TestFilterBarcodesSynthetic(unittest.TestCase):
         data_synthetic = synthetic_data.MappedDataThreePrimeTenX()
         self.data = data_synthetic.data_synthetic
         self.anno = data_synthetic.anno
-        self.filtered = process_mapped_reads.filter_barcodes(
+        self.filtered = barcode_filtering.filter_barcodes(
             utr_sizes=self.data, whitelist=self.anno["barcodes"].unique()
         )
         self.barcodes_filtered = self.filtered["observation_id"].tolist()
@@ -498,7 +500,7 @@ class TestSubsetReferenceDataEdgeCases(unittest.TestCase):
             {"chrom": ["1"], "start": [100], "end": [200]},
             index=pd.Index(["SOME_UTR"], name="utr_name"),
         )
-        result = process_mapped_reads.subset_reference_data(utr_sizes, utr_ref)
+        result = utr_reference.subset_reference_data(utr_sizes, utr_ref)
         self.assertEqual(len(result), 0)
 
     def test_all_matching_utrs(self):
@@ -512,7 +514,7 @@ class TestSubsetReferenceDataEdgeCases(unittest.TestCase):
             {"chrom": ["1", "1"], "start": [100, 200], "end": [150, 250]},
             index=pd.Index(["UTR1", "UTR2"], name="utr_name"),
         )
-        result = process_mapped_reads.subset_reference_data(utr_sizes, utr_ref)
+        result = utr_reference.subset_reference_data(utr_sizes, utr_ref)
         self.assertEqual(len(result), 2)
 
 

@@ -61,7 +61,7 @@ conda run --no-capture-output -n utrcalling utrcalling call-peaks --help   # Pea
 
 ## Design History
 
-The `core-overhaul` branch is a major refactor from `master`. Key changes: modin/ray replaced with pandas+joblib, HTSeq BAM reading replaced with pysam (with adapter layer for protocol compatibility), flat intermediate data model (one row per molecule), sparse count matrices throughout, memory-aware barcode filtering, O(1) UMI deduplication, functional decomposition of core.py into thin orchestrator + focused modules (storage.py, barcode_filtering.py), type hints and Google-style docstrings on all public functions. **232 tests pass.** See git history for details.
+The `core-overhaul` branch is a major refactor from `master`. Key changes: modin/ray replaced with pandas+joblib, HTSeq BAM reading replaced with pysam (lightweight `_IntervalData` class replaces `HTSeq.GenomicInterval`), flat intermediate data model (one row per molecule), sparse count matrices throughout, memory-aware barcode filtering, O(1) UMI deduplication, functional decomposition of core.py into thin orchestrator + focused modules (storage.py, barcode_filtering.py), type hints and Google-style docstrings on all public functions. Configuration uses `MergeMethod`/`PeakCallingMethod` enums and `PeakCallingResult` NamedTuple. Protocol base class consolidates `label_batches` defaults via `_default_label_batches` class attribute. Joblib config uses `JOBLIB_DEFAULT_N_JOBS`/`JOBLIB_DEFAULT_BACKEND` constants from `helpers.py`. Gene/transcript ID joins use `|` delimiter (bioinformatics convention). **291 tests pass.** See git history for details.
 
 ### Hard Constraints
 
@@ -73,11 +73,6 @@ The `core-overhaul` branch is a major refactor from `master`. Key changes: modin
 - Never materialize the count matrix as dense — use `scipy.sparse` from construction
 - Never change behavioral test assertions (expected values/counts) without explicit justification
 
-### Do Not Touch
-
-- `utrcalling/core/module_log.py` — logging is correct
-- `utrcalling/core/protocols/peak_calling.py` — KDE logic (sklearn + scipy) is efficient
-
 ## Architecture
 
 ### Core Pipeline (`utrcalling/core/core.py`)
@@ -85,7 +80,7 @@ The `core-overhaul` branch is a major refactor from `master`. Key changes: modin
 Thin orchestrator with 6 public functions — each reads like a recipe of named function calls from focused modules:
 
 1. **`prepare_utr_reference_regions()`** — Parses GTF, extracts UTR features, merges overlapping regions via pybedtools, returns a reference BED-like DataFrame.
-2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via pysam (with HTSeq adapters for protocol compatibility). Dispatches to `_map_single_bam()` or `_map_multiple_bams()` (joblib parallelism). Returns a flat DataFrame (or list of DataFrames for multi-BAM).
+2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via pysam (with adapter layer for protocol compatibility). Dispatches to `_map_single_bam()` or `_map_multiple_bams()` (joblib parallelism). Returns a flat DataFrame (or list of DataFrames for multi-BAM).
 3. **`merge_samples_utr_sizes()`** — Merges multiple sample DataFrames via `process_mapped_reads.merge_samples_utr_sizes()`.
 4. **`merge_utrs_per_feature()`** — Optionally aggregates per-UTR data to gene level via `process_mapped_reads.merge_utrs_per_gene()`.
 5. **`filter_mapped_reads()`** — Subsets the UTR reference, filters UTR sizes below threshold, and optionally filters barcodes against a whitelist (with memory-aware chunking via `barcode_filtering.filter_barcodes_memory_aware()`). Returns `(filtered_reads, utr_reference_subset)`.
@@ -95,10 +90,11 @@ Thin orchestrator with 6 public functions — each reads like a recipe of named 
 
 - **`barcode_filtering.py`** — `filter_barcodes()` (fuzzy match via rapidfuzz) and `filter_barcodes_memory_aware()` (memory-aware chunking wrapper).
 - **`storage.py`** — All intermediate file storage utilities (`store_utr_reference`, `store_read_mappings_*`, `store_merged_counts`, `store_peak_calling_results`).
-- **`process_mapped_reads.py`** — Sample merging (`merge_samples_utr_sizes`) and gene-level aggregation (`merge_utrs_per_gene`). Re-exports `filter_barcodes` and `subset_reference_data` for backward compatibility.
+- **`process_mapped_reads.py`** — Sample merging (`merge_samples_utr_sizes`) and gene-level aggregation (`merge_utrs_per_gene`). Helper functions `_join_unique()`, `_split_and_then_join_unique()`, `_compute_gene_offsets()` are module-level for testability.
 - **`utr_reference.py`** — GTF parsing, UTR extraction, and `subset_reference_data()`.
 - **`peak_calling.py`** — Sparse count matrix assembly (`generate_peak_counts_and_anno`), var annotation enrichment (`add_to_peaks_var`), AnnData construction (`generate_count_matrix_anndata`).
-- **`utr_mapping.py`** — BAM reading via pysam, interval processing, UMI deduplication.
+- **`utr_mapping.py`** — BAM reading via pysam, interval processing (`_IntervalData` for genomic intervals), UMI deduplication. `_PySamAdapter` bridges pysam reads to the protocol interface.
+- **`helpers.py`** — Shared constants (`JOBLIB_DEFAULT_N_JOBS`, `JOBLIB_DEFAULT_BACKEND`), `ensure_mapped_reads_dtypes()` for canonical DataFrame schema enforcement, utility functions.
 
 ### Intermediate Data Model
 
@@ -117,12 +113,12 @@ mapped_reads = pd.DataFrame({
 
 Abstract `Protocol` base class using `CombinedMeta(Meta, ABCMeta)` metaclass. Each protocol defines platform-specific read parsing. Factory: `protocol.create(platform, version, **kwargs)`.
 
-| Protocol | Key methods | Identity source |
-|---|---|---|
-| `ProtocolTenx3` / `ProtocolTenx2` | `get_reads_identity()` extracts barcode (16bp) + UMI from read seq | barcode + batch index |
-| `ProtocolSmartseq3` | extracts barcode (6bp) + UMI from read seq | barcode + optional batch index |
-| `ProtocolFiveTenx` | reads CB/UB BAM tags | CB tag + batch index |
-| `ProtocolCapseqSmartseq3*` | regex/readname UMI extraction, uses BAM path as identity | sample name from BAM path |
+| Protocol                          | Key methods                                                        | Identity source                |
+| --------------------------------- | ------------------------------------------------------------------ | ------------------------------ |
+| `ProtocolTenx3` / `ProtocolTenx2` | `get_reads_identity()` extracts barcode (16bp) + UMI from read seq | barcode + batch index          |
+| `ProtocolSmartseq3`               | extracts barcode (6bp) + UMI from read seq                         | barcode + optional batch index |
+| `ProtocolFiveTenx`                | reads CB/UB BAM tags                                               | CB tag + batch index           |
+| `ProtocolCapseqSmartseq3*`        | regex/readname UMI extraction, uses BAM path as identity           | sample name from BAM path      |
 
 `get_observation_id(barcode, batch_idx)` on `Protocol` base class applies the `-{batch_idx}` suffix when `label_batches=True`. CapSeq protocols override this to use the barcode (BAM-derived sample name) directly.
 
@@ -140,19 +136,18 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 
 ### dtype Guidance for Large Arrays
 
-| Data | dtype |
-|---|---|
-| UTR sizes (bp) | `np.int32` |
-| Read/count values | `np.int32` |
-| Genomic positions | `np.int32` |
-| Sparse matrix values | `np.int32` |
+| Data                     | dtype                                  |
+| ------------------------ | -------------------------------------- |
+| UTR sizes (bp)           | `np.int32`                             |
+| Read/count values        | `np.int32`                             |
+| Genomic positions        | `np.int32`                             |
+| Sparse matrix values     | `np.int32`                             |
 | Barcodes/observation IDs | `pd.Categorical` or encoded `np.int32` |
 
 ### Key Dependencies
 
 - **pybedtools** — genomic interval operations (requires **BEDTools** system-wide)
-- **pysam** — BAM file reading in the hot loop (replaced HTSeq for read extraction)
-- **HTSeq** — still used for `GenomicInterval` creation in `generate_utr_intervals()`
+- **pysam** — BAM file reading in the hot loop (fully replaced HTSeq for read extraction and interval handling)
 - **anndata/scanpy** — single-cell data structures
 - **joblib** — parallelism across BAM files, across UTR intervals, and across UTRs during peak calling
 - **rapidfuzz** — fuzzy barcode matching (Hamming distance ≤1)
@@ -160,7 +155,7 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 
 ### Testing
 
-Tests use Python's `unittest` framework (232 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`. Post-processing tests in `test_anndata_processing.py` and `test_peak_calling_anndata.py`. Module-level tests in `test_barcode_filtering.py`, `test_filter_mapped_reads.py`, and `test_storage.py`.
+Tests use Python's `unittest` framework (291 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`. Post-processing tests in `test_anndata_processing.py` and `test_peak_calling_anndata.py`. Module-level tests in `test_barcode_filtering.py`, `test_filter_mapped_reads.py`, and `test_storage.py`. CLI tests in `test_cli.py`. Error handling and negative tests in `test_error_handling.py`. End-to-end pipeline tests for all protocols (3' 10x v2/v3, 5' 10x, 5' CapSeq), dtype preservation tests, and determinism tests live in `test_core.py`.
 
 Tests `chdir` into `utrcalling/tests/` at setup time, so test data paths are relative to that directory.
 

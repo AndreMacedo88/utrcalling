@@ -46,7 +46,6 @@ setuptools.setup(
         "anndata>=0.8.0",
         "scanpy>=1.9.1",
         "gtfparse>=1.2.1, <2",
-        "htseq>=0.13.5",
         "pysam>=0.20.0",
         "pybedtools>=0.8.2",
         "tqdm>=4.59.0",

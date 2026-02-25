@@ -1,8 +1,10 @@
 from test_data import synthetic_data
 from utrcalling.core import (
+    barcode_filtering,
     peak_calling,
     protocol,
     utr_mapping,
+    utr_reference,
     module_log,
     process_mapped_reads,
 )
@@ -56,7 +58,7 @@ class TestGeneratePeakCounts(TestPeakCalling):
         cls.merged = process_mapped_reads.merge_samples_utr_sizes(
             utr_sizes=copy.deepcopy(cls.mappings)
         )
-        cls.merged = process_mapped_reads.filter_barcodes(
+        cls.merged = barcode_filtering.filter_barcodes(
             cls.merged, whitelist=cls.protocol_.barcode_whitelist
         )
 
@@ -192,11 +194,11 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
     def setUpClass(cls) -> None:
         super().setUpClass()
         merged = process_mapped_reads.merge_samples_utr_sizes(cls.mappings)
-        subsetted = process_mapped_reads.subset_reference_data(
+        subsetted = utr_reference.subset_reference_data(
             utr_sizes=merged,
             utr_reference_regions=cls.utr_regions,
         )
-        filtered = process_mapped_reads.filter_barcodes(
+        filtered = barcode_filtering.filter_barcodes(
             utr_sizes=merged,
             whitelist=cls.protocol_.barcode_whitelist,
         )

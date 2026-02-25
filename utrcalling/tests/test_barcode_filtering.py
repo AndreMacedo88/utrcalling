@@ -50,11 +50,11 @@ class TestFilterBarcodesMemoryAware(unittest.TestCase):
         )
 
 
-class TestFilterBarcodesReExport(unittest.TestCase):
-    """Verify the re-export from process_mapped_reads still works."""
+class TestFilterBarcodesImport(unittest.TestCase):
+    """Verify filter_barcodes is importable from the canonical module."""
 
-    def test_re_export_accessible(self):
-        from utrcalling.core.process_mapped_reads import filter_barcodes
+    def test_import_from_barcode_filtering(self):
+        from utrcalling.core.barcode_filtering import filter_barcodes
         self.assertIs(filter_barcodes, barcode_filtering.filter_barcodes)
 
 

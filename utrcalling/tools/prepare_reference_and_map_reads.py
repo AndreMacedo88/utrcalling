@@ -30,22 +30,13 @@ def generate_utr_reference_and_map_reads(
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}\n")
 
-    # Supply the names of your samples/batches, if applicable:
-    # This next if clause is specific to my (Andre) workflow due to path. TODO: generalize it.
+    # If a directory is provided instead of individual BAM files, discover them
     if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         alignments = helpers.get_paths_from_folders(alignments, suffix=".bam")
-        sample_names = [
-            helpers.get_parent_folders_names_from_file(file_path)
-            for file_path in alignments
-        ]
-    elif protocol_platform in ("smartseq_cap", "smart-seq_cap"):
-        sample_names = [file_path.split("/")[-2] for file_path in alignments]
-    else:
-        sample_names = None
 
     # Set up the protocol for this specific run
-    protocol = protocol.create(
-        protocol_platform, int(protocol_version), sample_names=sample_names
+    protocol_ = protocol.create(
+        protocol_platform, int(protocol_version), alignments=alignments
     )
 
     # Get UTR reference data from the organisms GTF annotation file
@@ -56,7 +47,7 @@ def generate_utr_reference_and_map_reads(
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info("Mapping aligned reads to UTR reference")
-    core.map_aligned_reads(alignments, utr_reference_regions, protocol, store=True)
+    core.map_aligned_reads(alignments, utr_reference_regions, protocol_, store=True)
 
 
 def create_parser(subparsers):

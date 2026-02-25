@@ -5,11 +5,36 @@ import os
 import pathlib
 import pickle
 
+import numpy as np
 import pandas as pd
 import pybedtools
 import scanpy as sc
 
 from utrcalling.core import module_log
+
+# Joblib defaults — use consistently across the codebase
+JOBLIB_DEFAULT_N_JOBS = -2  # all CPUs minus one
+JOBLIB_DEFAULT_BACKEND = "loky"
+
+
+def ensure_mapped_reads_dtypes(df: pd.DataFrame) -> pd.DataFrame:
+    """Enforce the canonical flat schema for mapped reads DataFrames.
+
+    Ensures utr_name and observation_id are Categorical, and utr_size is int32.
+
+    Args:
+        df: A DataFrame with columns (utr_name, observation_id, utr_size).
+
+    Returns:
+        The DataFrame with canonical dtypes applied (modified in-place and returned).
+    """
+    if not isinstance(df["utr_name"].dtype, pd.CategoricalDtype):
+        df["utr_name"] = pd.Categorical(df["utr_name"])
+    if not isinstance(df["observation_id"].dtype, pd.CategoricalDtype):
+        df["observation_id"] = pd.Categorical(df["observation_id"])
+    if df["utr_size"].dtype != np.int32:
+        df["utr_size"] = df["utr_size"].astype(np.int32)
+    return df
 
 
 def flatten(list_: Iterable) -> Iterable:
@@ -46,9 +71,8 @@ def get_number_cores(left_out: int = 1) -> int:
 def to_string(x: bytes | str) -> str:
     """Convert bytes to str without decoding.
 
-    HTSeq returns bytes for sequence data; this extracts the string
-    representation by slicing the repr output. pysam returns str
-    directly, which is passed through unchanged.
+    Handles both bytes and str inputs — bytes are converted by slicing
+    the repr output, while str is passed through unchanged.
 
     Args:
         x: The bytes or str object representing a sequence.

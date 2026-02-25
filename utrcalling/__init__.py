@@ -4,7 +4,7 @@ and the size of the UTR for those molecules.
 
 For the source see: https://github.com/AndreMacedo88/utrcalling
 
-For detailed documentation see: TODO
+For detailed documentation see: https://github.com/AndreMacedo88/utrcalling
 """
 
 import psutil

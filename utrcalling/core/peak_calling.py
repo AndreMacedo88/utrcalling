@@ -4,6 +4,7 @@ peak_calling.py - module with functions to deal with calling peaks
 from __future__ import annotations
 
 import warnings
+from typing import NamedTuple
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,14 @@ import joblib
 from scipy.sparse import coo_matrix, csr_matrix
 
 from utrcalling.core import module_log
+from utrcalling.core.helpers import JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND
+
+
+class PeakCallingResult(NamedTuple):
+    """Result of generate_peak_counts_and_anno()."""
+    count_matrix: csr_matrix
+    peaks_var: pd.DataFrame
+    peaks_obs: pd.DataFrame | None = None
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -72,7 +81,7 @@ _PARALLEL_UTR_THRESHOLD = 50
 def generate_peak_counts_and_anno(
     utr_sizes: pd.DataFrame,
     protocol: object,
-) -> tuple[csr_matrix, pd.DataFrame] | tuple[csr_matrix, pd.DataFrame, pd.DataFrame]:
+) -> PeakCallingResult:
     """Call consensus peaks per UTR and build a sparse count matrix.
 
     Groups molecules by UTR, runs the protocol's peak calling function on each
@@ -86,8 +95,8 @@ def generate_peak_counts_and_anno(
             barcode_column_name attributes.
 
     Returns:
-        A tuple of (sparse_matrix, peaks_var) or (sparse_matrix, peaks_var, peaks_obs)
-        when barcode annotations are available.
+        A PeakCallingResult(count_matrix, peaks_var, peaks_obs) namedtuple.
+        peaks_obs is None when barcode annotations are not available.
     """
     logger = module_log.module_logger()
 
@@ -112,7 +121,7 @@ def generate_peak_counts_and_anno(
 
     if n_utrs > _PARALLEL_UTR_THRESHOLD:
         logger.info("Parallelizing peak calling across UTRs")
-        results = joblib.Parallel(n_jobs=-2, backend="loky")(
+        results = joblib.Parallel(n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND)(
             joblib.delayed(_process_utr_group)(name, sizes, obs, obs_to_idx, func)
             for name, sizes, obs in groups
         )
@@ -158,9 +167,9 @@ def generate_peak_counts_and_anno(
     if protocol.barcode_column_name:
         peaks_obs = annotations.set_index(protocol.barcode_column_name)
         peaks_obs = peaks_obs.reindex(index=obs_ids)
-        return X, peaks_var, peaks_obs
+        return PeakCallingResult(X, peaks_var, peaks_obs)
     else:
-        return X, peaks_var
+        return PeakCallingResult(X, peaks_var)
 
 
 def add_to_peaks_var(peak_var: pd.DataFrame, annotations: pd.DataFrame) -> pd.DataFrame:
@@ -182,7 +191,11 @@ def add_to_peaks_var(peak_var: pd.DataFrame, annotations: pd.DataFrame) -> pd.Da
     annotations["utr_name"] = annotations.index
 
     peak_var_new = peak_var.copy(deep=True)
-    peak_var_new["utr_name"] = peak_var_new.index.str.split(pat=r"-").str[0]
+    # Split on the *last* hyphen to handle UTR names that contain hyphens
+    # e.g., "RP11-123B3.1-42" → utr_name="RP11-123B3.1", peak_size="42"
+    peak_var_new["utr_name"] = peak_var_new.index.str.replace(
+        r"-(\d+)$", "", regex=True
+    )
 
     peak_var_new = peak_var_new.join(
         annotations, on="utr_name", how="left", rsuffix="_right"

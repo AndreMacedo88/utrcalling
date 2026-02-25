@@ -14,6 +14,8 @@ from __future__ import annotations
 
 # built-in packages
 from abc import ABC, ABCMeta, abstractmethod
+from enum import Enum
+import os
 import re
 
 # data wrangling packages
@@ -24,6 +26,42 @@ from bidict import bidict
 # internal packages
 from utrcalling.core import module_log, helpers
 from utrcalling.core.protocols import peak_calling as pc
+
+
+class MergeMethod(Enum):
+    """Method for merging UTRs across samples."""
+    UNION = "union"
+    INTERSECTION = "intersection"
+
+    @classmethod
+    def from_str(cls, value: str | None) -> "MergeMethod":
+        """Create from string, defaulting to UNION if None."""
+        if value is None:
+            return cls.UNION
+        try:
+            return cls(value.lower())
+        except ValueError:
+            raise ValueError(
+                f"Invalid merge method {value!r}. "
+                f"Must be one of: {', '.join(m.value for m in cls)}"
+            )
+
+
+class PeakCallingMethod(Enum):
+    """Algorithm for calling consensus peaks."""
+    KDE = "kde"
+    BYPASS = "bypass"
+
+    @classmethod
+    def from_str(cls, value: str) -> "PeakCallingMethod":
+        """Create from string."""
+        try:
+            return cls(value.lower())
+        except ValueError:
+            raise ValueError(
+                f"Invalid peak calling method {value!r}. "
+                f"Must be one of: {', '.join(m.value for m in cls)}"
+            )
 
 
 def _strtobool(val: str | bool) -> bool:
@@ -68,6 +106,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
     Provides methods for peak calling and fetching read information and sample names.
     """
 
+    # Default label_batches value — subclasses override this class attribute
+    _default_label_batches: bool | None = None
+
     def __init__(
         self,
         annotations: str | pd.DataFrame | None = None,
@@ -99,7 +140,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
         except TypeError:
             pass
 
-        self.merge_method = merge_method
+        # Validate and store merge method
+        self._merge_method_enum = MergeMethod.from_str(merge_method)
+        self.merge_method = self._merge_method_enum.value
 
         if isinstance(label_batches, bool) or label_batches is None:
             self.label_batches = label_batches
@@ -124,6 +167,15 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.batch_column_name = self._get_batch_column()
 
         self.batches_list, self.batches_range = self._get_batch_information()
+
+        # Apply subclass default if label_batches was not explicitly set.
+        # Only apply when batch information is actually available, to avoid
+        # raising errors when creating protocols without batch annotations.
+        if self.label_batches is None:
+            if self.batch_column_name is not None:
+                self.label_batches = self._default_label_batches
+            else:
+                self.label_batches = False
 
         if self.barcode_column_name is not None:
             self.annotations = self._resolve_barcode_reuse_by_batch()
@@ -152,9 +204,12 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         not_found_trigger = True
         for idx, sample in enumerate(sample_names):
-            # TODO: the next 2 lines break if the sample_id column in anno file contains
-            # a substring of more than one alignment
-            sample_bam = [bam for bam in alignments if sample in bam]
+            # Match only on the BAM filename (not the full path) to avoid
+            # substring collisions when one sample ID is a prefix of another
+            sample_bam = [
+                bam for bam in alignments
+                if sample in os.path.basename(bam)
+            ]
             sample_bam_len = len(sample_bam)
             if sample_bam_len > 1:
                 msg = (
@@ -320,11 +375,11 @@ class Protocol(ABC, metaclass=CombinedMeta):
         """Extract UMI and barcode from a read alignment.
 
         Args:
-            alignment: An HTSeq SAM_Alignment object.
+            alignment: A read alignment object (pysam adapter).
             **kwargs: Protocol-specific keyword arguments (e.g., bam_name).
 
         Returns:
-            A (umi, barcode) tuple. Either value may be None/False if extraction fails.
+            A (umi, barcode) tuple. Either value may be None if extraction fails.
         """
 
     @staticmethod
@@ -347,7 +402,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         Args:
             read_start_position: Directional start position of the read.
-            interval: An HTSeq GenomicInterval for the UTR region.
+            interval: An _IntervalData object for the UTR region.
 
         Returns:
             The computed UTR size in base pairs.
@@ -408,27 +463,7 @@ class ProtocolFivePrime(Protocol):
 
 
 class ProtocolTenx(ProtocolThreePrime):
-    def __init__(
-        self,
-        merge_method="union",
-        call_peaks=True,
-        call_peaks_method="kde",
-        label_batches=None,
-        alignments=None,
-        annotations=None,
-    ) -> None:
-
-        super().__init__(
-            merge_method=merge_method,
-            call_peaks=call_peaks,
-            call_peaks_method=call_peaks_method,
-            label_batches=label_batches,
-            alignments=alignments,
-            annotations=annotations,
-        )
-
-        if self.label_batches is None:
-            self.label_batches = True
+    _default_label_batches = True
 
 
 class ProtocolTenx3(ProtocolTenx):
@@ -450,7 +485,7 @@ class ProtocolTenx2(ProtocolTenx):
         """Get read UMI and barcode from 10x version 2.
 
         Args:
-            alignment: An HTSeq SAM_Alignment with the read information.
+            alignment: A read alignment object (pysam adapter).
 
         Returns:
             A (umi, barcode) tuple of strings.
@@ -462,6 +497,8 @@ class ProtocolTenx2(ProtocolTenx):
 
 
 class ProtocolSmartseq(ProtocolThreePrime):
+    _default_label_batches = False
+
     def __init__(
         self,
         merge_method="union",
@@ -481,8 +518,6 @@ class ProtocolSmartseq(ProtocolThreePrime):
             annotations=annotations,
         )
 
-        if self.label_batches is None:
-            self.label_batches = False
         try:
             self.sample_names, self.sample_idx = self.get_sample_names(
                 alignments=alignments
@@ -506,6 +541,8 @@ class ProtocolSmartseq3(ProtocolSmartseq):
 
 
 class ProtocolCapseq(ProtocolFivePrime):
+    _default_label_batches = False
+
     def __init__(
         self,
         merge_method="union",
@@ -525,8 +562,6 @@ class ProtocolCapseq(ProtocolFivePrime):
             annotations=annotations,
         )
 
-        if self.label_batches is None:
-            self.label_batches = False
         try:
             self.sample_names, self.sample_idx = self.get_sample_names(
                 alignments=alignments
@@ -580,36 +615,17 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
 
 
 class ProtocolFiveTenx(ProtocolFivePrime):
-    def __init__(
-        self,
-        merge_method="union",
-        call_peaks=True,
-        call_peaks_method="kde",
-        label_batches=None,
-        alignments=None,
-        annotations=None,
-    ) -> None:
-
-        super().__init__(
-            merge_method=merge_method,
-            call_peaks=call_peaks,
-            call_peaks_method=call_peaks_method,
-            label_batches=label_batches,
-            alignments=alignments,
-            annotations=annotations,
-        )
-        if self.label_batches is None:
-            self.label_batches = True
+    _default_label_batches = True
 
     @staticmethod
-    def get_reads_identity(alignment: object, **_: str) -> tuple[str | bool, str | bool]:
+    def get_reads_identity(alignment: object, **_: str) -> tuple[str | None, str | None]:
         """Get read UMI and barcode from 5' 10x version 1.1 via BAM tags.
 
         Args:
-            alignment: An HTSeq SAM_Alignment with CB/UB tags.
+            alignment: A read alignment object (pysam adapter) with CB/UB tags.
 
         Returns:
-            A (umi, barcode) tuple. Either value is False if the BAM tag is missing.
+            A (umi, barcode) tuple. Either value is None if the BAM tag is missing.
         """
         # The cell barcode CB tag includes a suffix with a dash separator followed by
         # a number. This number denotes the GEM well, and is used to virtualize
@@ -622,12 +638,12 @@ class ProtocolFiveTenx(ProtocolFivePrime):
         try:
             read_barcode = alignment.optional_field("CB")  # 16bp + "-<GEM well number>"
         except KeyError:
-            read_barcode = False
+            read_barcode = None
 
         try:
             read_umi = alignment.optional_field("UB")  # 10bp
         except KeyError:
-            read_umi = False
+            read_umi = None
         return read_umi, read_barcode
 
 

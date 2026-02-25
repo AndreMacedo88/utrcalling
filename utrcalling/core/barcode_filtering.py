@@ -64,11 +64,22 @@ def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: np.ndarray) -> pd.DataFr
 
     # Apply replacements and filter — flat format, no explode/regroup needed
     if barcodes_replace:
-        # Need a copy to mutate observation_id before filtering
         result = utr_sizes.copy()
-        result["observation_id"] = (
-            result["observation_id"].astype(str).replace(barcodes_replace).astype("category")
-        )
+        # Map through category codes to avoid full str conversion
+        obs = result["observation_id"]
+        if isinstance(obs.dtype, pd.CategoricalDtype):
+            codes = obs.cat.codes.values
+            old_cats = obs.cat.categories.values
+            # Build a new category array with replacements applied
+            new_cats = np.array(
+                [barcodes_replace.get(c, c) for c in old_cats], dtype=object
+            )
+            new_values = pd.Categorical(new_cats[codes])
+            result["observation_id"] = new_values
+        else:
+            result["observation_id"] = (
+                result["observation_id"].astype(str).replace(barcodes_replace).astype("category")
+            )
     else:
         result = utr_sizes
 
