@@ -46,17 +46,6 @@ def run(
     if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
         alignments = helpers.get_paths_from_folders(alignments, suffix=".bam")
 
-    """
-    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
-        sample_names = [helpers.get_parent_folders_names_from_file(
-            file_path) for file_path in alignments]
-    elif protocol_platform in ("smartseq_cap-readname", "smart-seq_cap-readname"):
-        sample_names = [file_path.split("/")[-2] for file_path in alignments]
-    else:
-        sample_names = [file_path.split("/")[-1].split(".")[0]
-                        for file_path in alignments]
-    """
-
     # Set up the protocol for this specific run
     protocol_ = protocol.create(
         protocol_platform,
@@ -144,8 +133,6 @@ build your h5ad object from the count matrix, obs, and var.
 The error message was:\n{e}
             """
             )
-    # except:  # Remove this after solving the memory issue
-    #     pass
 
     return
 

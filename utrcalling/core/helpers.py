@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 import os
+import re
 import pathlib
 import pickle
 
@@ -240,7 +241,6 @@ def check_if_dir_and_list_files(
         return path
 
 
-
 def split_list(a: list, n: int) -> Iterable[list]:
     """Split a list into n roughly equal-sized chunks.
 
@@ -274,3 +274,18 @@ def check_file_suffix_and_append_before(path: str, to_append: str, suffix: str) 
     return f"{path}{to_append}{suffix}"
 
 
+def sample_in_path(sample: str, bam_path: str) -> bool:
+    """Return True if *sample* appears as a delimited token anywhere in *bam_path*.
+
+    The function searches the entire path string (filename **and** all parent
+    directory components) so it works whether the sample identifier is embedded
+    in the BAM filename (common in test data / older pipelines) or encoded as the
+    parent directory name (e.g. STAR output where every BAM is named
+    ``Aligned.sortedByCoord.out.bam``).
+
+    Path separators (``/``), underscores (``_``), and dots (``.``) are treated as
+    token boundaries, which prevents a sample name that is a prefix of another
+    (e.g. ``S1`` vs ``S10``) from producing a false match.
+    """
+    pattern = r"(?:^|(?<=[/_. ]))" + re.escape(sample) + r"(?=$|[/_.])"
+    return bool(re.search(pattern, bam_path))

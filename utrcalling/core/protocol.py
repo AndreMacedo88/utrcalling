@@ -207,12 +207,12 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         not_found_trigger = True
         for idx, sample in enumerate(sample_names):
-            # Match only on the BAM filename (not the full path) to avoid
-            # substring collisions when one sample ID is a prefix of another
+            # Search the full path (filename *and* all parent directories) so
+            # the sample ID is found whether it is embedded in the filename or
+            # is the parent directory name (e.g. STAR output).  Token-boundary
+            # delimiters (/, _, .) prevent prefix-collision false matches.
             sample_bam = [
-                bam
-                for bam in alignments
-                if sample in os.path.basename(os.path.dirname(bam))
+                bam for bam in alignments if helpers.sample_in_path(sample, bam)
             ]
             sample_bam_len = len(sample_bam)
             if sample_bam_len > 1:
