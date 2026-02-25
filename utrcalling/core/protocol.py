@@ -10,6 +10,7 @@ Note:
 2- New protocols should, then, extend the necessary class in this file.
 
 """
+
 from __future__ import annotations
 
 # built-in packages
@@ -30,6 +31,7 @@ from utrcalling.core.protocols import peak_calling as pc
 
 class MergeMethod(Enum):
     """Method for merging UTRs across samples."""
+
     UNION = "union"
     INTERSECTION = "intersection"
 
@@ -49,6 +51,7 @@ class MergeMethod(Enum):
 
 class PeakCallingMethod(Enum):
     """Algorithm for calling consensus peaks."""
+
     KDE = "kde"
     BYPASS = "bypass"
 
@@ -207,8 +210,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
             # Match only on the BAM filename (not the full path) to avoid
             # substring collisions when one sample ID is a prefix of another
             sample_bam = [
-                bam for bam in alignments
-                if sample in os.path.basename(bam)
+                bam
+                for bam in alignments
+                if sample in os.path.basename(os.path.dirname(bam))
             ]
             sample_bam_len = len(sample_bam)
             if sample_bam_len > 1:
@@ -371,7 +375,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
     # Methods to get read information from the read alignments
     @staticmethod
     @abstractmethod
-    def get_reads_identity(alignment: object, **kwargs: str) -> tuple[str | None, str | None]:
+    def get_reads_identity(
+        alignment: object, **kwargs: str
+    ) -> tuple[str | None, str | None]:
         """Extract UMI and barcode from a read alignment.
 
         Args:
@@ -426,7 +432,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
 class ProtocolThreePrime(Protocol):
     """Protocol base for 3' UTR sequencing platforms."""
 
-    def filter_utr_sizes(self, utr_sizes: pd.DataFrame, threshold: int = 1) -> pd.DataFrame:
+    def filter_utr_sizes(
+        self, utr_sizes: pd.DataFrame, threshold: int = 1
+    ) -> pd.DataFrame:
         self.logger.info("Filtering UTR sizes using threshold of %s counts.", threshold)
         return utr_sizes[utr_sizes["utr_size"] > threshold].copy()
 
@@ -618,7 +626,9 @@ class ProtocolFiveTenx(ProtocolFivePrime):
     _default_label_batches = True
 
     @staticmethod
-    def get_reads_identity(alignment: object, **_: str) -> tuple[str | None, str | None]:
+    def get_reads_identity(
+        alignment: object, **_: str
+    ) -> tuple[str | None, str | None]:
         """Get read UMI and barcode from 5' 10x version 1.1 via BAM tags.
 
         Args:
