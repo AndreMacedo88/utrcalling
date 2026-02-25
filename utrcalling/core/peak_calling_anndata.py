@@ -3,6 +3,7 @@
 Provides secondary peak calling on existing AnnData objects, including KDE-based
 peak consolidation, PAS distance scoring, and bandwidth estimation.
 """
+
 from __future__ import annotations
 
 import math
@@ -190,6 +191,8 @@ def peak_call_anndata_parallel(
         logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
 
+    sparse_adata = scipy.sparse.issparse(adata.X)
+
     utrs = adata.var.utr_name.unique()
 
     parallel_results = joblib.Parallel(n_jobs=-2)(
@@ -205,6 +208,11 @@ def peak_call_anndata_parallel(
 
     var_df = pd.concat(var_list, axis=0).drop("pA", axis=1, errors="ignore")
     new_adata = ad.AnnData(X=np.hstack(mtx_list), obs=adata.obs, var=var_df)
+
+    if sparse_adata:
+        logger.info("Sparsifying data as initially provided.")
+        new_adata.X = scipy.sparse.csr_matrix(new_adata.X)
+
     new_adata = new_adata[new_adata.obs.sort_index().index, :]
     return new_adata
 
@@ -360,9 +368,7 @@ def estimate_best_bandwidth(
     return estimation_results
 
 
-def pas_distance(
-    adata: ad.AnnData, genome: str, hamming: int = 1
-) -> np.ndarray:
+def pas_distance(adata: ad.AnnData, genome: str, hamming: int = 1) -> np.ndarray:
     """Calculate UMI distances to the nearest polyadenylation signal (PAS).
 
     For each UTR, finds PAS hexamer sites (AATAAA with up to *hamming*

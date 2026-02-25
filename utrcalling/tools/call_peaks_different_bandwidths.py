@@ -13,7 +13,7 @@ def call_peaks_different_bandwidths(input_path, out_path, bandwidths, min_umis):
     ]
     out_path = out_path.split(".h5ad")[0]
     for bandwidth in bandwidths:
-        adata_peaks = pc.peak_call_anndata(
+        adata_peaks = pc.peak_call_anndata_parallel(
             adata, method="kde", bandwidth=bandwidth, min_umis=min_umis
         )
         adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")
