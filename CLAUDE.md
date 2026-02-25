@@ -61,7 +61,7 @@ conda run --no-capture-output -n utrcalling utrcalling call-peaks --help   # Pea
 
 ## Design History
 
-The `core-overhaul` branch is a major refactor from `master`. Key changes: modin/ray replaced with pandas+joblib, HTSeq BAM reading replaced with pysam (lightweight `_IntervalData` class replaces `HTSeq.GenomicInterval`), flat intermediate data model (one row per molecule), sparse count matrices throughout, memory-aware barcode filtering, O(1) UMI deduplication, functional decomposition of core.py into thin orchestrator + focused modules (storage.py, barcode_filtering.py), type hints and Google-style docstrings on all public functions. Configuration uses `MergeMethod`/`PeakCallingMethod` enums and `PeakCallingResult` NamedTuple. Protocol base class consolidates `label_batches` defaults via `_default_label_batches` class attribute. Joblib config uses `JOBLIB_DEFAULT_N_JOBS`/`JOBLIB_DEFAULT_BACKEND` constants from `helpers.py`. Gene/transcript ID joins use `|` delimiter (bioinformatics convention). **291 tests pass.** See git history for details.
+The `core-overhaul` branch is a major refactor from `master`. Key changes: modin/ray replaced with pandas+joblib, HTSeq BAM reading replaced with pysam (lightweight `_IntervalData` class replaces `HTSeq.GenomicInterval`), flat intermediate data model (one row per molecule), sparse count matrices throughout, memory-aware barcode filtering, O(1) UMI deduplication, functional decomposition of core.py into thin orchestrator + focused modules (storage.py, barcode_filtering.py, count_matrix.py), type hints and Google-style docstrings on all public functions. Configuration uses `MergeMethod`/`PeakCallingMethod` enums and `CountMatrixResult` NamedTuple. Protocol base class consolidates `label_batches` defaults via `_default_label_batches` class attribute. Joblib config uses `JOBLIB_DEFAULT_N_JOBS`/`JOBLIB_DEFAULT_BACKEND` constants from `helpers.py`. Gene/transcript ID joins use `|` delimiter (bioinformatics convention). Peak calling is decoupled from count matrix building via an explicit `size_transform` parameter — `protocol.peak_calling` is `None` when `call_peaks=False` (no bypass function). `--raw_sizes` mode produces dual output: raw sizes + KDE peaks. **291 tests pass.** See git history for details.
 
 ### Hard Constraints
 
@@ -77,14 +77,15 @@ The `core-overhaul` branch is a major refactor from `master`. Key changes: modin
 
 ### Core Pipeline (`utrcalling/core/core.py`)
 
-Thin orchestrator with 6 public functions — each reads like a recipe of named function calls from focused modules:
+Thin orchestrator with 7 public functions — each reads like a recipe of named function calls from focused modules:
 
 1. **`prepare_utr_reference_regions()`** — Parses GTF, extracts UTR features, merges overlapping regions via pybedtools, returns a reference BED-like DataFrame.
 2. **`map_aligned_reads()`** — Maps reads from BAM files to UTR intervals via pysam (with adapter layer for protocol compatibility). Dispatches to `_map_single_bam()` or `_map_multiple_bams()` (joblib parallelism). Returns a flat DataFrame (or list of DataFrames for multi-BAM).
 3. **`merge_samples_utr_sizes()`** — Merges multiple sample DataFrames via `process_mapped_reads.merge_samples_utr_sizes()`.
 4. **`merge_utrs_per_feature()`** — Optionally aggregates per-UTR data to gene level via `process_mapped_reads.merge_utrs_per_gene()`.
 5. **`filter_mapped_reads()`** — Subsets the UTR reference, filters UTR sizes below threshold, and optionally filters barcodes against a whitelist (with memory-aware chunking via `barcode_filtering.filter_barcodes_memory_aware()`). Returns `(filtered_reads, utr_reference_subset)`.
-6. **`call_peaks()`** — Takes pre-filtered reads and subsetted reference (from `filter_mapped_reads`), calls consensus peaks on molecule size distributions using Gaussian KDE, enriches var with reference annotations, and produces the final AnnData with a sparse count matrix.
+6. **`build_count_matrix()`** — Generic count matrix builder. Takes pre-filtered reads, subsetted reference, and an optional `size_transform` callable. When `size_transform` is `None`, raw sizes are used directly; when provided (e.g. `pc.get_caller("kde", bandwidth=12)`), sizes are transformed per UTR group. Enriches var with reference annotations and produces the final AnnData with a sparse count matrix.
+7. **`call_peaks()`** — Thin convenience wrapper around `build_count_matrix()` that passes `protocol.peak_calling` as the `size_transform`. Used in the standard (non-raw_sizes) path for semantic clarity.
 
 ### Supporting Modules
 
@@ -92,7 +93,7 @@ Thin orchestrator with 6 public functions — each reads like a recipe of named 
 - **`storage.py`** — All intermediate file storage utilities (`store_utr_reference`, `store_read_mappings_*`, `store_merged_counts`, `store_peak_calling_results`).
 - **`process_mapped_reads.py`** — Sample merging (`merge_samples_utr_sizes`) and gene-level aggregation (`merge_utrs_per_gene`). Helper functions `_join_unique()`, `_split_and_then_join_unique()`, `_compute_gene_offsets()` are module-level for testability.
 - **`utr_reference.py`** — GTF parsing, UTR extraction, and `subset_reference_data()`.
-- **`peak_calling.py`** — Sparse count matrix assembly (`generate_peak_counts_and_anno`), var annotation enrichment (`add_to_peaks_var`), AnnData construction (`generate_count_matrix_anndata`).
+- **`count_matrix.py`** — Sparse count matrix assembly (`generate_counts_and_anno` with optional `size_transform`), var annotation enrichment (`add_to_peaks_var`), AnnData construction (`generate_count_matrix_anndata`). Result type: `CountMatrixResult` NamedTuple.
 - **`utr_mapping.py`** — BAM reading via pysam, interval processing (`_IntervalData` for genomic intervals), UMI deduplication. `_PySamAdapter` bridges pysam reads to the protocol interface.
 - **`helpers.py`** — Shared constants (`JOBLIB_DEFAULT_N_JOBS`, `JOBLIB_DEFAULT_BACKEND`), `ensure_mapped_reads_dtypes()` for canonical DataFrame schema enforcement, utility functions.
 
@@ -122,7 +123,7 @@ Abstract `Protocol` base class using `CombinedMeta(Meta, ABCMeta)` metaclass. Ea
 
 `get_observation_id(barcode, batch_idx)` on `Protocol` base class applies the `-{batch_idx}` suffix when `label_batches=True`. CapSeq protocols override this to use the barcode (BAM-derived sample name) directly.
 
-Peak calling config is mixed in from `utrcalling/core/protocols/peak_calling.py`.
+Peak calling config comes from `utrcalling/core/protocols/peak_calling.py`. `get_caller(method, bandwidth)` returns a `functools.partial`-wrapped KDE callable. When `call_peaks=False`, `protocol.peak_calling` is set to `None` (not a bypass function) — callers pass it as `size_transform` and `count_matrix.py` treats `None` as identity (raw sizes).
 
 ### CLI Layer (`utrcalling/runtime.py` + `utrcalling/tools/`)
 
@@ -132,7 +133,7 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 
 - **Input**: GTF annotation files (gzipped or plain) + BAM alignment files
 - **Intermediate**: Parquet files in `./intermediate/` directory (optional, via `store=True`)
-- **Output**: AnnData objects (.h5ad) with cells x UTR-peaks sparse count matrices
+- **Output**: AnnData objects (.h5ad) with cells x UTR-peaks sparse count matrices. When `--raw_sizes` is set, two files are produced: `{out}` (raw sizes, no transform) and `{stem}_kde.h5ad` (KDE-estimated peaks). The `--kde_bandwidth` flag controls the KDE bandwidth (default 12).
 
 ### dtype Guidance for Large Arrays
 
@@ -149,13 +150,13 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 - **pybedtools** — genomic interval operations (requires **BEDTools** system-wide)
 - **pysam** — BAM file reading in the hot loop (fully replaced HTSeq for read extraction and interval handling)
 - **anndata/scanpy** — single-cell data structures
-- **joblib** — parallelism across BAM files, across UTR intervals, and across UTRs during peak calling
+- **joblib** — parallelism across BAM files, across UTR intervals, and across UTRs during count matrix building
 - **rapidfuzz** — fuzzy barcode matching (Hamming distance ≤1)
 - Python 3.9+ (compatible through 3.12+)
 
 ### Testing
 
-Tests use Python's `unittest` framework (291 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`. Post-processing tests in `test_anndata_processing.py` and `test_peak_calling_anndata.py`. Module-level tests in `test_barcode_filtering.py`, `test_filter_mapped_reads.py`, and `test_storage.py`. CLI tests in `test_cli.py`. Error handling and negative tests in `test_error_handling.py`. End-to-end pipeline tests for all protocols (3' 10x v2/v3, 5' 10x, 5' CapSeq), dtype preservation tests, and determinism tests live in `test_core.py`.
+Tests use Python's `unittest` framework (291 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`. Post-processing tests in `test_anndata_processing.py` and `test_peak_calling_anndata.py`. Count matrix building tests in `test_peak_calling.py` (tests `count_matrix` module). Module-level tests in `test_barcode_filtering.py`, `test_filter_mapped_reads.py`, and `test_storage.py`. CLI tests in `test_cli.py`. Error handling and negative tests in `test_error_handling.py`. End-to-end pipeline tests for all protocols (3' 10x v2/v3, 5' 10x, 5' CapSeq), dtype preservation tests, and determinism tests live in `test_core.py`.
 
 Tests `chdir` into `utrcalling/tests/` at setup time, so test data paths are relative to that directory.
 

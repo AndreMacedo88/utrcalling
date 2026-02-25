@@ -1,6 +1,7 @@
 """
-peak_calling.py - module with functions to deal with calling peaks
+count_matrix.py - sparse count matrix building from UTR size data.
 """
+
 from __future__ import annotations
 
 import warnings
@@ -16,11 +17,13 @@ from utrcalling.core import module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND
 
 
-class PeakCallingResult(NamedTuple):
-    """Result of generate_peak_counts_and_anno()."""
+class CountMatrixResult(NamedTuple):
+    """Result of generate_counts_and_anno()."""
+
     count_matrix: csr_matrix
     peaks_var: pd.DataFrame
     peaks_obs: pd.DataFrame | None = None
+
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -30,9 +33,9 @@ def _process_utr_group(
     sizes: np.ndarray,
     obs: np.ndarray,
     obs_to_idx: dict[str, int],
-    func: object,
+    func: object | None = None,
 ) -> tuple[list[np.ndarray], list[np.ndarray], list[str], list[int]]:
-    """Process a single UTR group: call peaks and compute sparse triplets.
+    """Process a single UTR group: transform sizes and compute sparse triplets.
 
     This is a module-level function so it can be pickled by joblib workers.
 
@@ -41,7 +44,8 @@ def _process_utr_group(
         sizes: Array of UTR sizes for this group.
         obs: Array of observation IDs for this group.
         obs_to_idx: Dict mapping observation ID to sparse matrix row index.
-        func: Peak calling function (e.g., KDE-based).
+        func: Optional size transform function (e.g., KDE-based peak calling).
+            When None, raw sizes are used directly.
 
     Returns:
         A tuple of (rows_list, data_list, peak_names, peak_sizes) where
@@ -52,8 +56,10 @@ def _process_utr_group(
     sizes = sizes[sort_idx]
     obs = obs[sort_idx]
 
-    peaks = func(sizes.reshape(-1, 1))
-    peaks = peaks.flatten()
+    if func is not None:
+        peaks = func(sizes.reshape(-1, 1)).flatten()
+    else:
+        peaks = sizes
 
     rows_list = []
     data_list = []
@@ -74,36 +80,40 @@ def _process_utr_group(
     return rows_list, data_list, peak_names, peak_sizes
 
 
-# Threshold for parallelizing peak calling — avoids joblib overhead on small datasets
+# Threshold for parallelizing UTR processing — avoids joblib overhead on small datasets
 _PARALLEL_UTR_THRESHOLD = 50
 
 
-def generate_peak_counts_and_anno(
+def generate_counts_and_anno(
     utr_sizes: pd.DataFrame,
     protocol: object,
-) -> PeakCallingResult:
-    """Call consensus peaks per UTR and build a sparse count matrix.
+    size_transform: object | None = None,
+) -> CountMatrixResult:
+    """Transform UTR sizes per group and build a sparse count matrix.
 
-    Groups molecules by UTR, runs the protocol's peak calling function on each
-    UTR's size distribution, and assembles a sparse (observations x peaks) count
-    matrix with associated var and obs DataFrames. Parallelizes across UTRs
-    with joblib when the number of UTRs exceeds the threshold.
+    Groups molecules by UTR, optionally transforms each UTR's size distribution
+    via ``size_transform`` (e.g. KDE peak calling), and assembles a sparse
+    (observations x peaks) count matrix with associated var and obs DataFrames.
+    Parallelizes across UTRs with joblib when the number of UTRs exceeds the
+    threshold.
 
     Args:
         utr_sizes: Flat DataFrame with columns (utr_name, observation_id, utr_size).
-        protocol: A Protocol instance with peak_calling, annotations, and
+        protocol: A Protocol instance with annotations and
             barcode_column_name attributes.
+        size_transform: Optional callable to transform UTR sizes per group.
+            When None, raw sizes are used directly (identity).
 
     Returns:
-        A PeakCallingResult(count_matrix, peaks_var, peaks_obs) namedtuple.
+        A CountMatrixResult(count_matrix, peaks_var, peaks_obs) namedtuple.
         peaks_obs is None when barcode annotations are not available.
     """
     logger = module_log.module_logger()
 
     annotations = protocol.annotations
-    func = protocol.peak_calling
+    func = size_transform
 
-    logger.info("Generating and counting UTR size peaks")
+    logger.info("Generating and counting UTR sizes")
 
     # Build observation vocabulary — deterministic alphabetical row ordering
     obs_ids = np.sort(utr_sizes["observation_id"].unique())
@@ -117,11 +127,13 @@ def generate_peak_counts_and_anno(
     ]
     n_utrs = len(groups)
 
-    logger.info("Calling peaks for %d UTRs", n_utrs)
+    logger.info("Processing %d UTRs", n_utrs)
 
     if n_utrs > _PARALLEL_UTR_THRESHOLD:
-        logger.info("Parallelizing peak calling across UTRs")
-        results = joblib.Parallel(n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND)(
+        logger.info("Parallelizing across UTRs")
+        results = joblib.Parallel(
+            n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND
+        )(
             joblib.delayed(_process_utr_group)(name, sizes, obs, obs_to_idx, func)
             for name, sizes, obs in groups
         )
@@ -146,7 +158,7 @@ def generate_peak_counts_and_anno(
             peak_utr_sizes.append(size)
             col_offset += 1
 
-    logger.info("Finished generating and counting UTR size peaks")
+    logger.info("Finished generating and counting UTR sizes")
 
     # Build sparse matrix once
     if all_rows:
@@ -167,9 +179,9 @@ def generate_peak_counts_and_anno(
     if protocol.barcode_column_name:
         peaks_obs = annotations.set_index(protocol.barcode_column_name)
         peaks_obs = peaks_obs.reindex(index=obs_ids)
-        return PeakCallingResult(X, peaks_var, peaks_obs)
+        return CountMatrixResult(X, peaks_var, peaks_obs)
     else:
-        return PeakCallingResult(X, peaks_var)
+        return CountMatrixResult(X, peaks_var)
 
 
 def add_to_peaks_var(peak_var: pd.DataFrame, annotations: pd.DataFrame) -> pd.DataFrame:

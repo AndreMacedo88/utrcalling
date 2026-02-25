@@ -1,7 +1,7 @@
 from test_data import synthetic_data
 from utrcalling.core import (
     barcode_filtering,
-    peak_calling,
+    count_matrix,
     protocol,
     utr_mapping,
     utr_reference,
@@ -65,9 +65,10 @@ class TestGeneratePeakCounts(TestPeakCalling):
 
 class TestMatrix(TestGeneratePeakCounts):
     def setUp(self):
-        self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
+        self.matrix, _, _ = count_matrix.generate_counts_and_anno(
             utr_sizes=self.merged,
             protocol=self.protocol_,
+            size_transform=self.protocol_.peak_calling,
         )
 
     def test_length(self):
@@ -83,9 +84,10 @@ class TestMatrix(TestGeneratePeakCounts):
 
 class TestVar(TestGeneratePeakCounts):
     def setUp(self):
-        _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
+        _, self.var, _ = count_matrix.generate_counts_and_anno(
             utr_sizes=self.merged,
             protocol=self.protocol_,
+            size_transform=self.protocol_.peak_calling,
         )
 
     def test_length(self):
@@ -98,9 +100,10 @@ class TestVar(TestGeneratePeakCounts):
 
 class TestObs(TestGeneratePeakCounts):
     def setUp(self):
-        _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
+        _, _, self.obs = count_matrix.generate_counts_and_anno(
             utr_sizes=self.merged,
             protocol=self.protocol_,
+            size_transform=self.protocol_.peak_calling,
         )
 
     def test_length(self):
@@ -127,9 +130,10 @@ class TestGeneratePeakCountsSynthetic(unittest.TestCase):
 
 class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self) -> None:
-        self.matrix, _, _ = peak_calling.generate_peak_counts_and_anno(
+        self.matrix, _, _ = count_matrix.generate_counts_and_anno(
             utr_sizes=self.data,
             protocol=self.protocol_,
+            size_transform=self.protocol_.peak_calling,
         )
 
     def test_length(self):
@@ -157,9 +161,10 @@ class TestMatrixSynthetic(TestGeneratePeakCountsSynthetic):
 
 class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
-        _, self.var, _ = peak_calling.generate_peak_counts_and_anno(
+        _, self.var, _ = count_matrix.generate_counts_and_anno(
             utr_sizes=self.data,
             protocol=self.protocol_,
+            size_transform=self.protocol_.peak_calling,
         )
 
     def test_length(self):
@@ -176,9 +181,10 @@ class TestVarSynthetic(TestGeneratePeakCountsSynthetic):
 
 class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
     def setUp(self):
-        _, _, self.obs = peak_calling.generate_peak_counts_and_anno(
+        _, _, self.obs = count_matrix.generate_counts_and_anno(
             utr_sizes=self.data,
             protocol=self.protocol_,
+            size_transform=self.protocol_.peak_calling,
         )
 
     def test_length(self):
@@ -202,16 +208,17 @@ class TestGenerateCountMatrixAnndata(TestPeakCalling):
             utr_sizes=merged,
             whitelist=cls.protocol_.barcode_whitelist,
         )
-        cls.matrix, var, cls.obs = peak_calling.generate_peak_counts_and_anno(
+        cls.matrix, var, cls.obs = count_matrix.generate_counts_and_anno(
             utr_sizes=filtered,
             protocol=cls.protocol_,
+            size_transform=cls.protocol_.peak_calling,
         )
-        cls.var = peak_calling.add_to_peaks_var(var, subsetted)
+        cls.var = count_matrix.add_to_peaks_var(var, subsetted)
 
 
 class TestAnnData(TestGenerateCountMatrixAnndata):
     def setUp(self) -> None:
-        self.matrix_anndata = peak_calling.generate_count_matrix_anndata(
+        self.matrix_anndata = count_matrix.generate_count_matrix_anndata(
             self.matrix, self.var, self.obs
         )
 
@@ -229,7 +236,7 @@ class TestAnnData(TestGenerateCountMatrixAnndata):
 
 
 class TestPeakCallingEdgeCases(unittest.TestCase):
-    """Edge case tests for generate_peak_counts_and_anno()."""
+    """Edge case tests for generate_counts_and_anno()."""
 
     @classmethod
     def setUpClass(cls):
@@ -246,7 +253,7 @@ class TestPeakCallingEdgeCases(unittest.TestCase):
             "observation_id": pd.Categorical([]),
             "utr_size": np.array([], dtype=np.int32),
         })
-        matrix, var, obs = peak_calling.generate_peak_counts_and_anno(
+        matrix, var, obs = count_matrix.generate_counts_and_anno(
             utr_sizes=empty_df, protocol=self.protocol_,
         )
         self.assertEqual(matrix.shape, (0, 0))
@@ -261,7 +268,7 @@ class TestPeakCallingEdgeCases(unittest.TestCase):
             ]),
             "utr_size": np.array([100, 200], dtype=np.int32),
         })
-        matrix, var, obs = peak_calling.generate_peak_counts_and_anno(
+        matrix, var, obs = count_matrix.generate_counts_and_anno(
             utr_sizes=single_obs, protocol=self.protocol_,
         )
         self.assertEqual(matrix.shape[0], 1)
@@ -278,7 +285,7 @@ class TestPeakCallingEdgeCases(unittest.TestCase):
             ]),
             "utr_size": np.array([100, 100, 200], dtype=np.int32),
         })
-        matrix, var, obs = peak_calling.generate_peak_counts_and_anno(
+        matrix, var, obs = count_matrix.generate_counts_and_anno(
             utr_sizes=single_utr, protocol=self.protocol_,
         )
         self.assertEqual(matrix.shape[0], 3)

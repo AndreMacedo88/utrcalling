@@ -27,7 +27,7 @@ from utrcalling.core.helpers import JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEN
 from utrcalling.core import utr_reference
 from utrcalling.core import utr_mapping
 from utrcalling.core import process_mapped_reads
-from utrcalling.core import peak_calling
+from utrcalling.core import count_matrix
 from utrcalling.core import barcode_filtering
 from utrcalling.core import storage
 
@@ -258,6 +258,49 @@ def filter_mapped_reads(
     return filtered, utr_reference_subset
 
 
+def build_count_matrix(
+    filtered_reads: pd.DataFrame,
+    utr_reference_subset: pd.DataFrame,
+    protocol: object,
+    store: bool = False,
+    size_transform: object | None = None,
+) -> anndata.AnnData:
+    """Build a sparse AnnData count matrix from filtered reads.
+
+    Groups molecules by UTR, optionally transforms sizes via ``size_transform``,
+    enriches var with reference annotations, and returns an AnnData object.
+
+    Args:
+        filtered_reads: Filtered flat DataFrame (utr_name, observation_id, utr_size).
+        utr_reference_subset: Subsetted UTR reference for annotation enrichment.
+        protocol: Protocol instance (for annotations, barcode config).
+        store: If True, save intermediates to ./intermediate/.
+        size_transform: Optional function to transform UTR sizes per group.
+            None -> raw sizes. E.g., pc.get_caller("kde", bandwidth=12) for KDE peaks.
+
+    Returns:
+        An AnnData object with cells/samples as obs and UTR peaks as var.
+    """
+    result = count_matrix.generate_counts_and_anno(
+        filtered_reads, protocol=protocol, size_transform=size_transform
+    )
+    peaks_count_matrix = result.count_matrix
+    peaks_var = result.peaks_var
+    peaks_obs = result.peaks_obs
+
+    peaks_var = count_matrix.add_to_peaks_var(peaks_var, utr_reference_subset)
+
+    if store:
+        storage.store_peak_calling_results(
+            peaks_count_matrix, peaks_var, peaks_obs,
+            utr_reference_subset, protocol.merge_method,
+        )
+
+    return count_matrix.generate_count_matrix_anndata(
+        count_matrix=peaks_count_matrix, var=peaks_var, obs=peaks_obs
+    )
+
+
 def call_peaks(
     filtered_reads: pd.DataFrame,
     utr_reference_subset: pd.DataFrame,
@@ -266,9 +309,8 @@ def call_peaks(
 ) -> anndata.AnnData:
     """Call consensus UTR peaks and build a sparse AnnData count matrix.
 
-    Expects pre-filtered reads and a subsetted UTR reference (from
-    filter_mapped_reads). Runs peak calling on each UTR's size distribution,
-    enriches var with reference annotations, and returns an AnnData object.
+    Convenience wrapper around build_count_matrix() that uses the protocol's
+    configured peak calling function as the size transform.
 
     Args:
         filtered_reads: Filtered flat DataFrame (from filter_mapped_reads).
@@ -279,21 +321,7 @@ def call_peaks(
     Returns:
         An AnnData object with cells/samples as obs and UTR peaks as var.
     """
-    result = peak_calling.generate_peak_counts_and_anno(
-        filtered_reads, protocol=protocol
-    )
-    peaks_count_matrix = result.count_matrix
-    peaks_var = result.peaks_var
-    peaks_obs = result.peaks_obs
-
-    peaks_var = peak_calling.add_to_peaks_var(peaks_var, utr_reference_subset)
-
-    if store:
-        storage.store_peak_calling_results(
-            peaks_count_matrix, peaks_var, peaks_obs,
-            utr_reference_subset, protocol.merge_method,
-        )
-
-    return peak_calling.generate_count_matrix_anndata(
-        count_matrix=peaks_count_matrix, var=peaks_var, obs=peaks_obs
+    return build_count_matrix(
+        filtered_reads, utr_reference_subset, protocol, store,
+        size_transform=protocol.peak_calling,
     )

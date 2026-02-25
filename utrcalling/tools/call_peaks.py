@@ -1,10 +1,34 @@
 # import general tools
 import argparse
 import ast
+import os
 
 # import internal tools
 from utrcalling.core import core, helpers, protocol
+from utrcalling.core.protocols import peak_calling as pc
 from utrcalling.core.module_log import module_logger
+
+
+def _write_anndata(adata, filename, logger):
+    """Write an AnnData object to h5ad, handling dtype issues."""
+    try:
+        adata.write(filename=filename)
+    except TypeError:
+        adata.var["chrom"] = adata.var["chrom"].astype(str)
+        try:
+            adata.write(filename=filename)
+        except TypeError as e:
+            logger.error(
+                f"""
+Some of your annotations could not be written to a h5ad file.\n
+This could be because their type is ambiguous
+(characters/integers/etc).\n
+To deal with this, either make all annotations columns and re-run the tool,
+or run the tool with the option to output the intermediate files and
+build your h5ad object from the count matrix, obs, and var.
+The error message was:\n{e}
+            """
+            )
 
 
 def call_peaks(
@@ -17,6 +41,7 @@ def call_peaks(
     label_batches=None,
     summarization_level="UTR",
     raw_sizes=False,
+    kde_bandwidth=12,
     store_intermediate=False,
     log_level="info",
     out="UTR_results.h5ad",
@@ -98,41 +123,43 @@ def call_peaks(
         protocol=protocol_,
     )
 
-    # Call peaks from the filtered UTR sizes
-    logger.info("Calling peaks from filtered data")
-    count_matrix_anndata = core.call_peaks(
-        filtered_reads=filtered_reads,
-        utr_reference_subset=utr_reference_subset,
-        protocol=protocol_,
-        store=store_intermediate,
-    )
-
-    # helpers.log_metrics_anndata(count_matrix_anndata)
-
-    try:
-        count_matrix_anndata.write(filename=out)
-    except TypeError:
-        count_matrix_anndata.var["chrom"] = count_matrix_anndata.var["chrom"].astype(
-            str
+    if raw_sizes:
+        # Pass 1: raw sizes (no transform — use sizes directly)
+        logger.info("Building raw sizes count matrix")
+        raw_anndata = core.build_count_matrix(
+            filtered_reads=filtered_reads,
+            utr_reference_subset=utr_reference_subset,
+            protocol=protocol_,
+            store=store_intermediate,
         )
-        # count_matrix_anndata.obs["Sample_Name"] = count_matrix_anndata.obs["Sample_Name"].astype(
-        #     str)
-        try:
-            count_matrix_anndata.write(filename=out)
-        except TypeError as e:
-            logger.error(
-                f"""
-Some of your annotations could not be written to a h5ad file.\n
-This could be because their type is ambiguous
-(characters/integers/etc).\n
-To deal with this, either make all annotations columns and re-run the tool,
-or run the tool with the option to output the intermediate files and 
-build your h5ad object from the count matrix, obs, and var.
-The error message was:\n{e}
-            """
-            )
-    except:  # Remove this after solving the memory issue
-        pass
+        helpers.log_metrics_anndata(raw_anndata)
+        _write_anndata(raw_anndata, out, logger)
+        del raw_anndata  # free memory before KDE pass
+
+        # Pass 2: KDE peaks (transform sizes via KDE)
+        logger.info("Building KDE peaks count matrix")
+        out_stem, _ = os.path.splitext(out)
+        kde_out = f"{out_stem}_kde.h5ad"
+        kde_anndata = core.build_count_matrix(
+            filtered_reads=filtered_reads,
+            utr_reference_subset=utr_reference_subset,
+            protocol=protocol_,
+            size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth),
+        )
+        helpers.log_metrics_anndata(kde_anndata)
+        _write_anndata(kde_anndata, kde_out, logger)
+        logger.info(f"Wrote KDE peaks to {kde_out}")
+    else:
+        # Standard: call peaks using protocol's configured KDE
+        logger.info("Calling peaks from filtered data")
+        count_matrix_anndata = core.call_peaks(
+            filtered_reads=filtered_reads,
+            utr_reference_subset=utr_reference_subset,
+            protocol=protocol_,
+            store=store_intermediate,
+        )
+        helpers.log_metrics_anndata(count_matrix_anndata)
+        _write_anndata(count_matrix_anndata, out, logger)
 
     return
 
@@ -247,9 +274,17 @@ def create_parser(subparsers):
         "-r",
         action="store_true",
         help="""
-                        Produces a count matrix with the individual UMI UTR sizes, without 
+                        Produces a count matrix with the individual UMI UTR sizes, without
                         aggregating individual molecules' UTR sizes into consensus peaks.
+                        Also produces a second file with KDE-estimated peaks (suffix _kde).
                         """,
+    )
+
+    parser.add_argument(
+        "--kde_bandwidth",
+        type=int,
+        default=12,
+        help="Bandwidth for the Gaussian KDE when --raw_sizes produces the KDE peaks output.",
     )
 
     parser.add_argument(

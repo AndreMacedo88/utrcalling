@@ -1,5 +1,5 @@
 from utrcalling.tests.test_data import synthetic_data
-from utrcalling.core import peak_calling, module_log, protocol
+from utrcalling.core import count_matrix, module_log, protocol
 import os
 from pathlib import Path
 import cProfile
@@ -24,8 +24,9 @@ class GeneratePeakCounts:
         )
 
     def perf_test(self):
-        peak_calling.generate_peak_counts_and_anno(
-            utr_sizes=self.data, protocol=self.protocol
+        count_matrix.generate_counts_and_anno(
+            utr_sizes=self.data, protocol=self.protocol,
+            size_transform=self.protocol.peak_calling,
         )
 
 

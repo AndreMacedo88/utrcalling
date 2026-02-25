@@ -1,3 +1,4 @@
+from functools import partial
 from typing import Callable
 
 import numpy as np
@@ -8,14 +9,22 @@ from scipy.signal import argrelextrema
 # Methods to aggregate individual molecules' UTR sizes to consensus peaks:
 
 
-def get_caller(method: str) -> Callable[[npt.ArrayLike, int], npt.ArrayLike]:
+def get_caller(method: str, bandwidth: int = 12) -> Callable[[npt.ArrayLike], npt.ArrayLike]:
+    """Return a size transform callable for the given peak calling method.
 
+    Args:
+        method: Peak calling algorithm name (currently only 'kde').
+        bandwidth: Bandwidth parameter for KDE-based peak calling.
+
+    Returns:
+        A callable that takes an array of UTR sizes and returns transformed sizes.
+    """
     method = method.lower()
     if method == "kde":
-        return call_peaks_using_kernel_density_estimator
+        return partial(call_peaks_using_kernel_density_estimator, bandwidth=bandwidth)
     else:
         raise NotImplementedError(
-            (f"Method {method} for calling consensus peaks is not " f"implemented.")
+            f"Method {method} for calling consensus peaks is not implemented."
         )
 
 
@@ -87,12 +96,3 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector, bandwidth=12):
     return peaks
 
 
-def bypass_calling_peaks(utr_sizes_vector):
-    if np.issubdtype(utr_sizes_vector.dtype, np.integer):
-        return utr_sizes_vector
-    else:
-        try:
-            return np.rint(utr_sizes_vector)
-        except TypeError:
-            utr_sizes_vector = utr_sizes_vector.astype(float)
-            return np.rint(utr_sizes_vector)

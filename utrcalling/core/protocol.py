@@ -157,7 +157,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         if self.call_peaks:
             self.peak_calling = pc.get_caller(call_peaks_method)
         else:
-            self.peak_calling = pc.bypass_calling_peaks
+            self.peak_calling = None
 
         # set variables to be modified by the different protocols
         self.umis = False
