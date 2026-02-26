@@ -140,47 +140,47 @@ ok
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 11397.57it/s]
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 60436.66it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 16513.01it/s]
-test_barcode (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
-test_is_anndata (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
-test_shape_anndata (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
-test_utr_names (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
-test_utr_sizes (test_core.TestCallPeaksSmartseq3LabelMinimal) ... ok
+test_barcode (test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal) ... ok
+test_is_anndata (test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal) ... ok
+test_shape_anndata (test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal) ... ok
+test_utr_names (test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal) ... ok
+test_utr_sizes (test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal) ... ok
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 45491.37it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 16657.28it/s]
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 51781.53it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 14563.56it/s]
-test_is_anndata (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 53635.60it/s]
+test_is_anndata (test_core.test_pipeline.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 53635.60it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 16384.00it/s]
 ok
-test_shape_anndata (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 62230.03it/s]
+test_shape_anndata (test_core.test_pipeline.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 62230.03it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 17893.79it/s]
 ok
-test_utr_names (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 63743.22it/s]
+test_utr_names (test_core.test_pipeline.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 63743.22it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 17924.38it/s]
 ok
-test_utr_sizes (test_core.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 53635.60it/s]
+test_utr_sizes (test_core.test_pipeline.TestCallPeaksSmartseq3NoBarcodeMinimal) ... UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 53635.60it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 16500.02it/s]
 ok
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 55480.21it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 15972.22it/s]
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 61862.89it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 16683.79it/s]
-test_barcode (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
-test_is_anndata (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
-test_shape_anndata (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
-test_utr_names (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
-test_utr_sizes (test_core.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
+test_barcode (test_core.test_pipeline.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
+test_is_anndata (test_core.test_pipeline.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
+test_shape_anndata (test_core.test_pipeline.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
+test_utr_names (test_core.test_pipeline.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
+test_utr_sizes (test_core.test_pipeline.TestCallPeaksSmartseq3NoLabelMinimal) ... ok
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 67216.41it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 19117.16it/s]
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 66365.57it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18558.87it/s]
-test_anndata_x_is_numeric (test_core.TestDtypePreservationSmartseq3) ... ok
-test_filtered_utr_name_is_categorical (test_core.TestDtypePreservationSmartseq3) ... ok
-test_filtered_utr_size_dtype (test_core.TestDtypePreservationSmartseq3) ... ok
-test_mapped_observation_id_is_categorical (test_core.TestDtypePreservationSmartseq3) ... ok
-test_mapped_utr_name_is_categorical (test_core.TestDtypePreservationSmartseq3) ... ok
-test_mapped_utr_size_dtype (test_core.TestDtypePreservationSmartseq3) ... ok
-test_length (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 451086.36it/s]
+test_anndata_x_is_numeric (test_core.test_pipeline.TestDtypePreservationSmartseq3) ... ok
+test_filtered_utr_name_is_categorical (test_core.test_pipeline.TestDtypePreservationSmartseq3) ... ok
+test_filtered_utr_size_dtype (test_core.test_pipeline.TestDtypePreservationSmartseq3) ... ok
+test_mapped_observation_id_is_categorical (test_core.test_pipeline.TestDtypePreservationSmartseq3) ... ok
+test_mapped_utr_name_is_categorical (test_core.test_pipeline.TestDtypePreservationSmartseq3) ... ok
+test_mapped_utr_size_dtype (test_core.test_pipeline.TestDtypePreservationSmartseq3) ... ok
+test_length (test_core.test_pipeline.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 451086.36it/s]
 0it [00:00, ?it/s]5it [00:00, 7895.90it/s]
 [33m║[0m 2026-02-25 14:12:06 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
 Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-25 14:12:06 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
@@ -198,7 +198,7 @@ test_length (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [0
 Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [00:00<00:00, 15292.02it/s]
 [33m║[0m 2026-02-25 14:12:06 utrcalling utrcalling » INFO - Mapping statistics: {'Reads mapped to the region of interest': 3051, "Reads not 'first'": 2043, 'Alignments not proper pair': 31, 'PCR duplicates': 0, 'Alignments not primary alignment': 0, 'Alignments in interval but wrong strand': 203}
 ok
-test_read_mappings (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 460344.91it/s]
+test_read_mappings (test_core.test_pipeline.TestMapAlignedReads) ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 460344.91it/s]
 0it [00:00, ?it/s]5it [00:00, 9218.25it/s]
 [33m║[0m 2026-02-25 14:12:06 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
 Interval:   0%|[38;2;255;183;0m          [0m| 0/1016 [00:00<?, ?it/s][33m║[0m 2026-02-25 14:12:06 utrcalling utrcalling » INFO - Extracting reads from ./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam and mapping them to the reference UTR
@@ -218,52 +218,52 @@ test_read_mappings (test_core.TestMapAlignedReads) ... UTR:   0%|          | 0/
 ok
 UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 34285.86it/s]
 Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 8780.82it/s]
-test_is_anndata (test_core.TestPipeline3TenxV2Synthetic) ... ok
-test_nonempty (test_core.TestPipeline3TenxV2Synthetic) ... ok
-test_shape (test_core.TestPipeline3TenxV2Synthetic) ... ok
-test_sparse_matrix (test_core.TestPipeline3TenxV2Synthetic) ... ok
+test_is_anndata (test_core.test_pipeline.TestPipeline3TenxV2Synthetic) ... ok
+test_nonempty (test_core.test_pipeline.TestPipeline3TenxV2Synthetic) ... ok
+test_shape (test_core.test_pipeline.TestPipeline3TenxV2Synthetic) ... ok
+test_sparse_matrix (test_core.test_pipeline.TestPipeline3TenxV2Synthetic) ... ok
 UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 41803.69it/s]
 Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 9605.28it/s]
-test_is_anndata (test_core.TestPipeline3TenxV3Synthetic) ... ok
-test_nonempty (test_core.TestPipeline3TenxV3Synthetic) ... ok
-test_shape (test_core.TestPipeline3TenxV3Synthetic) ... ok
-test_sparse_matrix (test_core.TestPipeline3TenxV3Synthetic) ... ok
-test_var_has_utr_size (test_core.TestPipeline3TenxV3Synthetic) ... ok
+test_is_anndata (test_core.test_pipeline.TestPipeline3TenxV3Synthetic) ... ok
+test_nonempty (test_core.test_pipeline.TestPipeline3TenxV3Synthetic) ... ok
+test_shape (test_core.test_pipeline.TestPipeline3TenxV3Synthetic) ... ok
+test_sparse_matrix (test_core.test_pipeline.TestPipeline3TenxV3Synthetic) ... ok
+test_var_has_utr_size (test_core.test_pipeline.TestPipeline3TenxV3Synthetic) ... ok
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 64133.09it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18825.42it/s]
-test_is_anndata (test_core.TestPipeline5CapseqSynthetic) ... ok
-test_nonempty (test_core.TestPipeline5CapseqSynthetic) ... ok
-test_sparse_matrix (test_core.TestPipeline5CapseqSynthetic) ... ok
+test_is_anndata (test_core.test_pipeline.TestPipeline5CapseqSynthetic) ... ok
+test_nonempty (test_core.test_pipeline.TestPipeline5CapseqSynthetic) ... ok
+test_sparse_matrix (test_core.test_pipeline.TestPipeline5CapseqSynthetic) ... ok
 UTR:   0%|          | 0/3 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 42509.84it/s]
 Interval:   0%|          | 0/3 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 3/3 [00:00<00:00, 9915.61it/s]
-test_is_anndata (test_core.TestPipeline5TenxSynthetic) ... ok
-test_nonempty (test_core.TestPipeline5TenxSynthetic) ... ok
-test_sparse_matrix (test_core.TestPipeline5TenxSynthetic) ... ok
+test_is_anndata (test_core.test_pipeline.TestPipeline5TenxSynthetic) ... ok
+test_nonempty (test_core.test_pipeline.TestPipeline5TenxSynthetic) ... ok
+test_sparse_matrix (test_core.test_pipeline.TestPipeline5TenxSynthetic) ... ok
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 66156.21it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 17817.77it/s]
 UTR:   0%|          | 0/5 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 52560.20it/s]
 Interval:   0%|          | 0/5 [00:00<?, ?it/s]Interval: 100%|■■■■■■■■■■| 5/5 [00:00<00:00, 18267.87it/s]
-test_same_count_matrix (test_core.TestPipelineDeterminism) ... ok
-test_same_obs_names (test_core.TestPipelineDeterminism) ... ok
-test_same_shape (test_core.TestPipelineDeterminism) ... ok
-test_same_var_names (test_core.TestPipelineDeterminism) ... ok
-test_same_var_utr_sizes (test_core.TestPipelineDeterminism) ... ok
-test_resulting_df (test_core.TestPrepareUtrReferenceRegionsSynthetic) ... ok
-test_all_duplicates (test_deduplicate.TestDeduplicateReads)
+test_same_count_matrix (test_core.test_pipeline.TestPipelineDeterminism) ... ok
+test_same_obs_names (test_core.test_pipeline.TestPipelineDeterminism) ... ok
+test_same_shape (test_core.test_pipeline.TestPipelineDeterminism) ... ok
+test_same_var_names (test_core.test_pipeline.TestPipelineDeterminism) ... ok
+test_same_var_utr_sizes (test_core.test_pipeline.TestPipelineDeterminism) ... ok
+test_resulting_df (test_core.test_pipeline.TestPrepareUtrReferenceRegionsSynthetic) ... ok
+test_all_duplicates (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 All identical barcode+UMI should keep only the first. ... ok
-test_basic_dedup (test_deduplicate.TestDeduplicateReads)
+test_basic_dedup (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 Same barcode+UMI pair should keep only the first occurrence. ... ok
-test_different_barcodes_same_umi (test_deduplicate.TestDeduplicateReads)
+test_different_barcodes_same_umi (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 Same UMI in different barcodes should be kept in both. ... ok
-test_empty_input (test_deduplicate.TestDeduplicateReads)
+test_empty_input (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 Empty input should return empty output. ... ok
-test_multiple_barcodes_multiple_umis (test_deduplicate.TestDeduplicateReads)
+test_multiple_barcodes_multiple_umis (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 Complex case with multiple barcodes and UMIs. ... ok
-test_no_duplicates (test_deduplicate.TestDeduplicateReads)
+test_no_duplicates (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 When all reads are unique, all should pass through. ... ok
-test_preserves_first_occurrence_order (test_deduplicate.TestDeduplicateReads)
+test_preserves_first_occurrence_order (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 First occurrence of each unique (barcode, UMI) pair should be kept. ... ok
-test_single_read (test_deduplicate.TestDeduplicateReads)
+test_single_read (test_utr_mapping.test_deduplicate.TestDeduplicateReads)
 Single read should pass through unchanged. ... ok
 test_multiple_barcode_columns_raises (test_error_handling.TestAnnotationValidation) ... ok
 test_multiple_batch_columns_raises (test_error_handling.TestAnnotationValidation) ... ok
@@ -279,18 +279,18 @@ test_unsupported_5prime10x_version (test_error_handling.TestInvalidProtocol) ...
 test_unsupported_capseq_version (test_error_handling.TestInvalidProtocol) ... ok
 test_unsupported_platform (test_error_handling.TestInvalidProtocol) ... ok
 test_unsupported_smartseq_version (test_error_handling.TestInvalidProtocol) ... ok
-test_without_barcode_whitelist (test_filter_mapped_reads.TestFilterMappedReadsNoWhitelist)
+test_without_barcode_whitelist (test_core.test_filter_mapped_reads.TestFilterMappedReadsNoWhitelist)
 Without a whitelist, all observations should pass through. ... ok
 UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 477951.20it/s]
-test_filtered_has_expected_columns (test_filter_mapped_reads.TestFilterMappedReadsReturnType)
+test_filtered_has_expected_columns (test_core.test_filter_mapped_reads.TestFilterMappedReadsReturnType)
 Filtered DataFrame should have utr_name, observation_id, utr_size. ... ok
-test_returns_tuple_of_two_dataframes (test_filter_mapped_reads.TestFilterMappedReadsReturnType)
+test_returns_tuple_of_two_dataframes (test_core.test_filter_mapped_reads.TestFilterMappedReadsReturnType)
 filter_mapped_reads should return (filtered_reads, utr_reference_subset). ... ok
-test_utr_reference_subset_matches_read_data (test_filter_mapped_reads.TestFilterMappedReadsReturnType)
+test_utr_reference_subset_matches_read_data (test_core.test_filter_mapped_reads.TestFilterMappedReadsReturnType)
 Reference subset should only contain UTRs present in reads. ... ok
-test_utr_sizes_below_threshold_removed (test_filter_mapped_reads.TestFilterMappedReadsReturnType)
+test_utr_sizes_below_threshold_removed (test_core.test_filter_mapped_reads.TestFilterMappedReadsReturnType)
 UTR sizes <=1 should be filtered out. ... ok
-test_with_barcode_whitelist (test_filter_mapped_reads.TestFilterMappedReadsReturnType)
+test_with_barcode_whitelist (test_core.test_filter_mapped_reads.TestFilterMappedReadsReturnType)
 When whitelist is set, only matching barcodes should remain. ... ok
 test_existing_file_gets_suffix (test_helpers.TestCheckFileExistsAndReturnUnique) ... ok
 test_multiple_existing_increments (test_helpers.TestCheckFileExistsAndReturnUnique) ... ok
@@ -310,49 +310,49 @@ test_strings_not_flattened (test_helpers.TestFlatten) ... ok
 test_bytes_to_str (test_helpers.TestToString) ... ok
 test_empty_bytes (test_helpers.TestToString) ... ok
 test_long_sequence (test_helpers.TestToString) ... ok
-test_ignores_batch_idx (test_observation_id.TestGetObservationIdCapseq) ... ok
-test_label_batches_defaults_false (test_observation_id.TestGetObservationIdCapseq) ... ok
-test_returns_barcode_directly (test_observation_id.TestGetObservationIdCapseq) ... ok
-test_returns_barcode_directly (test_observation_id.TestGetObservationIdCapseqReadName) ... ok
-test_default_no_batch_suffix (test_observation_id.TestGetObservationIdSmartseq) ... ok
-test_label_batches_defaults_false (test_observation_id.TestGetObservationIdSmartseq) ... ok
-test_default_label_batches_is_true (test_observation_id.TestGetObservationIdTenx)
+test_ignores_batch_idx (test_protocol.test_observation_id.TestGetObservationIdCapseq) ... ok
+test_label_batches_defaults_false (test_protocol.test_observation_id.TestGetObservationIdCapseq) ... ok
+test_returns_barcode_directly (test_protocol.test_observation_id.TestGetObservationIdCapseq) ... ok
+test_returns_barcode_directly (test_protocol.test_observation_id.TestGetObservationIdCapseqReadName) ... ok
+test_default_no_batch_suffix (test_protocol.test_observation_id.TestGetObservationIdSmartseq) ... ok
+test_label_batches_defaults_false (test_protocol.test_observation_id.TestGetObservationIdSmartseq) ... ok
+test_default_label_batches_is_true (test_protocol.test_observation_id.TestGetObservationIdTenx)
 10x protocols default to label_batches=True when not specified. ... ok
-test_with_batch_different_idx (test_observation_id.TestGetObservationIdTenx) ... ok
-test_with_batch_none_idx (test_observation_id.TestGetObservationIdTenx) ... ok
-test_with_batch_suffix (test_observation_id.TestGetObservationIdTenx) ... ok
-test_without_batch_ignores_idx (test_observation_id.TestGetObservationIdTenx) ... ok
+test_with_batch_different_idx (test_protocol.test_observation_id.TestGetObservationIdTenx) ... ok
+test_with_batch_none_idx (test_protocol.test_observation_id.TestGetObservationIdTenx) ... ok
+test_with_batch_suffix (test_protocol.test_observation_id.TestGetObservationIdTenx) ... ok
+test_without_batch_ignores_idx (test_protocol.test_observation_id.TestGetObservationIdTenx) ... ok
 test_utrcalling_import (test_package_details.TestImport) ... ok
 test_version (test_package_details.TestVersion) ... ok
 UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 346371.85it/s]
-test_matrix_values_count (test_peak_calling.TestAnnData) ... ok
-test_obs_values_count (test_peak_calling.TestAnnData) ... ok
-test_vars_values_count (test_peak_calling.TestAnnData) ... ok
+test_matrix_values_count (test_count_matrix.TestAnnData) ... ok
+test_obs_values_count (test_count_matrix.TestAnnData) ... ok
+test_vars_values_count (test_count_matrix.TestAnnData) ... ok
 UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 488582.08it/s]
-test_length (test_peak_calling.TestMatrix) ... ok
-test_matrix_maximum (test_peak_calling.TestMatrix) ... ok
-test_matrix_values_count (test_peak_calling.TestMatrix) ... ok
-test_length (test_peak_calling.TestMatrixSynthetic) ... ok
-test_matrix_composition (test_peak_calling.TestMatrixSynthetic) ... ok
-test_matrix_maximum (test_peak_calling.TestMatrixSynthetic) ... ok
-test_matrix_values_count (test_peak_calling.TestMatrixSynthetic) ... ok
+test_length (test_count_matrix.TestMatrix) ... ok
+test_matrix_maximum (test_count_matrix.TestMatrix) ... ok
+test_matrix_values_count (test_count_matrix.TestMatrix) ... ok
+test_length (test_count_matrix.TestMatrixSynthetic) ... ok
+test_matrix_composition (test_count_matrix.TestMatrixSynthetic) ... ok
+test_matrix_maximum (test_count_matrix.TestMatrixSynthetic) ... ok
+test_matrix_values_count (test_count_matrix.TestMatrixSynthetic) ... ok
 UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 434704.97it/s]
-test_length (test_peak_calling.TestObs) ... ok
-test_obs_values_count (test_peak_calling.TestObs) ... ok
-test_length (test_peak_calling.TestObsSynthetic) ... ok
-test_obs_values_count (test_peak_calling.TestObsSynthetic) ... ok
-test_empty_dataframe (test_peak_calling.TestPeakCallingEdgeCases)
+test_length (test_count_matrix.TestObs) ... ok
+test_obs_values_count (test_count_matrix.TestObs) ... ok
+test_length (test_count_matrix.TestObsSynthetic) ... ok
+test_obs_values_count (test_count_matrix.TestObsSynthetic) ... ok
+test_empty_dataframe (test_count_matrix.TestCountMatrixEdgeCases)
 Empty input should produce an empty sparse matrix and empty var. ... ok
-test_single_observation (test_peak_calling.TestPeakCallingEdgeCases)
+test_single_observation (test_count_matrix.TestCountMatrixEdgeCases)
 Single observation should produce a 1-row matrix. ... ok
-test_single_utr (test_peak_calling.TestPeakCallingEdgeCases)
+test_single_utr (test_count_matrix.TestCountMatrixEdgeCases)
 Single UTR with multiple observations should produce peaks from that UTR only. ... ok
 UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 428972.50it/s]
-test_length (test_peak_calling.TestVar) ... ok
-test_vars_values_count (test_peak_calling.TestVar) ... ok
-test_length (test_peak_calling.TestVarSynthetic) ... ok
-test_utr_names (test_peak_calling.TestVarSynthetic) ... ok
-test_vars_values_count (test_peak_calling.TestVarSynthetic) ... ok
+test_length (test_count_matrix.TestVar) ... ok
+test_vars_values_count (test_count_matrix.TestVar) ... ok
+test_length (test_count_matrix.TestVarSynthetic) ... ok
+test_utr_names (test_count_matrix.TestVarSynthetic) ... ok
+test_vars_values_count (test_count_matrix.TestVarSynthetic) ... ok
 test_invalid_strand_raises (test_peak_calling_anndata.TestCalculateUmiDistanceToPas) ... ok
 test_multiple_pas_closest_selected (test_peak_calling_anndata.TestCalculateUmiDistanceToPas) ... ok
 test_single_pas_minus_strand (test_peak_calling_anndata.TestCalculateUmiDistanceToPas) ... ok
@@ -424,21 +424,21 @@ When all UTRs match, result should have the same number of rows. ... ok
 test_no_matching_utrs (test_process_mapped_reads.TestSubsetReferenceDataEdgeCases)
 When no UTR names match the reference, result should be empty. ... ok
 UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 430054.78it/s]
-test_is_filtered (test_protocols.TestFilterUtrSizes) ... ok
-test_number_of_features (test_protocols.TestFilterUtrSizes) ... ok
+test_is_filtered (test_protocol.test_creation.TestFilterUtrSizes) ... ok
+test_number_of_features (test_protocol.test_creation.TestFilterUtrSizes) ... ok
 UTR:   0%|          | 0/1030 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1030/1030 [00:00<00:00, 463185.71it/s]
-test_is_filtered (test_protocols.TestFilterUtrSizesSmartSeqCap) ... ok
-test_number_of_features (test_protocols.TestFilterUtrSizesSmartSeqCap) ... ok
+test_is_filtered (test_protocol.test_creation.TestFilterUtrSizesSmartSeqCap) ... ok
+test_number_of_features (test_protocol.test_creation.TestFilterUtrSizesSmartSeqCap) ... ok
 test_creates_merged_parquet (test_storage.TestStoreMergedCounts) ... ok
 test_creates_all_output_files (test_storage.TestStorePeakCallingResults) ... ok
 test_creates_per_sample_parquets (test_storage.TestStoreReadMappingsMulti) ... ok
 test_creates_parquet_file (test_storage.TestStoreReadMappingsSingle) ... ok
-test_correct_interval (test_utr_mapping.TestGenerateUtrIntervals)
+test_correct_interval (test_utr_mapping.test_intervals.TestGenerateUtrIntervals)
 Here we test if the intervals are being generated correctly. Please note that ... UTR:   0%|          | 0/1016 [00:00<?, ?it/s]UTR: 100%|■■■■■■■■■■| 1016/1016 [00:00<00:00, 474228.01it/s]
 ok
-test_platform (test_utr_mapping.TestProtocolNotSupported) ... ok
-test_version_smartseq (test_utr_mapping.TestProtocolNotSupported) ... ok
-test_version_tenx (test_utr_mapping.TestProtocolNotSupported) ... ok
+test_platform (test_utr_mapping.test_intervals.TestProtocolNotSupported) ... ok
+test_version_smartseq (test_utr_mapping.test_intervals.TestProtocolNotSupported) ... ok
+test_version_tenx (test_utr_mapping.test_intervals.TestProtocolNotSupported) ... ok
 test_column_names (test_utr_reference.TestCorrectColumnNames) ... ok
 test_fields_are_proper (test_utr_reference.TestCorrectColumnNames) ... ok
 test_names_len (test_utr_reference.TestCorrectColumnNames) ... ok

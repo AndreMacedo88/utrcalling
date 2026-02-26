@@ -7,7 +7,7 @@ import pandas as pd
 from utrcalling.core import protocol
 
 # make sure file paths resolve correctly for the test case
-os.chdir(str(Path(__file__).resolve().parents[0]))
+os.chdir(str(Path(__file__).resolve().parents[1]))
 
 
 class TestGetObservationIdTenx(unittest.TestCase):

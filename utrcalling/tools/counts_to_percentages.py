@@ -1,5 +1,6 @@
 # import general tools
 import argparse
+import scipy.sparse
 
 # import internal tools
 from utrcalling.core import anndata_processing as ap
@@ -8,7 +9,13 @@ from utrcalling.core import helpers
 
 def counts_to_percentages(input_path, out_path, utr_name_column="utr_name"):
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
+    is_sparse = scipy.sparse.issparse(adata.X)
+
     adata = ap.counts_to_percentages(adata=adata, utr_name_column=utr_name_column)
+
+    # Sparsify if it was sparse before
+    if is_sparse:
+        adata.X = scipy.sparse.csr_matrix(adata.X)
     adata.write_h5ad(out_path)
 
 

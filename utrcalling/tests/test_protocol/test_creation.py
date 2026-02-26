@@ -8,7 +8,7 @@ import pandas as pd
 from utrcalling.core import protocol, utr_mapping, process_mapped_reads, module_log
 
 # make sure file paths resolve correctly for the test case
-os.chdir(str(Path(__file__).resolve().parents[0]))
+os.chdir(str(Path(__file__).resolve().parents[1]))
 
 
 class Test10x(unittest.TestCase):

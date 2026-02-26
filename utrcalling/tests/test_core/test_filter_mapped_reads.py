@@ -6,7 +6,7 @@ import unittest
 import numpy as np
 import pandas as pd
 
-os.chdir(str(Path(__file__).resolve().parents[0]))
+os.chdir(str(Path(__file__).resolve().parents[1]))
 
 
 class TestFilterMappedReadsBase(unittest.TestCase):

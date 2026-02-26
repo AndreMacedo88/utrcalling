@@ -5,7 +5,7 @@ import pandas as pd
 from utrcalling.core import protocol, utr_mapping, module_log
 
 # we change working dir to the base test dir so that relative paths are sane
-os.chdir(str(Path(__file__).resolve().parents[0]))
+os.chdir(str(Path(__file__).resolve().parents[1]))
 
 
 class TestGenerateUtrIntervals(unittest.TestCase):

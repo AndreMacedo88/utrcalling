@@ -15,7 +15,7 @@ import scipy.sparse
 import anndata as ad
 
 # we change working dir to the base test dir so that relative paths are sane
-os.chdir(str(Path(__file__).resolve().parents[0]))
+os.chdir(str(Path(__file__).resolve().parents[1]))
 
 
 class TestPrepareUtrReferenceRegionsSynthetic(unittest.TestCase):

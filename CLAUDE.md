@@ -36,19 +36,23 @@ conda run --no-capture-output -n utrcalling utrcalling run-tests --verbosity 2
 ### Run a single test module
 
 ```bash
-conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core
-conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_peak_calling
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.test_pipeline
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.test_filter_mapped_reads
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_count_matrix
 conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_peak_calling_anndata
 conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_anndata_processing
 conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_process_mapped_reads
-conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_utr_mapping
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_utr_mapping.test_intervals
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_utr_mapping.test_deduplicate
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_protocol.test_creation
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_protocol.test_observation_id
 ```
 
 ### Run a single test class or method
 
 ```bash
-conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.TestCallPeaksSmartseq3LabelMinimal
-conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.TestCallPeaksSmartseq3LabelMinimal.test_shape_anndata
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal
+conda run --no-capture-output -n utrcalling python -m unittest utrcalling.tests.test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal.test_shape_anndata
 ```
 
 ### CLI usage
@@ -156,9 +160,22 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 
 ### Testing
 
-Tests use Python's `unittest` framework (291 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`. Protocol-specific integration tests live in `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/`. Unit tests for helpers, deduplication, and observation ID logic live in `test_helpers.py`, `test_deduplicate.py`, and `test_observation_id.py`. Post-processing tests in `test_anndata_processing.py` and `test_peak_calling_anndata.py`. Count matrix building tests in `test_peak_calling.py` (tests `count_matrix` module). Module-level tests in `test_barcode_filtering.py`, `test_filter_mapped_reads.py`, and `test_storage.py`. CLI tests in `test_cli.py`. Error handling and negative tests in `test_error_handling.py`. End-to-end pipeline tests for all protocols (3' 10x v2/v3, 5' 10x, 5' CapSeq), dtype preservation tests, and determinism tests live in `test_core.py`.
+Tests use Python's `unittest` framework (291 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`.
+
+Test files follow the `test_MODULE_NAME.py` naming convention, where `MODULE_NAME` matches the core module under test. When a module's tests grow large or have natural semantic groups, a `test_MODULE_NAME/` directory replaces the flat file, with grouped test files inside. Cross-cutting tests (CLI, error handling, package metadata) are exceptions that don't map to one specific module.
+
+**Directory-based test modules:**
+- **`test_core/`** — `test_pipeline.py` (end-to-end pipeline tests for all protocols, dtype preservation, determinism), `test_filter_mapped_reads.py` (barcode/size filtering)
+- **`test_protocol/`** — `test_creation.py` (protocol factory, config validation, batch info, sample name resolution), `test_observation_id.py` (observation ID generation across protocol types)
+- **`test_utr_mapping/`** — `test_intervals.py` (interval generation and basic mapping), `test_deduplicate.py` (UMI deduplication)
+
+**Flat test modules:** `test_count_matrix.py`, `test_peak_calling_anndata.py`, `test_anndata_processing.py`, `test_process_mapped_reads.py`, `test_utr_reference.py`, `test_barcode_filtering.py`, `test_storage.py`, `test_helpers.py`, `test_error_handling.py`, `test_cli.py`, `test_package_details.py`.
+
+**Protocol-specific integration tests:** `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/` — each contains `test_utr_mapping.py` for protocol-variant-specific mapping tests.
 
 Tests `chdir` into `utrcalling/tests/` at setup time, so test data paths are relative to that directory.
+
+**`tests_baseline.txt`** is a stored snapshot of the latest test suite output, used for tracking. It is NOT a file that needs to be maintained or updated during renames/refactors — just re-run the full test suite and overwrite it if needed.
 
 ### Logging
 

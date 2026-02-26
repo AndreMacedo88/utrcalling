@@ -235,7 +235,7 @@ class TestAnnData(TestGenerateCountMatrixAnndata):
         self.assertEqual(non_zeros_count, 670 * 4)
 
 
-class TestPeakCallingEdgeCases(unittest.TestCase):
+class TestCountMatrixEdgeCases(unittest.TestCase):
     """Edge case tests for generate_counts_and_anno()."""
 
     @classmethod
