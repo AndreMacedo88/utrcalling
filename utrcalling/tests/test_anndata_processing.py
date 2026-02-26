@@ -166,18 +166,18 @@ class TestGenerateUtrSiteNamesFromGeneName(unittest.TestCase):
 
     def test_new_names(self):
         names_new = [
-            "AA_site1",
-            "AA_site2",
-            "AA_site3",
-            "ENSMUSG00000000002_site1",
-            "ENSMUSG00000000002_site2",
-            "ENSMUSG00000000002_site3",
-            "CC_UTR1_site1",
-            "CC_UTR1_site2",
-            "CC_UTR2_site1",
-            "gene4_UTR1_site1",
-            "gene4_UTR2_site1",
-            "gene4_UTR2_site2",
+            "AA_1-300",
+            "AA_2-399",
+            "AA_3-500",
+            "ENSMUSG00000000002_1-100",
+            "ENSMUSG00000000002_2-201",
+            "ENSMUSG00000000002_3-300",
+            "CC_1-300",
+            "CC_2-399",
+            "CC_3-500",
+            "gene4_1-100",
+            "gene4_2-201",
+            "gene4_3-300",
         ]
         self.assertListEqual(self.adata_named.var_names.tolist(), names_new)
 

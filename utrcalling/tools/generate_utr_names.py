@@ -27,8 +27,7 @@ def create_parser(subparsers):
     description = (
         f"{help} "
         "Then, changes the var_names of an AnnData object to contain the gene name. "
-        "New name format is as follows:<gene>_<utr number>_<UTR size number>. UTR number "
-        "is only present in genes with more than one annotated UTR."
+        "New name format is: <gene_name>_<utr_number>-<UTR_length_in_bp>."
     )
 
     parser = subparsers.add_parser(

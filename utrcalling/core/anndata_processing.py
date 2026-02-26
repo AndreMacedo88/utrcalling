@@ -24,9 +24,14 @@ def generate_utr_site_names_from_gene_name(
 ) -> anndata.AnnData:
     """Generate human-readable UTR site names from gene names.
 
-    Creates names for each distinct UTR size (UTR site) based on the gene name
-    and UTR number, then replaces ``var_names`` with those new names. The
-    original names/IDs are preserved in ``.var['UTR_site']``.
+    Creates names in the format ``<gene_name>_<utr_number>-<utr_size>`` for
+    each row in ``.var``, then replaces ``var_names`` with those new names.
+    The original names/IDs are preserved in ``.var['UTR_site']``.
+
+    When *gene_name* is missing (``NaN`` or ``"None"``), the first component
+    of *utr_name* (split on ``-`` or ``_``) is used as fallback.  The UTR
+    number is a 1-based sequential counter within each resolved gene name,
+    preserving the original row order.
 
     Args:
         adata: The AnnData object whose ``var_names`` will be renamed.
@@ -36,59 +41,35 @@ def generate_utr_site_names_from_gene_name(
     Returns:
         A copy of *adata* with renamed ``var_names``.
     """
-    # TODO: This method breaks down if the utr_name is not sorted.
-    # Maybe sort the AnnData first, or try another method that does not modify the order
-    # Anyway this should not be a problem for most cases
-
     adata = adata.copy()
 
-    # Keep old var_names in the var layer
+    # Preserve original var_names
     adata.var["UTR_site"] = adata.var_names
 
-    # Append UTR_site number termination to gene names, making them UTR_site names
-    new = []
-    counter = 1
-    utr = ""
-    for row in adata.var.itertuples():
-        utr_name = getattr(row, utr_name_column)
-        gene_name = getattr(row, gene_name_column)
+    # Resolve gene names: use gene_name if present, else extract prefix from utr_name
+    gene_col = adata.var[gene_name_column]
+    missing = gene_col.isna() | (gene_col.astype(str) == "None")
+    resolved = gene_col.astype(object)
+    resolved[missing] = (
+        adata.var.loc[missing, utr_name_column]
+        .str.split(r"[-_]", regex=True)
+        .str[0]
+    )
 
-        if utr != utr_name:
-            counter = 1
-            utr = utr_name
+    # Sequential numbering within each resolved gene (1-based), preserving row order
+    utr_number = resolved.groupby(resolved, sort=False).cumcount() + 1
 
-        utr_info = utr.split("_")
-        if len(utr_info) > 1:
-            if pd.isnull(gene_name) or gene_name == "None":
-                gene_name_ensembl = re.split("-|_", utr_name)[0]
-                name = f"{gene_name_ensembl}_UTR{utr_info[1]}_site{counter}"
-            else:
-                name = f"{gene_name}_UTR{utr_info[1]}_site{counter}"
-        else:
-            if pd.isnull(gene_name) or gene_name == "None":
-                gene_name_ensembl = utr_name.split("-")[0]
-                name = f"{gene_name_ensembl}_site{counter}"
-            else:
-                name = f"{gene_name}_site{counter}"
+    # Build names: <gene_name>_<utr_number>-<utr_size>
+    utr_size_str = adata.var["utr_size"].astype(int).astype(str)
+    new_names = resolved + "_" + utr_number.astype(str) + "-" + utr_size_str
 
-        new.append(name)
-        counter += 1
+    # Handle any remaining duplicates (rare edge case)
+    dup_mask = new_names.duplicated(keep=False)
+    if dup_mask.any():
+        suffix = new_names[dup_mask].groupby(new_names[dup_mask], sort=False).cumcount() + 1
+        new_names[dup_mask] = new_names[dup_mask] + "_" + suffix.astype(str)
 
-    adata.var["UTR_site_named"] = new
-
-    # Deal with duplicates in the UTR site names
-    dups = adata[
-        :, adata.var.UTR_site_named.duplicated(keep="first")
-    ].var.UTR_site_named
-    for dup in dups:
-        counter = 1
-        for row in adata[:, adata.var.UTR_site_named == dup].var.itertuples():
-            adata.var.loc[row.Index, "UTR_site_named"] = f"{dup}_{counter}"
-            counter += 1
-
-    # Assign the new UTR site names to the index, and drop the UTR site name column and index name
-    adata.var_names = adata.var.UTR_site_named
-    adata.var = adata.var.drop(["UTR_site_named"], axis=1)
+    adata.var_names = new_names.values
     adata.var.index.name = None
 
     return adata
