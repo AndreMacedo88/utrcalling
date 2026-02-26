@@ -1,12 +1,11 @@
 # import general tools
 import argparse
 
-# import internal tools
-from utrcalling.core import anndata_processing as ap
-from utrcalling.core import helpers
-
 
 def select_alternative_transcription_events(input_path, out_path):
+    from utrcalling.core import anndata_processing as ap
+    from utrcalling.core import helpers
+
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata_new = ap.select_alternative_transcription_events(adata=adata)
     adata_new.write_h5ad(out_path)

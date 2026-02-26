@@ -1,13 +1,12 @@
 # import general tools
 import argparse
-import scipy.sparse
-
-# import internal tools
-from utrcalling.core import anndata_processing as ap
-from utrcalling.core import helpers
 
 
 def counts_to_percentages(input_path, out_path, utr_name_column="utr_name"):
+    import scipy.sparse
+    from utrcalling.core import anndata_processing as ap
+    from utrcalling.core import helpers
+
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     is_sparse = scipy.sparse.issparse(adata.X)
 

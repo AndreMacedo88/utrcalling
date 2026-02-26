@@ -1,12 +1,11 @@
 # import general tools
 import argparse
 
-# import internal tools
-from utrcalling.core import anndata_processing as ap
-from utrcalling.core import helpers
-
 
 def subset_experiments(input_path, annotations_keep, anno_types, out_paths):
+    from utrcalling.core import anndata_processing as ap
+    from utrcalling.core import helpers
+
     assert len(out_paths) == len(
         annotations_keep
     ), "Number of annotations does not match number of paths to "

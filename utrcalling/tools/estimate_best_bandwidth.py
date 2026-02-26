@@ -1,13 +1,12 @@
 # import general tools
 import argparse
-import joblib
-
-# import internal tools
-from utrcalling.core import peak_calling_anndata as pc
-from utrcalling.core import helpers
 
 
 def estimate_best_bandwidth(input_path, out_path, bandwidths):
+    import joblib
+    from utrcalling.core import peak_calling_anndata as pc
+    from utrcalling.core import helpers
+
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
 
     fit_score = pc.estimate_best_bandwidth(

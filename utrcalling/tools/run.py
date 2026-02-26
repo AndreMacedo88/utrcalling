@@ -3,11 +3,6 @@ import argparse
 import ast
 import os
 
-# import internal tools
-from utrcalling.core import core, helpers, protocol
-from utrcalling.core.protocols import peak_calling as pc
-from utrcalling.core.module_log import module_logger
-
 
 def _write_anndata(adata, filename, logger):
     """Write an AnnData object to h5ad, handling dtype issues."""
@@ -61,6 +56,10 @@ def run(
         store_intermediate (bool, optional): [description]. Defaults to False.
         out (str, optional): [description]. Defaults to 'UTR_results.h5ad'.
     """
+
+    from utrcalling.core import core, helpers, protocol
+    from utrcalling.core.protocols import peak_calling as pc
+    from utrcalling.core.module_log import module_logger
 
     # Set up logging
     logger = module_logger(disable=False, store_log=False, level=log_level)
@@ -177,7 +176,7 @@ def create_parser(subparsers):
         description=f"DESCRIPTION: {description}",
         epilog="""
     Example on how to use in command-line:
-    $ utrcalling run mus_musculus.gtf 
+    $ utrcalling run mus_musculus.gtf
     -a star_align.bam star_align_ko.bam -f three_prime_utr -p 10x -v 2
     -i -A experiment.csv -o results.h5ad
     """,
@@ -195,7 +194,7 @@ def create_parser(subparsers):
         type=str,
         required=True,
         help="""
-        File, or files with the read alignments. One alignment per sample/batch should be 
+        File, or files with the read alignments. One alignment per sample/batch should be
         supplied if downstream applications involve comparisons between the samples/batches.
         Alignments must be sorted and have an index file .bai in the same directory
         """,
@@ -215,7 +214,7 @@ def create_parser(subparsers):
         "-A",
         type=str,
         help="""
-                        File with your experiment's information, such as cell barcodes, 
+                        File with your experiment's information, such as cell barcodes,
                         sample IDs, and batch information.
                         """,
         default=None,
@@ -244,7 +243,7 @@ def create_parser(subparsers):
         type=str,
         help="""
                         Method used to deal with different UTR coverage in different
-                        samples/batches. If 'union', then the tool outputs UTRs that are not 
+                        samples/batches. If 'union', then the tool outputs UTRs that are not
                         represented by all samples/batches. If 'intersection' only the reads that
                         map to UTRs in common between all samples/batches will be used. Default
                         depends on the protocol used.
@@ -257,7 +256,7 @@ def create_parser(subparsers):
         "-s",
         type=str,
         help="""
-                        Perform UTR size calling at the level of (merged) 'UTRs', 
+                        Perform UTR size calling at the level of (merged) 'UTRs',
                         'transcript', or 'gene' level.
                         """,
         default="UTR",
@@ -268,8 +267,8 @@ def create_parser(subparsers):
         "-i",
         action="store_true",
         help="""
-                        Stores intermediate files that can be used to 
-                        run quicker pipelines later on. Useful if something wrong 
+                        Stores intermediate files that can be used to
+                        run quicker pipelines later on. Useful if something wrong
                         is happening in later stages of the pipeline.
                         """,
     )
@@ -299,7 +298,7 @@ def create_parser(subparsers):
         help="""
                         If True, gets the batches from the annotation file and labels each
                         barcode/sample according to the batch. This prevents aggregation
-                        of the results if barcodes are recycled between batches, or when 
+                        of the results if barcodes are recycled between batches, or when
                         2 samples have the same ID.
                         """,
         default=None,

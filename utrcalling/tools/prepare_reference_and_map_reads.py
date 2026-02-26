@@ -2,10 +2,6 @@
 import argparse
 import os
 
-# import internal tools
-from utrcalling.core import core, helpers, protocol
-from utrcalling.core.module_log import module_logger
-
 
 def generate_utr_reference_and_map_reads(
     utr_annotation,
@@ -24,6 +20,9 @@ def generate_utr_reference_and_map_reads(
         feature (str, optional): [description]. Defaults to 'three_prime_utr'.
         protocol_version (int, optional): [description]. Defaults to 3.
     """
+
+    from utrcalling.core import core, helpers, protocol
+    from utrcalling.core.module_log import module_logger
 
     # Set up logging
     logger = module_logger(disable=False, store_log=False, level=log_level)
@@ -67,7 +66,7 @@ def create_parser(subparsers):
         description=f"DESCRIPTION: {description}",
         epilog="""
     Example on how to use in command-line:
-    $ utrcalling prepare-reference-and-map-reads mus_musculus.gtf 
+    $ utrcalling prepare-reference-and-map-reads mus_musculus.gtf
     -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2
         """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

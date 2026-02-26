@@ -3,11 +3,6 @@ import argparse
 import ast
 import os
 
-# import internal tools
-from utrcalling.core import core, helpers, protocol
-from utrcalling.core.protocols import peak_calling as pc
-from utrcalling.core.module_log import module_logger
-
 
 def _write_anndata(adata, filename, logger):
     """Write an AnnData object to h5ad, handling dtype issues."""
@@ -60,6 +55,10 @@ def call_peaks(
         protocol_version (int, optional): [description]. Defaults to 3.
         out (str, optional): Path to write the results. Defaults to "UTR_results.h5ad".
     """
+
+    from utrcalling.core import core, helpers, protocol
+    from utrcalling.core.protocols import peak_calling as pc
+    from utrcalling.core.module_log import module_logger
 
     # Set up logging
     logger = module_logger(disable=False, store_log=False, level=log_level)
@@ -182,7 +181,7 @@ def create_parser(subparsers):
         description=f"DESCRIPTION: {description}",
         epilog="""
     Example on how to use in command-line:
-    $ utrcalling call-peaks mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet 
+    $ utrcalling call-peaks mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet
     -A experiment.csv -p 10x -v 2 -i -o results.h5ad
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -201,7 +200,7 @@ def create_parser(subparsers):
         type=str,
         required=True,
         help="""
-        File, or files with the utr and read information. One file per sample/batch should be 
+        File, or files with the utr and read information. One file per sample/batch should be
         supplied if downstream applications involve comparisons between the samples/batches.
         The files should be parquet files of a UtrMappings object.
         """,
@@ -239,7 +238,7 @@ def create_parser(subparsers):
         type=str,
         help="""
                         Method used to deal with different UTR coverage in different
-                        batches. If `union`, then the tool outputs UTRs that are not 
+                        batches. If `union`, then the tool outputs UTRs that are not
                         represented by all batches. If `intersection` only the reads that
                         map to UTRs in common between all batches will be used. Default
                         depends on the protocol used.
@@ -252,7 +251,7 @@ def create_parser(subparsers):
         "-s",
         type=str,
         help="""
-                        Perform UTR size calling at the level of (merged) 'UTRs', 
+                        Perform UTR size calling at the level of (merged) 'UTRs',
                         'transcript', or 'gene' level.
                         """,
         default="UTR",
@@ -263,8 +262,8 @@ def create_parser(subparsers):
         "-i",
         action="store_true",
         help="""
-                        Stores intermediate files that can be used to 
-                        run quicker pipelines later on. Useful if something wrong 
+                        Stores intermediate files that can be used to
+                        run quicker pipelines later on. Useful if something wrong
                         is happening in later stages of the pipeline.
                         """,
     )
@@ -294,7 +293,7 @@ def create_parser(subparsers):
         help="""
                         If True, gets the batches from the annotation file and labels each
                         barcode/sample according to the batch. This prevents aggregation
-                        of the results if barcodes are recycled between batches, or when 
+                        of the results if barcodes are recycled between batches, or when
                         2 samples have the same ID.
                         """,
         default=None,

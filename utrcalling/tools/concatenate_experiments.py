@@ -1,12 +1,11 @@
 # import general tools
 import argparse
 
-# import internal tools
-from utrcalling.core import anndata_processing as ap
-from utrcalling.core import helpers
-
 
 def concatenate_experiments(input_paths, out_path):
+    from utrcalling.core import anndata_processing as ap
+    from utrcalling.core import helpers
+
     adata_list = [
         helpers.check_if_path_and_open(path_, method="h5ad") for path_ in input_paths
     ]
@@ -26,7 +25,7 @@ def create_parser(subparsers):
         description=f"DESCRIPTION: {description}",
         epilog="""
     Example use:
-    $ utrcalling concatenate-experiments -i adata_1.h5ad adata_2.h5ad adata_3.h5ad 
+    $ utrcalling concatenate-experiments -i adata_1.h5ad adata_2.h5ad adata_3.h5ad
     -o adata_concat.h5ad
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

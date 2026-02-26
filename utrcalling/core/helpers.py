@@ -1,19 +1,20 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, TYPE_CHECKING
 import os
 import re
 import pathlib
 import pickle
 
-import anndata
 import numpy as np
 import pandas as pd
-import pybedtools
-import scanpy as sc
 
 from utrcalling.core import module_log
+
+if TYPE_CHECKING:
+    import anndata
+    import pybedtools
 
 # Joblib defaults — use consistently across the codebase
 JOBLIB_DEFAULT_N_JOBS = -2  # all CPUs minus one
@@ -161,6 +162,7 @@ def check_if_path_and_open(to_check: str | pathlib.PurePath | pd.DataFrame | ann
         elif method == "pickle_pandas":
             output = pd.read_pickle(to_check)
         elif method == "h5ad":
+            import scanpy as sc
             output = sc.read_h5ad(to_check)
         elif method == "csv":
             output = pd.read_csv(to_check, sep=",")
@@ -207,6 +209,7 @@ def load_annotations(annotation_path: str) -> pd.DataFrame | pybedtools.BedTool:
     if annotation_path.endswith(".parquet"):
         output = pd.read_parquet(annotation_path)
     elif annotation_path.endswith(".bed"):
+        import pybedtools
         output = pybedtools.BedTool(annotation_path)
     elif annotation_path.endswith(".pkl"):
         output = pd.read_pickle(annotation_path)

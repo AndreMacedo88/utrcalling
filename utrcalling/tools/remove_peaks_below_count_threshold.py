@@ -1,11 +1,11 @@
 # import general tools
 import argparse
 
-from utrcalling.core import peak_calling_anndata as pc
-from utrcalling.core import helpers
-
 
 def remove_peaks_below_count_threshold(input_path, out_path, threshold, minimum_counts):
+    from utrcalling.core import peak_calling_anndata as pc
+    from utrcalling.core import helpers
+
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
 
     adata_new = pc.remove_peaks_below_count(

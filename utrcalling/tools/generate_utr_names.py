@@ -1,12 +1,11 @@
 # import general tools
 import argparse
 
-# import internal tools
-from utrcalling.core import anndata_processing as ap
-from utrcalling.core import helpers
-
 
 def generate_names(input_path, out_path, utr_name_column, gene_name_column):
+    from utrcalling.core import anndata_processing as ap
+    from utrcalling.core import helpers
+
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata = ap.generate_utr_site_names_from_gene_name(
         adata=adata, utr_name_column=utr_name_column, gene_name_column=gene_name_column

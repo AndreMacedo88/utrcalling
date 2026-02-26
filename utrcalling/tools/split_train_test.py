@@ -1,12 +1,11 @@
 # import general tools
 import argparse
 
-# import internal tools
-from utrcalling.core import anndata_processing as ap
-from utrcalling.core import helpers
-
 
 def split_train_test(input_path, seed, train_fraction, out_path):
+    from utrcalling.core import anndata_processing as ap
+    from utrcalling.core import helpers
+
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata_train, adata_test = ap.split_train_test_data(
         adata=adata, train_fraction=train_fraction, seed=seed

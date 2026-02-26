@@ -1,41 +1,28 @@
 import sys
 import argparse
 
-# import re
-
-from utrcalling.tools import run
-from utrcalling.tools import call_peaks
-from utrcalling.tools import prepare_reference_and_map_reads
-from utrcalling.tools import remove_peaks_below_count_threshold
-from utrcalling.tools import select_alternative_transcription_events
-from utrcalling.tools import generate_utr_names
-from utrcalling.tools import compute_mean_utr_sizes
-from utrcalling.tools import counts_to_percentages
-from utrcalling.tools import concatenate_experiments
-from utrcalling.tools import subset_experiments
-from utrcalling.tools import split_train_test
-from utrcalling.tools import estimate_best_bandwidth
-from utrcalling.tools import check_distance_to_pas
-from utrcalling.tools import call_peaks_different_bandwidths
-
-from utrcalling.tests import test_case
-
 from utrcalling._metadata import __version__ as version
-
-# read the version from the metadata file
-# metadata_file = "utrcalling/_metadata.py"
-# with open(metadata_file, "rt") as file:
-#     metadata = file.read()
-#     version_expression = r"^__version__ = ['\"]([^'\"]*)['\"]"
-#     version_search = re.search(version_expression, metadata, re.M)
-#     if version_search:
-#         version = version_search.group(1)
-#     else:
-#         raise RuntimeError("Unable to find version string in {}.".format(metadata))
 
 
 # Function to create the parser with subparsers
 def create_parser():
+    from utrcalling.tools import run
+    from utrcalling.tools import call_peaks
+    from utrcalling.tools import prepare_reference_and_map_reads
+    from utrcalling.tools import remove_peaks_below_count_threshold
+    from utrcalling.tools import select_alternative_transcription_events
+    from utrcalling.tools import generate_utr_names
+    from utrcalling.tools import compute_mean_utr_sizes
+    from utrcalling.tools import counts_to_percentages
+    from utrcalling.tools import concatenate_experiments
+    from utrcalling.tools import subset_experiments
+    from utrcalling.tools import split_train_test
+    from utrcalling.tools import estimate_best_bandwidth
+    from utrcalling.tools import check_distance_to_pas
+    from utrcalling.tools import call_peaks_different_bandwidths
+
+    from utrcalling.tests import test_case
+
     # create the main parser object
     parser = argparse.ArgumentParser(
         description="Suite of tools to map reads to the UTR."
@@ -73,6 +60,9 @@ def create_parser():
 
 # The main function creating the parser and executing all commands
 def main():
+    from utrcalling import show_logo
+    show_logo()
+
     parser = create_parser()
     args = parser.parse_args()
     if len(sys.argv) == 1:

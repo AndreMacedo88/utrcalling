@@ -8,10 +8,6 @@ import pandas as pd
 import anndata
 import scipy.sparse
 
-from statsmodels.nonparametric.bandwidths import bw_silverman
-from sklearn.neighbors import KernelDensity
-from scipy.signal import argrelextrema
-
 from tqdm import tqdm
 
 from utrcalling.core import module_log
@@ -293,6 +289,10 @@ def split_train_test_data(
             .values[0][0]
         )
     except IndexError:
+        from statsmodels.nonparametric.bandwidths import bw_silverman
+        from sklearn.neighbors import KernelDensity
+        from scipy.signal import argrelextrema
+
         umis_per_id = np.sum(adata.X, axis=1)
         # Find optimal number of bins
         kde_bandwidth = bw_silverman(umis_per_id)

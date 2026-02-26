@@ -1,14 +1,13 @@
 # import general tools
 import argparse
-import joblib
-import pybedtools
-
-# import internal tools
-from utrcalling.core import peak_calling_anndata as pc
-from utrcalling.core import helpers
 
 
 def check_distance_to_pas(input_path, out_path, genome_path, hamming):
+    import joblib
+    import pybedtools
+    from utrcalling.core import peak_calling_anndata as pc
+    from utrcalling.core import helpers
+
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     genome = pybedtools.BedTool(genome_path)
     distances_array = pc.pas_distance(adata=adata, genome=genome, hamming=hamming)
