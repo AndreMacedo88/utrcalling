@@ -5,7 +5,7 @@ count_matrix.py - sparse count matrix building from UTR size data.
 from __future__ import annotations
 
 import warnings
-from typing import NamedTuple
+from typing import NamedTuple, TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
@@ -15,6 +15,11 @@ from scipy.sparse import coo_matrix, csr_matrix
 
 from utrcalling.core import module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND
+from utrcalling.core.protocol import Protocol
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    import numpy.typing as npt
 
 
 class CountMatrixResult(NamedTuple):
@@ -30,11 +35,11 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 
 def _process_utr_group(
     utr_name: str,
-    sizes: np.ndarray,
-    obs: np.ndarray,
+    sizes: npt.NDArray[np.int32],
+    obs: npt.NDArray[np.str_],
     obs_to_idx: dict[str, int],
-    func: object | None = None,
-) -> tuple[list[np.ndarray], list[np.ndarray], list[str], list[int]]:
+    func: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
+) -> tuple[list[npt.NDArray[np.int32]], list[npt.NDArray[np.int32]], list[str], list[int]]:
     """Process a single UTR group: transform sizes and compute sparse triplets.
 
     This is a module-level function so it can be pickled by joblib workers.
@@ -86,8 +91,8 @@ _PARALLEL_UTR_THRESHOLD = 50
 
 def generate_counts_and_anno(
     utr_sizes: pd.DataFrame,
-    protocol: object,
-    size_transform: object | None = None,
+    protocol: Protocol,
+    size_transform: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
 ) -> CountMatrixResult:
     """Transform UTR sizes per group and build a sparse count matrix.
 

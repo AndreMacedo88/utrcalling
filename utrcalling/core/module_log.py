@@ -8,7 +8,7 @@ import verboselogs
 # TODO: module_logger cannot handle storing to a file anymore
 
 
-def module_logger(disable=False, store_log=False, level="info", reinstall=False):
+def module_logger(disable=False, store_log=False, level="info", reinstall=False) -> logging.Logger:
 
     # create logger with the name of the module
     verboselogs.install()
@@ -106,6 +106,6 @@ level_styles = {
 }
 
 
-def log_end_run(message):
+def log_end_run(message: str) -> None:
     logger = module_logger(reinstall=True)
     logger.success(f"Job ended: {message}")

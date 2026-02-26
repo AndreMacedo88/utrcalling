@@ -10,6 +10,7 @@ from utrcalling.core.module_log import module_logger
 from utrcalling.core.helpers import (
     JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND, ensure_mapped_reads_dtypes,
 )
+from utrcalling.core.protocol import Protocol
 from functools import partial
 import logging
 
@@ -98,11 +99,11 @@ class _IntervalData:
 def _process_interval_batch(
     bam_path: str,
     interval_batch: list[tuple[str, _IntervalData]],
-    protocol: object,
+    protocol: Protocol,
     read: str,
     batch_idx: str | None,
     show_progress: bool = False,
-) -> tuple[list, list, list, dict]:
+) -> tuple[list[str], list[str], list[int], dict[str, int]]:
     """Process a batch of UTR intervals from a BAM file.
 
     Each call opens its own pysam file handle so the function is safe for
@@ -261,7 +262,7 @@ def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, _IntervalData
 def map_reads_to_utr(
     bam: str,
     intervals: dict[str, _IntervalData],
-    protocol: object,
+    protocol: Protocol,
     read: str = "first",
     batch_idx: str | None = None,
     parallel: bool = True,
@@ -361,7 +362,7 @@ def map_reads_to_utr(
     return utr_mappings
 
 
-def deduplicate_reads(read_umis: list[str], read_info: list[list]) -> list[list]:
+def deduplicate_reads(read_umis: list[str], read_info: list[list[str | int]]) -> list[list[str | int]]:
     """Remove PCR duplicates by keeping the first occurrence of each (barcode, UMI) pair.
 
     Args:

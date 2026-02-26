@@ -16,6 +16,7 @@ from __future__ import annotations
 # built-in packages
 from abc import ABC, ABCMeta, abstractmethod
 from enum import Enum
+from typing import TYPE_CHECKING
 import re
 
 # data wrangling packages
@@ -26,6 +27,10 @@ from bidict import bidict
 # internal packages
 from utrcalling.core import module_log, helpers
 from utrcalling.core.protocols import peak_calling as pc
+
+if TYPE_CHECKING:
+    import numpy.typing as npt
+    from utrcalling.core.utr_mapping import _IntervalData, _PySamAdapter
 
 
 class MergeMethod(Enum):
@@ -195,7 +200,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         )
 
     # set-up methods
-    def get_sample_names(self, alignments):
+    def get_sample_names(self, alignments: str | list[str]) -> tuple[bidict[str, str], dict[str, str]]:
         sample_names_dict = bidict()
         sample_idx_dict = dict()
         if not isinstance(alignments, list):
@@ -237,7 +242,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         return sample_names_dict, sample_idx_dict
 
-    def _get_sample_column(self):
+    def _get_sample_column(self) -> str:
         try:
             sample_column_name = (
                 self.annotations.columns.str.extract(
@@ -264,7 +269,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             sample_column_name = sample_column_name[0][0]
         return sample_column_name
 
-    def _get_batch_column(self):
+    def _get_batch_column(self) -> str | None:
         batch_column_name = (
             self.annotations.columns.str.extract(r"(.*batch.*)", flags=re.IGNORECASE)
             .dropna()
@@ -287,7 +292,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             batch_column_name = batch_column_name[0][0]
         return batch_column_name
 
-    def _get_barcode_column(self):
+    def _get_barcode_column(self) -> str | None:
         barcode_column_name = (
             self.annotations.reset_index()
             .columns.str.extract(r"(.*barcode.*)", flags=re.IGNORECASE)
@@ -313,7 +318,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             barcode_column_name = barcode_column_name[0][0]
         return barcode_column_name
 
-    def _get_batch_information(self):
+    def _get_batch_information(self) -> tuple[list[str] | None, pd.Series | None]:
         if self.batch_column_name is None:
             return (
                 None,
@@ -329,7 +334,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             batches_range = (batches_range + 1).astype(str)
         return batches_list, batches_range
 
-    def _resolve_barcode_reuse_by_batch(self):
+    def _resolve_barcode_reuse_by_batch(self) -> pd.DataFrame:
         annotations = self.annotations.copy()
         if self.label_batches and (self.batches_list is not None):
             barcodes = annotations.loc[:, self.barcode_column_name]
@@ -351,7 +356,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         else:
             return annotations
 
-    def _get_barcode_list(self):
+    def _get_barcode_list(self) -> npt.NDArray[np.str_]:
         barcodes_series = self.annotations.loc[:, self.barcode_column_name]
         barcodes_whitelist = barcodes_series.unique()
         return barcodes_whitelist
@@ -375,7 +380,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
     @staticmethod
     @abstractmethod
     def get_reads_identity(
-        alignment: object, **kwargs: str
+        alignment: _PySamAdapter, **kwargs: str
     ) -> tuple[str | None, str | None]:
         """Extract UMI and barcode from a read alignment.
 
@@ -402,7 +407,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     @staticmethod
     @abstractmethod
-    def get_utr_size_from_read(read_start_position: int, interval: object) -> int:
+    def get_utr_size_from_read(read_start_position: int, interval: _IntervalData) -> int:
         """Compute the UTR size from a read's start position and the UTR interval.
 
         Args:
@@ -442,7 +447,7 @@ class ProtocolThreePrime(Protocol):
         return read_strand != utr_strand
 
     @staticmethod
-    def get_utr_size_from_read(read_start_position: int, interval: object) -> int:
+    def get_utr_size_from_read(read_start_position: int, interval: _IntervalData) -> int:
         return abs(read_start_position - interval.start_d)
 
 
@@ -465,7 +470,7 @@ class ProtocolFivePrime(Protocol):
         return utr_sizes
 
     @staticmethod
-    def get_utr_size_from_read(read_start_position: int, interval: object) -> int:
+    def get_utr_size_from_read(read_start_position: int, interval: _IntervalData) -> int:
         return abs(read_start_position - interval.end_d)
 
 
@@ -477,7 +482,7 @@ class ProtocolTenx3(ProtocolTenx):
     """10x Chromium v3 protocol (16 bp barcode + 12 bp UMI from read sequence)."""
 
     @staticmethod
-    def get_reads_identity(alignment: object, **_: str) -> tuple[str, str]:
+    def get_reads_identity(alignment: _PySamAdapter, **_: str) -> tuple[str, str]:
         read_seq = alignment.read.seq
         read_barcode = helpers.to_string(read_seq[:16])
         read_umi = helpers.to_string(read_seq[16:28])  # 12 bp UMI
@@ -488,7 +493,7 @@ class ProtocolTenx2(ProtocolTenx):
     """10x Chromium v2 protocol (16 bp barcode + 10 bp UMI from read sequence)."""
 
     @staticmethod
-    def get_reads_identity(alignment: object, **_: str) -> tuple[str, str]:
+    def get_reads_identity(alignment: _PySamAdapter, **_: str) -> tuple[str, str]:
         """Get read UMI and barcode from 10x version 2.
 
         Args:
@@ -540,7 +545,7 @@ class ProtocolSmartseq3(ProtocolSmartseq):
     """Smart-seq3 protocol (6 bp barcode + 8 bp UMI from read sequence)."""
 
     @staticmethod
-    def get_reads_identity(alignment: object, **_: str) -> tuple[str, str]:
+    def get_reads_identity(alignment: _PySamAdapter, **_: str) -> tuple[str, str]:
         read_seq = alignment.read.seq
         read_barcode = helpers.to_string(read_seq[:6])
         read_umi = helpers.to_string(read_seq[6:14])  # 8 bp UMI
@@ -588,7 +593,7 @@ class ProtocolCapseqSmartseq3(ProtocolCapseq):
         return barcode
 
     @staticmethod
-    def get_reads_identity(alignment: object, **kwargs: str) -> tuple[str | None, str]:
+    def get_reads_identity(alignment: _PySamAdapter, **kwargs: str) -> tuple[str | None, str]:
         read_batch_id = kwargs.get("bam_name", "S")
         read_seq = helpers.to_string(alignment.read.seq)
 
@@ -611,7 +616,7 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
         return barcode
 
     @staticmethod
-    def get_reads_identity(alignment: object, **kwargs: str) -> tuple[str, str]:
+    def get_reads_identity(alignment: _PySamAdapter, **kwargs: str) -> tuple[str, str]:
         read_batch_id = kwargs.get("bam_name", "S")
 
         read_seq = helpers.to_string(alignment.read.name)
@@ -626,7 +631,7 @@ class ProtocolFiveTenx(ProtocolFivePrime):
 
     @staticmethod
     def get_reads_identity(
-        alignment: object, **_: str
+        alignment: _PySamAdapter, **_: str
     ) -> tuple[str | None, str | None]:
         """Get read UMI and barcode from 5' 10x version 1.1 via BAM tags.
 

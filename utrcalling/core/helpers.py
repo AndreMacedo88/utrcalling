@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterable
+from typing import Any
 import os
 import re
 import pathlib
 import pickle
 
+import anndata
 import numpy as np
 import pandas as pd
 import pybedtools
@@ -38,7 +40,7 @@ def ensure_mapped_reads_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def flatten(list_: Iterable) -> Iterable:
+def flatten(list_: Iterable[Any]) -> Iterable[Any]:
     """Flatten an irregular list of lists recursively.
 
     Args:
@@ -86,7 +88,7 @@ def to_string(x: bytes | str) -> str:
     return repr(x)[2:-1]
 
 
-def log_metrics_anndata(adata: object) -> None:
+def log_metrics_anndata(adata: anndata.AnnData) -> None:
     """Log summary metrics (peak count, sample/cell count) for an AnnData object.
 
     Args:
@@ -138,7 +140,7 @@ def check_if_exists_and_mkdir(folders_path: str) -> None:
         os.makedirs(folders_path)
 
 
-def check_if_path_and_open(to_check: object, method: str = "parquet") -> object:
+def check_if_path_and_open(to_check: str | pathlib.PurePath | pd.DataFrame | anndata.AnnData, method: str = "parquet") -> pd.DataFrame | anndata.AnnData | object:
     """If the input is a file path, load it using the specified method; otherwise pass through.
 
     Args:
@@ -241,7 +243,7 @@ def check_if_dir_and_list_files(
         return path
 
 
-def split_list(a: list, n: int) -> Iterable[list]:
+def split_list(a: list[Any], n: int) -> Iterable[list[Any]]:
     """Split a list into n roughly equal-sized chunks.
 
     Args:

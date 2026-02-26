@@ -16,6 +16,8 @@ UTR peaks as var.
 """
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import anndata
 import pandas as pd
 import pybedtools
@@ -30,6 +32,12 @@ from utrcalling.core import process_mapped_reads
 from utrcalling.core import count_matrix
 from utrcalling.core import barcode_filtering
 from utrcalling.core import storage
+from utrcalling.core.protocol import Protocol
+from utrcalling.core.utr_mapping import _IntervalData
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    import numpy.typing as npt
 
 
 def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:
@@ -69,7 +77,7 @@ def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -
     return utr_reduced
 
 
-def _resolve_batch_idx(alignment: str, protocol: object) -> str | None:
+def _resolve_batch_idx(alignment: str, protocol: Protocol) -> str | None:
     """Resolve the batch index for a single BAM file.
 
     Args:
@@ -86,8 +94,8 @@ def _resolve_batch_idx(alignment: str, protocol: object) -> str | None:
 
 def _map_single_bam(
     alignment: str,
-    intervals: dict,
-    protocol: object,
+    intervals: dict[str, _IntervalData],
+    protocol: Protocol,
     batch_idx: str | None = None,
 ) -> pd.DataFrame:
     """Map reads from a single BAM file to UTR intervals.
@@ -108,8 +116,8 @@ def _map_single_bam(
 
 def _map_multiple_bams(
     alignments: list[str],
-    intervals: dict,
-    protocol: object,
+    intervals: dict[str, _IntervalData],
+    protocol: Protocol,
 ) -> list[pd.DataFrame]:
     """Map reads from multiple BAM files in parallel via joblib.
 
@@ -140,7 +148,7 @@ def _map_multiple_bams(
 def map_aligned_reads(
     alignments: str | list[str],
     utr_regions: pd.DataFrame,
-    protocol: object,
+    protocol: Protocol,
     store: bool = False,
 ) -> pd.DataFrame | list[pd.DataFrame]:
     """Map BAM-aligned reads to UTR intervals and deduplicate by UMI.
@@ -176,7 +184,7 @@ def map_aligned_reads(
 
 def merge_samples_utr_sizes(
     utr_sizes_counts: list[pd.DataFrame],
-    protocol: object,
+    protocol: Protocol,
     store: bool = False,
 ) -> pd.DataFrame:
     """Merge flat DataFrames from multiple BAM samples into one.
@@ -230,7 +238,7 @@ def merge_utrs_per_feature(
 def filter_mapped_reads(
     utr_sizes_counts: pd.DataFrame,
     utr_reference_regions: pd.DataFrame,
-    protocol: object,
+    protocol: Protocol,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Filter mapped reads and subset the UTR reference before peak calling.
 
@@ -261,9 +269,9 @@ def filter_mapped_reads(
 def build_count_matrix(
     filtered_reads: pd.DataFrame,
     utr_reference_subset: pd.DataFrame,
-    protocol: object,
+    protocol: Protocol,
     store: bool = False,
-    size_transform: object | None = None,
+    size_transform: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
 ) -> anndata.AnnData:
     """Build a sparse AnnData count matrix from filtered reads.
 
@@ -304,7 +312,7 @@ def build_count_matrix(
 def call_peaks(
     filtered_reads: pd.DataFrame,
     utr_reference_subset: pd.DataFrame,
-    protocol: object,
+    protocol: Protocol,
     store: bool = False,
 ) -> anndata.AnnData:
     """Call consensus UTR peaks and build a sparse AnnData count matrix.

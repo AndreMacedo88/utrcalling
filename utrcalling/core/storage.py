@@ -4,6 +4,7 @@ from __future__ import annotations
 import os
 
 import pandas as pd
+import pybedtools
 from scipy.sparse import save_npz, csr_matrix
 
 from utrcalling.core import helpers
@@ -11,7 +12,7 @@ from utrcalling.core.module_log import module_logger
 
 
 def store_utr_reference(
-    utr_bed: object,
+    utr_bed: pybedtools.BedTool,
     utr_reduced: pd.DataFrame,
     directory: str = "./intermediate",
 ) -> None:

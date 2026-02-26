@@ -7,9 +7,11 @@ peak consolidation, PAS distance scoring, and bandwidth estimation.
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import regex
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import anndata as ad
 import scipy.sparse
@@ -30,7 +32,7 @@ from utrcalling.core import module_log
 
 def _peak_call_single_utr(
     adata_utr: ad.AnnData, method: str, bandwidth: float
-) -> tuple[np.ndarray, pd.DataFrame]:
+) -> tuple[npt.NDArray[Any], pd.DataFrame]:
     """Run peak calling on a single UTR slice of an AnnData.
 
     Extracts gene name and UTR numbering, builds a size vector from read
@@ -93,7 +95,7 @@ def _peak_call_single_utr(
 
 def _get_distances_per_utr(
     adata: ad.AnnData, utr: str, hamming: int, genome: str
-) -> np.ndarray | None:
+) -> npt.NDArray[Any] | None:
     """Compute PAS distances for a single UTR (module-level for joblib).
 
     Args:
@@ -124,7 +126,7 @@ def _get_distances_per_utr(
 
 def _get_score_distances_per_utr(
     adata: ad.AnnData, utr: str, hamming: int
-) -> list | None:
+) -> list[float | tuple[float, npt.NDArray[Any]]] | None:
     """Score PAS distances for a single UTR (module-level for joblib).
 
     Args:
@@ -328,7 +330,7 @@ def estimate_best_bandwidth(
     hamming: int = 1,
     bandwidths: tuple[float, ...] | list[float] = (0.5, 1, 1.5, 2, 2.5, 3),
     return_distances_to_hex: bool = False,
-) -> list[float] | list[tuple[float, np.ndarray]]:
+) -> list[float] | list[tuple[float, npt.NDArray[Any]]]:
     """Estimate the best KDE bandwidth by scoring PAS proximity.
 
     Runs peak calling at each candidate bandwidth, then scores each result
@@ -368,7 +370,7 @@ def estimate_best_bandwidth(
     return estimation_results
 
 
-def pas_distance(adata: ad.AnnData, genome: str, hamming: int = 1) -> np.ndarray:
+def pas_distance(adata: ad.AnnData, genome: str, hamming: int = 1) -> npt.NDArray[Any]:
     """Calculate UMI distances to the nearest polyadenylation signal (PAS).
 
     For each UTR, finds PAS hexamer sites (AATAAA with up to *hamming*
@@ -403,7 +405,7 @@ def _score_peak_assignment(
     adata: ad.AnnData,
     hamming: int = 1,
     return_distances_to_hex: bool = False,
-) -> float | tuple[float, np.ndarray]:
+) -> float | tuple[float, npt.NDArray[Any]]:
     """Score peak assignments by proximity to PAS hexamers.
 
     Args:
@@ -563,7 +565,7 @@ def _calculate_umi_distance_to_pas(
 
 
 def _utr_sizes_vector_from_read_counts(
-    counts_arr: np.ndarray | scipy.sparse.spmatrix,
+    counts_arr: npt.NDArray[Any] | scipy.sparse.spmatrix,
     sizes_arr: pd.Series,
 ) -> pd.Series:
     """Expand a sizes vector by repeating each size according to its count.
@@ -583,8 +585,8 @@ def _utr_sizes_vector_from_read_counts(
 
 
 def _call_peaks_using_kernel_density_estimator(
-    utr_sizes_vector: np.ndarray, bandwidth: float = 1
-) -> np.ndarray:
+    utr_sizes_vector: npt.NDArray[Any], bandwidth: float = 1
+) -> npt.NDArray[np.int32]:
     """Assign each UMI to a consensus peak via Gaussian KDE.
 
     Fits a KDE to the distribution of UTR sizes and uses local extrema to

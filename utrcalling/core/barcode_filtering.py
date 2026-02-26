@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import psutil
 from rapidfuzz import process, distance
@@ -9,7 +10,7 @@ from rapidfuzz import process, distance
 from utrcalling.core import module_log
 
 
-def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: np.ndarray) -> pd.DataFrame:
+def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]) -> pd.DataFrame:
     """Filter observations to those matching a barcode whitelist.
 
     Exact matches are kept directly. For non-matching barcodes, a fuzzy match
@@ -91,7 +92,7 @@ def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: np.ndarray) -> pd.DataFr
 
 
 def filter_barcodes_memory_aware(
-    utr_sizes: pd.DataFrame, whitelist: np.ndarray
+    utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]
 ) -> pd.DataFrame:
     """Apply barcode filtering with automatic memory-aware chunking.
 
