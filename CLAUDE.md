@@ -28,9 +28,10 @@ conda run --no-capture-output -n utrcalling pip install -e .
 ### Run all tests
 
 ```bash
-conda run --no-capture-output -n utrcalling python -m unittest discover -s utrcalling/tests -p "test_*.py"
-# Or with the CLI:
+# Preferred — goes through the CLI entry point (matches production behavior):
 conda run --no-capture-output -n utrcalling utrcalling run-tests --verbosity 2
+# Or directly via unittest (bypasses CLI entry point — no logging.disable, no show_logo):
+conda run --no-capture-output -n utrcalling python -m unittest discover -s utrcalling/tests -p "test_*.py"
 ```
 
 ### Run a single test module
@@ -65,7 +66,7 @@ conda run --no-capture-output -n utrcalling utrcalling call-peaks --help   # Pea
 
 ## Design History
 
-The `core-overhaul` branch is a major refactor from `master`. Key changes: modin/ray replaced with pandas+joblib, HTSeq BAM reading replaced with pysam (lightweight `_IntervalData` class replaces `HTSeq.GenomicInterval`), flat intermediate data model (one row per molecule), sparse count matrices throughout, memory-aware barcode filtering, O(1) UMI deduplication, functional decomposition of core.py into thin orchestrator + focused modules (storage.py, barcode_filtering.py, count_matrix.py), type hints and Google-style docstrings on all public functions. Configuration uses `MergeMethod`/`PeakCallingMethod` enums and `CountMatrixResult` NamedTuple. Protocol base class consolidates `label_batches` defaults via `_default_label_batches` class attribute. Joblib config uses `JOBLIB_DEFAULT_N_JOBS`/`JOBLIB_DEFAULT_BACKEND` constants from `helpers.py`. Gene/transcript ID joins use `|` delimiter (bioinformatics convention). Peak calling is decoupled from count matrix building via an explicit `size_transform` parameter — `protocol.peak_calling` is `None` when `call_peaks=False` (no bypass function). `--raw_sizes` mode produces dual output: raw sizes + KDE peaks. **291 tests pass.** See git history for details.
+The `core-overhaul` branch is a major refactor from `master`. Key changes: modin/ray replaced with pandas+joblib, HTSeq BAM reading replaced with pysam (lightweight `_IntervalData` class replaces `HTSeq.GenomicInterval`), flat intermediate data model (one row per molecule), sparse count matrices throughout, memory-aware barcode filtering, O(1) UMI deduplication, functional decomposition of core.py into thin orchestrator + focused modules (storage.py, barcode_filtering.py, count_matrix.py), type hints and Google-style docstrings on all public functions. Configuration uses `MergeMethod`/`PeakCallingMethod` enums and `CountMatrixResult` NamedTuple. Protocol base class consolidates `label_batches` defaults via `_default_label_batches` class attribute. Joblib config uses `JOBLIB_DEFAULT_N_JOBS`/`JOBLIB_DEFAULT_BACKEND` constants from `helpers.py`. Gene/transcript ID joins use `|` delimiter (bioinformatics convention). Peak calling is decoupled from count matrix building via an explicit `size_transform` parameter — `protocol.peak_calling` is `None` when `call_peaks=False` (no bypass function). `--raw_sizes` mode produces dual output: raw sizes + KDE peaks. **300 tests pass.** See git history for details.
 
 ### Hard Constraints
 
@@ -160,7 +161,7 @@ Argparse-based. Each module in `utrcalling/tools/` defines `create_parser(subpar
 
 ### Testing
 
-Tests use Python's `unittest` framework (291 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`.
+Tests use Python's `unittest` framework (300 tests). Test data is generated synthetically in `utrcalling/tests/test_data/`.
 
 Test files follow the `test_MODULE_NAME.py` naming convention, where `MODULE_NAME` matches the core module under test. When a module's tests grow large or have natural semantic groups, a `test_MODULE_NAME/` directory replaces the flat file, with grouped test files inside. Cross-cutting tests (CLI, error handling, package metadata) are exceptions that don't map to one specific module.
 
@@ -169,7 +170,7 @@ Test files follow the `test_MODULE_NAME.py` naming convention, where `MODULE_NAM
 - **`test_protocol/`** — `test_creation.py` (protocol factory, config validation, batch info, sample name resolution), `test_observation_id.py` (observation ID generation across protocol types)
 - **`test_utr_mapping/`** — `test_intervals.py` (interval generation and basic mapping), `test_deduplicate.py` (UMI deduplication)
 
-**Flat test modules:** `test_count_matrix.py`, `test_peak_calling_anndata.py`, `test_anndata_processing.py`, `test_process_mapped_reads.py`, `test_utr_reference.py`, `test_barcode_filtering.py`, `test_storage.py`, `test_helpers.py`, `test_error_handling.py`, `test_cli.py`, `test_package_details.py`.
+**Flat test modules:** `test_count_matrix.py`, `test_peak_calling_anndata.py`, `test_anndata_processing.py`, `test_process_mapped_reads.py`, `test_utr_reference.py`, `test_barcode_filtering.py`, `test_storage.py`, `test_helpers.py`, `test_module_log.py`, `test_error_handling.py`, `test_cli.py`, `test_package_details.py`.
 
 **Protocol-specific integration tests:** `test_3'10x/`, `test_5'10x/`, `test_3'smartseq/`, `test_5'smartseq/` — each contains `test_utr_mapping.py` for protocol-variant-specific mapping tests.
 
@@ -179,7 +180,13 @@ Tests `chdir` into `utrcalling/tests/` at setup time, so test data paths are rel
 
 ### Logging
 
-Custom logger via `utrcalling/core/module_log.py` (coloredlogs + verboselogs). Logger initialization is guarded against duplicate setup from joblib worker processes — preserve this guard.
+Custom logger via `utrcalling/core/module_log.py` (coloredlogs + verboselogs). Singleton pattern: `module_logger()` only configures handlers on first call (when `logger.handlers` is empty) — this guards against duplicate setup from joblib worker processes.
+
+**Dual output**: Console uses ANSI-colored format via `coloredlogs.install()` (the sole console handler — no explicit `StreamHandler`). File logging uses a plain-text format (`FILE_FORMAT`, no ANSI codes) via a standard `FileHandler` added *after* `coloredlogs.install()`.
+
+**File logging** is opt-in (`store_log=False` default) for library/script usage but on by default from CLI tools (`run`, `call-peaks`, `prepare-reference-and-map-reads`). CLI tools derive `log_dir` from the `--out` path (or cwd) and accept `--no_log_file` to suppress file creation. The file handler always logs at `DEBUG` level regardless of the console level — the logger level is set to `DEBUG` *after* `coloredlogs.install()` (which overrides `logger.setLevel()` internally) so debug messages reach the file while the console handler filters at the requested level via its own handler-level setting.
+
+**Testing caveat**: `utrcalling run-tests` calls `logging.disable(logging.CRITICAL)` globally before tests run (to suppress log noise). Tests in `test_module_log.py` that verify file content must save/restore this global threshold in `setUp`/`tearDown` via `logging.disable(logging.NOTSET)`. This is why `python -m unittest discover` (which bypasses the CLI entry point) can give different results than `utrcalling run-tests`.
 
 ## Git Conventions
 

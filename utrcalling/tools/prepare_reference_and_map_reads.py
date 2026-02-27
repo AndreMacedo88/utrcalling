@@ -10,6 +10,8 @@ def generate_utr_reference_and_map_reads(
     protocol_platform="10x",
     protocol_version=3,
     log_level="info",
+    store_log=True,
+    no_log_file=False,
 ):
     """
     Gets UTR sizes peak counts per cell/sample/batch from input file/s.
@@ -25,7 +27,9 @@ def generate_utr_reference_and_map_reads(
     from utrcalling.core.module_log import module_logger
 
     # Set up logging
-    logger = module_logger(disable=False, store_log=False, level=log_level)
+    store_log = store_log and not no_log_file
+    log_dir = os.getcwd() if store_log else None
+    logger = module_logger(disable=False, store_log=store_log, log_dir=log_dir, level=log_level)
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}\n")
 
@@ -119,6 +123,12 @@ def create_parser(subparsers):
         type=str,
         help="Level of logging messages to retrieve during the run.",
         default="info",
+    )
+
+    parser.add_argument(
+        "--no_log_file",
+        action="store_true",
+        help="Disable writing a log file alongside the output.",
     )
 
     parser.set_defaults(func=generate_utr_reference_and_map_reads)

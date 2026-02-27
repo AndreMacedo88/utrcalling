@@ -42,6 +42,8 @@ def run(
     store_intermediate=False,
     log_level="info",
     out="UTR_counts.h5ad",
+    store_log=True,
+    no_log_file=False,
 ):
     """
     Maps reads to UTRs and returns UTR length peak counts per cell/sample/batch from
@@ -62,7 +64,11 @@ def run(
     from utrcalling.core.module_log import module_logger
 
     # Set up logging
-    logger = module_logger(disable=False, store_log=False, level=log_level)
+    store_log = store_log and not no_log_file
+    log_dir = os.path.dirname(os.path.abspath(out)) if store_log else None
+    logger = module_logger(
+        disable=False, store_log=store_log, log_dir=log_dir, level=log_level
+    )
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}")
 
@@ -310,6 +316,12 @@ def create_parser(subparsers):
         type=str,
         help="Level of logging messages to retrieve during the run.",
         default="info",
+    )
+
+    parser.add_argument(
+        "--no_log_file",
+        action="store_true",
+        help="Disable writing a log file alongside the output.",
     )
 
     parser.add_argument(
