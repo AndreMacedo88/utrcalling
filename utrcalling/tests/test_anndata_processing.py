@@ -102,7 +102,7 @@ class TestComputeMeanSizes(unittest.TestCase):
         var = pd.DataFrame(utr_regions).set_index("polyA")
 
         self.adata = ad.AnnData(
-            X=count_matrix, obs=obs, var=var, dtype=count_matrix.dtype
+            X=count_matrix, obs=obs, var=var
         )
         self.adata_means = ap.compute_utr_size_means(
             adata=self.adata.copy(),
@@ -262,7 +262,7 @@ def _make_multi_site_adata():
         },
         index=["p1", "p2", "p3", "p4"],
     )
-    return ad.AnnData(X=X, obs=obs, var=var, dtype=X.dtype)
+    return ad.AnnData(X=X, obs=obs, var=var)
 
 
 class TestSelectAlternativeTranscriptionEvents(unittest.TestCase):
@@ -392,7 +392,7 @@ class TestConcatenateAdata(unittest.TestCase):
             },
             index=["p1", "p2", "p3"],
         )
-        adata2 = ad.AnnData(X=X2, obs=obs2, var=var2, dtype=X2.dtype)
+        adata2 = ad.AnnData(X=X2, obs=obs2, var=var2)
         result = ap.concatenate_adata([adata1, adata2])
         # adata2 doesn't have UTR2, so those values should be 0 for c4-c6
         self.assertEqual(result.shape[0], 6)

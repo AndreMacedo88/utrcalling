@@ -6,3 +6,4 @@ build/*
 dist/*
 .claude/
 CLAUDE.md
+RELEASE.md

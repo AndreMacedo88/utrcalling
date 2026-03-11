@@ -141,25 +141,6 @@ def check_if_exists_and_mkdir(folders_path: str) -> None:
         os.makedirs(folders_path)
 
 
-def _register_anndata_null_codec() -> None:
-    """Register a reader for the 'null' encoding if the installed anndata lacks one.
-
-    anndata >= 0.12 natively handles IOSpec('null', '0.1.0'), which represents
-    ``None`` values in .uns/.obsm/etc.  Older versions (0.10–0.11) do not, so
-    files written by newer anndata cannot be read.  This shim adds the missing
-    reader so that those files can be loaded without upgrading to Python 3.11+.
-    """
-    from anndata._io.specs.registry import _REGISTRY, IOSpec
-    import h5py
-
-    spec = IOSpec("null", "0.1.0")
-    if not _REGISTRY.has_read(h5py.Dataset, spec):
-
-        @_REGISTRY.register_read(h5py.Dataset, spec)
-        def _read_null(d, *, _reader):  # noqa: ARG001
-            return None
-
-
 def check_if_path_and_open(to_check: str | pathlib.PurePath | pd.DataFrame | anndata.AnnData, method: str = "parquet") -> pd.DataFrame | anndata.AnnData | object:
     """If the input is a file path, load it using the specified method; otherwise pass through.
 
@@ -182,7 +163,6 @@ def check_if_path_and_open(to_check: str | pathlib.PurePath | pd.DataFrame | ann
             output = pd.read_pickle(to_check)
         elif method == "h5ad":
             import anndata as ad
-            _register_anndata_null_codec()
             output = ad.read_h5ad(to_check)
         elif method == "csv":
             output = pd.read_csv(to_check, sep=",")

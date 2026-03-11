@@ -275,7 +275,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             .dropna()
             .values
         )
-        if not batch_column_name:
+        if len(batch_column_name) == 0:
             msg = (
                 "If you are working with multiple samples/batches, please supply "
                 "a column for `batch` in the annotation file. "
@@ -299,7 +299,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             .dropna()
             .values
         )
-        if not barcode_column_name:
+        if len(barcode_column_name) == 0:
             msg = (
                 "If you are working with barcodes, please supply "
                 "a column for `barcode` in the annotation file. "

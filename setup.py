@@ -35,6 +35,7 @@ setuptools.setup(
     author_email="andre.lopes.macedo@gmail.com",
     url="https://github.com/AndreMacedo88/utrcalling",
     packages=setuptools.find_packages(),
+    python_requires=">=3.11",
     install_requires=[
         "numpy>=1.22.3",
         "pandas>=1.3.0",
@@ -43,9 +44,10 @@ setuptools.setup(
         "regex>=2022.04.24",
         "rapidfuzz>=2.0.0",
         "joblib>=1.0.1",
-        "anndata>=0.10.0",
-        "scanpy>=1.9.1",
+        "anndata>=0.12.0",
+        "scanpy>=1.11.0",
         "gtfparse>=1.2.1, <2",
+        "pyarrow",
         "pysam>=0.20.0",
         "pybedtools>=0.8.2",
         "tqdm>=4.59.0",
@@ -61,7 +63,7 @@ setuptools.setup(
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Science/Research",
-        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.11",
         "Operating System :: OS Independent",
     ],
     entry_points={

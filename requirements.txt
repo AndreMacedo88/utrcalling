@@ -5,12 +5,13 @@ scikit-learn>=0.23.2
 regex>=2022.04.24
 rapidfuzz>=2.0.0
 joblib>=1.0.1
-anndata>=0.10.0
-scanpy>=1.9.1
+pyarrow
+anndata>=0.12.0
+scanpy>=1.11.0
 gtfparse>=1.2.1,<2
-pybedtools==0.8.2
+pybedtools>=0.8.2
 tqdm>=4.59.0
-bidict==0.22.1
+bidict>=0.22.0
 psutil
 pympler
 coloredlogs
