@@ -2,7 +2,7 @@
 import argparse
 
 
-def call_peaks_different_bandwidths(input_path, out_path, bandwidths, min_umis):
+def call_peaks_different_bandwidths(input_path, out_path, bandwidths):
     from utrcalling.core import peak_calling_anndata as pc
     from utrcalling.core import helpers
 
@@ -13,7 +13,7 @@ def call_peaks_different_bandwidths(input_path, out_path, bandwidths, min_umis):
     out_path = out_path.split(".h5ad")[0]
     for bandwidth in bandwidths:
         adata_peaks = pc.peak_call_anndata_parallel(
-            adata, method="kde", bandwidth=bandwidth, min_umis=min_umis
+            adata, method="kde", bandwidth=bandwidth
         )
         adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")
 
@@ -60,12 +60,6 @@ def create_parser(subparsers):
         type=int,
         default=[12],
         help="One or more bandwidths to use in the gaussian kernel",
-    )
-    parser.add_argument(
-        "--min_umis",
-        type=int,
-        default=None,
-        help="If provided, filter for UTRs with a minimum UMI count.",
     )
 
     parser.set_defaults(func=call_peaks_different_bandwidths)

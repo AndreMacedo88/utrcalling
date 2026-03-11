@@ -43,7 +43,7 @@ setuptools.setup(
         "regex>=2022.04.24",
         "rapidfuzz>=2.0.0",
         "joblib>=1.0.1",
-        "anndata>=0.8.0",
+        "anndata>=0.10.0",
         "scanpy>=1.9.1",
         "gtfparse>=1.2.1, <2",
         "pysam>=0.20.0",

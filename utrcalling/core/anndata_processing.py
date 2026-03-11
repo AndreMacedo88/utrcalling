@@ -168,7 +168,7 @@ def compute_utr_size_means(
 
     if not (df.columns == var_new.index).all():
         var_new = var_new.reindex(df.columns)
-    adata = anndata.AnnData(df, obs=adata.obs, var=var_new, dtype=df.values.dtype)
+    adata = anndata.AnnData(df, obs=adata.obs, var=var_new)
     return adata
 
 
