@@ -122,6 +122,132 @@ class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
         )
 
 
+class TestStandardTenxCreation(unittest.TestCase):
+    """Test creation and properties of standard 10x protocols."""
+
+    def test_create_standard_10x_v3(self):
+        p = protocol.create(
+            "standard_10x", 3,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertIsInstance(p, protocol.ProtocolStandardTenx3)
+
+    def test_create_standard_10x_v2(self):
+        p = protocol.create(
+            "standard_10x", 2,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertIsInstance(p, protocol.ProtocolStandardTenx2)
+
+    def test_standard_10x_properties(self):
+        p = protocol.create(
+            "standard_10x", 3,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertTrue(p.has_umi)
+        self.assertEqual(p.dedup_strategy, "keep_max")
+        self.assertEqual(p.read_in_pair, "second")
+
+    def test_standard_10x_aliases(self):
+        """Alternative platform name spellings."""
+        for name in ("standard_10x", "standard_10_x", "standard_tenx"):
+            p = protocol.create(
+                name, 3,
+                annotations=pd.DataFrame({"sample": ["test"]}),
+            )
+            self.assertIsInstance(p, protocol.ProtocolStandardTenx3)
+
+    def test_standard_10x_inherits_three_prime(self):
+        p = protocol.create(
+            "standard_10x", 3,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertTrue(p.check_strand_matches("-", "+"))
+        self.assertFalse(p.check_strand_matches("+", "+"))
+
+    def test_standard_10x_unsupported_version(self):
+        with self.assertRaises(NotImplementedError):
+            protocol.create(
+                "standard_10x", 1,
+                annotations=pd.DataFrame({"sample": ["test"]}),
+            )
+
+
+class TestStandardSmartseqCreation(unittest.TestCase):
+    """Test creation and properties of standard SmartSeq3 protocol."""
+
+    def test_create_standard_smartseq_v3(self):
+        p = protocol.create(
+            "standard_smartseq", 3,
+            annotations=pd.DataFrame({
+                "sample_id": ["test"],
+            }),
+        )
+        self.assertIsInstance(p, protocol.ProtocolStandardSmartseq3)
+
+    def test_standard_smartseq_properties(self):
+        p = protocol.create(
+            "standard_smartseq", 3,
+            annotations=pd.DataFrame({
+                "sample_id": ["test"],
+            }),
+        )
+        self.assertFalse(p.has_umi)
+        self.assertEqual(p.dedup_strategy, "keep_first")
+        self.assertEqual(p.read_in_pair, "any")
+
+    def test_standard_smartseq_both_strands(self):
+        p = protocol.create(
+            "standard_smartseq", 3,
+            annotations=pd.DataFrame({
+                "sample_id": ["test"],
+            }),
+        )
+        self.assertTrue(p.check_strand_matches("+", "+"))
+        self.assertTrue(p.check_strand_matches("-", "+"))
+        self.assertTrue(p.check_strand_matches("+", "-"))
+        self.assertTrue(p.check_strand_matches("-", "-"))
+
+    def test_standard_smartseq_aliases(self):
+        for name in ("standard_smartseq", "standard_smart-seq"):
+            p = protocol.create(
+                name, 3,
+                annotations=pd.DataFrame({
+                    "sample_id": ["test"],
+                }),
+            )
+            self.assertIsInstance(p, protocol.ProtocolStandardSmartseq3)
+
+    def test_standard_smartseq_unsupported_version(self):
+        with self.assertRaises(NotImplementedError):
+            protocol.create(
+                "standard_smartseq", 2,
+                annotations=pd.DataFrame({"sample_id": ["test"]}),
+            )
+
+
+class TestExistingProtocolDefaults(unittest.TestCase):
+    """Existing protocols should return the original defaults."""
+
+    def test_tenx3_defaults(self):
+        p = protocol.create(
+            "10x", 3,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertTrue(p.has_umi)
+        self.assertEqual(p.dedup_strategy, "keep_first")
+        self.assertEqual(p.read_in_pair, "first")
+
+    def test_smartseq3_defaults(self):
+        p = protocol.create(
+            "smartseq", 3,
+            annotations=pd.DataFrame({"sample_id": ["test"]}),
+        )
+        self.assertTrue(p.has_umi)
+        self.assertEqual(p.dedup_strategy, "keep_first")
+        self.assertEqual(p.read_in_pair, "first")
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

@@ -231,7 +231,11 @@ def create_parser(subparsers):
         "--protocol_platform",
         "-p",
         type=str,
-        help="Sequencing platform used.",
+        help=(
+            "Sequencing platform used. Options: 10x, smartseq, "
+            "smart-seq_cap, smart-seq_cap-readname, 5prime10x, "
+            "standard_10x (Cell Ranger BAM), standard_smartseq."
+        ),
         default="10x",
     )
 

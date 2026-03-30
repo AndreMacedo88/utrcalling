@@ -132,5 +132,68 @@ class TestGetObservationIdCapseqReadName(unittest.TestCase):
         self.assertEqual(result, "any_value")
 
 
+class TestGetObservationIdStandardTenx(unittest.TestCase):
+    """Test get_observation_id() for standard 10x protocols."""
+
+    @classmethod
+    def setUpClass(cls):
+        anno = pd.DataFrame({
+            "CellBarcode": ["AAACCCAAGAAACACT-1", "TTTGGGTTCAACGTTT-1"],
+            "batch": [1, 2],
+        })
+        cls.prot_with_batch = protocol.create(
+            platform="standard_10x", version=3,
+            annotations=anno,
+            label_batches=True,
+        )
+        cls.prot_no_batch = protocol.create(
+            platform="standard_10x", version=3,
+            annotations=anno,
+            label_batches=False,
+        )
+
+    def test_with_batch_suffix(self):
+        result = self.prot_with_batch.get_observation_id("AAACCCAAGAAACACT-1", "1")
+        self.assertEqual(result, "AAACCCAAGAAACACT-1-1")
+
+    def test_without_batch(self):
+        result = self.prot_no_batch.get_observation_id("AAACCCAAGAAACACT-1", "1")
+        self.assertEqual(result, "AAACCCAAGAAACACT-1")
+
+    def test_default_label_batches_true(self):
+        """standard_10x inherits label_batches=True from ProtocolTenx."""
+        anno = pd.DataFrame({
+            "CellBarcode": ["AAACCCAAGAAACACT-1"],
+            "batch": [1],
+        })
+        prot = protocol.create("standard_10x", 3, annotations=anno)
+        self.assertTrue(prot.label_batches)
+
+
+class TestGetObservationIdStandardSmartseq(unittest.TestCase):
+    """Test get_observation_id() for standard SmartSeq3 protocol."""
+
+    @classmethod
+    def setUpClass(cls):
+        anno = pd.DataFrame({
+            "sample_id": ["sample1", "sample2"],
+            "batch": [1, 2],
+        })
+        cls.prot = protocol.create(
+            platform="standard_smartseq", version=3,
+            annotations=anno,
+            alignments=["path/sample1.bam", "path/sample2.bam"],
+        )
+
+    def test_observation_id_from_bam_path(self):
+        """Standard SmartSeq3 uses BAM path as the barcode/identity."""
+        result = self.prot.get_observation_id("path/sample1.bam", batch_idx="1")
+        self.assertEqual(result, "path/sample1.bam")
+
+    def test_default_label_batches_false(self):
+        """Inherits label_batches=False from ProtocolSmartseq."""
+        self.assertFalse(self.prot.label_batches)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2)

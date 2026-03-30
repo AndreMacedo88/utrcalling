@@ -3,6 +3,8 @@ from utrcalling.tests.test_data import (
     synthetic_data_3tenx,
     synthetic_data_5tenx,
     synthetic_data_5smartseq,
+    synthetic_data_standard_3tenx,
+    synthetic_data_standard_3smartseq,
 )
 from utrcalling.core import core, module_log, protocol
 import os
@@ -668,6 +670,168 @@ class TestPipelineDeterminism(unittest.TestCase):
         self.assertListEqual(
             self.run1.var.utr_size.to_list(), self.run2.var.utr_size.to_list()
         )
+
+
+class TestPipelineStandard3TenxV3Synthetic(unittest.TestCase):
+    """End-to-end pipeline test: standard 3' 10x v3 with Cell Ranger-style BAM."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
+            "utr_name"
+        )
+        cls._data = synthetic_data_standard_3tenx.Bam()
+        cls._data.enter()
+
+        protocol_ = protocol.create(
+            platform="standard_10x",
+            version=3,
+            alignments=cls._data.alignment,
+            annotations=_ANNOTATIONS_NO_BARCODES,
+        )
+        mapped = core.map_aligned_reads(
+            alignments=cls._data.alignment,
+            utr_regions=cls.utr_regions,
+            protocol=protocol_,
+            store=False,
+        )
+        cls.filtered, cls.ref_subset = core.filter_mapped_reads(
+            utr_sizes_counts=mapped,
+            utr_reference_regions=cls.utr_regions,
+            protocol=protocol_,
+        )
+        cls.results = core.call_peaks(
+            filtered_reads=cls.filtered,
+            utr_reference_subset=cls.ref_subset,
+            protocol=protocol_,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._data.__exit__(None, None, None)
+
+    def test_is_anndata(self):
+        self.assertIsInstance(self.results, ad.AnnData)
+
+    def test_nonempty(self):
+        self.assertGreater(self.results.shape[0], 0)
+        self.assertGreater(self.results.shape[1], 0)
+
+    def test_sparse_matrix(self):
+        self.assertTrue(scipy.sparse.issparse(self.results.X))
+
+    def test_var_has_utr_size(self):
+        self.assertIn("utr_size", self.results.var.columns)
+
+    def test_shape(self):
+        # 2 cells (AAACCCAAGAAACACT-1, TTTGGGTTCAACGTTT-1) x some peaks
+        self.assertEqual(self.results.shape[0], 2)
+
+
+class TestPipelineStandard3TenxV2Synthetic(unittest.TestCase):
+    """End-to-end pipeline test: standard 3' 10x v2 (should match v3 for Cell Ranger)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
+            "utr_name"
+        )
+        cls._data = synthetic_data_standard_3tenx.Bam()
+        cls._data.enter()
+
+        protocol_ = protocol.create(
+            platform="standard_10x",
+            version=2,
+            alignments=cls._data.alignment,
+            annotations=_ANNOTATIONS_NO_BARCODES,
+        )
+        mapped = core.map_aligned_reads(
+            alignments=cls._data.alignment,
+            utr_regions=cls.utr_regions,
+            protocol=protocol_,
+            store=False,
+        )
+        cls.filtered, cls.ref_subset = core.filter_mapped_reads(
+            utr_sizes_counts=mapped,
+            utr_reference_regions=cls.utr_regions,
+            protocol=protocol_,
+        )
+        cls.results = core.call_peaks(
+            filtered_reads=cls.filtered,
+            utr_reference_subset=cls.ref_subset,
+            protocol=protocol_,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._data.__exit__(None, None, None)
+
+    def test_is_anndata(self):
+        self.assertIsInstance(self.results, ad.AnnData)
+
+    def test_nonempty(self):
+        self.assertGreater(self.results.shape[0], 0)
+
+    def test_sparse_matrix(self):
+        self.assertTrue(scipy.sparse.issparse(self.results.X))
+
+
+class TestPipelineStandard3SmartseqSynthetic(unittest.TestCase):
+    """End-to-end pipeline test: standard SmartSeq3 with internal reads."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
+            "utr_name"
+        )
+        cls._data = synthetic_data_standard_3smartseq.Bam()
+        cls._data.enter()
+
+        protocol_ = protocol.create(
+            platform="standard_smartseq",
+            version=3,
+            alignments=cls._data.alignment,
+            annotations=pd.DataFrame({
+                "sample_id": ["test_sample"],
+            }),
+        )
+        mapped = core.map_aligned_reads(
+            alignments=cls._data.alignment,
+            utr_regions=cls.utr_regions,
+            protocol=protocol_,
+            store=False,
+        )
+        cls.filtered, cls.ref_subset = core.filter_mapped_reads(
+            utr_sizes_counts=mapped,
+            utr_reference_regions=cls.utr_regions,
+            protocol=protocol_,
+        )
+        cls.results = core.call_peaks(
+            filtered_reads=cls.filtered,
+            utr_reference_subset=cls.ref_subset,
+            protocol=protocol_,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._data.__exit__(None, None, None)
+
+    def test_is_anndata(self):
+        self.assertIsInstance(self.results, ad.AnnData)
+
+    def test_nonempty(self):
+        self.assertGreater(self.results.shape[0], 0)
+        self.assertGreater(self.results.shape[1], 0)
+
+    def test_sparse_matrix(self):
+        self.assertTrue(scipy.sparse.issparse(self.results.X))
+
+    def test_var_has_utr_size(self):
+        self.assertIn("utr_size", self.results.var.columns)
+
+    def test_single_observation(self):
+        """Standard SmartSeq3: one BAM = one cell = one observation."""
+        self.assertEqual(self.results.shape[0], 1)
 
 
 if __name__ == "__main__":

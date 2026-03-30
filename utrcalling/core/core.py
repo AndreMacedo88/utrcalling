@@ -110,7 +110,8 @@ def _map_single_bam(
         A flat DataFrame of (utr_name, observation_id, utr_size) rows.
     """
     return utr_mapping.map_reads_to_utr(
-        alignment, intervals, read="first", protocol=protocol, batch_idx=batch_idx
+        alignment, intervals, read=protocol.read_in_pair,
+        protocol=protocol, batch_idx=batch_idx,
     )
 
 
@@ -136,7 +137,7 @@ def _map_multiple_bams(
 
     return joblib.Parallel(n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND)(
         joblib.delayed(utr_mapping.map_reads_to_utr)(
-            alignment, intervals, read="first", protocol=protocol,
+            alignment, intervals, read=protocol.read_in_pair, protocol=protocol,
             batch_idx=bidx, parallel=False,
         )
         for alignment, bidx in tqdm(

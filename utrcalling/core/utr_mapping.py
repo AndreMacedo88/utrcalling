@@ -113,17 +113,22 @@ def _process_interval_batch(
         bam_path: Path to an indexed BAM file.
         interval_batch: List of (utr_name, _IntervalData) pairs.
         protocol: A Protocol instance.
-        read: Which mate to use ('first' or 'second').
+        read: Which mate to use (``'first'``, ``'second'``, or ``'any'``).
         batch_idx: Optional batch index for observation ID.
         show_progress: Whether to show a tqdm progress bar.
 
     Returns:
         A tuple of (utr_names, observation_ids, utr_sizes, mapping_stats).
     """
-    # Bitmask flag filtering — fast-path check for read validity
-    read_flag = 0x40 if read == "first" else 0x80
-    required_flags = 0x2 | read_flag          # proper_pair + correct mate
-    excluded_flags = 0x100 | 0x400            # secondary + duplicate
+    # Bitmask flag filtering — varies by read-in-pair mode
+    any_read = read == "any"
+    if any_read:
+        required_flags = 0                        # no paired-end requirements
+        excluded_flags = 0x100 | 0x400 | 0x4     # secondary + duplicate + unmapped
+    else:
+        read_flag = 0x40 if read == "first" else 0x80
+        required_flags = 0x2 | read_flag          # proper_pair + correct mate
+        excluded_flags = 0x100 | 0x400            # secondary + duplicate
 
     read_strand_string = f"Reads not '{read}'"
     mapping_stats = {
@@ -140,6 +145,9 @@ def _process_interval_batch(
     get_identity = protocol.get_reads_identity
     get_utr_size = protocol.get_utr_size_from_read
     get_obs_id = protocol.get_observation_id
+    get_read_pos = protocol.get_read_position
+    has_umi = protocol.has_umi
+    dedup_strat = protocol.dedup_strategy
 
     all_utr_names: list[str] = []
     all_observation_ids: list[str] = []
@@ -169,19 +177,28 @@ def _process_interval_batch(
                 for aln in bam_file.fetch(iv_chrom, iv_start, iv_end):
                     mapping_stats["Reads mapped to the region of interest"] += 1
 
-                    # Fast-path flag check (2 integer ops for good reads)
+                    # Fast-path flag check
                     flag = aln.flag
-                    if (flag & required_flags) != required_flags or (flag & excluded_flags):
-                        # Categorize rejected reads for stats
-                        if not (flag & read_flag):
-                            mapping_stats[read_strand_string] += 1
-                        elif not (flag & 0x2):
-                            mapping_stats["Alignments not proper pair"] += 1
-                        elif flag & 0x400:
-                            mapping_stats["PCR duplicates"] += 1
-                        elif flag & 0x100:
-                            mapping_stats["Alignments not primary alignment"] += 1
-                        continue
+                    if any_read:
+                        if flag & excluded_flags:
+                            if flag & 0x4:
+                                continue
+                            elif flag & 0x400:
+                                mapping_stats["PCR duplicates"] += 1
+                            elif flag & 0x100:
+                                mapping_stats["Alignments not primary alignment"] += 1
+                            continue
+                    else:
+                        if (flag & required_flags) != required_flags or (flag & excluded_flags):
+                            if not (flag & read_flag):
+                                mapping_stats[read_strand_string] += 1
+                            elif not (flag & 0x2):
+                                mapping_stats["Alignments not proper pair"] += 1
+                            elif flag & 0x400:
+                                mapping_stats["PCR duplicates"] += 1
+                            elif flag & 0x100:
+                                mapping_stats["Alignments not primary alignment"] += 1
+                            continue
 
                     # Strand check (inlined)
                     read_strand = "-" if aln.is_reverse else "+"
@@ -189,38 +206,53 @@ def _process_interval_batch(
                         mapping_stats["Alignments in interval but wrong strand"] += 1
                         continue
 
-                    # Directional start position
-                    read_start_d = aln.reference_end - 1 if aln.is_reverse else aln.reference_start
+                    # Position extraction (protocol-controlled)
+                    read_pos = get_read_pos(
+                        aln.reference_start, aln.reference_end - 1,
+                        aln.is_reverse, iv_strand,
+                    )
 
-                    # Position bounds check (inlined from extract_read_information)
+                    # Position bounds check
                     if iv_strand == "+":
-                        if read_start_d < iv_start_d or read_start_d > iv_end_d:
+                        if read_pos < iv_start_d or read_pos > iv_end_d:
                             continue
                     else:
-                        if read_start_d > iv_start_d or read_start_d < iv_end_d:
+                        if read_pos > iv_start_d or read_pos < iv_end_d:
                             continue
 
                     # Identity extraction via adapter (only for reads that pass all checks)
                     adapter = _PySamAdapter(aln)
                     read_umi, read_barcode = get_identity(alignment=adapter, bam_name=bam_path)
-                    if not read_umi or not read_barcode:
+                    if not read_barcode:
+                        continue
+                    if has_umi and not read_umi:
                         continue
 
-                    utr_size = get_utr_size(read_start_d, interval)
+                    utr_size = get_utr_size(read_pos, interval)
                     observation_id = get_obs_id(read_barcode, batch_idx)
 
                     read_barcodes.append(observation_id)
-                    read_umis.append(read_umi)
+                    if has_umi:
+                        read_umis.append(read_umi)
                     utr_sizes_from_reads.append(utr_size)
             except ValueError:
                 continue
 
-            # Deduplicate reads using the UMIs
-            if read_umis:
-                mapped_read_information = deduplicate_reads(
-                    read_umis=read_umis,
-                    read_info=[read_barcodes, utr_sizes_from_reads],
-                )
+            # Deduplicate or pass through
+            if read_barcodes:
+                if has_umi and read_umis:
+                    if dedup_strat == "keep_max":
+                        mapped_read_information = deduplicate_reads_keep_max(
+                            read_umis=read_umis,
+                            read_info=[read_barcodes, utr_sizes_from_reads],
+                        )
+                    else:
+                        mapped_read_information = deduplicate_reads(
+                            read_umis=read_umis,
+                            read_info=[read_barcodes, utr_sizes_from_reads],
+                        )
+                else:
+                    mapped_read_information = [read_barcodes, utr_sizes_from_reads]
 
                 # Extend flat accumulators
                 n_reads = len(mapped_read_information[0])
@@ -383,4 +415,37 @@ def deduplicate_reads(read_umis: list[str], read_info: list[list[str | int]]) ->
             barcode_umis.add(umi)
     read_info_output = [[element[i] for i in idx_unique] for element in read_info]
     return read_info_output
+
+
+def deduplicate_reads_keep_max(
+    read_umis: list[str], read_info: list[list[str | int]]
+) -> list[list[str | int]]:
+    """Remove PCR duplicates by keeping the entry with the largest UTR size
+    for each (barcode, UMI) pair.
+
+    For standard protocols where different tagmentation events on PCR copies
+    of the same cDNA molecule produce fragments with the same UMI but
+    different lengths, the longest fragment gives the best estimate of the
+    3'UTR terminus.
+
+    Args:
+        read_umis: List of UMI strings, one per read.
+        read_info: List of parallel lists — ``read_info[0]`` must be barcodes,
+            ``read_info[1]`` must be utr_sizes (int). Additional lists are
+            filtered in sync.
+
+    Returns:
+        A filtered copy of *read_info* with one entry per unique
+        (barcode, UMI) pair — the one with the maximum UTR size.
+    """
+    barcodes = read_info[0]
+    utr_sizes = read_info[1]
+    # Track the best (largest-size) index per (barcode, UMI)
+    best: dict[tuple[str, str], int] = {}
+    for idx, (umi, barcode, size) in enumerate(zip(read_umis, barcodes, utr_sizes)):
+        key = (barcode, umi)
+        if key not in best or size > utr_sizes[best[key]]:
+            best[key] = idx
+    idx_unique = sorted(best.values())
+    return [[element[i] for i in idx_unique] for element in read_info]
 

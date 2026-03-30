@@ -376,6 +376,56 @@ class Protocol(ABC, metaclass=CombinedMeta):
             return f"{barcode}-{batch_idx}"
         return barcode
 
+    # Protocol capability properties — defaults preserve existing behavior.
+    # New protocol subclasses override these to alter pipeline behavior.
+
+    @property
+    def has_umi(self) -> bool:
+        """Whether this protocol produces UMI information for deduplication."""
+        return True
+
+    @property
+    def dedup_strategy(self) -> str:
+        """Deduplication strategy: ``'keep_first'`` or ``'keep_max'``.
+
+        ``'keep_first'`` keeps the first occurrence of each (barcode, UMI) pair
+        (the historical default). ``'keep_max'`` keeps the entry with the
+        largest ``utr_size`` — appropriate for standard protocols where
+        different fragments from the same molecule have different lengths.
+        """
+        return "keep_first"
+
+    @property
+    def read_in_pair(self) -> str:
+        """Which read in a pair to process: ``'first'``, ``'second'``, or ``'any'``.
+
+        ``'first'``/``'second'`` require proper-pair flags and select the
+        corresponding mate. ``'any'`` accepts all primary, non-duplicate
+        alignments regardless of pair status.
+        """
+        return "first"
+
+    @staticmethod
+    def get_read_position(
+        ref_start: int, ref_end_minus1: int, is_reverse: bool, interval_strand: str
+    ) -> int:
+        """Return the read position used for UTR size calculation.
+
+        Default implementation returns the directional start (5' end of the
+        read in genome coordinates). Standard protocols override this to
+        return the distal position (furthest toward the 3' end of the UTR).
+
+        Args:
+            ref_start: ``alignment.reference_start`` (0-based leftmost).
+            ref_end_minus1: ``alignment.reference_end - 1`` (0-based rightmost).
+            is_reverse: ``alignment.is_reverse``.
+            interval_strand: Strand of the UTR interval ('+' or '-').
+
+        Returns:
+            A genomic position (int) to pass to ``get_utr_size_from_read``.
+        """
+        return ref_end_minus1 if is_reverse else ref_start
+
     # Methods to get read information from the read alignments
     @staticmethod
     @abstractmethod
@@ -552,6 +602,48 @@ class ProtocolSmartseq3(ProtocolSmartseq):
         return read_umi, read_barcode
 
 
+class ProtocolStandardSmartseq3(ProtocolSmartseq):
+    """Standard SmartSeq3 protocol — internal reads, no UMI.
+
+    Each BAM file is one cell/sample. Internal reads from random priming can
+    map to either strand, so both strands are accepted. The read position
+    furthest toward the 3' end of the UTR is used for size estimation.
+    No UMI deduplication is performed.
+    """
+
+    @property
+    def has_umi(self) -> bool:
+        return False
+
+    @property
+    def read_in_pair(self) -> str:
+        return "any"
+
+    @staticmethod
+    def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
+        return True  # accept reads from both strands
+
+    @staticmethod
+    def get_read_position(
+        ref_start: int, ref_end_minus1: int, is_reverse: bool, interval_strand: str
+    ) -> int:
+        """Return the position furthest toward the 3' end of the UTR.
+
+        For + strand UTRs the rightmost position is closest to the polyA.
+        For - strand UTRs the leftmost position is closest to the polyA.
+        """
+        if interval_strand == "+":
+            return ref_end_minus1
+        return ref_start
+
+    @staticmethod
+    def get_reads_identity(
+        alignment: _PySamAdapter, **kwargs: str
+    ) -> tuple[None, str]:
+        read_batch_id = kwargs.get("bam_name", "S")
+        return None, read_batch_id
+
+
 class ProtocolCapseq(ProtocolFivePrime):
     _default_label_batches = False
 
@@ -661,6 +753,50 @@ class ProtocolFiveTenx(ProtocolFivePrime):
         return read_umi, read_barcode
 
 
+class ProtocolStandardTenx3(ProtocolTenx):
+    """Standard 10x Chromium v3 protocol — Cell Ranger BAM input.
+
+    Reads barcode from the ``CB`` BAM tag and UMI from the ``UB`` tag.
+    Uses Read 2 position for UTR size estimation. Deduplicates by keeping
+    the **maximum** ``utr_size`` per (barcode, UMI) pair, since different
+    tagmentation events on PCR copies of the same cDNA molecule produce
+    fragments with the same UMI but different lengths.
+
+    .. note::
+        This protocol only supports BAM files produced by Cell Ranger.
+    """
+
+    @property
+    def dedup_strategy(self) -> str:
+        return "keep_max"
+
+    @property
+    def read_in_pair(self) -> str:
+        return "second"
+
+    @staticmethod
+    def get_reads_identity(
+        alignment: _PySamAdapter, **_: str
+    ) -> tuple[str | None, str | None]:
+        try:
+            read_barcode = alignment.optional_field("CB")
+        except KeyError:
+            read_barcode = None
+        try:
+            read_umi = alignment.optional_field("UB")
+        except KeyError:
+            read_umi = None
+        return read_umi, read_barcode
+
+
+class ProtocolStandardTenx2(ProtocolStandardTenx3):
+    """Standard 10x Chromium v2 protocol — Cell Ranger BAM input.
+
+    Identical to v3 for the standard protocol since Cell Ranger already
+    handles UMI length differences and writes corrected ``CB``/``UB`` tags.
+    """
+
+
 def create(platform: str, version: int, **kwargs) -> Protocol:
     """Create a Protocol instance for the given sequencing platform and version.
 
@@ -698,5 +834,15 @@ def create(platform: str, version: int, **kwargs) -> Protocol:
     if platform.lower() in ("5'10x", "5'10_x", "5'tenx", "5prime10x"):
         if version == 1:
             return ProtocolFiveTenx(**kwargs)
+        raise NotImplementedError(error_message)
+    if platform.lower() in ("standard_10x", "standard_10_x", "standard_tenx"):
+        if version == 2:
+            return ProtocolStandardTenx2(**kwargs)
+        if version == 3:
+            return ProtocolStandardTenx3(**kwargs)
+        raise NotImplementedError(error_message)
+    if platform.lower() in ("standard_smartseq", "standard_smart-seq"):
+        if version == 3:
+            return ProtocolStandardSmartseq3(**kwargs)
         raise NotImplementedError(error_message)
     raise NotImplementedError(error_message)
