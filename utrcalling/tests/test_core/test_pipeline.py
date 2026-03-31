@@ -834,6 +834,154 @@ class TestPipelineStandard3SmartseqSynthetic(unittest.TestCase):
         self.assertEqual(self.results.shape[0], 1)
 
 
+# ---------------------------------------------------------------------------
+# 5: Regression tests for batch index resolution
+# ---------------------------------------------------------------------------
+
+
+class TestResolveBatchIdx(unittest.TestCase):
+    """Unit tests for _resolve_batch_idx — the single-BAM batch index resolver."""
+
+    def _make_protocol(self, **overrides):
+        """Create a minimal mock protocol with controllable attributes."""
+        defaults = dict(
+            sample_idx=None,
+            label_batches=False,
+            batches_range=None,
+            _reads_have_batch_suffix=False,
+        )
+        defaults.update(overrides)
+
+        class _MockProtocol:
+            pass
+
+        p = _MockProtocol()
+        for k, v in defaults.items():
+            setattr(p, k, v)
+        return p
+
+    def test_sample_idx_set(self):
+        """When sample_idx maps the alignment, return the mapped value."""
+        p = self._make_protocol(sample_idx={"/path/to.bam": "3"})
+        result = core._resolve_batch_idx("/path/to.bam", p)
+        self.assertEqual(result, "3")
+
+    def test_sample_idx_none_label_true_returns_first_batch(self):
+        """Fallback: use batches_range[0] when sample_idx is None."""
+        p = self._make_protocol(
+            label_batches=True,
+            batches_range=pd.Series(["1"]),
+        )
+        result = core._resolve_batch_idx("/any.bam", p)
+        self.assertEqual(result, "1")
+
+    def test_sample_idx_none_label_true_nonstandard_batch(self):
+        """batches_range with non-'1' values should be respected."""
+        p = self._make_protocol(
+            label_batches=True,
+            batches_range=pd.Series(["5"]),
+        )
+        result = core._resolve_batch_idx("/any.bam", p)
+        self.assertEqual(result, "5")
+
+    def test_reads_have_suffix_skips_fallback(self):
+        """CB-tag protocols must NOT get a batch_idx to avoid double-suffixing."""
+        p = self._make_protocol(
+            label_batches=True,
+            batches_range=pd.Series(["1"]),
+            _reads_have_batch_suffix=True,
+        )
+        result = core._resolve_batch_idx("/any.bam", p)
+        self.assertIsNone(result)
+
+    def test_label_false_returns_none(self):
+        p = self._make_protocol(
+            label_batches=False,
+            batches_range=pd.Series(["1"]),
+        )
+        result = core._resolve_batch_idx("/any.bam", p)
+        self.assertIsNone(result)
+
+    def test_no_batches_range_returns_none(self):
+        p = self._make_protocol(label_batches=True, batches_range=None)
+        result = core._resolve_batch_idx("/any.bam", p)
+        self.assertIsNone(result)
+
+
+class TestPipeline3TenxV3WithBarcodeWhitelist(unittest.TestCase):
+    """Regression: single-BAM 10x v3 with label_batches=True + barcode whitelist.
+
+    Before the fix, _resolve_batch_idx returned None for 10x protocols
+    (sample_idx was never set), so read observation_ids were raw barcodes
+    while the whitelist had '-1' suffixes — causing all reads to be dropped
+    during barcode filtering.
+    """
+
+    # Raw 16 bp barcodes extracted from the first-in-pair reads in the
+    # synthetic 10x BAM (first 16 bp of query_sequence for reads a1, b1, c1).
+    _BARCODES = ["ACTGTAGCCGAATTTA", "GACTCTCCACAATGAA", "AGCCGAATTTAACTGG"]
+
+    @classmethod
+    def setUpClass(cls):
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
+            "utr_name"
+        )
+        cls._data = synthetic_data_3tenx.Bam()
+        cls._data.enter()
+
+        cls.annotations = pd.DataFrame({
+            "barcode": cls._BARCODES,
+            "batch_number": [1, 1, 1],
+        })
+
+        cls.protocol_ = protocol.create(
+            platform="10x",
+            version=3,
+            alignments=cls._data.alignment,
+            annotations=cls.annotations,
+            label_batches=True,
+        )
+
+        mapped = core.map_aligned_reads(
+            alignments=cls._data.alignment,
+            utr_regions=cls.utr_regions,
+            protocol=cls.protocol_,
+            store=False,
+        )
+        cls.filtered, cls.ref_subset = core.filter_mapped_reads(
+            utr_sizes_counts=mapped,
+            utr_reference_regions=cls.utr_regions,
+            protocol=cls.protocol_,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._data.__exit__(None, None, None)
+
+    def test_filtered_not_empty(self):
+        """The critical regression: reads must survive barcode filtering."""
+        self.assertGreater(len(self.filtered), 0)
+
+    def test_observation_ids_have_batch_suffix(self):
+        """Every observation ID should end with '-1' (the batch suffix)."""
+        for obs_id in self.filtered["observation_id"].unique():
+            self.assertTrue(
+                obs_id.endswith("-1"),
+                f"observation_id '{obs_id}' missing batch suffix",
+            )
+
+    def test_observation_ids_in_whitelist(self):
+        """All observation IDs should be present in the protocol whitelist."""
+        obs_ids = set(self.filtered["observation_id"].unique())
+        whitelist = set(self.protocol_.barcode_whitelist)
+        self.assertTrue(obs_ids.issubset(whitelist))
+
+    def test_whitelist_has_batch_suffix(self):
+        """Sanity: whitelist barcodes should have '-1' suffix."""
+        for bc in self.protocol_.barcode_whitelist:
+            self.assertTrue(bc.endswith("-1"), f"whitelist '{bc}' missing suffix")
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

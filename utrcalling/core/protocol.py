@@ -405,6 +405,17 @@ class Protocol(ABC, metaclass=CombinedMeta):
         """
         return "first"
 
+    @property
+    def _reads_have_batch_suffix(self) -> bool:
+        """Whether barcodes from reads already include a batch/GEM-well suffix.
+
+        CB-tag protocols (5' 10x, standard 10x) return ``True`` because Cell
+        Ranger writes barcodes like ``ATCGATCG-1``.  Sequence-based protocols
+        return ``False`` (the default) — the suffix must be added by the
+        pipeline via ``get_observation_id()``.
+        """
+        return False
+
     @staticmethod
     def get_read_position(
         ref_start: int, ref_end_minus1: int, is_reverse: bool, interval_strand: str
@@ -721,6 +732,11 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
 class ProtocolFiveTenx(ProtocolFivePrime):
     _default_label_batches = True
 
+    @property
+    def _reads_have_batch_suffix(self) -> bool:
+        """CB tag from 5' 10x BAMs includes the GEM well suffix (e.g. ``-1``)."""
+        return True
+
     @staticmethod
     def get_reads_identity(
         alignment: _PySamAdapter, **_: str
@@ -765,6 +781,11 @@ class ProtocolStandardTenx3(ProtocolTenx):
     .. note::
         This protocol only supports BAM files produced by Cell Ranger.
     """
+
+    @property
+    def _reads_have_batch_suffix(self) -> bool:
+        """CB tag from Cell Ranger BAMs includes the GEM well suffix (e.g. ``-1``)."""
+        return True
 
     @property
     def dedup_strategy(self) -> str:

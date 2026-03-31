@@ -248,6 +248,59 @@ class TestExistingProtocolDefaults(unittest.TestCase):
         self.assertEqual(p.read_in_pair, "first")
 
 
+class TestReadsBatchSuffixProperty(unittest.TestCase):
+    """_reads_have_batch_suffix distinguishes CB-tag from sequence-based protocols."""
+
+    def test_tenx3_no_suffix(self):
+        p = protocol.create(
+            "10x", 3,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertFalse(p._reads_have_batch_suffix)
+
+    def test_tenx2_no_suffix(self):
+        p = protocol.create(
+            "10x", 2,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertFalse(p._reads_have_batch_suffix)
+
+    def test_five_tenx_has_suffix(self):
+        p = protocol.create(
+            "5'10x", 1,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertTrue(p._reads_have_batch_suffix)
+
+    def test_standard_tenx3_has_suffix(self):
+        p = protocol.create(
+            "standard_10x", 3,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertTrue(p._reads_have_batch_suffix)
+
+    def test_standard_tenx2_has_suffix(self):
+        p = protocol.create(
+            "standard_10x", 2,
+            annotations=pd.DataFrame({"sample": ["test"]}),
+        )
+        self.assertTrue(p._reads_have_batch_suffix)
+
+    def test_smartseq3_no_suffix(self):
+        p = protocol.create(
+            "smartseq", 3,
+            annotations=pd.DataFrame({"sample_id": ["test"]}),
+        )
+        self.assertFalse(p._reads_have_batch_suffix)
+
+    def test_standard_smartseq3_no_suffix(self):
+        p = protocol.create(
+            "standard_smartseq", 3,
+            annotations=pd.DataFrame({"sample_id": ["test"]}),
+        )
+        self.assertFalse(p._reads_have_batch_suffix)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

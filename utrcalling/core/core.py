@@ -14,6 +14,7 @@ Pipeline steps (each a thin function calling focused modules):
 Output is a count matrix in AnnData format with cells/samples as obs and
 UTR peaks as var.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -40,7 +41,9 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 
-def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:
+def prepare_utr_reference_regions(
+    gtf: str, feature: str, store: bool = False
+) -> pd.DataFrame:
     """Parse a GTF file and build a non-overlapping UTR reference.
 
     Extracts UTR features from the GTF, sorts by chromosome and start position,
@@ -85,10 +88,16 @@ def _resolve_batch_idx(alignment: str, protocol: Protocol) -> str | None:
         protocol: A Protocol instance with sample_idx mapping.
 
     Returns:
-        The batch index string, or None if no sample index is configured.
+        The batch index string, or None if no batch suffixing is needed.
     """
     if protocol.sample_idx is not None:
         return protocol.sample_idx.get(alignment)
+    if (
+        protocol.label_batches
+        and protocol.batches_range is not None
+        and not protocol._reads_have_batch_suffix
+    ):
+        return str(protocol.batches_range[0])
     return None
 
 
@@ -110,8 +119,11 @@ def _map_single_bam(
         A flat DataFrame of (utr_name, observation_id, utr_size) rows.
     """
     return utr_mapping.map_reads_to_utr(
-        alignment, intervals, read=protocol.read_in_pair,
-        protocol=protocol, batch_idx=batch_idx,
+        alignment,
+        intervals,
+        read=protocol.read_in_pair,
+        protocol=protocol,
+        batch_idx=batch_idx,
     )
 
 
@@ -132,13 +144,26 @@ def _map_multiple_bams(
     """
     if protocol.sample_names is not None:
         batch_indices = [protocol.sample_idx[a] for a in alignments]
+    elif (
+        protocol.label_batches
+        and protocol.batches_range is not None
+        and not protocol._reads_have_batch_suffix
+        and len(protocol.batches_range) == len(alignments)
+    ):
+        batch_indices = [str(val) for val in protocol.batches_range]
     else:
         batch_indices = [str(i + 1) for i in range(len(alignments))]
 
-    return joblib.Parallel(n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND)(
+    return joblib.Parallel(
+        n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND
+    )(
         joblib.delayed(utr_mapping.map_reads_to_utr)(
-            alignment, intervals, read=protocol.read_in_pair, protocol=protocol,
-            batch_idx=bidx, parallel=False,
+            alignment,
+            intervals,
+            read=protocol.read_in_pair,
+            protocol=protocol,
+            batch_idx=bidx,
+            parallel=False,
         )
         for alignment, bidx in tqdm(
             zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"
@@ -301,8 +326,11 @@ def build_count_matrix(
 
     if store:
         storage.store_peak_calling_results(
-            peaks_count_matrix, peaks_var, peaks_obs,
-            utr_reference_subset, protocol.merge_method,
+            peaks_count_matrix,
+            peaks_var,
+            peaks_obs,
+            utr_reference_subset,
+            protocol.merge_method,
         )
 
     return count_matrix.generate_count_matrix_anndata(
@@ -331,6 +359,9 @@ def call_peaks(
         An AnnData object with cells/samples as obs and UTR peaks as var.
     """
     return build_count_matrix(
-        filtered_reads, utr_reference_subset, protocol, store,
+        filtered_reads,
+        utr_reference_subset,
+        protocol,
+        store,
         size_transform=protocol.peak_calling,
     )

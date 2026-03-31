@@ -1,4 +1,5 @@
 """Barcode whitelist filtering with memory-aware chunking."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -10,7 +11,9 @@ from rapidfuzz import process, distance
 from utrcalling.core import module_log
 
 
-def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]) -> pd.DataFrame:
+def filter_barcodes(
+    utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]
+) -> pd.DataFrame:
     """Filter observations to those matching a barcode whitelist.
 
     Exact matches are kept directly. For non-matching barcodes, a fuzzy match
@@ -79,7 +82,10 @@ def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]) ->
             result["observation_id"] = new_values
         else:
             result["observation_id"] = (
-                result["observation_id"].astype(str).replace(barcodes_replace).astype("category")
+                result["observation_id"]
+                .astype(str)
+                .replace(barcodes_replace)
+                .astype("category")
             )
     else:
         result = utr_sizes
@@ -124,18 +130,19 @@ def filter_barcodes_memory_aware(
         )
         num = utr_sizes.shape[0]
         idx_splits = np.cumsum(
-            [num // n_chunks + (1 if x < num % n_chunks else 0) for x in range(n_chunks)]
+            [
+                num // n_chunks + (1 if x < num % n_chunks else 0)
+                for x in range(n_chunks)
+            ]
         )
         idx_splits = np.insert(idx_splits, 0, 0)
 
         split_generator = (
-            utr_sizes.iloc[idx_splits[n] : idx_splits[n + 1]]
-            for n in range(n_chunks)
+            utr_sizes.iloc[idx_splits[n] : idx_splits[n + 1]] for n in range(n_chunks)
         )
 
         filtered_list = [
-            filter_barcodes(pos, whitelist=whitelist)
-            for pos in split_generator
+            filter_barcodes(pos, whitelist=whitelist) for pos in split_generator
         ]
 
         result = pd.concat(filtered_list, ignore_index=True)
