@@ -215,32 +215,60 @@ def concatenate_adata(
 ) -> anndata.AnnData:
     """Concatenate multiple AnnData objects along the obs axis.
 
-    Observations are outer-joined so that all UTR peaks across inputs are
-    represented (missing values filled with 0).
+    Uses ``anndata.concat`` with sparse matrices throughout to avoid
+    densifying large count matrices.  Observations are outer-joined so that
+    all UTR peaks across inputs are represented (missing values filled
+    with 0).
 
     Args:
         adata_list: AnnData objects sharing compatible ``.var`` schemas
             (must contain ``utr_name`` and ``utr_size`` columns).
 
     Returns:
-        A single concatenated AnnData.
+        A single concatenated AnnData with sparse ``.X``.
     """
-    # prepare X object
-    adata_df_list = [adata.to_df() for adata in adata_list]
-    for df, adata in zip(adata_df_list, adata_list):
-        df.columns = pd.MultiIndex.from_frame(adata.var[["utr_name", "utr_size"]])
+    # Build lightweight AnnData wrappers with canonical var_names
+    # (utr_name|utr_size) and sparse X to avoid densifying the matrix.
+    prepared = []
+    var_dfs = []
+    for adata in adata_list:
+        canonical = (
+            adata.var["utr_name"]
+            + "|"
+            + adata.var["utr_size"].astype(int).astype(str)
+        ).values
+        X = adata.X
+        if not scipy.sparse.issparse(X):
+            X = scipy.sparse.csr_matrix(X)
+        prepared.append(
+            anndata.AnnData(
+                X=X,
+                obs=adata.obs,
+                var=pd.DataFrame(index=canonical),
+            )
+        )
+        var_dfs.append(adata.var)
 
-    adata_concat = pd.concat(adata_df_list, join="outer", axis=0, sort=False).fillna(0)
+    # Sparse-aware concatenation — keeps matrices sparse throughout
+    adata_concat = anndata.concat(prepared, join="outer")
+    del prepared
 
-    # prepare var object
-    adatas_var = (
-        pd.concat([adata.var for adata in adata_list], axis=0)
+    # Reconstruct var metadata from originals
+    all_var = (
+        pd.concat(var_dfs, axis=0)
         .drop("utr_size", axis=1)
         .drop_duplicates()
     )
+    del var_dfs
 
-    concat_cols_frame = adata_concat.columns.to_frame().reset_index(drop=True)
-    var_new = pd.merge(concat_cols_frame, adatas_var, on="utr_name", how="left")
+    # Parse canonical var_names back into (utr_name, utr_size)
+    split = adata_concat.var_names.to_series().str.rsplit("|", n=1, expand=True)
+    concat_cols_frame = pd.DataFrame({
+        "utr_name": split[0].values,
+        "utr_size": split[1].astype(int).values,
+    })
+
+    var_new = pd.merge(concat_cols_frame, all_var, on="utr_name", how="left")
     var_new["polyA"] = (
         var_new["utr_name"]
         + "-"
@@ -248,19 +276,9 @@ def concatenate_adata(
     )
     var_new = var_new.set_index("polyA")
 
-    # final changes to X
-    adata_concat.columns = (
-        concat_cols_frame.utr_name
-        + "-"
-        + (concat_cols_frame.groupby("utr_name").cumcount() + 1).astype(str)
-    )
+    adata_concat.var = var_new
 
-    # prepare obs object
-    obs_new = pd.concat([adata.obs for adata in adata_list], axis=0)
-
-    adata_result = anndata.AnnData(X=adata_concat, obs=obs_new, var=var_new)
-
-    return adata_result
+    return adata_concat
 
 
 def split_train_test_data(
