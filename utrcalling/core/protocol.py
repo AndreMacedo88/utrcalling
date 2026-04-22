@@ -793,7 +793,10 @@ class ProtocolStandardTenx3(ProtocolTenx):
 
     @property
     def read_in_pair(self) -> str:
-        return "second"
+        # Cell Ranger writes R2 alignments as single-end (flag=0/16) — R1 is
+        # never aligned, it only carries barcode+UMI. Requiring proper-pair +
+        # second-in-pair bits would reject every read.
+        return "any"
 
     @staticmethod
     def get_reads_identity(

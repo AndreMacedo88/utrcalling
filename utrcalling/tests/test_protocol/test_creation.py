@@ -146,7 +146,7 @@ class TestStandardTenxCreation(unittest.TestCase):
         )
         self.assertTrue(p.has_umi)
         self.assertEqual(p.dedup_strategy, "keep_max")
-        self.assertEqual(p.read_in_pair, "second")
+        self.assertEqual(p.read_in_pair, "any")
 
     def test_standard_10x_aliases(self):
         """Alternative platform name spellings."""

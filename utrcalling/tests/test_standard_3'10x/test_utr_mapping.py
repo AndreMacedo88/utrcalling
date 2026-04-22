@@ -55,13 +55,14 @@ class TestStandardTenxV3(TestMapReadsToUtrSynthetic):
                 read=protocol_.read_in_pair,
             )
 
-    def test_read_2_selected(self):
-        """Protocol should select Read 2 (flag 0x80)."""
+    def test_read_in_pair_any(self):
+        """Cell Ranger BAMs contain single-end R2 alignments; protocol must
+        accept reads without requiring paired-end flag bits."""
         p = protocol.create(
             "standard_10x", 3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
-        self.assertEqual(p.read_in_pair, "second")
+        self.assertEqual(p.read_in_pair, "any")
 
     def test_protocol_properties(self):
         p = protocol.create(
@@ -70,7 +71,7 @@ class TestStandardTenxV3(TestMapReadsToUtrSynthetic):
         )
         self.assertTrue(p.has_umi)
         self.assertEqual(p.dedup_strategy, "keep_max")
-        self.assertEqual(p.read_in_pair, "second")
+        self.assertEqual(p.read_in_pair, "any")
 
     def test_utrs_found(self):
         """Should find reads mapping to UTR2 and UTR3."""
@@ -176,6 +177,80 @@ class TestStandardTenxMissingTags(TestMapReadsToUtrSynthetic):
                 read=protocol_.read_in_pair,
             )
             self.assertEqual(len(mappings), 0)
+        finally:
+            os.remove(bam_path)
+            os.remove(f"{bam_path}.bai")
+
+
+class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
+    """Regression test: real Cell Ranger BAMs write R2 as single-end alignments.
+
+    Cell Ranger's possorted_genome_bam.bam contains only R2 alignments, flagged
+    as single-end (flag=0 for forward, flag=16 for reverse) — no 0x1 (paired),
+    no 0x2 (proper-pair), no 0x80 (second-in-pair). The protocol must accept
+    these reads; requiring ``read_in_pair='second'`` rejects every alignment
+    and produces an empty AnnData downstream.
+    """
+
+    def _build_bam_with_flags(self, flag_forward: int, flag_reverse: int) -> str:
+        import os
+        from tempfile import mkstemp
+        import pysam
+
+        fd, bam_path = mkstemp(suffix=".bam", dir="./test_data/")
+        os.close(fd)
+        header = {
+            "HD": {"VN": "1.0"},
+            "SQ": [{"LN": 195471971, "SN": "1"}, {"LN": 98207768, "SN": "16"}],
+        }
+        with pysam.AlignmentFile(bam_path, "wb", header=header) as outf:
+            # UTR3 on + strand: reads map on - strand (flag_reverse)
+            a = pysam.AlignedSegment()
+            a.query_name = "cr_read_A"
+            a.query_sequence = "A" * 90
+            a.flag = flag_reverse
+            a.reference_id = 1  # chr16
+            a.reference_start = 91271800
+            a.mapping_quality = 255
+            a.cigar = [(0, 90)]
+            a.query_qualities = pysam.qualitystring_to_array("C" * 90)
+            a.tags = [("CB", "AAACCCAAGAAACACT-1"), ("UB", "AACGATTTCCGA")]
+            outf.write(a)
+
+            # UTR2 on - strand: reads map on + strand (flag_forward)
+            b = pysam.AlignedSegment()
+            b.query_name = "cr_read_B"
+            b.query_sequence = "A" * 90
+            b.flag = flag_forward
+            b.reference_id = 0  # chr1
+            b.reference_start = 172196740
+            b.mapping_quality = 255
+            b.cigar = [(0, 90)]
+            b.query_qualities = pysam.qualitystring_to_array("C" * 90)
+            b.tags = [("CB", "TTTGGGTTCAACGTTT-1"), ("UB", "TTGCAATTGGCC")]
+            outf.write(b)
+
+        pysam.index(bam_path)
+        return bam_path
+
+    def test_single_end_r2_reads_are_mapped(self):
+        """Cell Ranger-style flag=0 / flag=16 reads should map, not be rejected."""
+        import os
+
+        bam_path = self._build_bam_with_flags(flag_forward=0x0, flag_reverse=0x10)
+        try:
+            protocol_ = protocol.create(
+                "standard_10x", 3,
+                annotations=pd.DataFrame({"sample": ["test"]}),
+            )
+            mappings = utr_mapping.map_reads_to_utr(
+                bam_path, self.intervals, protocol_,
+                read=protocol_.read_in_pair,
+            )
+            utrs = sorted(mappings["utr_name"].unique().tolist())
+            self.assertEqual(len(utrs), 2)
+            self.assertIn("UTR2", utrs)
+            self.assertIn("UTR3", utrs)
         finally:
             os.remove(bam_path)
             os.remove(f"{bam_path}.bai")
