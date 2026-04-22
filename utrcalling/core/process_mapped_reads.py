@@ -204,13 +204,17 @@ def merge_utrs_per_gene(
         for pos, utr_name in enumerate(g["utr_name"].values):
             utr_sort_order[utr_name] = pos
 
-    # Apply offsets to the flat read_mappings
-    combined["offset"] = combined["utr_name"].map(offset_map).fillna(0).astype(np.int32)
+    # Apply offsets to the flat read_mappings.
+    # Cast utr_name out of Categorical before .map(): pandas >= 2.1 preserves
+    # Categorical dtype when every category is mapped injectively, which then
+    # makes .fillna(0) raise because 0 is not a valid category.
+    utr_name_obj = combined["utr_name"].astype(object)
+    combined["offset"] = utr_name_obj.map(offset_map).fillna(0).astype(np.int32)
     combined["utr_size"] = combined["utr_size"] + combined["offset"]
 
     # Add sort key for ordering reads within each gene
-    combined["_sort_order"] = combined["utr_name"].map(utr_sort_order)
-    combined["_gene"] = combined["utr_name"].map(utr_name_to_gene)
+    combined["_sort_order"] = utr_name_obj.map(utr_sort_order)
+    combined["_gene"] = utr_name_obj.map(utr_name_to_gene)
 
     # Sort by gene and then by the per-gene sort order
     combined = combined.sort_values(by=["_gene", "_sort_order"])

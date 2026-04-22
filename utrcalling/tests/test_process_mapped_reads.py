@@ -11,6 +11,7 @@ from utrcalling.core import (
 
 import os
 from pathlib import Path
+from unittest import mock
 import unittest
 
 import pandas as pd
@@ -327,6 +328,75 @@ class TestMergeUtrsPerGene(unittest.TestCase):
                 actual_pairs, expected_pairs,
                 msg=f"mismatch for {gene}"
             )
+
+
+class TestMergeUtrsPerGeneCategoricalOffsetMap(unittest.TestCase):
+    """Regression test for pandas 2.1+ Categorical .map(dict).fillna(0) behavior.
+
+    When both read_mappings["utr_name"] and utr_regions' index carry matching
+    Categorical dtype (as can happen in production flows where dtypes propagate
+    through joins), the inner merge preserves the Categorical column on
+    `combined["utr_name"]`. Subsequently, `.map(offset_map)` with an injective
+    non-zero-valued mapping preserves the Categorical dtype (new categories =
+    the offset values), and the downstream `.fillna(0)` then fails because 0
+    is not among the Categorical's categories.
+    """
+
+    _offset_counter = [0]
+
+    @classmethod
+    def _nonzero_unique_offsets(cls, group: pd.DataFrame) -> dict[str, int]:
+        # Deterministic injective non-zero mapping across all calls, so every
+        # UTR gets a distinct non-zero offset. This is what triggers the pandas
+        # Categorical preservation behavior that the bug relied on.
+        out = {}
+        for name in group.index.tolist():
+            cls._offset_counter[0] += 1
+            out[name] = cls._offset_counter[0] * 100
+        return out
+
+    def setUp(self) -> None:
+        # Reset counter so repeated runs stay deterministic.
+        type(self)._offset_counter[0] = 0
+
+    def test_does_not_crash_when_offsets_are_all_nonzero_distinct(self):
+        utr_regions = pd.DataFrame(
+            {
+                "chrom": ["1", "1"],
+                "start": [1000, 2000],
+                "end": [1100, 2100],
+                "name": ["GENE1", "GENE2"],
+                "score": [".", "."],
+                "strand": ["+", "+"],
+                "transcript_id": ["TX1", "TX2"],
+                "gene_name": ["G1", "G2"],
+            },
+            index=pd.CategoricalIndex(["UTR_A", "UTR_B"], name="utr_name"),
+        )
+        read_mappings = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["UTR_A", "UTR_B"]),
+                "observation_id": pd.Categorical(["obs1", "obs2"]),
+                "utr_size": np.array([10, 20], dtype=np.int32),
+            }
+        )
+
+        with mock.patch.object(
+            process_mapped_reads,
+            "_compute_gene_offsets",
+            side_effect=self._nonzero_unique_offsets,
+        ):
+            regions_out, reads_out = process_mapped_reads.merge_utrs_per_gene(
+                utr_regions=utr_regions, read_mappings=read_mappings
+            )
+
+        # Offsets: first-processed UTR gets 100, second gets 200 (distinct,
+        # non-zero). Applied to utr_size (10 and 20), result should be {110, 220}.
+        self.assertEqual(reads_out["utr_size"].dtype, np.int32)
+        self.assertEqual(len(reads_out), 2)
+        self.assertListEqual(
+            sorted(reads_out["utr_size"].tolist()), [110, 220]
+        )
 
 
 class TestFilterBarcodes(TestPeakCalling):
