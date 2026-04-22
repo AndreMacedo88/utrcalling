@@ -149,18 +149,15 @@ class TestStandardTenxMissingTags(TestMapReadsToUtrSynthetic):
             "SQ": [{"LN": 195471971, "SN": "1"}, {"LN": 98207768, "SN": "16"}],
         }
         with pysam.AlignmentFile(bam_path, "wb", header=header) as outf:
-            # Read 2 WITHOUT CB/UB tags
+            # R2 without CB/UB tags, single-end forward on + strand UTR3
             a = pysam.AlignedSegment()
             a.query_name = "no_tags"
             a.query_sequence = "A" * 90
-            a.flag = 0x93  # paired, proper pair, reverse, second in pair
+            a.flag = 0x0  # single-end forward (sense to + strand gene)
             a.reference_id = 1
             a.reference_start = 91271800
             a.mapping_quality = 255
             a.cigar = [(0, 90)]
-            a.next_reference_id = 1
-            a.next_reference_start = 91271800
-            a.template_length = 0
             a.query_qualities = pysam.qualitystring_to_array("C" * 90)
             # No CB/UB tags!
             outf.write(a)
@@ -183,16 +180,23 @@ class TestStandardTenxMissingTags(TestMapReadsToUtrSynthetic):
 
 
 class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
-    """Regression test: real Cell Ranger BAMs write R2 as single-end alignments.
+    """Regression test: real Cell Ranger BAMs write R2 as single-end, sense-oriented.
 
-    Cell Ranger's possorted_genome_bam.bam contains only R2 alignments, flagged
+    Cell Ranger's ``possorted_genome_bam.bam`` contains only R2 alignments flagged
     as single-end (flag=0 for forward, flag=16 for reverse) — no 0x1 (paired),
-    no 0x2 (proper-pair), no 0x80 (second-in-pair). The protocol must accept
-    these reads; requiring ``read_in_pair='second'`` rejects every alignment
-    and produces an empty AnnData downstream.
+    no 0x2 (proper-pair), no 0x80 (second-in-pair). R2 aligns in the **sense**
+    direction relative to the gene (empirically verified against Cell Ranger
+    output at GAPDH/B2M/ACTB: 98%+ sense for + strand genes). The protocol
+    must:
+
+    1. Accept single-end flags (``read_in_pair='any'``).
+    2. Treat sense-oriented reads as matching, not as wrong-strand.
+    3. Use the polyA-distal read position (``ref_end-1`` for + strand UTRs,
+       ``ref_start`` for - strand UTRs) so utr_size reflects how deep into
+       the UTR the fragment extends.
     """
 
-    def _build_bam_with_flags(self, flag_forward: int, flag_reverse: int) -> str:
+    def _build_bam(self) -> str:
         import os
         from tempfile import mkstemp
         import pysam
@@ -204,11 +208,13 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
             "SQ": [{"LN": 195471971, "SN": "1"}, {"LN": 98207768, "SN": "16"}],
         }
         with pysam.AlignmentFile(bam_path, "wb", header=header) as outf:
-            # UTR3 on + strand: reads map on - strand (flag_reverse)
+            # UTR3 on + strand → R2 sense = forward alignment (flag=0)
+            # reference_start=91271800, length=90 → ref_end-1 = 91271889
+            # utr_size = |91271889 - 91270658| = 1231
             a = pysam.AlignedSegment()
             a.query_name = "cr_read_A"
             a.query_sequence = "A" * 90
-            a.flag = flag_reverse
+            a.flag = 0x0  # single-end forward
             a.reference_id = 1  # chr16
             a.reference_start = 91271800
             a.mapping_quality = 255
@@ -217,11 +223,12 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
             a.tags = [("CB", "AAACCCAAGAAACACT-1"), ("UB", "AACGATTTCCGA")]
             outf.write(a)
 
-            # UTR2 on - strand: reads map on + strand (flag_forward)
+            # UTR2 on - strand → R2 sense = reverse alignment (flag=16)
+            # reference_start=172196740 → utr_size = |172196740 - 172196827| = 87
             b = pysam.AlignedSegment()
             b.query_name = "cr_read_B"
             b.query_sequence = "A" * 90
-            b.flag = flag_forward
+            b.flag = 0x10  # single-end reverse
             b.reference_id = 0  # chr1
             b.reference_start = 172196740
             b.mapping_quality = 255
@@ -233,11 +240,11 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
         pysam.index(bam_path)
         return bam_path
 
-    def test_single_end_r2_reads_are_mapped(self):
-        """Cell Ranger-style flag=0 / flag=16 reads should map, not be rejected."""
+    def test_sense_oriented_single_end_reads_are_mapped(self):
+        """Forward-on-+UTR and reverse-on-−UTR reads must pass the strand filter."""
         import os
 
-        bam_path = self._build_bam_with_flags(flag_forward=0x0, flag_reverse=0x10)
+        bam_path = self._build_bam()
         try:
             protocol_ = protocol.create(
                 "standard_10x", 3,
@@ -251,6 +258,32 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
             self.assertEqual(len(utrs), 2)
             self.assertIn("UTR2", utrs)
             self.assertIn("UTR3", utrs)
+        finally:
+            os.remove(bam_path)
+            os.remove(f"{bam_path}.bai")
+
+    def test_polyA_distal_position_used_for_size(self):
+        """utr_size must be measured from polyA-distal end of the read."""
+        import os
+
+        bam_path = self._build_bam()
+        try:
+            protocol_ = protocol.create(
+                "standard_10x", 3,
+                annotations=pd.DataFrame({"sample": ["test"]}),
+            )
+            mappings = utr_mapping.map_reads_to_utr(
+                bam_path, self.intervals, protocol_,
+                read=protocol_.read_in_pair,
+            )
+            utr3 = mappings[mappings["utr_name"] == "UTR3"]
+            utr2 = mappings[mappings["utr_name"] == "UTR2"]
+            # + strand UTR, read at 91271800-91271889 → polyA-distal = 91271889
+            self.assertEqual(len(utr3), 1)
+            self.assertEqual(int(utr3["utr_size"].iloc[0]), 1231)
+            # - strand UTR, read at 172196740-172196829 → polyA-distal = 172196740
+            self.assertEqual(len(utr2), 1)
+            self.assertEqual(int(utr2["utr_size"].iloc[0]), 87)
         finally:
             os.remove(bam_path)
             os.remove(f"{bam_path}.bai")

@@ -799,6 +799,28 @@ class ProtocolStandardTenx3(ProtocolTenx):
         return "any"
 
     @staticmethod
+    def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
+        # 10x Chromium 3' v3 R2 aligns in the SENSE direction relative to the
+        # gene (verified empirically against Cell Ranger output: 98%+ of R2
+        # reads at + strand genes like GAPDH/B2M map to the + strand). This
+        # overrides ProtocolThreePrime's antisense default, which is correct
+        # only for the custom (non-standard) 10x library chemistries.
+        return read_strand == utr_strand
+
+    @staticmethod
+    def get_read_position(
+        ref_start: int, ref_end_minus1: int, is_reverse: bool, interval_strand: str
+    ) -> int:
+        # For sense-oriented R2 reads, the polyA-distal end of the read (the
+        # base furthest toward the gene's 3' end) is what we want as the read
+        # position — so utr_size reflects how deep into the 3' UTR the
+        # fragment extends. This is driven by the UTR's strand, not the
+        # read's ``is_reverse`` flag.
+        if interval_strand == "+":
+            return ref_end_minus1
+        return ref_start
+
+    @staticmethod
     def get_reads_identity(
         alignment: _PySamAdapter, **_: str
     ) -> tuple[str | None, str | None]:

@@ -157,13 +157,19 @@ class TestStandardTenxCreation(unittest.TestCase):
             )
             self.assertIsInstance(p, protocol.ProtocolStandardTenx3)
 
-    def test_standard_10x_inherits_three_prime(self):
+    def test_standard_10x_strand_convention_is_sense(self):
+        """Cell Ranger 10x 3' v3 R2 aligns sense to the gene, so standard_10x
+        overrides the ProtocolThreePrime default to require matching strands."""
         p = protocol.create(
             "standard_10x", 3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
-        self.assertTrue(p.check_strand_matches("-", "+"))
-        self.assertFalse(p.check_strand_matches("+", "+"))
+        # + strand UTR → + strand read passes; - strand read is wrong-strand
+        self.assertTrue(p.check_strand_matches("+", "+"))
+        self.assertFalse(p.check_strand_matches("-", "+"))
+        # - strand UTR → - strand read passes; + strand read is wrong-strand
+        self.assertTrue(p.check_strand_matches("-", "-"))
+        self.assertFalse(p.check_strand_matches("+", "-"))
 
     def test_standard_10x_unsupported_version(self):
         with self.assertRaises(NotImplementedError):
