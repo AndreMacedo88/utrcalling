@@ -2,7 +2,7 @@
 import argparse
 
 
-def call_peaks_different_bandwidths(input_path, out_path, bandwidths):
+def call_peaks_different_bandwidths(input_path, out_path, bandwidths, cores=None):
     from utrcalling.core import peak_calling_anndata as pc
     from utrcalling.core import helpers
 
@@ -13,7 +13,7 @@ def call_peaks_different_bandwidths(input_path, out_path, bandwidths):
     out_path = out_path.split(".h5ad")[0]
     for bandwidth in bandwidths:
         adata_peaks = pc.peak_call_anndata_parallel(
-            adata, method="kde", bandwidth=bandwidth
+            adata, method="kde", bandwidth=bandwidth, n_jobs=cores
         )
         adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")
 
@@ -60,6 +60,16 @@ def create_parser(subparsers):
         type=int,
         default=[12],
         help="One or more bandwidths to use in the gaussian kernel",
+    )
+    parser.add_argument(
+        "--cores",
+        type=int,
+        default=None,
+        help=(
+            "Max worker processes for the per-UTR parallel loop. Defaults to "
+            "JOBLIB_DEFAULT_N_JOBS (-2 = all-but-one core) when omitted. "
+            "Pass an explicit positive int to constrain (e.g. inside Snakemake)."
+        ),
     )
 
     parser.set_defaults(func=call_peaks_different_bandwidths)

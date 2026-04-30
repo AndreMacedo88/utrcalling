@@ -2,7 +2,7 @@
 import argparse
 
 
-def check_distance_to_pas(input_path, out_path, genome_path, hamming):
+def check_distance_to_pas(input_path, out_path, genome_path, hamming, cores=None):
     import joblib
     import pybedtools
     from utrcalling.core import peak_calling_anndata as pc
@@ -10,7 +10,9 @@ def check_distance_to_pas(input_path, out_path, genome_path, hamming):
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     genome = pybedtools.BedTool(genome_path)
-    distances_array = pc.pas_distance(adata=adata, genome=genome, hamming=hamming)
+    distances_array = pc.pas_distance(
+        adata=adata, genome=genome, hamming=hamming, n_jobs=cores
+    )
 
     joblib.dump(distances_array, out_path)
 
@@ -56,6 +58,15 @@ def create_parser(subparsers):
                         Number of differences to the canonical PAS hexamer (AATAAA)
                         that can be tolerated
                         """,
+    )
+    parser.add_argument(
+        "--cores",
+        type=int,
+        default=None,
+        help=(
+            "Max worker processes for the per-UTR parallel loop. Defaults to "
+            "JOBLIB_DEFAULT_N_JOBS (-2 = all-but-one core) when omitted."
+        ),
     )
 
     parser.set_defaults(func=check_distance_to_pas)

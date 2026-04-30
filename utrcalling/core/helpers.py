@@ -16,15 +16,24 @@ if TYPE_CHECKING:
     import anndata
     import pybedtools
 
-# Joblib defaults — use consistently across the codebase
-# Was -2 (all CPUs minus one). Lowered to 12 because at scRNA-seq scale
-# the parent process is the bottleneck (pickling per-UTR tasks/results to
-# loky workers), not the workers, so spawning ~all-CPUs workers gains
-# little throughput while each worker holds a multi-GB copy of the parent's
-# address space — risking OOM on the joint peak-calling step over a merged
-# multi-sample AnnData. 12 keeps worker RAM bounded without measurably
-# slowing the parent-bound phases that dominate wall time.
-JOBLIB_DEFAULT_N_JOBS = 12
+# Joblib defaults — used consistently across the codebase. Override per-run via
+# the `--cores` CLI flag, which threads down to every Parallel call site as
+# the `n_jobs` parameter (resolved by `resolve_n_jobs`).
+#
+# Default ``-2`` follows joblib semantics: spawn ``cpu_count() - 1`` workers,
+# leaving one core for the OS and interactive shell. This is system-portable
+# (a fixed cap like 12 oversubscribes 4-core boxes and underuses 27-core ones).
+#
+# Multi-job orchestrators (e.g. Snakemake) should pass ``--cores {threads}``
+# in the rule's shell command so each utrcalling job stays within its
+# Snakemake-allocated thread budget; without that, multiple parallel jobs
+# will each claim all-but-one cores and oversubscribe the host.
+#
+# A previous revision capped this at 12 because the per-UTR Parallel loop in
+# count_matrix.py was parent-bound (pickling overhead dominated worker work).
+# That bottleneck has since been fixed via batching + obs pre-encoding, so
+# the cap is no longer needed.
+JOBLIB_DEFAULT_N_JOBS = -2
 JOBLIB_DEFAULT_BACKEND = "loky"
 
 

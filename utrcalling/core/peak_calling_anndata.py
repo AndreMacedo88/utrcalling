@@ -22,7 +22,23 @@ import pybedtools
 import joblib
 from tqdm import tqdm
 
-from utrcalling.core import module_log
+from utrcalling.core import module_log, helpers
+from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
+
+
+def _resolve_workers(n_jobs: int | None) -> int:
+    """Resolve a positive worker count from an n_jobs argument.
+
+    Mirrors the policy used in count_matrix.py: explicit positive value wins;
+    otherwise fall back to the project default; non-positive results map to
+    ``get_number_cores(left_out=1)``. Returns a strictly positive int suitable
+    for both ``Parallel(n_jobs=...)`` and the batch-count formula.
+    """
+    n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
+    return (
+        n_jobs_resolved if n_jobs_resolved > 0
+        else max(1, helpers.get_number_cores(left_out=1))
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +102,85 @@ def _peak_call_single_utr(
     utr_var_new["utr_size"] = peak_sizes_unique
 
     return mtx_new.to_numpy(), utr_var_new
+
+
+# ---------------------------------------------------------------------------
+# Batch workers — run multiple UTRs per joblib task to amortize dispatch
+# overhead. The same parent-dispatcher bottleneck addressed in count_matrix.py
+# applies here: ~17k single-UTR tasks pickled one-at-a-time saturate the parent
+# while workers idle. Batching the per-UTR work into ``n_workers * 4`` chunks
+# (matching utr_mapping.py's pattern) keeps each worker busy per dispatch.
+# ---------------------------------------------------------------------------
+
+
+def _peak_call_utr_batch(
+    adata: ad.AnnData,
+    utrs_batch: list[tuple[int, str]],
+    method: str,
+    bandwidth: float,
+) -> list[tuple[int, npt.NDArray[Any], pd.DataFrame]]:
+    """Run :func:`_peak_call_single_utr` over a batch of UTRs.
+
+    Args:
+        adata: Full AnnData. The parent passes this once per batch (not per
+            UTR), shared across the batch's UTRs.
+        utrs_batch: List of ``(orig_idx, utr_name)`` pairs. ``orig_idx`` lets
+            the caller re-sort batched results back to deterministic order.
+        method: Peak calling method (currently only ``"kde"``).
+        bandwidth: KDE bandwidth.
+
+    Returns:
+        List of ``(orig_idx, count_matrix, var_df)`` tuples.
+    """
+    out = []
+    for orig_idx, utr in utrs_batch:
+        adata_utr = adata[:, adata.var.utr_name == utr]
+        mtx, var = _peak_call_single_utr(adata_utr, method=method, bandwidth=bandwidth)
+        out.append((orig_idx, mtx, var))
+    return out
+
+
+def _pas_distance_utr_batch(
+    adata: ad.AnnData,
+    utrs_batch: list[tuple[int, str]],
+    hamming: int,
+    genome: str,
+) -> list[tuple[int, npt.NDArray[Any] | None]]:
+    """Run :func:`_get_distances_per_utr` over a batch of UTRs."""
+    out = []
+    for orig_idx, utr in utrs_batch:
+        result = _get_distances_per_utr(
+            adata=adata, utr=utr, hamming=hamming, genome=genome
+        )
+        out.append((orig_idx, result))
+    return out
+
+
+def _score_distances_utr_batch(
+    adata: ad.AnnData,
+    utrs_batch: list[tuple[int, str]],
+    hamming: int,
+) -> list[tuple[int, list[float | tuple[float, npt.NDArray[Any]]] | None]]:
+    """Run :func:`_get_score_distances_per_utr` over a batch of UTRs."""
+    out = []
+    for orig_idx, utr in utrs_batch:
+        result = _get_score_distances_per_utr(adata=adata, utr=utr, hamming=hamming)
+        out.append((orig_idx, result))
+    return out
+
+
+def _build_utr_batches(
+    utrs: list[str] | npt.NDArray[Any], n_workers: int
+) -> list[list[tuple[int, str]]]:
+    """Split UTR names into ``n_workers * 4`` round-robin batches.
+
+    Each batch element is an ``(orig_idx, utr_name)`` pair so callers can
+    re-sort flattened results back to original UTR order — the same pattern
+    used in ``count_matrix.generate_counts_and_anno``.
+    """
+    indexed = list(enumerate(utrs))
+    n_batches = max(1, min(n_workers * 4, len(indexed)))
+    return [indexed[i::n_batches] for i in range(n_batches)]
 
 
 # ---------------------------------------------------------------------------
@@ -170,19 +265,25 @@ def _get_score_distances_per_utr(
 
 
 def peak_call_anndata_parallel(
-    adata: ad.AnnData, method: str, bandwidth: float = 1
+    adata: ad.AnnData,
+    method: str,
+    bandwidth: float = 1,
+    n_jobs: int | None = None,
 ) -> ad.AnnData:
     """Call peaks on an AnnData using joblib parallelism across UTRs.
 
     Each UTR's peaks are consolidated in parallel via
     :func:`_peak_call_single_utr`, then results are merged into a new
-    AnnData.
+    AnnData. UTRs are bundled into ``n_workers * 4`` batches before dispatch
+    to amortize joblib pickling overhead.
 
     Args:
         adata: AnnData with UMI counts in ``.X`` and UTR metadata in
             ``.var`` (must contain ``utr_name``, ``gene_name``, ``utr_size``).
         method: Peak calling method (currently only ``"kde"``).
         bandwidth: KDE bandwidth. ``0`` means no peak calling is performed.
+        n_jobs: Worker process count. ``None`` falls back to
+            JOBLIB_DEFAULT_N_JOBS; non-positive resolves to all-but-one core.
 
     Returns:
         A new AnnData with peaks consolidated.
@@ -196,17 +297,30 @@ def peak_call_anndata_parallel(
     sparse_adata = scipy.sparse.issparse(adata.X)
 
     utrs = adata.var.utr_name.unique()
+    n_workers = _resolve_workers(n_jobs)
+    batches = _build_utr_batches(utrs, n_workers)
 
-    parallel_results = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(_peak_call_single_utr)(
-            adata_utr=adata[:, adata.var.utr_name == utr],
-            method=method,
-            bandwidth=bandwidth,
-        )
-        for utr in tqdm(utrs, colour="#ffb700", ascii=" ■")
+    logger.info(
+        "Calling peaks across %d UTRs (%d workers, %d batches)",
+        len(utrs), n_workers, len(batches),
     )
 
-    mtx_list, var_list = list(zip(*parallel_results))
+    with joblib.parallel_config(
+        backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
+    ):
+        batch_results = list(
+            joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                joblib.delayed(_peak_call_utr_batch)(
+                    adata, batch, method, bandwidth
+                )
+                for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
+            )
+        )
+
+    flat = [item for br in batch_results for item in br]
+    flat.sort(key=lambda x: x[0])
+    mtx_list = [item[1] for item in flat]
+    var_list = [item[2] for item in flat]
 
     var_df = pd.concat(var_list, axis=0).drop("pA", axis=1, errors="ignore")
     new_adata = ad.AnnData(X=np.hstack(mtx_list), obs=adata.obs, var=var_df)
@@ -330,11 +444,17 @@ def estimate_best_bandwidth(
     hamming: int = 1,
     bandwidths: tuple[float, ...] | list[float] = (0.5, 1, 1.5, 2, 2.5, 3),
     return_distances_to_hex: bool = False,
+    n_jobs: int | None = None,
 ) -> list[float] | list[tuple[float, npt.NDArray[Any]]]:
     """Estimate the best KDE bandwidth by scoring PAS proximity.
 
     Runs peak calling at each candidate bandwidth, then scores each result
     by how many UMIs fall within 10-30 nt of a PAS hexamer.
+
+    The bandwidths are evaluated sequentially; parallelism is consumed by the
+    inner per-UTR loops in :func:`peak_call_anndata_parallel` and
+    :func:`_score_peak_assignment` so all cores stay productive without
+    nesting joblib pools.
 
     Args:
         adata: AnnData with UMI counts and UTR metadata.
@@ -343,6 +463,7 @@ def estimate_best_bandwidth(
         bandwidths: Candidate bandwidth values to evaluate.
         return_distances_to_hex: If ``True``, also return per-UMI distance
             arrays alongside scores.
+        n_jobs: Worker process count for the per-UTR loops.
 
     Returns:
         A list of scores (one per bandwidth), or a list of
@@ -352,25 +473,27 @@ def estimate_best_bandwidth(
     if isinstance(bandwidths, (int, float)):
         bandwidths = [bandwidths]
 
-    peak_data = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(peak_call_anndata)(
-            adata=adata, method=method, bandwidth=bandwidth
+    estimation_results: list[float | tuple[float, npt.NDArray[Any]]] = []
+    for bandwidth in bandwidths:
+        adata_bandwidth = peak_call_anndata_parallel(
+            adata=adata, method=method, bandwidth=bandwidth, n_jobs=n_jobs
         )
-        for bandwidth in bandwidths
-    )
-
-    estimation_results = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(_score_peak_assignment)(
+        score = _score_peak_assignment(
             adata=adata_bandwidth,
             hamming=hamming,
             return_distances_to_hex=return_distances_to_hex,
+            n_jobs=n_jobs,
         )
-        for adata_bandwidth in peak_data
-    )
+        estimation_results.append(score)
     return estimation_results
 
 
-def pas_distance(adata: ad.AnnData, genome: str, hamming: int = 1) -> npt.NDArray[Any]:
+def pas_distance(
+    adata: ad.AnnData,
+    genome: str,
+    hamming: int = 1,
+    n_jobs: int | None = None,
+) -> npt.NDArray[Any]:
     """Calculate UMI distances to the nearest polyadenylation signal (PAS).
 
     For each UTR, finds PAS hexamer sites (AATAAA with up to *hamming*
@@ -382,20 +505,37 @@ def pas_distance(adata: ad.AnnData, genome: str, hamming: int = 1) -> npt.NDArra
             ``.var.utr_size``, and UTR names in ``.var.utr_name``.
         genome: Path to a genome FASTA file.
         hamming: Maximum Hamming distance for fuzzy PAS matching.
+        n_jobs: Worker process count for the per-UTR parallel loop.
 
     Returns:
         1-D array of distances (one per UMI across all UTRs with a PAS).
     """
-    utrs = adata.var.utr_name.unique()
+    logger = module_log.module_logger()
 
-    distances_list = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(_get_distances_per_utr)(
-            adata=adata, utr=utr, hamming=hamming, genome=genome
-        )
-        for utr in tqdm(utrs, colour="#ffb700", ascii=" ■")
+    utrs = adata.var.utr_name.unique()
+    n_workers = _resolve_workers(n_jobs)
+    batches = _build_utr_batches(utrs, n_workers)
+
+    logger.info(
+        "Computing PAS distances across %d UTRs (%d workers, %d batches)",
+        len(utrs), n_workers, len(batches),
     )
 
-    distances_list = [i for i in distances_list if i is not None]
+    with joblib.parallel_config(
+        backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
+    ):
+        batch_results = list(
+            joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                joblib.delayed(_pas_distance_utr_batch)(
+                    adata, batch, hamming, genome
+                )
+                for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
+            )
+        )
+
+    flat = [item for br in batch_results for item in br]
+    flat.sort(key=lambda x: x[0])
+    distances_list = [arr for _idx, arr in flat if arr is not None]
     distances_array = np.concatenate(distances_list)
 
     return distances_array
@@ -405,6 +545,7 @@ def _score_peak_assignment(
     adata: ad.AnnData,
     hamming: int = 1,
     return_distances_to_hex: bool = False,
+    n_jobs: int | None = None,
 ) -> float | tuple[float, npt.NDArray[Any]]:
     """Score peak assignments by proximity to PAS hexamers.
 
@@ -413,6 +554,7 @@ def _score_peak_assignment(
         hamming: Maximum Hamming distance for PAS matching.
         return_distances_to_hex: If ``True``, also return the raw distance
             array.
+        n_jobs: Worker process count for the per-UTR parallel loop.
 
     Returns:
         A score (fraction of UMIs within 10-30 nt of a PAS), or a
@@ -420,23 +562,34 @@ def _score_peak_assignment(
     """
     logger = module_log.module_logger()
     utrs = adata.var.utr_name.unique()
+    n_workers = _resolve_workers(n_jobs)
+    batches = _build_utr_batches(utrs, n_workers)
 
-    logger.info("Scoring peaks for each UTR")
-    results_per_utr = joblib.Parallel(n_jobs=-2)(
-        joblib.delayed(_get_score_distances_per_utr)(
-            adata=adata, utr=utr, hamming=hamming
-        )
-        for utr in tqdm(utrs, colour="#ffb700", ascii=" ■", desc="UTR: ")
+    logger.info(
+        "Scoring peaks across %d UTRs (%d workers, %d batches)",
+        len(utrs), n_workers, len(batches),
     )
+
+    with joblib.parallel_config(
+        backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
+    ):
+        batch_results = list(
+            joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                joblib.delayed(_score_distances_utr_batch)(adata, batch, hamming)
+                for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
+            )
+        )
+
+    flat = [item for br in batch_results for item in br]
+    flat.sort(key=lambda x: x[0])
 
     scores = []
     distances_list = []
-
-    for i in results_per_utr:
-        if i is None:
+    for _idx, result in flat:
+        if result is None:
             continue
-        scores.append(i[0])
-        distances_list.append(i[1])
+        scores.append(result[0])
+        distances_list.append(result[1])
 
     score = sum(scores) / len(utrs)
     if return_distances_to_hex:

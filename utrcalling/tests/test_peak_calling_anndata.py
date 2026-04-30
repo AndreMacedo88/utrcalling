@@ -285,6 +285,63 @@ class TestPeakCallSingleUtr(unittest.TestCase):
         self.assertIn("utr_size", var_df.columns)
 
 
+class TestPeakCallAnndataParallel(unittest.TestCase):
+    """Verify the batched parallel path matches the sequential path."""
+
+    def setUp(self):
+        # Build ~10 UTRs each with 3 peaks. Small enough to run fast, large
+        # enough to exercise multiple batches when n_jobs > 1.
+        n_utrs = 10
+        peaks_per_utr = 3
+        utr_names = []
+        utr_sizes = []
+        gene_names = []
+        sizes_options = [[50, 100, 200], [60, 120, 250], [70, 140, 280]]
+        for i in range(n_utrs):
+            base = sizes_options[i % len(sizes_options)]
+            utr_names.extend([f"UTR{i}"] * peaks_per_utr)
+            utr_sizes.extend(base)
+            gene_names.extend([f"Gene{i}"] * peaks_per_utr)
+
+        rng = np.random.RandomState(42)
+        n_obs = 6
+        n_var = n_utrs * peaks_per_utr
+        counts = rng.randint(0, 10, size=(n_obs, n_var)).tolist()
+
+        self.adata = _make_adata(
+            count_matrix=counts,
+            utr_names=utr_names,
+            utr_sizes=utr_sizes,
+            gene_names=gene_names,
+            n_obs=n_obs,
+        )
+
+    def test_parallel_matches_sequential(self):
+        seq = pca.peak_call_anndata(self.adata, method="kde", bandwidth=1)
+        par = pca.peak_call_anndata_parallel(
+            self.adata, method="kde", bandwidth=1, n_jobs=2,
+        )
+
+        # Same shape
+        self.assertEqual(seq.shape, par.shape)
+        # Same X (peak_call_anndata orders UTRs as they appear; parallel sorts
+        # batches back to original order, so columns should align)
+        np.testing.assert_array_equal(seq.X, par.X)
+        # Same var (peak names/sizes derived deterministically per UTR)
+        pd.testing.assert_frame_equal(seq.var, par.var)
+
+    def test_n_jobs_invariance(self):
+        """Different worker counts should produce identical output."""
+        out1 = pca.peak_call_anndata_parallel(
+            self.adata, method="kde", bandwidth=1, n_jobs=1,
+        )
+        out4 = pca.peak_call_anndata_parallel(
+            self.adata, method="kde", bandwidth=1, n_jobs=4,
+        )
+        np.testing.assert_array_equal(out1.X, out4.X)
+        pd.testing.assert_frame_equal(out1.var, out4.var)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")
