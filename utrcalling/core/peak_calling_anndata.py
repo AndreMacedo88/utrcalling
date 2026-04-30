@@ -269,13 +269,24 @@ def _extract_per_utr_inputs(adata: ad.AnnData) -> list[CompactUtrItem]:
     The parent runs this once before dispatching; each slice is small (only
     the columns belonging to that UTR), so each batch task ships ~1/N_UTRs of
     the original X plus the matching var rows — a fraction of one full adata.
+
+    CSR is converted to CSC once before the loop — CSR column slicing is
+    O(nnz) per call (it scans the whole matrix), which would balloon the
+    extraction to O(N_UTRs * nnz) when called per-UTR. CSC column slicing is
+    O(nnz_in_slice), so the whole extraction drops to O(nnz) total. On real
+    inputs (~18k UTRs over a 70k-peak matrix) this is the difference between
+    multiple minutes and seconds.
     """
     var_groups = adata.var.groupby("utr_name", observed=True).indices
     utrs_in_order = adata.var.utr_name.unique()
+    if scipy.sparse.issparse(adata.X):
+        X_for_slicing = adata.X.tocsc()
+    else:
+        X_for_slicing = adata.X
     out: list[CompactUtrItem] = []
     for i, utr in enumerate(utrs_in_order):
         cols = var_groups[utr]
-        X_sub = adata.X[:, cols]
+        X_sub = X_for_slicing[:, cols]
         var_sub = adata.var.iloc[cols]
         out.append((i, utr, X_sub, var_sub))
     return out

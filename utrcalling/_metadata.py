@@ -1,3 +1,3 @@
-__version__ = "3.1.7"
+__version__ = "3.1.8"
 __author__ = "André Lopes Martins Macedo"
 __license__ = "BSD-3-Clause"

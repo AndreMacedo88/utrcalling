@@ -341,6 +341,24 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
         np.testing.assert_array_equal(out1.X, out4.X)
         pd.testing.assert_frame_equal(out1.var, out4.var)
 
+    def test_sparse_input_matches_dense(self):
+        """Sparse X (which exercises the CSC conversion in _extract_per_utr_inputs)
+        produces identical output to dense X."""
+        dense_out = pca.peak_call_anndata_parallel(
+            self.adata, method="kde", bandwidth=1, n_jobs=2,
+        )
+        sparse_adata = self.adata.copy()
+        sparse_adata.X = scipy.sparse.csr_matrix(sparse_adata.X)
+        sparse_out = pca.peak_call_anndata_parallel(
+            sparse_adata, method="kde", bandwidth=1, n_jobs=2,
+        )
+        # Sparse output stays sparse; densify to compare values.
+        np.testing.assert_array_equal(
+            dense_out.X,
+            sparse_out.X.toarray() if scipy.sparse.issparse(sparse_out.X) else sparse_out.X,
+        )
+        pd.testing.assert_frame_equal(dense_out.var, sparse_out.var)
+
 
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
