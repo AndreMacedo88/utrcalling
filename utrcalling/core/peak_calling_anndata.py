@@ -105,143 +105,105 @@ def _peak_call_single_utr(
 
 
 # ---------------------------------------------------------------------------
-# Batch workers — run multiple UTRs per joblib task to amortize dispatch
-# overhead. The same parent-dispatcher bottleneck addressed in count_matrix.py
-# applies here: ~17k single-UTR tasks pickled one-at-a-time saturate the parent
-# while workers idle. Batching the per-UTR work into ``n_workers * 4`` chunks
-# (matching utr_mapping.py's pattern) keeps each worker busy per dispatch.
+# Compact per-UTR workers — operate on (X_sub, var_sub) tuples instead of
+# AnnData slices, so workers receive only the bytes they need rather than the
+# full AnnData object pickled per batch. With ~18k UTRs and 26 workers the
+# previous "ship full adata per batch" approach hit OOM during worker spawn
+# (26 simultaneous unpickles of a multi-hundred-MB adata). Pre-extracting in
+# the parent reduces per-batch wire size by ~100x.
 # ---------------------------------------------------------------------------
 
 
-def _peak_call_utr_batch(
-    adata: ad.AnnData,
-    utrs_batch: list[tuple[int, str]],
+def _peak_call_single_utr_compact(
+    X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
+    var_sub: pd.DataFrame,
     method: str,
     bandwidth: float,
-) -> list[tuple[int, npt.NDArray[Any], pd.DataFrame]]:
-    """Run :func:`_peak_call_single_utr` over a batch of UTRs.
+) -> tuple[npt.NDArray[Any], pd.DataFrame]:
+    """Per-UTR peak-calling on raw ``(X, var)`` slices.
 
-    Args:
-        adata: Full AnnData. The parent passes this once per batch (not per
-            UTR), shared across the batch's UTRs.
-        utrs_batch: List of ``(orig_idx, utr_name)`` pairs. ``orig_idx`` lets
-            the caller re-sort batched results back to deterministic order.
-        method: Peak calling method (currently only ``"kde"``).
-        bandwidth: KDE bandwidth.
-
-    Returns:
-        List of ``(orig_idx, count_matrix, var_df)`` tuples.
+    Behaviorally identical to :func:`_peak_call_single_utr` but skips the
+    AnnData wrapper so workers don't need to pickle/unpickle a parent-sized
+    AnnData. The original AnnData ``[:, peak_sizes].to_df().T → groupby(sum)
+    → .T`` chain is replaced with direct numpy slicing + sum-by-group, which
+    matches the original column ordering (groupby's default ``sort=True``).
     """
-    out = []
-    for orig_idx, utr in utrs_batch:
-        adata_utr = adata[:, adata.var.utr_name == utr]
-        mtx, var = _peak_call_single_utr(adata_utr, method=method, bandwidth=bandwidth)
-        out.append((orig_idx, mtx, var))
-    return out
+    gene = var_sub.gene_name.iloc[0]
+    utr_name_parts = var_sub.utr_name.iloc[0].split("_")
+    utr_number = f"UTR{utr_name_parts[1]}_" if len(utr_name_parts) > 1 else ""
+    utr_var = var_sub.iloc[0]
 
+    umi_utr_sizes = _utr_sizes_vector_from_read_counts(
+        X_sub, var_sub.utr_size.astype(int)
+    )
 
-def _pas_distance_utr_batch(
-    adata: ad.AnnData,
-    utrs_batch: list[tuple[int, str]],
-    hamming: int,
-    genome: str,
-) -> list[tuple[int, npt.NDArray[Any] | None]]:
-    """Run :func:`_get_distances_per_utr` over a batch of UTRs."""
-    out = []
-    for orig_idx, utr in utrs_batch:
-        result = _get_distances_per_utr(
-            adata=adata, utr=utr, hamming=hamming, genome=genome
+    if method.lower() == "kde":
+        peaks = _call_peaks_using_kernel_density_estimator(
+            umi_utr_sizes.values, bandwidth=bandwidth
         )
-        out.append((orig_idx, result))
-    return out
+        peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
+        peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
+        peak_sizes_unique = peak_sizes.unique()
+
+    # Map peak_sizes' var-name index back to positional indices in var_sub,
+    # then sum X_sub columns by peak-size value (replaces pandas groupby(sum)).
+    cols = var_sub.index.get_indexer(peak_sizes.index)
+    if scipy.sparse.issparse(X_sub):
+        X_peaks = X_sub[:, cols].toarray()
+    else:
+        X_peaks = np.asarray(X_sub)[:, cols]
+
+    sizes_arr = np.asarray(peak_sizes.values)
+    unique_sizes_sorted = np.sort(np.unique(sizes_arr))
+    new_mtx = np.zeros(
+        (X_peaks.shape[0], len(unique_sizes_sorted)), dtype=X_peaks.dtype
+    )
+    for k, s in enumerate(unique_sizes_sorted):
+        new_mtx[:, k] = np.asarray(X_peaks[:, sizes_arr == s].sum(axis=1)).ravel()
+
+    polya_names = [
+        f"{gene}_{utr_number}pA{x}" for x in range(1, len(unique_sizes_sorted) + 1)
+    ]
+    utr_var_new = pd.DataFrame([utr_var] * len(unique_sizes_sorted))
+    utr_var_new.index = polya_names
+    # Match original behavior: utr_size column uses peak_sizes.unique() (insertion
+    # order), which equals sorted order in practice when var is utr_size-sorted.
+    utr_var_new["utr_size"] = peak_sizes_unique
+
+    return new_mtx, utr_var_new
 
 
-def _score_distances_utr_batch(
-    adata: ad.AnnData,
-    utrs_batch: list[tuple[int, str]],
+def _get_distances_per_utr_compact(
+    X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
+    var_sub: pd.DataFrame,
     hamming: int,
-) -> list[tuple[int, list[float | tuple[float, npt.NDArray[Any]]] | None]]:
-    """Run :func:`_get_score_distances_per_utr` over a batch of UTRs."""
-    out = []
-    for orig_idx, utr in utrs_batch:
-        result = _get_score_distances_per_utr(adata=adata, utr=utr, hamming=hamming)
-        out.append((orig_idx, result))
-    return out
-
-
-def _build_utr_batches(
-    utrs: list[str] | npt.NDArray[Any], n_workers: int
-) -> list[list[tuple[int, str]]]:
-    """Split UTR names into ``n_workers * 4`` round-robin batches.
-
-    Each batch element is an ``(orig_idx, utr_name)`` pair so callers can
-    re-sort flattened results back to original UTR order — the same pattern
-    used in ``count_matrix.generate_counts_and_anno``.
-    """
-    indexed = list(enumerate(utrs))
-    n_batches = max(1, min(n_workers * 4, len(indexed)))
-    return [indexed[i::n_batches] for i in range(n_batches)]
-
-
-# ---------------------------------------------------------------------------
-# Extracted joblib workers for PAS distance scoring
-# ---------------------------------------------------------------------------
-
-
-def _get_distances_per_utr(
-    adata: ad.AnnData, utr: str, hamming: int, genome: str
+    genome: Any,
 ) -> npt.NDArray[Any] | None:
-    """Compute PAS distances for a single UTR (module-level for joblib).
-
-    Args:
-        adata: Full AnnData object.
-        utr: UTR name to process.
-        hamming: Maximum Hamming distance for PAS matching.
-        genome: Path to the genome FASTA file.
-
-    Returns:
-        1-D numpy array of distances, or ``None`` if no PAS found.
-    """
-    adata_utr = adata[:, adata.var.utr_name == utr]
-
-    pas_end, _, seq_strand = _find_pas(adata_utr, hamming=hamming, genome=genome)
+    """Compute PAS distances for one UTR, given its raw ``(X, var)`` slices."""
+    pas_end, _, seq_strand = _find_pas(var_sub, hamming=hamming, genome=genome)
 
     if not pas_end:
         return None
 
-    umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-        adata_utr.X, adata_utr.var.utr_size
-    )
-
+    umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size)
     distances = _calculate_umi_distance_to_pas(
         umi_utr_sizes=umi_utr_sizes, pas_end=pas_end, seq_strand=seq_strand
     )
     return distances.to_numpy().flatten()
 
 
-def _get_score_distances_per_utr(
-    adata: ad.AnnData, utr: str, hamming: int
+def _get_score_distances_per_utr_compact(
+    X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
+    var_sub: pd.DataFrame,
+    hamming: int,
 ) -> list[float | tuple[float, npt.NDArray[Any]]] | None:
-    """Score PAS distances for a single UTR (module-level for joblib).
-
-    Args:
-        adata: Full AnnData object.
-        utr: UTR name to process.
-        hamming: Maximum Hamming distance for PAS matching.
-
-    Returns:
-        A list ``[score, distances_array]``, or ``None`` if no PAS found.
-    """
-    adata_utr = adata[:, adata.var.utr_name == utr]
-    pas_end, _, seq_strand = _find_pas(adata_utr, hamming=hamming)
+    """Score PAS distances for one UTR, given its raw ``(X, var)`` slices."""
+    pas_end, _, seq_strand = _find_pas(var_sub, hamming=hamming)
 
     if not pas_end:
         return None
 
-    umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-        adata_utr.X, adata_utr.var.utr_size
-    )
-
+    umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size)
     distances = _calculate_umi_distance_to_pas(
         umi_utr_sizes=umi_utr_sizes, pas_end=pas_end, seq_strand=seq_strand
     )
@@ -257,6 +219,74 @@ def _get_score_distances_per_utr(
         return [in_range_of_pas.value_counts().loc[True] / total_umis, distances_]
     except KeyError:
         return [0, distances_]
+
+
+# ---------------------------------------------------------------------------
+# Batch workers — receive a list of pre-extracted per-UTR slices. The parent
+# materializes the slices once and ships only the slices each batch needs;
+# workers never see the full AnnData. ``orig_idx`` lets the parent re-sort
+# flattened results back to deterministic UTR order.
+# ---------------------------------------------------------------------------
+
+CompactUtrItem = tuple[int, str, Any, pd.DataFrame]
+
+
+def _peak_call_utr_batch(
+    batch: list[CompactUtrItem], method: str, bandwidth: float
+) -> list[tuple[int, npt.NDArray[Any], pd.DataFrame]]:
+    out = []
+    for orig_idx, _utr_name, X_sub, var_sub in batch:
+        mtx, var_df = _peak_call_single_utr_compact(
+            X_sub, var_sub, method, bandwidth
+        )
+        out.append((orig_idx, mtx, var_df))
+    return out
+
+
+def _pas_distance_utr_batch(
+    batch: list[CompactUtrItem], hamming: int, genome: Any
+) -> list[tuple[int, npt.NDArray[Any] | None]]:
+    out = []
+    for orig_idx, _utr_name, X_sub, var_sub in batch:
+        result = _get_distances_per_utr_compact(X_sub, var_sub, hamming, genome)
+        out.append((orig_idx, result))
+    return out
+
+
+def _score_distances_utr_batch(
+    batch: list[CompactUtrItem], hamming: int
+) -> list[tuple[int, list[float | tuple[float, npt.NDArray[Any]]] | None]]:
+    out = []
+    for orig_idx, _utr_name, X_sub, var_sub in batch:
+        result = _get_score_distances_per_utr_compact(X_sub, var_sub, hamming)
+        out.append((orig_idx, result))
+    return out
+
+
+def _extract_per_utr_inputs(adata: ad.AnnData) -> list[CompactUtrItem]:
+    """Pre-extract per-UTR ``(orig_idx, utr_name, X_sub, var_sub)`` slices.
+
+    The parent runs this once before dispatching; each slice is small (only
+    the columns belonging to that UTR), so each batch task ships ~1/N_UTRs of
+    the original X plus the matching var rows — a fraction of one full adata.
+    """
+    var_groups = adata.var.groupby("utr_name", observed=True).indices
+    utrs_in_order = adata.var.utr_name.unique()
+    out: list[CompactUtrItem] = []
+    for i, utr in enumerate(utrs_in_order):
+        cols = var_groups[utr]
+        X_sub = adata.X[:, cols]
+        var_sub = adata.var.iloc[cols]
+        out.append((i, utr, X_sub, var_sub))
+    return out
+
+
+def _build_compact_batches(
+    per_utr_inputs: list[CompactUtrItem], n_workers: int
+) -> list[list[CompactUtrItem]]:
+    """Split per-UTR inputs into ``n_workers * 4`` round-robin batches."""
+    n_batches = max(1, min(n_workers * 4, len(per_utr_inputs)))
+    return [per_utr_inputs[i::n_batches] for i in range(n_batches)]
 
 
 # ---------------------------------------------------------------------------
@@ -296,13 +326,13 @@ def peak_call_anndata_parallel(
 
     sparse_adata = scipy.sparse.issparse(adata.X)
 
-    utrs = adata.var.utr_name.unique()
     n_workers = _resolve_workers(n_jobs)
-    batches = _build_utr_batches(utrs, n_workers)
+    per_utr_inputs = _extract_per_utr_inputs(adata)
+    batches = _build_compact_batches(per_utr_inputs, n_workers)
 
     logger.info(
         "Calling peaks across %d UTRs (%d workers, %d batches)",
-        len(utrs), n_workers, len(batches),
+        len(per_utr_inputs), n_workers, len(batches),
     )
 
     with joblib.parallel_config(
@@ -310,9 +340,7 @@ def peak_call_anndata_parallel(
     ):
         batch_results = list(
             joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                joblib.delayed(_peak_call_utr_batch)(
-                    adata, batch, method, bandwidth
-                )
+                joblib.delayed(_peak_call_utr_batch)(batch, method, bandwidth)
                 for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
             )
         )
@@ -512,13 +540,13 @@ def pas_distance(
     """
     logger = module_log.module_logger()
 
-    utrs = adata.var.utr_name.unique()
     n_workers = _resolve_workers(n_jobs)
-    batches = _build_utr_batches(utrs, n_workers)
+    per_utr_inputs = _extract_per_utr_inputs(adata)
+    batches = _build_compact_batches(per_utr_inputs, n_workers)
 
     logger.info(
         "Computing PAS distances across %d UTRs (%d workers, %d batches)",
-        len(utrs), n_workers, len(batches),
+        len(per_utr_inputs), n_workers, len(batches),
     )
 
     with joblib.parallel_config(
@@ -526,9 +554,7 @@ def pas_distance(
     ):
         batch_results = list(
             joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                joblib.delayed(_pas_distance_utr_batch)(
-                    adata, batch, hamming, genome
-                )
+                joblib.delayed(_pas_distance_utr_batch)(batch, hamming, genome)
                 for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
             )
         )
@@ -561,13 +587,13 @@ def _score_peak_assignment(
         ``(score, distances_array)`` tuple.
     """
     logger = module_log.module_logger()
-    utrs = adata.var.utr_name.unique()
     n_workers = _resolve_workers(n_jobs)
-    batches = _build_utr_batches(utrs, n_workers)
+    per_utr_inputs = _extract_per_utr_inputs(adata)
+    batches = _build_compact_batches(per_utr_inputs, n_workers)
 
     logger.info(
         "Scoring peaks across %d UTRs (%d workers, %d batches)",
-        len(utrs), n_workers, len(batches),
+        len(per_utr_inputs), n_workers, len(batches),
     )
 
     with joblib.parallel_config(
@@ -575,7 +601,7 @@ def _score_peak_assignment(
     ):
         batch_results = list(
             joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                joblib.delayed(_score_distances_utr_batch)(adata, batch, hamming)
+                joblib.delayed(_score_distances_utr_batch)(batch, hamming)
                 for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
             )
         )
@@ -591,7 +617,7 @@ def _score_peak_assignment(
         scores.append(result[0])
         distances_list.append(result[1])
 
-    score = sum(scores) / len(utrs)
+    score = sum(scores) / len(per_utr_inputs)
     if return_distances_to_hex:
         distances_array = np.concatenate(distances_list)
         return (score, distances_array)
@@ -605,16 +631,17 @@ def _score_peak_assignment(
 
 
 def _find_pas(
-    adata: ad.AnnData, genome: str, hamming: int = 1
+    var: pd.DataFrame, genome: Any, hamming: int = 1
 ) -> tuple[list[int], list[str], str]:
     """Find polyadenylation signal (PAS) sites in a UTR sequence.
 
-    Extracts the genomic sequence for the UTR described in *adata.var* and
-    searches for AATAAA motifs (with up to *hamming* mismatches).
+    Extracts the genomic sequence described in *var* (one UTR's metadata
+    rows) and searches for AATAAA motifs (with up to *hamming* mismatches).
 
     Args:
-        adata: AnnData subset for a single UTR.
-        genome: Path to a genome FASTA file.
+        var: Per-UTR var rows with chrom/start/end/strand columns. All rows
+            describe the same UTR, so only the first is consulted.
+        genome: Path to a genome FASTA file (or a pybedtools BedTool).
         hamming: Maximum Hamming distance for fuzzy matching.
 
     Returns:
@@ -622,10 +649,10 @@ def _find_pas(
         of 0-based end positions, *pas_seq* the matched sequences, and
         *strand* the genomic strand.
     """
-    seq_chrom = adata.var.chrom.iloc[0]
-    seq_start = adata.var.start.iloc[0] - 1
-    seq_stop = adata.var.end.iloc[0]
-    seq_strand = adata.var.strand.iloc[0]
+    seq_chrom = var.chrom.iloc[0]
+    seq_start = var.start.iloc[0] - 1
+    seq_stop = var.end.iloc[0]
+    seq_strand = var.strand.iloc[0]
 
     query = pybedtools.BedTool(
         f"{seq_chrom} {seq_start} {seq_stop} three_prime_utr 0 {seq_strand}",
