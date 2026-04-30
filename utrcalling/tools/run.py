@@ -44,6 +44,7 @@ def run(
     out="UTR_counts.h5ad",
     store_log=True,
     no_log_file=False,
+    cores=None,
 ):
     """
     Maps reads to UTRs and returns UTR length peak counts per cell/sample/batch from
@@ -100,6 +101,7 @@ def run(
         utr_regions=utr_reference_regions,
         protocol=protocol_,
         store=store_intermediate,
+        n_jobs=cores,
     )
 
     if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
@@ -137,6 +139,7 @@ def run(
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
             store=store_intermediate,
+            n_jobs=cores,
         )
         helpers.log_metrics_anndata(raw_anndata)
         _write_anndata(raw_anndata, out, logger)
@@ -151,6 +154,7 @@ def run(
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
             size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth),
+            n_jobs=cores,
         )
         helpers.log_metrics_anndata(kde_anndata)
         _write_anndata(kde_anndata, kde_out, logger)
@@ -163,6 +167,7 @@ def run(
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
             store=store_intermediate,
+            n_jobs=cores,
         )
         helpers.log_metrics_anndata(count_matrix_anndata)
         _write_anndata(count_matrix_anndata, out, logger)
@@ -334,6 +339,18 @@ def create_parser(subparsers):
         type=str,
         help="Path or partial path to a folder to store the result files.",
         default="UTR_results.h5ad",
+    )
+
+    parser.add_argument(
+        "--cores",
+        type=int,
+        default=None,
+        help=(
+            "Max worker processes for parallel sections. Defaults to "
+            "JOBLIB_DEFAULT_N_JOBS (12) when omitted. Use this to lift the "
+            "default cap on multi-core machines, or to constrain inside "
+            "Snakemake. Pass a non-positive value to use all-but-one core."
+        ),
     )
 
     parser.set_defaults(func=run)

@@ -7,8 +7,9 @@ from __future__ import annotations
 
 # general tools
 from utrcalling.core.module_log import module_logger
+from utrcalling.core import helpers
 from utrcalling.core.helpers import (
-    JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND, ensure_mapped_reads_dtypes,
+    JOBLIB_DEFAULT_BACKEND, ensure_mapped_reads_dtypes,
 )
 from utrcalling.core.protocol import Protocol
 from functools import partial
@@ -298,6 +299,7 @@ def map_reads_to_utr(
     read: str = "first",
     batch_idx: str | None = None,
     parallel: bool = True,
+    n_jobs: int | None = None,
 ) -> pd.DataFrame:
     """Extract reads from a BAM file and map them to UTR intervals.
 
@@ -316,6 +318,8 @@ def map_reads_to_utr(
         parallel: If True, parallelize across intervals when >50. Set to False
             when already inside a joblib worker (multi-BAM path) to prevent
             nested parallelism.
+        n_jobs: Worker process count. ``None`` falls back to JOBLIB_DEFAULT_N_JOBS.
+            Non-positive values resolve to ``get_number_cores(left_out=1)``.
 
     Returns:
         A flat DataFrame with columns (utr_name, observation_id, utr_size),
@@ -338,15 +342,20 @@ def map_reads_to_utr(
     ]
 
     if parallel and len(interval_items) > 50:
-        # Parallel path — split intervals across workers
-        n_workers = max(1, joblib.cpu_count() - 1)
+        # Parallel path — split intervals across workers. Resolve n_jobs first
+        # so batch sizing matches the worker count actually used.
+        n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
+        n_workers = (
+            n_jobs_resolved if n_jobs_resolved > 0
+            else max(1, helpers.get_number_cores(left_out=1))
+        )
         batch_size = max(1, len(interval_items) // (n_workers * 4))
         batches = [
             interval_items[i : i + batch_size]
             for i in range(0, len(interval_items), batch_size)
         ]
 
-        results = joblib.Parallel(n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND)(
+        results = joblib.Parallel(n_jobs=n_workers, backend=JOBLIB_DEFAULT_BACKEND)(
             joblib.delayed(_process_interval_batch)(
                 bam, batch, protocol, read, batch_idx, show_progress=False
             )

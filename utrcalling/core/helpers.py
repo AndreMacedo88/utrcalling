@@ -17,8 +17,28 @@ if TYPE_CHECKING:
     import pybedtools
 
 # Joblib defaults — use consistently across the codebase
-JOBLIB_DEFAULT_N_JOBS = -2  # all CPUs minus one
+# Was -2 (all CPUs minus one). Lowered to 12 because at scRNA-seq scale
+# the parent process is the bottleneck (pickling per-UTR tasks/results to
+# loky workers), not the workers, so spawning ~all-CPUs workers gains
+# little throughput while each worker holds a multi-GB copy of the parent's
+# address space — risking OOM on the joint peak-calling step over a merged
+# multi-sample AnnData. 12 keeps worker RAM bounded without measurably
+# slowing the parent-bound phases that dominate wall time.
+JOBLIB_DEFAULT_N_JOBS = 12
 JOBLIB_DEFAULT_BACKEND = "loky"
+
+
+def resolve_n_jobs(n_jobs: int | None) -> int:
+    """Return the user-requested worker count, or the conservative default.
+
+    Args:
+        n_jobs: Explicit worker count from a CLI flag or API caller. ``None``
+            means "use the project default".
+
+    Returns:
+        ``n_jobs`` if it is not None; otherwise ``JOBLIB_DEFAULT_N_JOBS``.
+    """
+    return n_jobs if n_jobs is not None else JOBLIB_DEFAULT_N_JOBS
 
 
 def ensure_mapped_reads_dtypes(df: pd.DataFrame) -> pd.DataFrame:

@@ -26,7 +26,8 @@ import joblib
 from tqdm import tqdm
 
 from utrcalling.core.module_log import module_logger
-from utrcalling.core.helpers import JOBLIB_DEFAULT_N_JOBS, JOBLIB_DEFAULT_BACKEND
+from utrcalling.core import helpers
+from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
 from utrcalling.core import utr_reference
 from utrcalling.core import utr_mapping
 from utrcalling.core import process_mapped_reads
@@ -106,6 +107,7 @@ def _map_single_bam(
     intervals: dict[str, _IntervalData],
     protocol: Protocol,
     batch_idx: str | None = None,
+    n_jobs: int | None = None,
 ) -> pd.DataFrame:
     """Map reads from a single BAM file to UTR intervals.
 
@@ -114,6 +116,7 @@ def _map_single_bam(
         intervals: Dict of {utr_name: _IntervalData}.
         protocol: A Protocol instance.
         batch_idx: Optional batch index for observation ID suffixing.
+        n_jobs: Worker process count for the inner interval-batch parallelism.
 
     Returns:
         A flat DataFrame of (utr_name, observation_id, utr_size) rows.
@@ -124,6 +127,7 @@ def _map_single_bam(
         read=protocol.read_in_pair,
         protocol=protocol,
         batch_idx=batch_idx,
+        n_jobs=n_jobs,
     )
 
 
@@ -131,6 +135,7 @@ def _map_multiple_bams(
     alignments: list[str],
     intervals: dict[str, _IntervalData],
     protocol: Protocol,
+    n_jobs: int | None = None,
 ) -> list[pd.DataFrame]:
     """Map reads from multiple BAM files in parallel via joblib.
 
@@ -138,6 +143,8 @@ def _map_multiple_bams(
         alignments: List of BAM file paths.
         intervals: Dict of {utr_name: _IntervalData}.
         protocol: A Protocol instance.
+        n_jobs: Outer-level worker count (one BAM per worker). Inner per-BAM
+            parallelism is disabled to avoid nested joblib pools.
 
     Returns:
         List of flat DataFrames, one per BAM file.
@@ -155,7 +162,7 @@ def _map_multiple_bams(
         batch_indices = [str(i + 1) for i in range(len(alignments))]
 
     return joblib.Parallel(
-        n_jobs=JOBLIB_DEFAULT_N_JOBS, backend=JOBLIB_DEFAULT_BACKEND
+        n_jobs=helpers.resolve_n_jobs(n_jobs), backend=JOBLIB_DEFAULT_BACKEND
     )(
         joblib.delayed(utr_mapping.map_reads_to_utr)(
             alignment,
@@ -176,6 +183,7 @@ def map_aligned_reads(
     utr_regions: pd.DataFrame,
     protocol: Protocol,
     store: bool = False,
+    n_jobs: int | None = None,
 ) -> pd.DataFrame | list[pd.DataFrame]:
     """Map BAM-aligned reads to UTR intervals and deduplicate by UMI.
 
@@ -187,6 +195,7 @@ def map_aligned_reads(
         utr_regions: UTR reference DataFrame (from prepare_utr_reference_regions).
         protocol: A Protocol instance defining read parsing and identity extraction.
         store: If True, save per-sample Parquet files to ./intermediate/.
+        n_jobs: Worker process count. ``None`` falls back to JOBLIB_DEFAULT_N_JOBS.
 
     Returns:
         A single flat DataFrame (one BAM) or list of flat DataFrames (multiple BAMs).
@@ -194,14 +203,18 @@ def map_aligned_reads(
     intervals = utr_mapping.generate_utr_intervals(utr_regions)
 
     if isinstance(alignments, (list, tuple)) and len(alignments) > 1:
-        read_mappings = _map_multiple_bams(alignments, intervals, protocol)
+        read_mappings = _map_multiple_bams(
+            alignments, intervals, protocol, n_jobs=n_jobs
+        )
         if store:
             storage.store_read_mappings_multi(read_mappings)
     else:
         if isinstance(alignments, (list, tuple)):
             alignments = alignments[0]
         batch_idx = _resolve_batch_idx(alignments, protocol)
-        read_mappings = _map_single_bam(alignments, intervals, protocol, batch_idx)
+        read_mappings = _map_single_bam(
+            alignments, intervals, protocol, batch_idx, n_jobs=n_jobs
+        )
         if store:
             storage.store_read_mappings_single(read_mappings)
 
@@ -298,6 +311,7 @@ def build_count_matrix(
     protocol: Protocol,
     store: bool = False,
     size_transform: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
+    n_jobs: int | None = None,
 ) -> anndata.AnnData:
     """Build a sparse AnnData count matrix from filtered reads.
 
@@ -311,12 +325,17 @@ def build_count_matrix(
         store: If True, save intermediates to ./intermediate/.
         size_transform: Optional function to transform UTR sizes per group.
             None -> raw sizes. E.g., pc.get_caller("kde", bandwidth=12) for KDE peaks.
+        n_jobs: Worker process count for the per-UTR parallel loop. ``None``
+            falls back to JOBLIB_DEFAULT_N_JOBS.
 
     Returns:
         An AnnData object with cells/samples as obs and UTR peaks as var.
     """
     result = count_matrix.generate_counts_and_anno(
-        filtered_reads, protocol=protocol, size_transform=size_transform
+        filtered_reads,
+        protocol=protocol,
+        size_transform=size_transform,
+        n_jobs=n_jobs,
     )
     peaks_count_matrix = result.count_matrix
     peaks_var = result.peaks_var
@@ -343,6 +362,7 @@ def call_peaks(
     utr_reference_subset: pd.DataFrame,
     protocol: Protocol,
     store: bool = False,
+    n_jobs: int | None = None,
 ) -> anndata.AnnData:
     """Call consensus UTR peaks and build a sparse AnnData count matrix.
 
@@ -354,6 +374,8 @@ def call_peaks(
         utr_reference_subset: Subsetted UTR reference (from filter_mapped_reads).
         protocol: A Protocol instance with peak calling config.
         store: If True, save intermediate files to ./intermediate/.
+        n_jobs: Worker process count for the per-UTR parallel loop. ``None``
+            falls back to JOBLIB_DEFAULT_N_JOBS.
 
     Returns:
         An AnnData object with cells/samples as obs and UTR peaks as var.
@@ -364,4 +386,5 @@ def call_peaks(
         protocol,
         store,
         size_transform=protocol.peak_calling,
+        n_jobs=n_jobs,
     )

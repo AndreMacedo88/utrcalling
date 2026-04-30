@@ -42,6 +42,7 @@ def call_peaks(
     out="UTR_results.h5ad",
     store_log=True,
     no_log_file=False,
+    cores=None,
 ):
     """
     Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR
@@ -134,6 +135,7 @@ def call_peaks(
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
             store=store_intermediate,
+            n_jobs=cores,
         )
         helpers.log_metrics_anndata(raw_anndata)
         _write_anndata(raw_anndata, out, logger)
@@ -148,6 +150,7 @@ def call_peaks(
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
             size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth),
+            n_jobs=cores,
         )
         helpers.log_metrics_anndata(kde_anndata)
         _write_anndata(kde_anndata, kde_out, logger)
@@ -160,6 +163,7 @@ def call_peaks(
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
             store=store_intermediate,
+            n_jobs=cores,
         )
         helpers.log_metrics_anndata(count_matrix_anndata)
         _write_anndata(count_matrix_anndata, out, logger)
@@ -327,6 +331,17 @@ def create_parser(subparsers):
         type=str,
         help="Path or partial path to a folder to store the result files.",
         default="UTR_counts.h5ad",
+    )
+
+    parser.add_argument(
+        "--cores",
+        type=int,
+        default=None,
+        help=(
+            "Max worker processes for the per-UTR parallel loop. Defaults to "
+            "JOBLIB_DEFAULT_N_JOBS (12) when omitted. Pass a non-positive "
+            "value to use all-but-one core."
+        ),
     )
 
     parser.set_defaults(func=call_peaks)

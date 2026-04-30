@@ -12,6 +12,7 @@ from utrcalling.core import (
 import os
 from pathlib import Path
 import unittest
+import unittest.mock as mock
 
 import pandas as pd
 import numpy as np
@@ -292,6 +293,75 @@ class TestCountMatrixEdgeCases(unittest.TestCase):
         # All peak names should start with "UTR1-"
         for name in var.index:
             self.assertTrue(name.startswith("UTR1-"), f"Unexpected peak name: {name}")
+
+
+class TestParallelDeterminism(unittest.TestCase):
+    """Verify the per-UTR parallel path returns identical output to the serial path.
+
+    Existing tests use small fixtures that fall under _PARALLEL_UTR_THRESHOLD and
+    therefore exercise only the serial branch. These tests build synthetic input
+    above the threshold so the batched parallel branch is covered.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.protocol_ = protocol.create(
+            platform="10x",
+            version=2,
+            annotations=synthetic_data.ANNOTATION_THREE_PRIME_TENX,
+        )
+        rng = np.random.default_rng(42)
+        n_utrs = 60  # > _PARALLEL_UTR_THRESHOLD (50) — engages the parallel path
+        n_obs = 8
+        sizes_per_obs = 5
+        utr_names = [f"UTR{i:04d}" for i in range(n_utrs)]
+        obs_ids = [f"AAAAAAAAAAAAAAA{i}" for i in range(n_obs)]
+        rows = []
+        for utr in utr_names:
+            n_contribs = int(rng.integers(low=1, high=n_obs + 1))
+            chosen = rng.choice(obs_ids, size=n_contribs, replace=False)
+            for obs in chosen:
+                for _ in range(sizes_per_obs):
+                    size = int(rng.integers(low=20, high=300))
+                    rows.append((utr, obs, size))
+        df = pd.DataFrame(rows, columns=["utr_name", "observation_id", "utr_size"])
+        df["utr_name"] = pd.Categorical(df["utr_name"])
+        df["observation_id"] = pd.Categorical(df["observation_id"])
+        df["utr_size"] = df["utr_size"].astype(np.int32)
+        cls.data = df
+
+    def _run(self, n_jobs=None):
+        return count_matrix.generate_counts_and_anno(
+            utr_sizes=self.data,
+            protocol=self.protocol_,
+            n_jobs=n_jobs,
+        )
+
+    def test_parallel_matches_serial(self):
+        """Parallel branch and forced-serial branch produce identical outputs."""
+        m_par, var_par, obs_par = self._run()
+
+        with mock.patch.object(count_matrix, "_PARALLEL_UTR_THRESHOLD", 10_000):
+            m_ser, var_ser, obs_ser = self._run()
+
+        npt.assert_array_equal(m_par.toarray(), m_ser.toarray())
+        pd.testing.assert_frame_equal(var_par, var_ser)
+        if obs_par is None:
+            self.assertIsNone(obs_ser)
+        else:
+            pd.testing.assert_frame_equal(obs_par, obs_ser)
+
+    def test_n_jobs_invariance(self):
+        """n_jobs=1 and n_jobs=4 produce identical outputs."""
+        m1, var1, obs1 = self._run(n_jobs=1)
+        m4, var4, obs4 = self._run(n_jobs=4)
+
+        npt.assert_array_equal(m1.toarray(), m4.toarray())
+        pd.testing.assert_frame_equal(var1, var4)
+        if obs1 is None:
+            self.assertIsNone(obs4)
+        else:
+            pd.testing.assert_frame_equal(obs1, obs4)
 
 
 if __name__ == "__main__":
