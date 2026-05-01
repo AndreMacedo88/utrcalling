@@ -119,14 +119,20 @@ def _peak_call_single_utr_compact(
     var_sub: pd.DataFrame,
     method: str,
     bandwidth: float,
-) -> tuple[npt.NDArray[Any], pd.DataFrame]:
+) -> tuple[npt.NDArray[Any] | scipy.sparse.spmatrix, pd.DataFrame]:
     """Per-UTR peak-calling on raw ``(X, var)`` slices.
 
-    Behaviorally identical to :func:`_peak_call_single_utr` but skips the
-    AnnData wrapper so workers don't need to pickle/unpickle a parent-sized
-    AnnData. The original AnnData ``[:, peak_sizes].to_df().T → groupby(sum)
-    → .T`` chain is replaced with direct numpy slicing + sum-by-group, which
-    matches the original column ordering (groupby's default ``sort=True``).
+    Output type tracks the input: sparse in -> sparse out, dense in -> dense
+    out. Preserving sparsity is critical for memory: the caller accumulates
+    ``mtx_list`` across thousands of UTRs and concatenates at the end.
+    Materializing each per-UTR result as dense (n_obs * n_peaks) blows up to
+    multiple GB in aggregate even when each UTR is tiny.
+
+    The peak-summation step (replacing the AnnData
+    ``[:, peak_sizes].to_df().T -> groupby(sum) -> .T`` chain) uses a sparse
+    aggregator matrix where ``aggregator[col, peak] = 1`` iff that input
+    column belongs to that peak. Then ``X_sub_subset @ aggregator`` produces
+    an (n_obs x n_peaks) result in one shot, sparse or dense as appropriate.
     """
     gene = var_sub.gene_name.iloc[0]
     utr_name_parts = var_sub.utr_name.iloc[0].split("_")
@@ -145,26 +151,35 @@ def _peak_call_single_utr_compact(
         peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
         peak_sizes_unique = peak_sizes.unique()
 
-    # Map peak_sizes' var-name index back to positional indices in var_sub,
-    # then sum X_sub columns by peak-size value (replaces pandas groupby(sum)).
-    cols = var_sub.index.get_indexer(peak_sizes.index)
-    if scipy.sparse.issparse(X_sub):
-        X_peaks = X_sub[:, cols].toarray()
-    else:
-        X_peaks = np.asarray(X_sub)[:, cols]
-
+    cols_pos = var_sub.index.get_indexer(peak_sizes.index)
     sizes_arr = np.asarray(peak_sizes.values)
     unique_sizes_sorted = np.sort(np.unique(sizes_arr))
-    new_mtx = np.zeros(
-        (X_peaks.shape[0], len(unique_sizes_sorted)), dtype=X_peaks.dtype
+
+    n_in = len(cols_pos)
+    n_out = len(unique_sizes_sorted)
+
+    # Build the col-to-peak aggregator matrix (one 1 per input column).
+    size_to_col = {int(s): k for k, s in enumerate(unique_sizes_sorted)}
+    agg_rows = np.arange(n_in, dtype=np.int32)
+    agg_cols = np.array(
+        [size_to_col[int(s)] for s in sizes_arr], dtype=np.int32
     )
-    for k, s in enumerate(unique_sizes_sorted):
-        new_mtx[:, k] = np.asarray(X_peaks[:, sizes_arr == s].sum(axis=1)).ravel()
+    agg_data = np.ones(n_in, dtype=np.int32)
+    agg = scipy.sparse.csc_matrix(
+        (agg_data, (agg_rows, agg_cols)), shape=(n_in, n_out)
+    )
+
+    if scipy.sparse.issparse(X_sub):
+        X_peaks = X_sub[:, cols_pos]
+        new_mtx = (X_peaks @ agg).tocsc()
+    else:
+        X_peaks = np.asarray(X_sub)[:, cols_pos]
+        new_mtx = X_peaks @ agg.toarray()
 
     polya_names = [
-        f"{gene}_{utr_number}pA{x}" for x in range(1, len(unique_sizes_sorted) + 1)
+        f"{gene}_{utr_number}pA{x}" for x in range(1, n_out + 1)
     ]
-    utr_var_new = pd.DataFrame([utr_var] * len(unique_sizes_sorted))
+    utr_var_new = pd.DataFrame([utr_var] * n_out)
     utr_var_new.index = polya_names
     # Match original behavior: utr_size column uses peak_sizes.unique() (insertion
     # order), which equals sorted order in practice when var is utr_size-sorted.
@@ -362,11 +377,14 @@ def peak_call_anndata_parallel(
     var_list = [item[2] for item in flat]
 
     var_df = pd.concat(var_list, axis=0).drop("pA", axis=1, errors="ignore")
-    new_adata = ad.AnnData(X=np.hstack(mtx_list), obs=adata.obs, var=var_df)
-
+    # Stay sparse end-to-end when input was sparse — np.hstack on dense per-UTR
+    # results was the OOM trigger at 100% (intermediate dense matrix ~ n_obs *
+    # total_peaks * 4 bytes, then doubled during AnnData's re-sparsify step).
     if sparse_adata:
-        logger.info("Sparsifying data as initially provided.")
-        new_adata.X = scipy.sparse.csr_matrix(new_adata.X)
+        X_combined = scipy.sparse.hstack(mtx_list, format="csr")
+    else:
+        X_combined = np.hstack(mtx_list)
+    new_adata = ad.AnnData(X=X_combined, obs=adata.obs, var=var_df)
 
     new_adata = new_adata[new_adata.obs.sort_index().index, :]
     return new_adata

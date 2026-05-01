@@ -359,6 +359,87 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
         )
         pd.testing.assert_frame_equal(dense_out.var, sparse_out.var)
 
+    def test_sparse_input_stays_sparse_end_to_end(self):
+        """Sparse input must produce sparse output without ever materializing a
+        dense intermediate. Regression guard: a dense intermediate at this scale
+        OOMs the parent process (each per-UTR mtx becomes (n_obs, n_peaks) dense,
+        and ``np.hstack`` over thousands of UTRs blows up to multiple GB)."""
+        sparse_adata = self.adata.copy()
+        sparse_adata.X = scipy.sparse.csr_matrix(sparse_adata.X)
+        out = pca.peak_call_anndata_parallel(
+            sparse_adata, method="kde", bandwidth=1, n_jobs=2,
+        )
+        self.assertTrue(
+            scipy.sparse.issparse(out.X),
+            "Sparse input must yield sparse output; got dense, which would "
+            "OOM at production scale.",
+        )
+
+
+class TestPeakCallSingleUtrCompact(unittest.TestCase):
+    """Direct tests for the matmul-aggregator implementation in
+    ``_peak_call_single_utr_compact`` to lock in correctness independently of
+    the surrounding parallel orchestration."""
+
+    def _make_inputs(self, sparse=False):
+        # 3 peaks within one UTR: sizes 50, 100, 200; obs counts chosen so KDE
+        # produces multiple peak groups deterministically.
+        var_sub = pd.DataFrame(
+            {
+                "utr_name": ["UTR1", "UTR1", "UTR1"],
+                "utr_size": [50, 100, 200],
+                "gene_name": ["GeneA", "GeneA", "GeneA"],
+                "chrom": ["chr1"] * 3,
+                "start": [100] * 3,
+                "end": [200] * 3,
+                "strand": ["+"] * 3,
+            },
+            index=["peak_a", "peak_b", "peak_c"],
+        )
+        X = np.array(
+            [
+                [10, 0, 5],
+                [3, 7, 0],
+                [0, 4, 8],
+                [2, 0, 1],
+                [6, 6, 6],
+            ],
+            dtype=np.int32,
+        )
+        if sparse:
+            X = scipy.sparse.csc_matrix(X)
+        return X, var_sub
+
+    def test_dense_input_returns_dense(self):
+        X, var_sub = self._make_inputs(sparse=False)
+        mtx, var_df = pca._peak_call_single_utr_compact(X, var_sub, "kde", 1)
+        self.assertFalse(scipy.sparse.issparse(mtx))
+        self.assertEqual(mtx.shape[0], 5)
+        self.assertEqual(var_df.shape[0], mtx.shape[1])
+
+    def test_sparse_input_returns_sparse(self):
+        X, var_sub = self._make_inputs(sparse=True)
+        mtx, var_df = pca._peak_call_single_utr_compact(X, var_sub, "kde", 1)
+        self.assertTrue(scipy.sparse.issparse(mtx))
+        self.assertEqual(mtx.shape[0], 5)
+        self.assertEqual(var_df.shape[0], mtx.shape[1])
+
+    def test_sparse_and_dense_produce_same_values(self):
+        X_dense, var_sub = self._make_inputs(sparse=False)
+        X_sparse, _ = self._make_inputs(sparse=True)
+        mtx_dense, _ = pca._peak_call_single_utr_compact(X_dense, var_sub, "kde", 1)
+        mtx_sparse, _ = pca._peak_call_single_utr_compact(X_sparse, var_sub, "kde", 1)
+        np.testing.assert_array_equal(mtx_dense, mtx_sparse.toarray())
+
+    def test_column_sums_preserved(self):
+        """Total UMI count across all peaks must equal total in original X.
+        (Aggregator routes every input column to exactly one output column.)"""
+        X, var_sub = self._make_inputs(sparse=True)
+        mtx, _ = pca._peak_call_single_utr_compact(X, var_sub, "kde", 1)
+        total_in = X.sum()
+        total_out = mtx.sum()
+        self.assertEqual(int(total_in), int(total_out))
+
 
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
