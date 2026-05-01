@@ -355,12 +355,15 @@ def map_reads_to_utr(
             for i in range(0, len(interval_items), batch_size)
         ]
 
-        results = joblib.Parallel(n_jobs=n_workers, backend=JOBLIB_DEFAULT_BACKEND)(
-            joblib.delayed(_process_interval_batch)(
-                bam, batch, protocol, read, batch_idx, show_progress=False
+        try:
+            results = joblib.Parallel(n_jobs=n_workers, backend=JOBLIB_DEFAULT_BACKEND)(
+                joblib.delayed(_process_interval_batch)(
+                    bam, batch, protocol, read, batch_idx, show_progress=False
+                )
+                for batch in batches
             )
-            for batch in batches
-        )
+        finally:
+            helpers.shutdown_joblib_pool()
 
         # Merge results from all workers
         all_utr_names: list[str] = []

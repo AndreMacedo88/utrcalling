@@ -282,6 +282,16 @@ class TestSelectAlternativeTranscriptionEvents(unittest.TestCase):
         result = ap.select_alternative_transcription_events(adata)
         self.assertEqual(result.shape[0], 3)
 
+    def test_no_pandas_future_warning(self):
+        """`groupby` must pass `observed=True` so the pandas 2.x default
+        deprecation does not surface as a warning to users."""
+        import warnings
+
+        adata = _make_multi_site_adata()
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            ap.select_alternative_transcription_events(adata)
+
 
 class TestCountsToPercentages(unittest.TestCase):
     def test_fractions_sum_to_one(self):
@@ -329,6 +339,98 @@ class TestCountsToPercentages(unittest.TestCase):
             utr1_X = utr1_X.toarray()
         row_sums = np.sum(utr1_X, axis=1)
         np.testing.assert_array_almost_equal(row_sums, [1.0, 1.0, 1.0])
+
+    def test_int32_sparse_input_does_not_truncate(self):
+        """Regression: int32 sparse counts must produce float percentages.
+
+        Previously, view-based assignment into the int32 parent matrix
+        silently downcast fractional percentages (0 < x < 1) to 0,
+        corrupting any UTR row whose source had multiple peaks per cell.
+        """
+        X = scipy.sparse.csr_matrix(
+            np.array([[1, 2, 1], [3, 6, 3], [1, 0, 0]], dtype=np.int32)
+        )
+        var = pd.DataFrame(
+            {"utr_name": ["U1", "U1", "U1"], "utr_size": [100, 200, 300]},
+            index=["p1", "p2", "p3"],
+        )
+        adata = ad.AnnData(
+            X=X,
+            obs=pd.DataFrame(index=["c1", "c2", "c3"]),
+            var=var,
+        )
+        result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
+        out = result.X.toarray() if scipy.sparse.issparse(result.X) else result.X
+        np.testing.assert_array_almost_equal(
+            out,
+            [[0.25, 0.5, 0.25], [0.25, 0.5, 0.25], [1.0, 0.0, 0.0]],
+        )
+        # Output dtype must be float (so fractions are representable).
+        self.assertTrue(np.issubdtype(result.X.dtype, np.floating))
+
+    def test_no_future_warnings(self):
+        """Vectorized implementation must not trigger anndata/pandas FutureWarnings."""
+        import warnings
+
+        adata = _make_multi_site_adata()
+        adata.X = scipy.sparse.csr_matrix(adata.X.astype(np.int32))
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            warnings.simplefilter("error", ad.ImplicitModificationWarning)
+            ap.counts_to_percentages(adata, utr_name_column="utr_name")
+
+    def test_matches_loop_reference(self):
+        """Vectorized output must match a per-UTR loop reference."""
+        rng = np.random.RandomState(0)
+        n_obs, n_utrs, peaks_per_utr = 20, 8, 4
+        n_vars = n_utrs * peaks_per_utr
+        X = scipy.sparse.csr_matrix(
+            rng.randint(0, 5, size=(n_obs, n_vars)).astype(np.int32)
+        )
+        utr_names = np.repeat([f"U{i}" for i in range(n_utrs)], peaks_per_utr)
+        var = pd.DataFrame(
+            {"utr_name": utr_names, "utr_size": np.tile([100, 200, 300, 400], n_utrs)},
+            index=[f"p{i}" for i in range(n_vars)],
+        )
+        adata = ad.AnnData(
+            X=X.copy(),
+            obs=pd.DataFrame(index=[f"c{i}" for i in range(n_obs)]),
+            var=var,
+        )
+        result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
+
+        # Reference: scalar per-(obs, utr) loop on a dense float copy.
+        ref = X.toarray().astype(np.float64)
+        for utr in np.unique(utr_names):
+            cols = np.where(utr_names == utr)[0]
+            block = ref[:, cols]
+            row_sums = block.sum(axis=1, keepdims=True)
+            ref[:, cols] = np.divide(
+                block,
+                row_sums,
+                out=np.zeros_like(block),
+                where=row_sums != 0,
+            )
+        out = result.X.toarray() if scipy.sparse.issparse(result.X) else result.X
+        np.testing.assert_allclose(out, ref, atol=1e-12)
+
+    def test_non_unique_var_names(self):
+        """Duplicate var_names (real-data property) must not corrupt percentages."""
+        X = scipy.sparse.csr_matrix(
+            np.array([[1, 1, 2, 2], [0, 1, 0, 0]], dtype=np.int32)
+        )
+        var = pd.DataFrame(
+            {"utr_name": ["U1", "U1", "U2", "U2"], "utr_size": [100, 200, 100, 200]},
+            index=["dup", "dup", "dup", "dup"],  # all four var names identical
+        )
+        adata = ad.AnnData(
+            X=X, obs=pd.DataFrame(index=["c1", "c2"]), var=var
+        )
+        result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
+        out = result.X.toarray() if scipy.sparse.issparse(result.X) else result.X
+        np.testing.assert_array_almost_equal(
+            out, [[0.5, 0.5, 0.5, 0.5], [0.0, 1.0, 0.0, 0.0]]
+        )
 
 
 class TestSubsetAdata(unittest.TestCase):

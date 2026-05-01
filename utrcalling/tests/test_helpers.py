@@ -9,6 +9,7 @@ from utrcalling.core.helpers import (
     to_string,
     check_if_path_and_open,
     check_file_exists_and_return_unique,
+    shutdown_joblib_pool,
 )
 
 
@@ -128,6 +129,36 @@ class TestCheckFileExistsAndReturnUnique(unittest.TestCase):
             # file.txt exists → tries file_1.txt (exists) → tries file_1_2.txt
             expected = os.path.join(tmpdir, "file_1_2.txt")
             self.assertEqual(result, expected)
+
+
+class TestShutdownJoblibPool(unittest.TestCase):
+    def test_idempotent_when_no_pool_exists(self):
+        """Calling before any Parallel block ran must not raise."""
+        # Force teardown of any pool from earlier tests, then call again.
+        shutdown_joblib_pool()
+        shutdown_joblib_pool()  # second call must also be a no-op
+
+    def test_releases_pool_after_parallel_run(self):
+        """After a Parallel block creates the loky pool, shutdown should
+        terminate the worker processes so RAM/file descriptors return to
+        the OS instead of being held by the reusable executor."""
+        import joblib
+        from joblib.externals.loky import get_reusable_executor
+
+        # Run a tiny parallel block to ensure the executor exists and has
+        # spawned at least one worker.
+        joblib.Parallel(n_jobs=2, backend="loky")(
+            joblib.delayed(lambda x: x * x)(i) for i in range(4)
+        )
+        executor_before = get_reusable_executor()
+        self.assertIsNotNone(executor_before)
+
+        shutdown_joblib_pool()
+        # After shutdown, get_reusable_executor() returns either a fresh
+        # executor or the old one in a shut state. The contract we care
+        # about is that submitting work to the prior executor fails.
+        with self.assertRaises(Exception):
+            executor_before.submit(lambda: 1).result(timeout=2)
 
 
 if __name__ == "__main__":

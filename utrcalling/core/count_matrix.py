@@ -187,15 +187,18 @@ def generate_counts_and_anno(
         # from spawning extra threads per worker — without it 27 workers ×
         # ~8 BLAS threads = 200+ threads competing for cores on a 27-core box.
         # joblib requires `backend` here when passing inner_max_num_threads.
-        with joblib.parallel_config(
-            backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-        ):
-            batch_results = list(
-                joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                    joblib.delayed(_process_utr_group_batch)(b, func)
-                    for b in batches
+        try:
+            with joblib.parallel_config(
+                backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
+            ):
+                batch_results = list(
+                    joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                        joblib.delayed(_process_utr_group_batch)(b, func)
+                        for b in batches
+                    )
                 )
-            )
+        finally:
+            helpers.shutdown_joblib_pool()
 
         # Flatten and re-sort to original (category) order so peak columns
         # come out in the same order as the serial path.

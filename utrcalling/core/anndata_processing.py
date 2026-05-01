@@ -86,7 +86,7 @@ def select_alternative_transcription_events(
     Returns:
         A filtered copy of *adata* containing only multi-site UTRs.
     """
-    unique_df = adata.var.groupby("utr_name").nunique()
+    unique_df = adata.var.groupby("utr_name", observed=True).nunique()
 
     return adata[
         :, adata.var.utr_name.isin(unique_df[unique_df.utr_size > 1].index)
@@ -99,29 +99,63 @@ def counts_to_percentages(
     """Convert raw UMI counts to within-UTR percentages.
 
     For each UTR, divides count values by the row-wise sum so that each
-    observation's counts within a UTR sum to 1.
+    observation's counts within a UTR sum to 1. Cells with no counts in a
+    UTR keep zeros for that UTR's columns.
+
+    Implementation is vectorized: a single sparse matmul computes per-
+    (observation, UTR) row sums, then division happens over the count
+    matrix's nonzero entries directly. This avoids per-UTR view assignment
+    to ``adata.X`` (deprecated under anndata's copy-on-write semantics) and
+    drops runtime from O(n_utrs × n_obs × peaks_per_utr) to O(nnz).
+
+    Sparsity is preserved end-to-end: zeros in the input remain zeros in
+    the output.
 
     Args:
         adata: The AnnData object with raw counts in ``.X``.
         utr_name_column: Column in ``.var`` identifying UTR groups.
 
     Returns:
-        The same *adata* with ``.X`` replaced by fractional values.
+        A copy of *adata* with ``.X`` replaced by fractional values.
     """
-    for utr in tqdm(
-        np.unique(adata.var[utr_name_column]), colour="#ffb700", ascii=" ■"
-    ):
-        mask = adata.var[utr_name_column] == utr
-        data_utr = adata[:, mask].X
+    adata = adata.copy()
+    n_obs, n_vars = adata.X.shape
 
-        if scipy.sparse.issparse(data_utr):
-            data_utr = data_utr.toarray()
+    utr_names = np.asarray(adata.var[utr_name_column].values)
+    _, utr_codes = np.unique(utr_names, return_inverse=True)
+    utr_codes = utr_codes.astype(np.int64)
+    n_groups = int(utr_codes.max()) + 1 if n_vars > 0 else 0
 
-        row_sums = np.sum(data_utr, axis=1).reshape(-1, 1)
-        adata[:, mask].X = np.divide(
-            data_utr, row_sums, out=np.zeros_like(data_utr, dtype=float), where=row_sums != 0
-        )
+    # Aggregator (n_vars × n_groups): one nonzero per column placed in its
+    # UTR's group column. ``X @ aggregator`` yields per-(obs, UTR) row sums
+    # in one matmul, replacing the per-UTR Python loop.
+    aggregator = scipy.sparse.csc_matrix(
+        (
+            np.ones(n_vars, dtype=np.float64),
+            (np.arange(n_vars, dtype=np.int64), utr_codes),
+        ),
+        shape=(n_vars, n_groups),
+    )
 
+    is_sparse = scipy.sparse.issparse(adata.X)
+    X = adata.X if is_sparse else scipy.sparse.csr_matrix(adata.X)
+
+    row_sums_per_utr = (X @ aggregator).toarray()
+
+    coo = X.tocoo(copy=False)
+    denom = row_sums_per_utr[coo.row, utr_codes[coo.col]]
+    new_data = np.divide(
+        coo.data.astype(np.float64),
+        denom,
+        out=np.zeros(coo.data.shape, dtype=np.float64),
+        where=denom != 0,
+    )
+    new_X = scipy.sparse.csr_matrix(
+        (new_data, (coo.row, coo.col)),
+        shape=X.shape,
+    )
+
+    adata.X = new_X if is_sparse else new_X.toarray()
     return adata
 
 

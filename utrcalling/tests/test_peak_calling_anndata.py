@@ -161,6 +161,17 @@ class TestRemovePeaksBelowCount(unittest.TestCase):
         result = pca.remove_peaks_below_count(self.adata, threshold=0.1, minimum_counts=10)
         self.assertFalse(scipy.sparse.issparse(result.X))
 
+    def test_no_pandas_future_warning(self):
+        """`groupby` must pass `observed=True` so the pandas 2.x default
+        deprecation does not surface as a warning to users."""
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            pca.remove_peaks_below_count(
+                self.adata, threshold=0.1, minimum_counts=10
+            )
+
 
 # ---------------------------------------------------------------------------
 # peak_call_anndata
@@ -210,6 +221,13 @@ class TestPeakCallAnndata(unittest.TestCase):
         # Only UTR1 peaks should remain (UTR2 skipped)
         utr_names = result.var.utr_name.unique()
         self.assertEqual(len(utr_names), 1)
+
+    def test_returns_actual_not_view(self):
+        """Returned AnnData must be an actual object, not a view, so that
+        downstream `.var` mutations on disk write don't trigger
+        ImplicitModificationWarning per column."""
+        result = pca.peak_call_anndata(self.adata, method="kde", bandwidth=1)
+        self.assertFalse(result.is_view)
 
 
 # ---------------------------------------------------------------------------
@@ -374,6 +392,15 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
             "Sparse input must yield sparse output; got dense, which would "
             "OOM at production scale.",
         )
+
+    def test_returns_actual_not_view(self):
+        """Returned AnnData must be an actual object, not a view, so that
+        downstream `.var` mutations on disk write don't trigger
+        ImplicitModificationWarning per column."""
+        out = pca.peak_call_anndata_parallel(
+            self.adata, method="kde", bandwidth=1, n_jobs=2,
+        )
+        self.assertFalse(out.is_view)
 
 
 class TestPeakCallSingleUtrCompact(unittest.TestCase):

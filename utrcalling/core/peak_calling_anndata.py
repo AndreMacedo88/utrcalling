@@ -361,15 +361,18 @@ def peak_call_anndata_parallel(
         len(per_utr_inputs), n_workers, len(batches),
     )
 
-    with joblib.parallel_config(
-        backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-    ):
-        batch_results = list(
-            joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                joblib.delayed(_peak_call_utr_batch)(batch, method, bandwidth)
-                for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
+    try:
+        with joblib.parallel_config(
+            backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
+        ):
+            batch_results = list(
+                joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                    joblib.delayed(_peak_call_utr_batch)(batch, method, bandwidth)
+                    for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
+                )
             )
-        )
+    finally:
+        helpers.shutdown_joblib_pool()
 
     flat = [item for br in batch_results for item in br]
     flat.sort(key=lambda x: x[0])
@@ -386,7 +389,10 @@ def peak_call_anndata_parallel(
         X_combined = np.hstack(mtx_list)
     new_adata = ad.AnnData(X=X_combined, obs=adata.obs, var=var_df)
 
-    new_adata = new_adata[new_adata.obs.sort_index().index, :]
+    # `.copy()` materializes the slice so callers receive an actual AnnData;
+    # otherwise downstream `.var` mutations (e.g. anndata's auto-categorical
+    # conversion on disk write) trigger ImplicitModificationWarning per column.
+    new_adata = new_adata[new_adata.obs.sort_index().index, :].copy()
     return new_adata
 
 
@@ -451,7 +457,7 @@ def peak_call_anndata(
         logger.info("Sparsifying data as initially provided.")
         new_adata.X = scipy.sparse.csr_matrix(new_adata.X)
 
-    new_adata = new_adata[new_adata.obs.sort_index().index, :]
+    new_adata = new_adata[new_adata.obs.sort_index().index, :].copy()
     return new_adata
 
 
@@ -478,7 +484,7 @@ def remove_peaks_below_count(
 
     # Sparse-safe: sum columns directly instead of materializing dense matrix
     col_sums = np.asarray(adata.X.sum(axis=0)).ravel()
-    utr_total_counts = pd.Series(col_sums).groupby(utr_names).sum()
+    utr_total_counts = pd.Series(col_sums).groupby(utr_names, observed=True).sum()
     utrs_thresholds = utr_total_counts.apply(
         lambda x: max(x * threshold, minimum_counts)
     )
@@ -578,15 +584,18 @@ def pas_distance(
         len(per_utr_inputs), n_workers, len(batches),
     )
 
-    with joblib.parallel_config(
-        backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-    ):
-        batch_results = list(
-            joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                joblib.delayed(_pas_distance_utr_batch)(batch, hamming, genome)
-                for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
+    try:
+        with joblib.parallel_config(
+            backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
+        ):
+            batch_results = list(
+                joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                    joblib.delayed(_pas_distance_utr_batch)(batch, hamming, genome)
+                    for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
+                )
             )
-        )
+    finally:
+        helpers.shutdown_joblib_pool()
 
     flat = [item for br in batch_results for item in br]
     flat.sort(key=lambda x: x[0])
@@ -625,15 +634,18 @@ def _score_peak_assignment(
         len(per_utr_inputs), n_workers, len(batches),
     )
 
-    with joblib.parallel_config(
-        backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-    ):
-        batch_results = list(
-            joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                joblib.delayed(_score_distances_utr_batch)(batch, hamming)
-                for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
+    try:
+        with joblib.parallel_config(
+            backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
+        ):
+            batch_results = list(
+                joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                    joblib.delayed(_score_distances_utr_batch)(batch, hamming)
+                    for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
+                )
             )
-        )
+    finally:
+        helpers.shutdown_joblib_pool()
 
     flat = [item for br in batch_results for item in br]
     flat.sort(key=lambda x: x[0])

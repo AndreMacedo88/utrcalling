@@ -50,6 +50,38 @@ def resolve_n_jobs(n_jobs: int | None) -> int:
     return n_jobs if n_jobs is not None else JOBLIB_DEFAULT_N_JOBS
 
 
+def shutdown_joblib_pool() -> None:
+    """Force termination of loky's reusable worker pool.
+
+    ``joblib.parallel_config`` is a configuration context manager — it does
+    not tear down the pool when the ``with`` block exits. Loky keeps workers
+    alive for reuse in subsequent calls, which means worker memory (per-task
+    inputs, BLAS arenas, mmaps) is held by live processes until the parent
+    Python interpreter exits. For long pipelines that's effectively a leak
+    in the eyes of the OS — the user can observe tens of GB held even after
+    the parallel function returns.
+
+    Calling this after each parallel block forces the pool to shut down
+    immediately, releasing memory and file descriptors. The trade-off is
+    that the next parallel call in the same process must spawn fresh
+    workers (~1-3 s/worker for full re-imports of anndata/scipy/pandas);
+    for typical CLI/Snakemake use this cost is invisible because each
+    command runs in its own process anyway.
+    """
+    if JOBLIB_DEFAULT_BACKEND != "loky":
+        return
+    try:
+        from joblib.externals.loky import get_reusable_executor
+    except ImportError:
+        return
+    try:
+        get_reusable_executor().shutdown(wait=True)
+    except Exception:
+        # Best-effort cleanup: if loky's internals refuse for any reason,
+        # don't mask the real outcome of the parallel block.
+        pass
+
+
 def ensure_mapped_reads_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     """Enforce the canonical flat schema for mapped reads DataFrames.
 

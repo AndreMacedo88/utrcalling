@@ -161,21 +161,24 @@ def _map_multiple_bams(
     else:
         batch_indices = [str(i + 1) for i in range(len(alignments))]
 
-    return joblib.Parallel(
-        n_jobs=helpers.resolve_n_jobs(n_jobs), backend=JOBLIB_DEFAULT_BACKEND
-    )(
-        joblib.delayed(utr_mapping.map_reads_to_utr)(
-            alignment,
-            intervals,
-            read=protocol.read_in_pair,
-            protocol=protocol,
-            batch_idx=bidx,
-            parallel=False,
+    try:
+        return joblib.Parallel(
+            n_jobs=helpers.resolve_n_jobs(n_jobs), backend=JOBLIB_DEFAULT_BACKEND
+        )(
+            joblib.delayed(utr_mapping.map_reads_to_utr)(
+                alignment,
+                intervals,
+                read=protocol.read_in_pair,
+                protocol=protocol,
+                batch_idx=bidx,
+                parallel=False,
+            )
+            for alignment, bidx in tqdm(
+                zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"
+            )
         )
-        for alignment, bidx in tqdm(
-            zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"
-        )
-    )
+    finally:
+        helpers.shutdown_joblib_pool()
 
 
 def map_aligned_reads(
