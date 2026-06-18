@@ -232,6 +232,77 @@ class TestStandardSmartseqCreation(unittest.TestCase):
             )
 
 
+class TestTruseqCreation(unittest.TestCase):
+    """Test creation and properties of the TruSeq stranded bulk protocol."""
+
+    @staticmethod
+    def _make(version=1, **kwargs):
+        return protocol.create(
+            "truseq", version,
+            annotations=pd.DataFrame({"sample_id": ["test"]}),
+            **kwargs,
+        )
+
+    def test_create_truseq(self):
+        self.assertIsInstance(self._make(), protocol.ProtocolTruseq)
+
+    def test_truseq_aliases(self):
+        for name in ("truseq", "truseq_stranded", "standard_truseq", "standard_bulk"):
+            p = protocol.create(
+                name, 1, annotations=pd.DataFrame({"sample_id": ["test"]})
+            )
+            self.assertIsInstance(p, protocol.ProtocolTruseq)
+
+    def test_truseq_version_agnostic(self):
+        # Bulk RNA-seq has no protocol version; any value resolves the same.
+        for version in (1, 2, 99):
+            self.assertIsInstance(self._make(version=version), protocol.ProtocolTruseq)
+
+    def test_truseq_properties(self):
+        p = self._make()
+        self.assertFalse(p.has_umi)
+        self.assertEqual(p.dedup_strategy, "keep_first")
+        self.assertEqual(p.read_in_pair, "any")
+        self.assertFalse(p._reads_have_batch_suffix)
+
+    def test_truseq_default_strandedness_is_reverse(self):
+        p = self._make()
+        self.assertIsNone(p.strandedness)
+        # Reverse: keep antisense (read strand differs from UTR), reject sense.
+        self.assertTrue(p.check_strand_matches("-", "+"))
+        self.assertTrue(p.check_strand_matches("+", "-"))
+        self.assertFalse(p.check_strand_matches("+", "+"))
+        self.assertFalse(p.check_strand_matches("-", "-"))
+
+    def test_truseq_forward_strandedness(self):
+        p = self._make(strandedness="forward")
+        self.assertEqual(p.strandedness, "forward")
+        self.assertTrue(p.check_strand_matches("+", "+"))
+        self.assertFalse(p.check_strand_matches("-", "+"))
+
+    def test_truseq_unstranded(self):
+        p = self._make(strandedness="unstranded")
+        self.assertEqual(p.strandedness, "unstranded")
+        self.assertTrue(p.check_strand_matches("+", "+"))
+        self.assertTrue(p.check_strand_matches("-", "+"))
+
+    def test_truseq_strandedness_case_insensitive(self):
+        self.assertEqual(self._make(strandedness="Reverse").strandedness, "reverse")
+
+    def test_truseq_invalid_strandedness_raises(self):
+        with self.assertRaises(ValueError):
+            self._make(strandedness="nonsense")
+
+    def test_other_protocols_accept_strandedness_kwarg(self):
+        # strandedness is a universal kwarg; non-stranded protocols ignore it.
+        p = protocol.create(
+            "10x", 3,
+            annotations=pd.DataFrame({"barcode": ["AAAA"], "batch": [1]}),
+            strandedness=None,
+        )
+        self.assertIsNone(p.strandedness)
+
+
 class TestExistingProtocolDefaults(unittest.TestCase):
     """Existing protocols should return the original defaults."""
 

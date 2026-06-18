@@ -71,6 +71,26 @@ class PeakCallingMethod(Enum):
             )
 
 
+_VALID_STRANDEDNESS = ("reverse", "forward", "unstranded")
+
+
+def _validate_strandedness(value: str | None) -> str | None:
+    """Normalize and validate a strandedness value.
+
+    Returns the lowercased value, or None if not provided. Raises ValueError
+    for any value outside ``reverse``/``forward``/``unstranded``.
+    """
+    if value is None:
+        return None
+    normalized = str(value).lower()
+    if normalized not in _VALID_STRANDEDNESS:
+        raise ValueError(
+            f"Invalid strandedness {value!r}. "
+            f"Must be one of: {', '.join(_VALID_STRANDEDNESS)}"
+        )
+    return normalized
+
+
 def _strtobool(val: str | bool) -> bool:
     """Convert a string representation of truth to a bool.
 
@@ -124,6 +144,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         call_peaks_method: str = "kde",
         label_batches: bool | str | None = None,
         alignments: str | list[str] | None = None,
+        strandedness: str | None = None,
     ) -> None:
         """Initialize the protocol with pipeline configuration.
 
@@ -135,8 +156,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
             label_batches: Whether to append batch indices to observation IDs.
                 Accepts bool or string representations of bool.
             alignments: BAM file path(s) for sample name resolution.
+            strandedness: Library strandedness ('reverse', 'forward', or
+                'unstranded'). Only used by stranded bulk protocols (e.g. TruSeq);
+                ignored by protocols that fix their own strand convention.
         """
         self.logger = module_log.module_logger()
+
+        self.strandedness = _validate_strandedness(strandedness)
 
         # set variables from the arguments
         self.annotations = helpers.check_if_path_and_open(
@@ -238,7 +264,12 @@ class Protocol(ABC, metaclass=CombinedMeta):
                     not_found_trigger = False
             else:
                 sample_names_dict[sample_bam[0]] = sample
-                sample_idx_dict[sample_bam[0]] = self.batches_range[idx]
+                # No batch column -> no batch index for this sample.
+                sample_idx_dict[sample_bam[0]] = (
+                    self.batches_range[idx]
+                    if self.batches_range is not None
+                    else None
+                )
 
         return sample_names_dict, sample_idx_dict
 
@@ -580,6 +611,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
         label_batches=None,
         alignments=None,
         annotations=None,
+        strandedness=None,
     ) -> None:
 
         super().__init__(
@@ -589,6 +621,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
             label_batches=label_batches,
             alignments=alignments,
             annotations=annotations,
+            strandedness=strandedness,
         )
 
         try:
@@ -655,6 +688,80 @@ class ProtocolStandardSmartseq3(ProtocolSmartseq):
         return None, read_batch_id
 
 
+class ProtocolTruseq(ProtocolSmartseq):
+    """Standard stranded bulk RNA-seq (e.g. Illumina TruSeq Stranded mRNA).
+
+    One BAM file per sample, no cell barcodes and no UMIs (so no
+    deduplication). Reads come from randomly fragmented cDNA, so every read is
+    effectively "internal": the read position furthest toward the 3' end of the
+    UTR is taken as a per-read estimate of how far the molecule extends, and the
+    distribution is summarized downstream by peak calling (or ``--raw_sizes``).
+
+    The protocol is strand-aware. ``strandedness`` defaults to ``'reverse'``
+    (correct for TruSeq Stranded mRNA / dUTP, where the read is antisense to the
+    transcript). ``'forward'`` (sense) and ``'unstranded'`` (accept both) are
+    also supported.
+
+    Works for single-end data and, transparently, for paired-end data: in
+    reverse/forward mode the sense-or-antisense filter keeps only the relevant
+    mate, so fragments are not double-counted.
+    """
+
+    @property
+    def has_umi(self) -> bool:
+        return False
+
+    @property
+    def read_in_pair(self) -> str:
+        # Single-end reads have no proper-pair flags, so accept any primary,
+        # non-duplicate alignment. For paired-end input the strand filter drops
+        # the wrong mate, so fragments are still counted once.
+        return "any"
+
+    def check_strand_matches(self, read_strand: str, utr_strand: str) -> bool:
+        mode = self.strandedness or "reverse"
+        if mode == "reverse":
+            return read_strand != utr_strand  # read antisense to the transcript
+        if mode == "forward":
+            return read_strand == utr_strand  # read sense to the transcript
+        return True  # unstranded: accept reads from both strands
+
+    @staticmethod
+    def get_read_position(
+        ref_start: int, ref_end_minus1: int, is_reverse: bool, interval_strand: str
+    ) -> int:
+        """Return the read position furthest toward the 3' end of the UTR.
+
+        For + strand UTRs the rightmost base is closest to the polyA; for -
+        strand UTRs the leftmost base is. Driven by the UTR strand rather than
+        the read's ``is_reverse`` flag, so it is correct for reverse, forward,
+        and unstranded modes alike.
+        """
+        return ref_end_minus1 if interval_strand == "+" else ref_start
+
+    @staticmethod
+    def get_reads_identity(
+        alignment: _PySamAdapter, **kwargs: str
+    ) -> tuple[None, str]:
+        read_batch_id = kwargs.get("bam_name", "S")
+        return None, read_batch_id
+
+    def get_observation_id(self, barcode: str, batch_idx: str | None = None) -> str:
+        """Resolve the BAM-derived identity to its annotation ``sample_id``.
+
+        ``get_reads_identity`` returns the BAM path as the barcode; here it is
+        mapped to the friendly sample name from the annotation file when
+        available, falling back to the path otherwise. A batch suffix is applied
+        when ``label_batches`` is set.
+        """
+        name = barcode
+        if self.sample_names is not None and barcode in self.sample_names:
+            name = self.sample_names[barcode]
+        if self.label_batches and batch_idx is not None:
+            return f"{name}-{batch_idx}"
+        return name
+
+
 class ProtocolCapseq(ProtocolFivePrime):
     _default_label_batches = False
 
@@ -666,6 +773,7 @@ class ProtocolCapseq(ProtocolFivePrime):
         label_batches=None,
         alignments=None,
         annotations=None,
+        strandedness=None,
     ) -> None:
 
         super().__init__(
@@ -675,6 +783,7 @@ class ProtocolCapseq(ProtocolFivePrime):
             label_batches=label_batches,
             alignments=alignments,
             annotations=annotations,
+            strandedness=strandedness,
         )
 
         try:
@@ -891,4 +1000,9 @@ def create(platform: str, version: int, **kwargs) -> Protocol:
         if version == 3:
             return ProtocolStandardSmartseq3(**kwargs)
         raise NotImplementedError(error_message)
+    if platform.lower() in (
+        "truseq", "truseq_stranded", "standard_truseq", "standard_bulk"
+    ):
+        # Bulk RNA-seq has no protocol "version" — accept any.
+        return ProtocolTruseq(**kwargs)
     raise NotImplementedError(error_message)

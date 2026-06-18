@@ -5,6 +5,7 @@ from utrcalling.tests.test_data import (
     synthetic_data_5smartseq,
     synthetic_data_standard_3tenx,
     synthetic_data_standard_3smartseq,
+    synthetic_data_truseq,
 )
 from utrcalling.core import core, module_log, protocol
 import os
@@ -832,6 +833,75 @@ class TestPipelineStandard3SmartseqSynthetic(unittest.TestCase):
     def test_single_observation(self):
         """Standard SmartSeq3: one BAM = one cell = one observation."""
         self.assertEqual(self.results.shape[0], 1)
+
+
+class TestPipelineTruseqSynthetic(unittest.TestCase):
+    """End-to-end pipeline test: TruSeq stranded bulk RNA-seq, two samples."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
+            "utr_name"
+        )
+        cls._data1 = synthetic_data_truseq.Bam()
+        cls._data2 = synthetic_data_truseq.Bam()
+        cls._data1.enter()
+        cls._data2.enter()
+        cls.alignments = [cls._data1.alignment, cls._data2.alignment]
+        # sample_id matches each temp BAM stem so obs resolve to friendly names.
+        cls.sample_ids = [Path(a).stem for a in cls.alignments]
+
+        protocol_ = protocol.create(
+            platform="truseq",
+            version=1,
+            alignments=cls.alignments,
+            annotations=pd.DataFrame({"sample_id": cls.sample_ids}),
+        )
+        mapped = core.map_aligned_reads(
+            alignments=cls.alignments,
+            utr_regions=cls.utr_regions,
+            protocol=protocol_,
+            store=False,
+        )
+        merged = core.merge_samples_utr_sizes(
+            utr_sizes_counts=mapped, protocol=protocol_, store=False
+        )
+        cls.filtered, cls.ref_subset = core.filter_mapped_reads(
+            utr_sizes_counts=merged,
+            utr_reference_regions=cls.utr_regions,
+            protocol=protocol_,
+        )
+        cls.results = core.call_peaks(
+            filtered_reads=cls.filtered,
+            utr_reference_subset=cls.ref_subset,
+            protocol=protocol_,
+        )
+
+    @classmethod
+    def tearDownClass(cls):
+        cls._data1.__exit__(None, None, None)
+        cls._data2.__exit__(None, None, None)
+
+    def test_is_anndata(self):
+        self.assertIsInstance(self.results, ad.AnnData)
+
+    def test_sparse_matrix(self):
+        self.assertTrue(scipy.sparse.issparse(self.results.X))
+
+    def test_var_has_utr_size(self):
+        self.assertIn("utr_size", self.results.var.columns)
+
+    def test_two_observations_named_by_sample_id(self):
+        """Two BAMs -> two observations named by their annotation sample_id."""
+        self.assertEqual(self.results.shape[0], 2)
+        self.assertEqual(
+            sorted(self.results.obs_names.tolist()), sorted(self.sample_ids)
+        )
+
+    def test_only_antisense_utrs_present(self):
+        """Reverse-stranded: only the antisense-covered UTRs (UTR2/UTR3)."""
+        utrs = {name.rsplit("-", 1)[0] for name in self.results.var_names}
+        self.assertTrue(utrs <= {"UTR2", "UTR3"})
 
 
 # ---------------------------------------------------------------------------

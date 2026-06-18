@@ -9,6 +9,7 @@ def generate_utr_reference_and_map_reads(
     feature="three_prime_utr",
     protocol_platform="10x",
     protocol_version=3,
+    strandedness=None,
     log_level="info",
     store_log=True,
     no_log_file=False,
@@ -39,7 +40,10 @@ def generate_utr_reference_and_map_reads(
 
     # Set up the protocol for this specific run
     protocol_ = protocol.create(
-        protocol_platform, int(protocol_version), alignments=alignments
+        protocol_platform,
+        int(protocol_version),
+        alignments=alignments,
+        strandedness=strandedness,
     )
 
     # Get UTR reference data from the organisms GTF annotation file
@@ -108,7 +112,8 @@ def create_parser(subparsers):
         help=(
             "Sequencing platform used. Options: 10x, smartseq, "
             "smart-seq_cap, smart-seq_cap-readname, 5prime10x, "
-            "standard_10x (Cell Ranger BAM), standard_smartseq."
+            "standard_10x (Cell Ranger BAM), standard_smartseq, "
+            "truseq (stranded bulk RNA-seq, e.g. TruSeq Stranded mRNA)."
         ),
         default="10x",
     )
@@ -119,6 +124,18 @@ def create_parser(subparsers):
         type=int,
         help="Version of the protocol used in library preparation.",
         default=2,
+    )
+
+    parser.add_argument(
+        "--strandedness",
+        type=str,
+        choices=["reverse", "forward", "unstranded"],
+        default=None,
+        help=(
+            "Library strandedness for stranded bulk protocols (e.g. truseq). "
+            "'reverse' (default for truseq), 'forward', or 'unstranded'. "
+            "Ignored by protocols with a fixed strand convention."
+        ),
     )
 
     parser.add_argument(

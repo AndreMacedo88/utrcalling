@@ -36,6 +36,7 @@ def run(
     protocol_platform="10x",
     protocol_version=3,
     label_batches=None,
+    strandedness=None,
     summarization_level="UTR",
     raw_sizes=False,
     kde_bandwidth=12,
@@ -86,6 +87,7 @@ def run(
         label_batches=label_batches,
         alignments=alignments,
         annotations=annotations_file,
+        strandedness=strandedness,
     )
 
     # Get UTR reference data from the organisms GTF annotation file
@@ -239,7 +241,8 @@ def create_parser(subparsers):
         help=(
             "Sequencing platform used. Options: 10x, smartseq, "
             "smart-seq_cap, smart-seq_cap-readname, 5prime10x, "
-            "standard_10x (Cell Ranger BAM), standard_smartseq."
+            "standard_10x (Cell Ranger BAM), standard_smartseq, "
+            "truseq (stranded bulk RNA-seq, e.g. TruSeq Stranded mRNA)."
         ),
         default="10x",
     )
@@ -317,6 +320,19 @@ def create_parser(subparsers):
                         2 samples have the same ID.
                         """,
         default=None,
+    )
+
+    parser.add_argument(
+        "--strandedness",
+        type=str,
+        choices=["reverse", "forward", "unstranded"],
+        default=None,
+        help=(
+            "Library strandedness for stranded bulk protocols (e.g. truseq). "
+            "'reverse' (default for truseq; correct for TruSeq Stranded mRNA), "
+            "'forward', or 'unstranded'. Ignored by protocols with a fixed "
+            "strand convention."
+        ),
     )
 
     parser.add_argument(

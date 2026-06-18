@@ -245,7 +245,12 @@ def generate_counts_and_anno(
         peaks_obs = peaks_obs.reindex(index=obs_ids_sorted)
         return CountMatrixResult(X, peaks_var, peaks_obs)
     else:
-        return CountMatrixResult(X, peaks_var)
+        # No per-observation annotation columns, but still carry the observation
+        # identities as the obs index. Without this, AnnData falls back to
+        # positional integer names ('0', '1', ...) and the sample/cell identity
+        # (e.g. a TruSeq sample_id) is lost.
+        peaks_obs = pd.DataFrame(index=pd.Index(obs_ids_sorted, name="observation_id"))
+        return CountMatrixResult(X, peaks_var, peaks_obs)
 
 
 def add_to_peaks_var(peak_var: pd.DataFrame, annotations: pd.DataFrame) -> pd.DataFrame:

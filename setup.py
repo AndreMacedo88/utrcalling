@@ -1,13 +1,21 @@
 import setuptools
 import re
+from pathlib import Path
 
 
 def readme():
+    """Read the project README for the long description, if present.
+
+    Resolved relative to this file (not the cwd) so it works regardless of
+    where the build/install is invoked from. Prefers README.md, falls back to
+    README.rst, and returns an empty string if neither exists.
     """
-    Opens and reads the README.rst file.
-    """
-    with open("README.rst", "r") as readme_file:
-        return readme_file.read()
+    here = Path(__file__).resolve().parent
+    for name in ("README.md", "README.rst"):
+        path = here / name
+        if path.exists():
+            return path.read_text(encoding="utf-8")
+    return ""
 
 
 metadata_file = "utrcalling/_metadata.py"
@@ -31,6 +39,7 @@ setuptools.setup(
     version=version,
     description="Package with tools to calculate molecule UTR sizes from RNA sequencing reads.",
     long_description=readme(),
+    long_description_content_type="text/markdown",
     author=author,
     author_email="andre.lopes.macedo@gmail.com",
     url="https://github.com/AndreMacedo88/utrcalling",

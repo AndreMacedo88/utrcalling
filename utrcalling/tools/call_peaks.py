@@ -231,7 +231,8 @@ def create_parser(subparsers):
         help=(
             "Sequencing platform used. Options: 10x, smartseq, "
             "smart-seq_cap, smart-seq_cap-readname, 5prime10x, "
-            "standard_10x (Cell Ranger BAM), standard_smartseq."
+            "standard_10x (Cell Ranger BAM), standard_smartseq, "
+            "truseq (stranded bulk RNA-seq, e.g. TruSeq Stranded mRNA)."
         ),
         default="10x",
     )
