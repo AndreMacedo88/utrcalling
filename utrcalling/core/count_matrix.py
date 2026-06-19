@@ -127,36 +127,72 @@ def generate_counts_and_anno(
     logger.info("Generating and counting UTR sizes")
 
     # Build observation vocabulary — deterministic alphabetical row ordering.
-    # `observation_id` is already pd.Categorical, so `.unique()` returns a
-    # Categorical whose code-order is not lexicographic. Cast to a string ndarray
-    # before sorting to lock ordering down independent of category dtype origin.
-    obs_ids_sorted = np.sort(np.asarray(utr_sizes["observation_id"].astype(str).unique()))
+    # IMPORTANT: derive the vocabulary from the (small) set of distinct
+    # observation ids, never via ``.astype(str)`` on the full column. On bulk
+    # RNA-seq this column has ~1e9 rows but only a handful of categories (one per
+    # sample); casting the whole column to strings materialises ~1e9 Python str
+    # objects and exhausts RAM (OOM). ``.unique()`` on a Categorical returns just
+    # the present categories, which we then sort to lock row ordering.
+    obs_series = utr_sizes["observation_id"]
+    obs_ids_sorted = np.sort(np.asarray(obs_series.unique()).astype(str))
     n_obs = len(obs_ids_sorted)
 
-    # Pre-encode observation_id to int32 row indices ONCE. Workers receive only
-    # int arrays — no per-task pickling of an ~n_obs-entry dict, no Python-level
-    # dict lookups in the hot inner loop.
-    obs_cat = pd.Categorical(
-        utr_sizes["observation_id"].astype(str), categories=obs_ids_sorted
-    )
-    obs_idx_arr = obs_cat.codes.astype(np.int32, copy=False)
+    # Pre-encode observation_id to int32 row indices ONCE (workers receive only
+    # int arrays). For a Categorical, map through the small per-category code
+    # space instead of building a ~1e9-row string Categorical.
+    if isinstance(obs_series.dtype, pd.CategoricalDtype):
+        cat_strs = np.asarray(obs_series.cat.categories).astype(str)
+        pos = {s: i for i, s in enumerate(obs_ids_sorted)}
+        code_to_obsidx = np.fromiter(
+            (pos.get(s, -1) for s in cat_strs), dtype=np.int32, count=len(cat_strs)
+        )
+        codes = obs_series.cat.codes.to_numpy()
+        safe = np.where(codes >= 0, codes, 0)
+        obs_idx_arr = np.where(codes >= 0, code_to_obsidx[safe], -1).astype(np.int32)
+    else:
+        obs_idx_arr = pd.Categorical(
+            obs_series.astype(str), categories=obs_ids_sorted
+        ).codes.astype(np.int32, copy=False)
     if (obs_idx_arr < 0).any():
         raise ValueError("Found unmapped observation_id (NaN?) in utr_sizes")
-    utr_sizes = utr_sizes.assign(_obs_idx=obs_idx_arr)
 
-    # Pre-extract groups with their original index. Keeping orig_idx lets us
-    # re-sort batched results back to category order so peak column ordering
-    # (and the `var` row ordering it controls) stays byte-stable vs serial.
+    # Pre-extract per-UTR groups WITHOUT a pandas groupby (which, on ~1e9 rows,
+    # copies every group into a sub-frame) and WITHOUT copying the frame. Sort
+    # rows once by the utr_name category code, then slice the sorted size/obs
+    # arrays at group boundaries — each group's arrays are cheap views. Groups
+    # are emitted in category-code order, i.e. the same order that
+    # groupby(observed=True) uses, so ``orig_idx`` (and the var column order it
+    # controls) stays byte-stable vs the old path. Within-group row order is
+    # irrelevant: ``_process_utr_group_batch`` re-sorts by size.
+    utr_col = utr_sizes["utr_name"]
+    if not isinstance(utr_col.dtype, pd.CategoricalDtype):
+        utr_col = utr_col.astype("category")
+    utr_codes = utr_col.cat.codes.to_numpy()
+    utr_categories = np.asarray(utr_col.cat.categories)
+    sizes_arr = utr_sizes["utr_size"].to_numpy().astype(np.int32, copy=False)
+
+    order = np.argsort(utr_codes, kind="stable")
+    s_codes = utr_codes[order]
+    s_sizes = sizes_arr[order]
+    s_obs = obs_idx_arr[order]
+    del order
+    # Drop rows whose utr_name is NaN (code -1, sorted to the front), matching
+    # groupby's default dropna behaviour.
+    first_valid = int(np.searchsorted(s_codes, 0))
+    s_codes = s_codes[first_valid:]
+    s_sizes = s_sizes[first_valid:]
+    s_obs = s_obs[first_valid:]
+
+    uniq_codes, starts = np.unique(s_codes, return_index=True)
+    bounds = np.append(starts, len(s_codes))
     groups: list[tuple[int, str, npt.NDArray[np.int32], npt.NDArray[np.int32]]] = [
         (
             i,
-            utr_name,
-            group["utr_size"].values.astype(np.int32, copy=False),
-            group["_obs_idx"].values.astype(np.int32, copy=False),
+            str(utr_categories[code]),
+            s_sizes[bounds[i] : bounds[i + 1]],
+            s_obs[bounds[i] : bounds[i + 1]],
         )
-        for i, (utr_name, group) in enumerate(
-            utr_sizes.groupby("utr_name", observed=True)
-        )
+        for i, code in enumerate(uniq_codes)
     ]
     n_utrs = len(groups)
 

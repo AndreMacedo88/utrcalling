@@ -150,16 +150,6 @@ def merge_utrs_per_gene(
         A (gene_regions, gene_read_mappings) tuple where utr_name has been
         replaced with the gene name and utr_size is offset-adjusted.
     """
-    logger = module_log.module_logger()
-
-    # Join read_mappings with utr_regions on utr_name
-    # read_mappings is flat: utr_name, observation_id, utr_size
-    # utr_regions is indexed by utr_name
-    combined = read_mappings.merge(
-        utr_regions.reset_index(), on="utr_name", how="inner"
-    )
-    combined["gene_name"] = combined["gene_name"].fillna(value="None")
-
     # Build aggregated utr_regions per gene
     utr_regions_sorted = utr_regions.copy()
     utr_regions_sorted["gene_name"] = utr_regions_sorted["gene_name"].fillna("None")
@@ -180,20 +170,16 @@ def merge_utrs_per_gene(
     utr_regions_per_gene.index.name = "utr_name"
     utr_regions_per_gene["name"] = utr_regions_per_gene.index
 
-    # Single pass: compute offsets, utr→gene mapping, and sort order
-    offset_map = {}
-    utr_name_to_gene = {}
-    utr_sort_order = {}
+    # Single pass over the small reference (~tens of thousands of UTRs):
+    # per-UTR offset, utr_name -> gene-name, and per-gene read sort order.
+    offset_map: dict[str, int] = {}
+    utr_name_to_gene: dict[str, str] = {}
+    utr_sort_order: dict[str, int] = {}
     for gene_name, group in utr_regions_sorted.groupby("name"):
-        # Offsets
-        offsets = _compute_gene_offsets(group)
-        offset_map.update(offsets)
-
-        # utr_name → gene_name mapping
+        offset_map.update(_compute_gene_offsets(group))
         for un in group["utr_name"].values:
             utr_name_to_gene[un] = gene_name
 
-        # Sort order for reads within this gene
         strand = group["strand"].iloc[0]
         if strand == "-":
             g = group.copy()
@@ -201,32 +187,78 @@ def merge_utrs_per_gene(
             g = g.sort_values(by=["start", "end"], ascending=False)
         else:
             g = group
-        for pos, utr_name in enumerate(g["utr_name"].values):
-            utr_sort_order[utr_name] = pos
+        for pos, un in enumerate(g["utr_name"].values):
+            utr_sort_order[un] = pos
 
-    # Apply offsets to the flat read_mappings.
-    # Cast utr_name out of Categorical before .map(): pandas >= 2.1 preserves
-    # Categorical dtype when every category is mapped injectively, which then
-    # makes .fillna(0) raise because 0 is not a valid category.
-    utr_name_obj = combined["utr_name"].astype(object)
-    combined["offset"] = utr_name_obj.map(offset_map).fillna(0).astype(np.int32)
-    combined["utr_size"] = combined["utr_size"] + combined["offset"]
+    # Relabel utr_name -> gene and apply per-UTR offsets on the (potentially
+    # huge) flat read table WITHOUT a wide merge or a string-keyed global sort.
+    #
+    # The previous implementation `.merge()`d the full reference onto every read
+    # row — pulling in transcript_id/gene_name string columns the result never
+    # uses — and then `.sort_values()` on string columns across the whole table.
+    # On dozens of bulk RNA-seq samples (~1e9 rows) that inflated an ~9 GB table
+    # past 120 GB and triggered the OOM killer. Here we map everything through
+    # the small Categorical code space and order rows with an integer `lexsort`,
+    # keeping only int arrays the size of the read table in memory. The output
+    # (rows ordered by gene name, then by genomic position within the gene) is
+    # identical to the old behaviour.
+    utr_cat = pd.Categorical(read_mappings["utr_name"])
+    categories = np.asarray(utr_cat.categories)
+    codes = utr_cat.codes.astype(np.int32, copy=False)
+    n_cat = len(categories)
 
-    # Add sort key for ordering reads within each gene
-    combined["_sort_order"] = utr_name_obj.map(utr_sort_order)
-    combined["_gene"] = utr_name_obj.map(utr_name_to_gene)
+    # Per-category lookups (small: one entry per reference UTR).
+    in_ref = np.fromiter(
+        (c in utr_name_to_gene for c in categories), dtype=bool, count=n_cat
+    )
+    offset_by_cat = np.fromiter(
+        (offset_map.get(c, 0) for c in categories), dtype=np.int32, count=n_cat
+    )
+    sortorder_by_cat = np.fromiter(
+        (utr_sort_order.get(c, 0) for c in categories), dtype=np.int32, count=n_cat
+    )
+    gene_of_cat = np.array(
+        [utr_name_to_gene.get(c, None) for c in categories], dtype=object
+    )
 
-    # Sort by gene and then by the per-gene sort order
-    combined = combined.sort_values(by=["_gene", "_sort_order"])
+    # Gene categories = sorted unique gene names, matching the categories that
+    # `pd.Categorical(<gene names>)` produced in the old implementation. Sorting
+    # rows by the resulting integer gene code is therefore equivalent to the old
+    # string sort on the gene name.
+    gene_categories = np.unique(gene_of_cat[in_ref].astype(str))
+    gene_code_of = {g: i for i, g in enumerate(gene_categories)}
+    utrcat_to_genecode = np.full(n_cat, -1, dtype=np.int32)
+    for i in range(n_cat):
+        if in_ref[i]:
+            utrcat_to_genecode[i] = gene_code_of[str(gene_of_cat[i])]
 
-    # Replace utr_name with gene name
-    combined["utr_name"] = combined["_gene"]
+    # Inner-join semantics: drop reads whose utr_name is missing (code < 0) or
+    # absent from the reference.
+    safe_codes = np.where(codes >= 0, codes, 0)
+    keep = (codes >= 0) & in_ref[safe_codes]
+    kept_codes = safe_codes[keep]
+    del codes, safe_codes
 
-    # Build flat result
-    result = combined[["utr_name", "observation_id", "utr_size"]].copy()
-    result["utr_name"] = pd.Categorical(result["utr_name"])
+    gene_codes = utrcat_to_genecode[kept_codes]
+    new_sizes = (
+        read_mappings["utr_size"].to_numpy()[keep] + offset_by_cat[kept_codes]
+    ).astype(np.int32)
+    obs_kept = pd.Categorical(read_mappings["observation_id"])[keep]
+
+    # Order rows by gene, then by per-gene genomic position (stable lexsort on
+    # integer keys — primary key is the last argument).
+    order = np.lexsort((sortorder_by_cat[kept_codes], gene_codes))
+
+    result = pd.DataFrame(
+        {
+            "utr_name": pd.Categorical.from_codes(
+                gene_codes[order], categories=gene_categories
+            ),
+            "observation_id": obs_kept[order],
+            "utr_size": new_sizes[order],
+        }
+    )
     result["observation_id"] = pd.Categorical(result["observation_id"])
-    result["utr_size"] = result["utr_size"].astype(np.int32)
     result = result.reset_index(drop=True)
 
     return utr_regions_per_gene, result
