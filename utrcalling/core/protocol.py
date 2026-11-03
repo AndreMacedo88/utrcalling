@@ -368,7 +368,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         batches_series = self.annotations.loc[:, self.batch_column_name]
         batches_list = batches_series.to_list()
-        if np.issubdtype(batches_series.dtype, np.integer):
+        # pandas' own check: np.issubdtype raises on extension dtypes, such as the
+        # default string dtype of pandas 3 or nullable integers (Int64).
+        if pd.api.types.is_integer_dtype(batches_series.dtype):
             batches_range = batches_series.astype(str)
         else:
             batches_range, _ = pd.factorize(batches_series, sort=False)
