@@ -271,7 +271,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
                     self.logger.warning(msg)
                     not_found_trigger = False
             else:
-                sample_names_dict[sample_bam[0]] = sample
+                # str(): annotation files with bare-integer sample IDs come back
+                # from pandas as int64, and observation IDs must be strings.
+                sample_names_dict[sample_bam[0]] = str(sample)
                 # No batch column -> no batch index for this sample.
                 sample_idx_dict[sample_bam[0]] = (
                     self.batches_range[idx]

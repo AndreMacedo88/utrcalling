@@ -340,7 +340,7 @@ def check_file_suffix_and_append_before(path: str, to_append: str, suffix: str) 
     return f"{path}{to_append}{suffix}"
 
 
-def sample_in_path(sample: str, bam_path: str) -> bool:
+def sample_in_path(sample: str | int, bam_path: str) -> bool:
     """Return True if *sample* appears as a delimited token anywhere in *bam_path*.
 
     The function searches the entire path string (filename **and** all parent
@@ -352,6 +352,10 @@ def sample_in_path(sample: str, bam_path: str) -> bool:
     Path separators (``/``), underscores (``_``), and dots (``.``) are treated as
     token boundaries, which prevents a sample name that is a prefix of another
     (e.g. ``S1`` vs ``S10``) from producing a false match.
+
+    *sample* is coerced to ``str``: annotation files whose ``sample_id`` column
+    holds bare integers (e.g. ``102``) are read back by pandas as ``int64``, and
+    ``re.escape`` rejects non-string input.
     """
-    pattern = r"(?:^|(?<=[/_. ]))" + re.escape(sample) + r"(?=$|[/_.])"
-    return bool(re.search(pattern, bam_path))
+    pattern = r"(?:^|(?<=[/_. ]))" + re.escape(str(sample)) + r"(?=$|[/_.])"
+    return bool(re.search(pattern, str(bam_path)))
