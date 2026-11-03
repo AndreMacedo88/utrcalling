@@ -3,6 +3,7 @@
 ![Python >= 3.11](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-green)
 ![Version 3.1.10](https://img.shields.io/badge/version-3.1.10-orange)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23686176.svg)](https://doi.org/10.5281/zenodo.23686176)
 
 A bioinformatics toolkit for calculating molecule UTR (Untranslated Region)
 sizes from RNA sequencing reads. **utrcalling** processes BAM alignment files
@@ -309,6 +310,7 @@ utrcalling/
 │   └── utrcalling-frozen.yml   Exact versions validated by the test suite
 ├── pyproject.toml              Package metadata and dependency ranges
 ├── environment.yml             Recommended conda environment
+├── CITATION.cff                Citation metadata
 └── README.md
 ```
 
@@ -331,6 +333,15 @@ ranges are declared in `pyproject.toml`, and the exact validated versions in
 System dependency:
 
 - **BEDTools** (>= 2.30.0) --- install via `conda install -c bioconda bedtools`
+
+## Citation
+
+If you use utrcalling in your research, please cite it. Releases are archived
+on Zenodo under the DOI
+[10.5281/zenodo.23686176](https://doi.org/10.5281/zenodo.23686176), which
+always resolves to the latest version; each version also has its own DOI,
+listed on that page. Citation metadata is in `CITATION.cff`, and GitHub's
+"Cite this repository" button formats it as APA or BibTeX.
 
 ## License
 

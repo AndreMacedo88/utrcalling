@@ -1,0 +1,29 @@
+# Citation metadata, used by GitHub's "Cite this repository" button and by the
+# Zenodo integration when archiving a release. Update `version` and
+# `date-released` before every release.
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+type: software
+title: utrcalling
+abstract: >-
+  Tools for generating and analyzing a count table of RNA Untranslated Region
+  (UTRs) sizes from bulk or single-cell sequencing data.
+authors:
+  - given-names: André
+    family-names: Macedo
+  - given-names: Jooa
+    family-names: Hooli
+version: 3.1.10
+date-released: 2026-10-27
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.23686176
+    description: Concept DOI, always resolving to the latest version
+repository-code: "https://github.com/AndreMacedo88/utrcalling"
+license: BSD-3-Clause
+keywords:
+  - bioinformatics
+  - RNA-seq
+  - single-cell RNA-seq
+  - alternative polyadenylation
+  - untranslated region
