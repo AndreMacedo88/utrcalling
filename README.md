@@ -2,7 +2,7 @@
 
 ![Python >= 3.11](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-green)
-![Version 3.1.0](https://img.shields.io/badge/version-3.1.0-orange)
+![Version 3.1.10](https://img.shields.io/badge/version-3.1.10-orange)
 
 A bioinformatics toolkit for calculating molecule UTR (Untranslated Region)
 sizes from RNA sequencing reads. **utrcalling** processes BAM alignment files
