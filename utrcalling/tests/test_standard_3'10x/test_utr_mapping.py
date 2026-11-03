@@ -59,14 +59,16 @@ class TestStandardTenxV3(TestMapReadsToUtrSynthetic):
         """Cell Ranger BAMs contain single-end R2 alignments; protocol must
         accept reads without requiring paired-end flag bits."""
         p = protocol.create(
-            "standard_10x", 3,
+            "standard_10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertEqual(p.read_in_pair, "any")
 
     def test_protocol_properties(self):
         p = protocol.create(
-            "standard_10x", 3,
+            "standard_10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertTrue(p.has_umi)
@@ -166,11 +168,14 @@ class TestStandardTenxMissingTags(TestMapReadsToUtrSynthetic):
 
         try:
             protocol_ = protocol.create(
-                "standard_10x", 3,
+                "standard_10x",
+                3,
                 annotations=pd.DataFrame({"sample": ["test"]}),
             )
             mappings = utr_mapping.map_reads_to_utr(
-                bam_path, self.intervals, protocol_,
+                bam_path,
+                self.intervals,
+                protocol_,
                 read=protocol_.read_in_pair,
             )
             self.assertEqual(len(mappings), 0)
@@ -247,11 +252,14 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
         bam_path = self._build_bam()
         try:
             protocol_ = protocol.create(
-                "standard_10x", 3,
+                "standard_10x",
+                3,
                 annotations=pd.DataFrame({"sample": ["test"]}),
             )
             mappings = utr_mapping.map_reads_to_utr(
-                bam_path, self.intervals, protocol_,
+                bam_path,
+                self.intervals,
+                protocol_,
                 read=protocol_.read_in_pair,
             )
             utrs = sorted(mappings["utr_name"].unique().tolist())
@@ -269,11 +277,14 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
         bam_path = self._build_bam()
         try:
             protocol_ = protocol.create(
-                "standard_10x", 3,
+                "standard_10x",
+                3,
                 annotations=pd.DataFrame({"sample": ["test"]}),
             )
             mappings = utr_mapping.map_reads_to_utr(
-                bam_path, self.intervals, protocol_,
+                bam_path,
+                self.intervals,
+                protocol_,
                 read=protocol_.read_in_pair,
             )
             utr3 = mappings[mappings["utr_name"] == "UTR3"]

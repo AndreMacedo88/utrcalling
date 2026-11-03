@@ -11,9 +11,7 @@ os.chdir(str(Path(__file__).resolve().parents[1]))
 class TestMapReadsToUtr(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_parquet(
-            "./test_data/test_UTR_reference_smartseq.parquet"
-        )
+        cls.utr_regions = pd.read_parquet("./test_data/test_UTR_reference_smartseq.parquet")
 
         # test data for SmartSeq3
         cls.alignment = "./test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam"
@@ -22,9 +20,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 class TestSmartSeq3(TestMapReadsToUtr):
     def setUp(self) -> None:
         # test data for SmartSeq3
-        self.intervals = utr_mapping.generate_utr_intervals(
-            utr_regions=self.utr_regions
-        )
+        self.intervals = utr_mapping.generate_utr_intervals(utr_regions=self.utr_regions)
         protocol_ = protocol.create(
             platform="smartseq",
             version=3,
@@ -48,9 +44,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
         self.assertListEqual(all_sizes, [30, 300])
 
     def test_details_one(self):
-        utr_data = self.mappings[
-            self.mappings["utr_name"] == "ENSG00000188976"
-        ]
+        utr_data = self.mappings[self.mappings["utr_name"] == "ENSG00000188976"]
         self.assertListEqual(utr_data["observation_id"].tolist(), ["CACTGT-2"])
         self.assertListEqual(utr_data["utr_size"].tolist(), [300])
 
@@ -61,9 +55,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
 class TestSmartSeq3NoBarcodes(TestMapReadsToUtr):
     def setUp(self) -> None:
         # test data for SmartSeq3
-        self.intervals = utr_mapping.generate_utr_intervals(
-            utr_regions=self.utr_regions
-        )
+        self.intervals = utr_mapping.generate_utr_intervals(utr_regions=self.utr_regions)
         annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
         annotations = annotations.drop("Sample_Barcode", axis=1)
         protocol_ = protocol.create(
@@ -88,9 +80,7 @@ class TestSmartSeq3NoBarcodes(TestMapReadsToUtr):
         self.assertListEqual(all_sizes, [30, 300])
 
     def test_details_one(self):
-        utr_data = self.mappings[
-            self.mappings["utr_name"] == "ENSG00000188976"
-        ]
+        utr_data = self.mappings[self.mappings["utr_name"] == "ENSG00000188976"]
         self.assertListEqual(utr_data["observation_id"].tolist(), ["CACTGT-2"])
         self.assertListEqual(utr_data["utr_size"].tolist(), [300])
 
@@ -154,7 +144,10 @@ class TestSmartSeq3LabelSamplesMinimal(TestMapReadsToUtrMinimal):
             annotations="./test_data/smartseq3_anno.csv",
         )
         self.mappings = utr_mapping.map_reads_to_utr(
-            self.alignment, self.intervals, protocol_, read="first",
+            self.alignment,
+            self.intervals,
+            protocol_,
+            read="first",
             batch_idx=protocol_.sample_idx[self.alignment],
         )
 

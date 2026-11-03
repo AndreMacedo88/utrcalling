@@ -2,6 +2,7 @@
 This module contains functions that retrieve UTR information from annotation files
 such as GTF and GFF
 """
+
 from __future__ import annotations
 
 import gzip
@@ -163,9 +164,7 @@ def correct_column_names(utr_df: pd.DataFrame) -> pd.DataFrame:
     Returns:
         The DataFrame with renamed columns.
     """
-    utr_df = utr_df.rename(
-        columns={"thickStart": "transcript_id", "thickEnd": "gene_name"}
-    )
+    utr_df = utr_df.rename(columns={"thickStart": "transcript_id", "thickEnd": "gene_name"})
     return utr_df
 
 
@@ -185,9 +184,7 @@ def subset_reference_data(
     logger.info("Subsetting UTR reference data")
 
     utr_names = utr_sizes["utr_name"].unique()
-    sub_utr_reference = utr_reference_regions[
-        utr_reference_regions.index.isin(utr_names)
-    ]
+    sub_utr_reference = utr_reference_regions[utr_reference_regions.index.isin(utr_names)]
     sub_utr_reference_unique = sub_utr_reference.drop_duplicates()
 
     return sub_utr_reference_unique

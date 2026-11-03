@@ -13,13 +13,9 @@ os.chdir(str(Path(__file__).resolve().parents[0]))
 
 class MapAlignedReads:
     def __init__(self) -> None:
-        self.utr_regions = pd.read_parquet(
-            "../tests/test_data/test_UTR_reference.parquet"
-        )
+        self.utr_regions = pd.read_parquet("../tests/test_data/test_UTR_reference.parquet")
         annotations = pd.read_csv("../tests/test_data/vivo_anno.csv")
-        self.protocol = protocol.create(
-            platform="10x", version=2, annotations=annotations
-        )
+        self.protocol = protocol.create(platform="10x", version=2, annotations=annotations)
 
         alignments_n = 5
         self.alignments = [
@@ -27,9 +23,7 @@ class MapAlignedReads:
         ] * alignments_n
 
     def perf_test(self):
-        core.map_aligned_reads(
-            self.alignments, self.utr_regions, self.protocol, store=False
-        )
+        core.map_aligned_reads(self.alignments, self.utr_regions, self.protocol, store=False)
 
 
 def map_aligned_reads_perf(lines):

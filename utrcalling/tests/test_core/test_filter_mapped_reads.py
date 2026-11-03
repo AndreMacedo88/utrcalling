@@ -25,13 +25,15 @@ class TestFilterMappedReadsBase(unittest.TestCase):
         )
         intervals = utr_mapping.generate_utr_intervals(utr_regions=cls.utr_regions)
         cls.mapped = utr_mapping.map_reads_to_utr(
-            bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first",
+            bam=alignment,
+            intervals=intervals,
+            protocol=cls.protocol_,
+            read="first",
             batch_idx="1",
         )
 
 
 class TestFilterMappedReadsReturnType(TestFilterMappedReadsBase):
-
     def test_returns_tuple_of_two_dataframes(self):
         """filter_mapped_reads should return (filtered_reads, utr_reference_subset)."""
         result = core.filter_mapped_reads(
@@ -92,20 +94,29 @@ class TestFilterMappedReadsReturnType(TestFilterMappedReadsBase):
 
 
 class TestFilterMappedReadsNoWhitelist(unittest.TestCase):
-
     def test_without_barcode_whitelist(self):
         """Without a whitelist, all observations should pass through."""
-        utr_regions = pd.DataFrame({
-            "chrom": ["1"], "start": [100], "end": [200],
-            "name": ["G1"], "score": ["."], "strand": ["+"],
-            "transcript_id": ["T1"], "gene_name": ["Gene1"],
-        }, index=pd.Index(["UTR1"], name="utr_name"))
+        utr_regions = pd.DataFrame(
+            {
+                "chrom": ["1"],
+                "start": [100],
+                "end": [200],
+                "name": ["G1"],
+                "score": ["."],
+                "strand": ["+"],
+                "transcript_id": ["T1"],
+                "gene_name": ["Gene1"],
+            },
+            index=pd.Index(["UTR1"], name="utr_name"),
+        )
 
-        mapped = pd.DataFrame({
-            "utr_name": pd.Categorical(["UTR1", "UTR1"]),
-            "observation_id": pd.Categorical(["CELL1", "CELL2"]),
-            "utr_size": np.array([50, 100], dtype=np.int32),
-        })
+        mapped = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["UTR1", "UTR1"]),
+                "observation_id": pd.Categorical(["CELL1", "CELL2"]),
+                "utr_size": np.array([50, 100], dtype=np.int32),
+            }
+        )
 
         protocol_ = protocol.create(
             platform="smartseq",

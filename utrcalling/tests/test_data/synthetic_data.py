@@ -70,47 +70,61 @@ class MappedData:
 
         # Flat format: one row per (utr_name, observation_id, utr_size)
         utr_names = [
-            "ENSMUSG4", "ENSMUSG4",
+            "ENSMUSG4",
+            "ENSMUSG4",
             "ENSMUSG5",
             "ENSMUSG5_2",
             "ENSMUSG1",
-            "ENSMUSG1,ENSMUSG4", "ENSMUSG1,ENSMUSG4",
+            "ENSMUSG1,ENSMUSG4",
+            "ENSMUSG1,ENSMUSG4",
             "ENSMUSG5_3",
-            "ENSMUSG5_4", "ENSMUSG5_4",
-            "ENSMUSG2", "ENSMUSG2",
+            "ENSMUSG5_4",
+            "ENSMUSG5_4",
+            "ENSMUSG2",
+            "ENSMUSG2",
             "ENSMUSG2_2",
             "ENSMUSG3",
         ]
         observation_ids = [
-            "CTAGACGT", "CTGATGA",
+            "CTAGACGT",
+            "CTGATGA",
             "GTAGACGT",
             "GTAGCCGT",
             "GAAGACGT",
-            "GAAGACGA", "ATGATGA",
+            "GAAGACGA",
+            "ATGATGA",
             "ATAGCCGT",
-            "TAAGACGA", "TTGATGA",
-            "AAAGACGA", "GTGATGA",
+            "TAAGACGA",
+            "TTGATGA",
+            "AAAGACGA",
+            "GTGATGA",
             "AAAGACGG",
             "CAAGACGG",
         ]
         utr_sizes = [
-            50, 45,
+            50,
+            45,
             50,
             40,
             60,
-            60, 65,
+            60,
+            65,
             30,
-            20, 25,
-            30, 35,
+            20,
+            25,
+            30,
+            35,
             50,
             90,
         ]
 
-        self.mapped_reads = pd.DataFrame({
-            "utr_name": pd.Categorical(utr_names),
-            "observation_id": pd.Categorical(observation_ids),
-            "utr_size": np.array(utr_sizes, dtype=np.int32),
-        })
+        self.mapped_reads = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(utr_names),
+                "observation_id": pd.Categorical(observation_ids),
+                "utr_size": np.array(utr_sizes, dtype=np.int32),
+            }
+        )
 
 
 ANNOTATION_THREE_PRIME_TENX = pd.DataFrame(
@@ -141,10 +155,7 @@ class MappedDataThreePrimeTenX:
 
     def __init__(self) -> None:
         # Build the data in flat format
-        utr_names = (
-            ["ENSMUSG00000000001"] * 6 +
-            ["ENSMUSG00000000002"] * 5
-        )
+        utr_names = ["ENSMUSG00000000001"] * 6 + ["ENSMUSG00000000002"] * 5
         observation_ids = [
             "AAAAAAAAAAAAAAAA-1",
             "AAAAAAAAAAAAAAAA-1",
@@ -160,11 +171,13 @@ class MappedDataThreePrimeTenX:
         ]
         utr_sizes = [500, 499, 500, 400, 398, 300, 100, 200, 202, 300, 300]
 
-        self._data_synthetic = pd.DataFrame({
-            "utr_name": pd.Categorical(utr_names),
-            "observation_id": pd.Categorical(observation_ids),
-            "utr_size": np.array(utr_sizes, dtype=np.int32),
-        })
+        self._data_synthetic = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(utr_names),
+                "observation_id": pd.Categorical(observation_ids),
+                "utr_size": np.array(utr_sizes, dtype=np.int32),
+            }
+        )
 
         # Build the annotations
         self._anno = ANNOTATION_THREE_PRIME_TENX
@@ -188,10 +201,7 @@ class MappedDataThreePrimeTenXFilteredBarcodes:
 
     def __init__(self) -> None:
         # Build the data in flat format
-        utr_names = (
-            ["ENSMUSG00000000001"] * 6 +
-            ["ENSMUSG00000000002"] * 4
-        )
+        utr_names = ["ENSMUSG00000000001"] * 6 + ["ENSMUSG00000000002"] * 4
         observation_ids = [
             "AAAAAAAAAAAAAAAA-1",
             "AAAAAAAAAAAAAAAA-1",
@@ -206,11 +216,13 @@ class MappedDataThreePrimeTenXFilteredBarcodes:
         ]
         utr_sizes = [500, 499, 500, 400, 398, 300, 100, 200, 202, 300]
 
-        self._data_filtered = pd.DataFrame({
-            "utr_name": pd.Categorical(utr_names),
-            "observation_id": pd.Categorical(observation_ids),
-            "utr_size": np.array(utr_sizes, dtype=np.int32),
-        })
+        self._data_filtered = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(utr_names),
+                "observation_id": pd.Categorical(observation_ids),
+                "utr_size": np.array(utr_sizes, dtype=np.int32),
+            }
+        )
 
         # Build the annotations
         self._anno = ANNOTATION_THREE_PRIME_TENX
@@ -238,10 +250,7 @@ class RandomThreePrimeBarcoded:
 
         utr_len = 15
         utr_bases = list(string.ascii_uppercase)
-        utrs = [
-            "".join(random.choice(utr_bases) for v in range(utr_len))
-            for i in range(size[0])
-        ]
+        utrs = ["".join(random.choice(utr_bases) for v in range(utr_len)) for i in range(size[0])]
 
         all_utr_names = []
         all_observation_ids = []
@@ -257,11 +266,13 @@ class RandomThreePrimeBarcoded:
             all_observation_ids.extend(obs)
             all_utr_sizes.extend(utr_sizes_list)
 
-        self._data = pd.DataFrame({
-            "utr_name": pd.Categorical(all_utr_names),
-            "observation_id": pd.Categorical(all_observation_ids),
-            "utr_size": np.array(all_utr_sizes, dtype=np.int32),
-        })
+        self._data = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(all_utr_names),
+                "observation_id": pd.Categorical(all_observation_ids),
+                "utr_size": np.array(all_utr_sizes, dtype=np.int32),
+            }
+        )
 
         # Build the annotations
         barcodes = self._data["observation_id"].unique()

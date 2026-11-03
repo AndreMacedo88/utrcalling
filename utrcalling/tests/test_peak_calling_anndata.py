@@ -1,4 +1,5 @@
 """Tests for utrcalling.core.peak_calling_anndata."""
+
 from __future__ import annotations
 
 import os
@@ -103,10 +104,12 @@ class TestCallPeaksUsingKDE(unittest.TestCase):
 
     def test_two_separated_peaks(self):
         """Two clearly separated clusters → two distinct peaks."""
-        sizes = np.concatenate([
-            np.full(30, 50),
-            np.full(30, 200),
-        ])
+        sizes = np.concatenate(
+            [
+                np.full(30, 50),
+                np.full(30, 200),
+            ]
+        )
         peaks = pca._call_peaks_using_kernel_density_estimator(sizes, bandwidth=1)
         self.assertEqual(len(np.unique(peaks)), 2)
 
@@ -168,9 +171,7 @@ class TestRemovePeaksBelowCount(unittest.TestCase):
 
         with warnings.catch_warnings():
             warnings.simplefilter("error", FutureWarning)
-            pca.remove_peaks_below_count(
-                self.adata, threshold=0.1, minimum_counts=10
-            )
+            pca.remove_peaks_below_count(self.adata, threshold=0.1, minimum_counts=10)
 
 
 # ---------------------------------------------------------------------------
@@ -253,9 +254,7 @@ class TestCalculateUmiDistanceToPas(unittest.TestCase):
         # UMI at size 115 → distance to PAS1: 15 (in 10-30 range), PAS2: -85 → pick PAS1
         # UMI at size 215 → distance to PAS1: 115, PAS2: 15 (in 10-30 range) → pick PAS2
         sizes = pd.Series([115, 215], index=["a", "b"])
-        result = pca._calculate_umi_distance_to_pas(
-            sizes, pas_end=[100, 200], seq_strand="+"
-        )
+        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[100, 200], seq_strand="+")
         # UMI a: PAS1 distance = 15 (in range), PAS2 = -85 → pick 15
         # UMI b: PAS1 = 115, PAS2 = 15 (in range) → pick 15
         self.assertEqual(result.iloc[0], 15)
@@ -337,7 +336,10 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
     def test_parallel_matches_sequential(self):
         seq = pca.peak_call_anndata(self.adata, method="kde", bandwidth=1)
         par = pca.peak_call_anndata_parallel(
-            self.adata, method="kde", bandwidth=1, n_jobs=2,
+            self.adata,
+            method="kde",
+            bandwidth=1,
+            n_jobs=2,
         )
 
         # Same shape
@@ -351,10 +353,16 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
     def test_n_jobs_invariance(self):
         """Different worker counts should produce identical output."""
         out1 = pca.peak_call_anndata_parallel(
-            self.adata, method="kde", bandwidth=1, n_jobs=1,
+            self.adata,
+            method="kde",
+            bandwidth=1,
+            n_jobs=1,
         )
         out4 = pca.peak_call_anndata_parallel(
-            self.adata, method="kde", bandwidth=1, n_jobs=4,
+            self.adata,
+            method="kde",
+            bandwidth=1,
+            n_jobs=4,
         )
         np.testing.assert_array_equal(out1.X, out4.X)
         pd.testing.assert_frame_equal(out1.var, out4.var)
@@ -363,12 +371,18 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
         """Sparse X (which exercises the CSC conversion in _extract_per_utr_inputs)
         produces identical output to dense X."""
         dense_out = pca.peak_call_anndata_parallel(
-            self.adata, method="kde", bandwidth=1, n_jobs=2,
+            self.adata,
+            method="kde",
+            bandwidth=1,
+            n_jobs=2,
         )
         sparse_adata = self.adata.copy()
         sparse_adata.X = scipy.sparse.csr_matrix(sparse_adata.X)
         sparse_out = pca.peak_call_anndata_parallel(
-            sparse_adata, method="kde", bandwidth=1, n_jobs=2,
+            sparse_adata,
+            method="kde",
+            bandwidth=1,
+            n_jobs=2,
         )
         # Sparse output stays sparse; densify to compare values.
         np.testing.assert_array_equal(
@@ -385,7 +399,10 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
         sparse_adata = self.adata.copy()
         sparse_adata.X = scipy.sparse.csr_matrix(sparse_adata.X)
         out = pca.peak_call_anndata_parallel(
-            sparse_adata, method="kde", bandwidth=1, n_jobs=2,
+            sparse_adata,
+            method="kde",
+            bandwidth=1,
+            n_jobs=2,
         )
         self.assertTrue(
             scipy.sparse.issparse(out.X),
@@ -398,7 +415,10 @@ class TestPeakCallAnndataParallel(unittest.TestCase):
         downstream `.var` mutations on disk write don't trigger
         ImplicitModificationWarning per column."""
         out = pca.peak_call_anndata_parallel(
-            self.adata, method="kde", bandwidth=1, n_jobs=2,
+            self.adata,
+            method="kde",
+            bandwidth=1,
+            n_jobs=2,
         )
         self.assertFalse(out.is_view)
 

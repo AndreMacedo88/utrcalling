@@ -15,34 +15,30 @@ class TestFilterBarcodesMemoryAware(unittest.TestCase):
 
     def setUp(self):
         self.whitelist = np.array(["AAAA-1", "BBBB-1", "CCCC-1"])
-        self.utr_sizes = pd.DataFrame({
-            "utr_name": pd.Categorical(["UTR1", "UTR1", "UTR2", "UTR2"]),
-            "observation_id": pd.Categorical(["AAAA-1", "BBBB-1", "CCCC-1", "DDDD-1"]),
-            "utr_size": np.array([100, 200, 300, 400], dtype=np.int32),
-        })
+        self.utr_sizes = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["UTR1", "UTR1", "UTR2", "UTR2"]),
+                "observation_id": pd.Categorical(["AAAA-1", "BBBB-1", "CCCC-1", "DDDD-1"]),
+                "utr_size": np.array([100, 200, 300, 400], dtype=np.int32),
+            }
+        )
 
     def test_small_data_single_pass(self):
         """Small datasets should be filtered in a single pass (no chunking)."""
-        result = barcode_filtering.filter_barcodes_memory_aware(
-            self.utr_sizes, self.whitelist
-        )
+        result = barcode_filtering.filter_barcodes_memory_aware(self.utr_sizes, self.whitelist)
         # DDDD-1 is not in whitelist and has Hamming distance >1, so it's dropped
         self.assertEqual(len(result), 3)
         self.assertNotIn("DDDD-1", result["observation_id"].values)
 
     def test_preserves_categorical_dtypes(self):
         """Categorical dtypes should be preserved after filtering."""
-        result = barcode_filtering.filter_barcodes_memory_aware(
-            self.utr_sizes, self.whitelist
-        )
+        result = barcode_filtering.filter_barcodes_memory_aware(self.utr_sizes, self.whitelist)
         self.assertTrue(hasattr(result["utr_name"].dtype, "categories"))
         self.assertTrue(hasattr(result["observation_id"].dtype, "categories"))
 
     def test_exact_match_from_new_module(self):
         """filter_barcodes should work when imported from the new module."""
-        result = barcode_filtering.filter_barcodes(
-            self.utr_sizes, self.whitelist
-        )
+        result = barcode_filtering.filter_barcodes(self.utr_sizes, self.whitelist)
         self.assertEqual(len(result), 3)
         self.assertSetEqual(
             set(result["observation_id"].unique()),
@@ -55,6 +51,7 @@ class TestFilterBarcodesImport(unittest.TestCase):
 
     def test_import_from_barcode_filtering(self):
         from utrcalling.core.barcode_filtering import filter_barcodes
+
         self.assertIs(filter_barcodes, barcode_filtering.filter_barcodes)
 
 

@@ -3,13 +3,15 @@ This module contains functions to get UTR sizes from Pandas DataFrames represent
 BED files with UTR regions annotations
 
 """
+
 from __future__ import annotations
 
 # general tools
 from utrcalling.core.module_log import module_logger
 from utrcalling.core import helpers
 from utrcalling.core.helpers import (
-    JOBLIB_DEFAULT_BACKEND, ensure_mapped_reads_dtypes,
+    JOBLIB_DEFAULT_BACKEND,
+    ensure_mapped_reads_dtypes,
 )
 from utrcalling.core.protocol import Protocol
 from functools import partial
@@ -31,7 +33,7 @@ tqdm = partial(std_tqdm, dynamic_ncols=True)
 # Lightweight adapters so pysam reads satisfy the Protocol interface
 # ---------------------------------------------------------------------------
 
-_COMPLEMENT = str.maketrans('ACGTacgtNn', 'TGCAtgcaNn')
+_COMPLEMENT = str.maketrans("ACGTacgtNn", "TGCAtgcaNn")
 
 
 def _reverse_complement(seq: str) -> str:
@@ -47,19 +49,21 @@ class _PySamReadAdapter:
     This adapter bridges the gap so protocol identity extraction sees the
     original read sequence.
     """
-    __slots__ = ('seq', 'name')
+
+    __slots__ = ("seq", "name")
 
     def __init__(self, pysam_read):
-        seq = pysam_read.query_sequence or ''
+        seq = pysam_read.query_sequence or ""
         if pysam_read.is_reverse:
             seq = _reverse_complement(seq)
         self.seq = seq
-        self.name = pysam_read.query_name or ''
+        self.name = pysam_read.query_name or ""
 
 
 class _PySamAdapter:
     """Adapt a pysam AlignedSegment to the Protocol interface."""
-    __slots__ = ('read', '_get_tag')
+
+    __slots__ = ("read", "_get_tag")
 
     def __init__(self, pysam_read):
         self.read = _PySamReadAdapter(pysam_read)
@@ -75,7 +79,8 @@ class _IntervalData:
     Stores the same fields that protocols use for UTR size calculations:
     chrom, start, end, strand, plus directional start/end (start_d, end_d).
     """
-    __slots__ = ('chrom', 'start', 'end', 'strand', 'start_d', 'end_d')
+
+    __slots__ = ("chrom", "start", "end", "strand", "start_d", "end_d")
 
     def __init__(self, chrom: str, start: int, end: int, strand: str):
         self.chrom = str(chrom)
@@ -96,6 +101,7 @@ class _IntervalData:
 # ---------------------------------------------------------------------------
 # Interval processing (picklable top-level function for joblib)
 # ---------------------------------------------------------------------------
+
 
 def _process_interval_batch(
     bam_path: str,
@@ -124,12 +130,12 @@ def _process_interval_batch(
     # Bitmask flag filtering — varies by read-in-pair mode
     any_read = read == "any"
     if any_read:
-        required_flags = 0                        # no paired-end requirements
-        excluded_flags = 0x100 | 0x400 | 0x4     # secondary + duplicate + unmapped
+        required_flags = 0  # no paired-end requirements
+        excluded_flags = 0x100 | 0x400 | 0x4  # secondary + duplicate + unmapped
     else:
         read_flag = 0x40 if read == "first" else 0x80
-        required_flags = 0x2 | read_flag          # proper_pair + correct mate
-        excluded_flags = 0x100 | 0x400            # secondary + duplicate
+        required_flags = 0x2 | read_flag  # proper_pair + correct mate
+        excluded_flags = 0x100 | 0x400  # secondary + duplicate
 
     read_strand_string = f"Reads not '{read}'"
     mapping_stats = {
@@ -218,20 +224,26 @@ def _process_interval_batch(
                     if use_fragment:
                         tlen = aln.template_length
                         mate_is_usable = bool(
-                            (flag & 0x2)                       # proper pair
-                            and not (flag & 0x8)               # mate mapped
+                            (flag & 0x2)  # proper pair
+                            and not (flag & 0x8)  # mate mapped
                             and aln.next_reference_id == aln.reference_id
                             and tlen != 0
                         )
                         read_pos = get_frag_pos(
-                            aln.reference_start, aln.reference_end - 1,
-                            aln.is_reverse, iv_strand,
-                            aln.next_reference_start, tlen, mate_is_usable,
+                            aln.reference_start,
+                            aln.reference_end - 1,
+                            aln.is_reverse,
+                            iv_strand,
+                            aln.next_reference_start,
+                            tlen,
+                            mate_is_usable,
                         )
                     else:
                         read_pos = get_read_pos(
-                            aln.reference_start, aln.reference_end - 1,
-                            aln.is_reverse, iv_strand,
+                            aln.reference_start,
+                            aln.reference_end - 1,
+                            aln.is_reverse,
+                            iv_strand,
                         )
 
                     # Position bounds check. Fragment-positioned protocols clamp
@@ -309,6 +321,7 @@ def _process_interval_batch(
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, _IntervalData]:
     """Build a dict mapping UTR names to genomic interval objects.
 
@@ -324,12 +337,8 @@ def generate_utr_intervals(utr_regions: pd.DataFrame) -> dict[str, _IntervalData
 
     logger.info("Generating genomic interval for UTR number")
     utrs = utr_regions.itertuples()
-    for utr in tqdm(
-        utrs, total=len(utr_regions), colour="#ffb700", ascii=" ■", desc="UTR: "
-    ):
-        intervals[utr.Index] = _IntervalData(
-            utr.chrom, utr.start - 1, utr.end, utr.strand
-        )
+    for utr in tqdm(utrs, total=len(utr_regions), colour="#ffb700", ascii=" ■", desc="UTR: "):
+        intervals[utr.Index] = _IntervalData(utr.chrom, utr.start - 1, utr.end, utr.strand)
     return intervals
 
 
@@ -388,13 +397,11 @@ def map_reads_to_utr(
         # so batch sizing matches the worker count actually used.
         n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
         n_workers = (
-            n_jobs_resolved if n_jobs_resolved > 0
-            else max(1, helpers.get_number_cores(left_out=1))
+            n_jobs_resolved if n_jobs_resolved > 0 else max(1, helpers.get_number_cores(left_out=1))
         )
         batch_size = max(1, len(interval_items) // (n_workers * 4))
         batches = [
-            interval_items[i : i + batch_size]
-            for i in range(0, len(interval_items), batch_size)
+            interval_items[i : i + batch_size] for i in range(0, len(interval_items), batch_size)
         ]
 
         try:
@@ -423,17 +430,17 @@ def map_reads_to_utr(
         mapping_stats = merged_stats
     else:
         # Sequential path — single batch with progress bar
-        all_utr_names, all_observation_ids, all_utr_sizes, mapping_stats = (
-            _process_interval_batch(
-                bam, interval_items, protocol, read, batch_idx, show_progress=True
-            )
+        all_utr_names, all_observation_ids, all_utr_sizes, mapping_stats = _process_interval_batch(
+            bam, interval_items, protocol, read, batch_idx, show_progress=True
         )
 
-    utr_mappings = pd.DataFrame({
-        "utr_name": all_utr_names,
-        "observation_id": all_observation_ids,
-        "utr_size": all_utr_sizes,
-    })
+    utr_mappings = pd.DataFrame(
+        {
+            "utr_name": all_utr_names,
+            "observation_id": all_observation_ids,
+            "utr_size": all_utr_sizes,
+        }
+    )
     utr_mappings = ensure_mapped_reads_dtypes(utr_mappings)
 
     # most performant method to log
@@ -441,6 +448,7 @@ def map_reads_to_utr(
     if logger.isEnabledFor(logging.DEBUG):
         import psutil
         from pympler import asizeof
+
         logger.debug(
             "Size of mapped reads object in bytes: %s \nMemory usage: %s",
             asizeof.asizeof(utr_mappings),
@@ -450,7 +458,9 @@ def map_reads_to_utr(
     return utr_mappings
 
 
-def deduplicate_reads(read_umis: list[str], read_info: list[list[str | int]]) -> list[list[str | int]]:
+def deduplicate_reads(
+    read_umis: list[str], read_info: list[list[str | int]]
+) -> list[list[str | int]]:
     """Remove PCR duplicates by keeping the first occurrence of each (barcode, UMI) pair.
 
     Args:
@@ -534,4 +544,3 @@ def deduplicate_fragments(
             idx_unique.append(idx)
             seen.add(name)
     return [[element[i] for i in idx_unique] for element in read_info]
-

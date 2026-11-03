@@ -101,9 +101,7 @@ class TestComputeMeanSizes(unittest.TestCase):
         }
         var = pd.DataFrame(utr_regions).set_index("polyA")
 
-        self.adata = ad.AnnData(
-            X=count_matrix, obs=obs, var=var
-        )
+        self.adata = ad.AnnData(X=count_matrix, obs=obs, var=var)
         self.adata_means = ap.compute_utr_size_means(
             adata=self.adata.copy(),
             utr_name_column="utr_name",
@@ -189,12 +187,8 @@ class TestGenerateUtrSiteNamesFromGeneName(unittest.TestCase):
 
     def test_var_not_changed(self):
         pd.testing.assert_frame_equal(
-            self.adata_named.var[["utr_size", "utr_name", "gene_name"]].reset_index(
-                drop=True
-            ),
-            self.adata.var[["utr_size", "utr_name", "gene_name"]].reset_index(
-                drop=True
-            ),
+            self.adata_named.var[["utr_size", "utr_name", "gene_name"]].reset_index(drop=True),
+            self.adata.var[["utr_size", "utr_name", "gene_name"]].reset_index(drop=True),
         )
 
     def test_utr_site_column(self):
@@ -347,9 +341,7 @@ class TestCountsToPercentages(unittest.TestCase):
         silently downcast fractional percentages (0 < x < 1) to 0,
         corrupting any UTR row whose source had multiple peaks per cell.
         """
-        X = scipy.sparse.csr_matrix(
-            np.array([[1, 2, 1], [3, 6, 3], [1, 0, 0]], dtype=np.int32)
-        )
+        X = scipy.sparse.csr_matrix(np.array([[1, 2, 1], [3, 6, 3], [1, 0, 0]], dtype=np.int32))
         var = pd.DataFrame(
             {"utr_name": ["U1", "U1", "U1"], "utr_size": [100, 200, 300]},
             index=["p1", "p2", "p3"],
@@ -384,9 +376,7 @@ class TestCountsToPercentages(unittest.TestCase):
         rng = np.random.RandomState(0)
         n_obs, n_utrs, peaks_per_utr = 20, 8, 4
         n_vars = n_utrs * peaks_per_utr
-        X = scipy.sparse.csr_matrix(
-            rng.randint(0, 5, size=(n_obs, n_vars)).astype(np.int32)
-        )
+        X = scipy.sparse.csr_matrix(rng.randint(0, 5, size=(n_obs, n_vars)).astype(np.int32))
         utr_names = np.repeat([f"U{i}" for i in range(n_utrs)], peaks_per_utr)
         var = pd.DataFrame(
             {"utr_name": utr_names, "utr_size": np.tile([100, 200, 300, 400], n_utrs)},
@@ -416,21 +406,15 @@ class TestCountsToPercentages(unittest.TestCase):
 
     def test_non_unique_var_names(self):
         """Duplicate var_names (real-data property) must not corrupt percentages."""
-        X = scipy.sparse.csr_matrix(
-            np.array([[1, 1, 2, 2], [0, 1, 0, 0]], dtype=np.int32)
-        )
+        X = scipy.sparse.csr_matrix(np.array([[1, 1, 2, 2], [0, 1, 0, 0]], dtype=np.int32))
         var = pd.DataFrame(
             {"utr_name": ["U1", "U1", "U2", "U2"], "utr_size": [100, 200, 100, 200]},
             index=["dup", "dup", "dup", "dup"],  # all four var names identical
         )
-        adata = ad.AnnData(
-            X=X, obs=pd.DataFrame(index=["c1", "c2"]), var=var
-        )
+        adata = ad.AnnData(X=X, obs=pd.DataFrame(index=["c1", "c2"]), var=var)
         result = ap.counts_to_percentages(adata, utr_name_column="utr_name")
         out = result.X.toarray() if scipy.sparse.issparse(result.X) else result.X
-        np.testing.assert_array_almost_equal(
-            out, [[0.5, 0.5, 0.5, 0.5], [0.0, 1.0, 0.0, 0.0]]
-        )
+        np.testing.assert_array_almost_equal(out, [[0.5, 0.5, 0.5, 0.5], [0.0, 1.0, 0.0, 0.0]])
 
 
 class TestSubsetAdata(unittest.TestCase):
@@ -440,9 +424,7 @@ class TestSubsetAdata(unittest.TestCase):
 
     def _write_csv(self, index_values, filename):
         path = os.path.join(self.tmpdir, filename)
-        pd.DataFrame(index=index_values, data={"val": range(len(index_values))}).to_csv(
-            path
-        )
+        pd.DataFrame(index=index_values, data={"val": range(len(index_values))}).to_csv(path)
         return path
 
     def test_var_subset(self):

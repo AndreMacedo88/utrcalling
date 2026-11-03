@@ -113,11 +113,13 @@ class TestCLIParserCreation(unittest.TestCase):
 
     def test_create_parser(self):
         from utrcalling.runtime import create_parser
+
         parser = create_parser()
         self.assertIsNotNone(parser)
 
     def test_parse_version(self):
         from utrcalling.runtime import create_parser
+
         parser = create_parser()
         with self.assertRaises(SystemExit) as ctx:
             parser.parse_args(["--version"])
@@ -145,11 +147,13 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
 
     def test_run_forwards_kde_bandwidth(self):
         from utrcalling.tools.run import run
+
         kwargs = self._protocol_kwargs(run, "annotation.gtf", ["sample.bam"])
         self.assertEqual(kwargs["kde_bandwidth"], 150)
 
     def test_call_peaks_forwards_kde_bandwidth(self):
         from utrcalling.tools.call_peaks import call_peaks
+
         kwargs = self._protocol_kwargs(call_peaks, "utr_reference.bed", "mappings.parquet")
         self.assertEqual(kwargs["kde_bandwidth"], 150)
 
@@ -165,6 +169,7 @@ class TestRunTestsExitCode(unittest.TestCase):
                     self.fail("deliberate failure")
 
         from utrcalling.tests import test_case
+
         with (
             mock.patch.object(
                 unittest.TestLoader, "discover", return_value=unittest.TestSuite([Probe()])

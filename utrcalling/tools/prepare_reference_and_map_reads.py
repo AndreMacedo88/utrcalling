@@ -48,9 +48,7 @@ def generate_utr_reference_and_map_reads(
 
     # Get UTR reference data from the organisms GTF annotation file
     logger.info("Preparing utr reference regions")
-    utr_reference_regions = core.prepare_utr_reference_regions(
-        utr_annotation, feature, store=True
-    )
+    utr_reference_regions = core.prepare_utr_reference_regions(utr_annotation, feature, store=True)
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info("Mapping aligned reads to UTR reference")
@@ -59,14 +57,9 @@ def generate_utr_reference_and_map_reads(
 
 def create_parser(subparsers):
 
-    help = (
-        "Builds a UTR reference and then maps the supplied reads to generate "
-        "raw UTR sizes."
-    )
+    help = "Builds a UTR reference and then maps the supplied reads to generate raw UTR sizes."
 
-    description = (
-        f"{help} " "This is the first and second part of the UTR calling pipeline."
-    )
+    description = f"{help} This is the first and second part of the UTR calling pipeline."
 
     parser = subparsers.add_parser(
         name="prepare-reference-and-map-reads",
@@ -79,9 +72,7 @@ def create_parser(subparsers):
         """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument(
-        "utr_annotation", type=str, help="GTF file with the genome annotations"
-    )
+    parser.add_argument("utr_annotation", type=str, help="GTF file with the genome annotations")
 
     parser.add_argument(
         "--alignments",

@@ -202,7 +202,9 @@ def check_if_exists_and_mkdir(folders_path: str) -> None:
         os.makedirs(folders_path)
 
 
-def check_if_path_and_open(to_check: str | pathlib.PurePath | pd.DataFrame | anndata.AnnData, method: str = "parquet") -> pd.DataFrame | anndata.AnnData | object:
+def check_if_path_and_open(
+    to_check: str | pathlib.PurePath | pd.DataFrame | anndata.AnnData, method: str = "parquet"
+) -> pd.DataFrame | anndata.AnnData | object:
     """If the input is a file path, load it using the specified method; otherwise pass through.
 
     Args:
@@ -224,6 +226,7 @@ def check_if_path_and_open(to_check: str | pathlib.PurePath | pd.DataFrame | ann
             output = pd.read_pickle(to_check)
         elif method == "h5ad":
             import anndata as ad
+
             output = ad.read_h5ad(to_check)
         elif method == "csv":
             output = pd.read_csv(to_check, sep=",")
@@ -271,19 +274,16 @@ def load_annotations(annotation_path: str) -> pd.DataFrame | pybedtools.BedTool:
         output = pd.read_parquet(annotation_path)
     elif annotation_path.endswith(".bed"):
         import pybedtools
+
         output = pybedtools.BedTool(annotation_path)
     elif annotation_path.endswith(".pkl"):
         output = pd.read_pickle(annotation_path)
     else:
-        raise RuntimeError(
-            f"Annotation file {annotation_path} is of a not recognized type."
-        )
+        raise RuntimeError(f"Annotation file {annotation_path} is of a not recognized type.")
     return output
 
 
-def check_if_dir_and_list_files(
-    path: str | list[str], suffix: str = ".parquet"
-) -> str | list[str]:
+def check_if_dir_and_list_files(path: str | list[str], suffix: str = ".parquet") -> str | list[str]:
     """If path is a directory, list files with the given suffix; otherwise pass through.
 
     Handles both single paths and lists of paths recursively.

@@ -15,17 +15,21 @@ class TestGetObservationIdTenx(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        anno = pd.DataFrame({
-            "CellBarcode": ["AAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBB"],
-            "batch": [1, 2],
-        })
+        anno = pd.DataFrame(
+            {
+                "CellBarcode": ["AAAAAAAAAAAAAAAA", "BBBBBBBBBBBBBBBB"],
+                "batch": [1, 2],
+            }
+        )
         cls.prot_with_batch = protocol.create(
-            platform="10x", version=3,
+            platform="10x",
+            version=3,
             annotations=anno,
             label_batches=True,
         )
         cls.prot_no_batch = protocol.create(
-            platform="10x", version=3,
+            platform="10x",
+            version=3,
             annotations=anno,
             label_batches=False,
         )
@@ -48,12 +52,15 @@ class TestGetObservationIdTenx(unittest.TestCase):
 
     def test_default_label_batches_is_true(self):
         """10x protocols default to label_batches=True when not specified."""
-        anno = pd.DataFrame({
-            "CellBarcode": ["AAAAAAAAAAAAAAAA"],
-            "batch": [1],
-        })
+        anno = pd.DataFrame(
+            {
+                "CellBarcode": ["AAAAAAAAAAAAAAAA"],
+                "batch": [1],
+            }
+        )
         prot = protocol.create(
-            platform="10x", version=3,
+            platform="10x",
+            version=3,
             annotations=anno,
         )
         self.assertTrue(prot.label_batches)
@@ -64,13 +71,16 @@ class TestGetObservationIdSmartseq(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        anno = pd.DataFrame({
-            "CellBarcode": ["AAAAAA", "BBBBBB"],
-            "sample_id": ["sample1", "sample2"],
-            "batch": [1, 2],
-        })
+        anno = pd.DataFrame(
+            {
+                "CellBarcode": ["AAAAAA", "BBBBBB"],
+                "sample_id": ["sample1", "sample2"],
+                "batch": [1, 2],
+            }
+        )
         cls.prot = protocol.create(
-            platform="smartseq", version=3,
+            platform="smartseq",
+            version=3,
             annotations=anno,
             alignments=["path/sample1.bam", "path/sample2.bam"],
         )
@@ -88,13 +98,16 @@ class TestGetObservationIdCapseq(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        anno = pd.DataFrame({
-            "CellBarcode": ["sampleA", "sampleB"],
-            "sample_id": ["sampleA", "sampleB"],
-            "batch": [1, 2],
-        })
+        anno = pd.DataFrame(
+            {
+                "CellBarcode": ["sampleA", "sampleB"],
+                "sample_id": ["sampleA", "sampleB"],
+                "batch": [1, 2],
+            }
+        )
         cls.prot = protocol.create(
-            platform="smart-seq_cap", version=3,
+            platform="smart-seq_cap",
+            version=3,
             annotations=anno,
             alignments=["path/sampleA.bam", "path/sampleB.bam"],
         )
@@ -116,13 +129,16 @@ class TestGetObservationIdCapseqReadName(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        anno = pd.DataFrame({
-            "CellBarcode": ["sampleX", "sampleY"],
-            "sample_id": ["sampleX", "sampleY"],
-            "batch": [1, 2],
-        })
+        anno = pd.DataFrame(
+            {
+                "CellBarcode": ["sampleX", "sampleY"],
+                "sample_id": ["sampleX", "sampleY"],
+                "batch": [1, 2],
+            }
+        )
         cls.prot = protocol.create(
-            platform="smart-seq_cap-readname", version=3,
+            platform="smart-seq_cap-readname",
+            version=3,
             annotations=anno,
             alignments=["path/sampleX.bam", "path/sampleY.bam"],
         )
@@ -137,17 +153,21 @@ class TestGetObservationIdStandardTenx(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        anno = pd.DataFrame({
-            "CellBarcode": ["AAACCCAAGAAACACT-1", "TTTGGGTTCAACGTTT-1"],
-            "batch": [1, 2],
-        })
+        anno = pd.DataFrame(
+            {
+                "CellBarcode": ["AAACCCAAGAAACACT-1", "TTTGGGTTCAACGTTT-1"],
+                "batch": [1, 2],
+            }
+        )
         cls.prot_with_batch = protocol.create(
-            platform="standard_10x", version=3,
+            platform="standard_10x",
+            version=3,
             annotations=anno,
             label_batches=True,
         )
         cls.prot_no_batch = protocol.create(
-            platform="standard_10x", version=3,
+            platform="standard_10x",
+            version=3,
             annotations=anno,
             label_batches=False,
         )
@@ -162,10 +182,12 @@ class TestGetObservationIdStandardTenx(unittest.TestCase):
 
     def test_default_label_batches_true(self):
         """standard_10x inherits label_batches=True from ProtocolTenx."""
-        anno = pd.DataFrame({
-            "CellBarcode": ["AAACCCAAGAAACACT-1"],
-            "batch": [1],
-        })
+        anno = pd.DataFrame(
+            {
+                "CellBarcode": ["AAACCCAAGAAACACT-1"],
+                "batch": [1],
+            }
+        )
         prot = protocol.create("standard_10x", 3, annotations=anno)
         self.assertTrue(prot.label_batches)
 
@@ -175,12 +197,15 @@ class TestGetObservationIdStandardSmartseq(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        anno = pd.DataFrame({
-            "sample_id": ["sample1", "sample2"],
-            "batch": [1, 2],
-        })
+        anno = pd.DataFrame(
+            {
+                "sample_id": ["sample1", "sample2"],
+                "batch": [1, 2],
+            }
+        )
         cls.prot = protocol.create(
-            platform="standard_smartseq", version=3,
+            platform="standard_smartseq",
+            version=3,
             annotations=anno,
             alignments=["path/sample1.bam", "path/sample2.bam"],
         )

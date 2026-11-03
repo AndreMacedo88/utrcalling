@@ -21,9 +21,7 @@ class TestGenerateUtrIntervals(unittest.TestCase):
         """
         correct = ["ENSMUSG00000051285", 7160891, 7161063, "+"]
         name, interval = list(self.intervals.items())[0]
-        self.assertListEqual(
-            [name, interval.start_d, interval.end_d, interval.strand], correct
-        )
+        self.assertListEqual([name, interval.start_d, interval.end_d, interval.strand], correct)
 
 
 class TestProtocolNotSupported(unittest.TestCase):

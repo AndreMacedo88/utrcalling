@@ -11,9 +11,7 @@ from rapidfuzz import process, distance
 from utrcalling.core import module_log
 
 
-def filter_barcodes(
-    utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]
-) -> pd.DataFrame:
+def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]) -> pd.DataFrame:
     """Filter observations to those matching a barcode whitelist.
 
     Exact matches are kept directly. For non-matching barcodes, a fuzzy match
@@ -75,17 +73,12 @@ def filter_barcodes(
             codes = obs.cat.codes.values
             old_cats = obs.cat.categories.values
             # Build a new category array with replacements applied
-            new_cats = np.array(
-                [barcodes_replace.get(c, c) for c in old_cats], dtype=object
-            )
+            new_cats = np.array([barcodes_replace.get(c, c) for c in old_cats], dtype=object)
             new_values = pd.Categorical(new_cats[codes])
             result["observation_id"] = new_values
         else:
             result["observation_id"] = (
-                result["observation_id"]
-                .astype(str)
-                .replace(barcodes_replace)
-                .astype("category")
+                result["observation_id"].astype(str).replace(barcodes_replace).astype("category")
             )
     else:
         result = utr_sizes
@@ -130,10 +123,7 @@ def filter_barcodes_memory_aware(
         )
         num = utr_sizes.shape[0]
         idx_splits = np.cumsum(
-            [
-                num // n_chunks + (1 if x < num % n_chunks else 0)
-                for x in range(n_chunks)
-            ]
+            [num // n_chunks + (1 if x < num % n_chunks else 0) for x in range(n_chunks)]
         )
         idx_splits = np.insert(idx_splits, 0, 0)
 
@@ -141,9 +131,7 @@ def filter_barcodes_memory_aware(
             utr_sizes.iloc[idx_splits[n] : idx_splits[n + 1]] for n in range(n_chunks)
         )
 
-        filtered_list = [
-            filter_barcodes(pos, whitelist=whitelist) for pos in split_generator
-        ]
+        filtered_list = [filter_barcodes(pos, whitelist=whitelist) for pos in split_generator]
 
         result = pd.concat(filtered_list, ignore_index=True)
         # Re-categorize after concat to merge category codes

@@ -18,10 +18,7 @@ def generate_names(input_path, out_path, utr_name_column, gene_name_column):
 
 def create_parser(subparsers):
 
-    help = (
-        "Generates names for each distinct UTR size based on the gene name "
-        "and UTR number."
-    )
+    help = "Generates names for each distinct UTR size based on the gene name and UTR number."
 
     description = (
         f"{help} "

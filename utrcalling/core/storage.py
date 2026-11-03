@@ -1,4 +1,5 @@
 """Intermediate file storage utilities for the UTR calling pipeline."""
+
 from __future__ import annotations
 
 import os
@@ -113,14 +114,10 @@ def store_peak_calling_results(
 
     # store var dataframe
     try:
-        peaks_var.to_parquet(
-            os.path.join(directory, f"peaks_var_{merge_method}.parquet")
-        )
+        peaks_var.to_parquet(os.path.join(directory, f"peaks_var_{merge_method}.parquet"))
     except (OSError, PermissionError):
         logger.warning("Parquet write failed for peaks_var, falling back to CSV")
-        peaks_var.to_csv(
-            os.path.join(directory, f"peaks_var_{merge_method}.csv")
-        )
+        peaks_var.to_csv(os.path.join(directory, f"peaks_var_{merge_method}.csv"))
 
     # store subsetted UTR reference dataframe
     try:
@@ -136,11 +133,7 @@ def store_peak_calling_results(
     # store obs dataframe
     if peaks_obs is not None:
         try:
-            peaks_obs.to_parquet(
-                os.path.join(directory, f"peaks_obs_{merge_method}.parquet")
-            )
+            peaks_obs.to_parquet(os.path.join(directory, f"peaks_obs_{merge_method}.parquet"))
         except (OSError, PermissionError):
             logger.warning("Parquet write failed for peaks_obs, falling back to CSV")
-            peaks_obs.to_csv(
-                os.path.join(directory, f"peaks_obs_{merge_method}.csv")
-            )
+            peaks_obs.to_csv(os.path.join(directory, f"peaks_obs_{merge_method}.csv"))

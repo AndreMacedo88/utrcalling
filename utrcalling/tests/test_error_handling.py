@@ -81,9 +81,7 @@ class TestEmptyDataFrames(unittest.TestCase):
         self.assertEqual(len(result), 0)
 
     def test_deduplicate_reads_empty(self):
-        result = utr_mapping.deduplicate_reads(
-            read_umis=[], read_info=[[], []]
-        )
+        result = utr_mapping.deduplicate_reads(read_umis=[], read_info=[[], []])
         self.assertListEqual(result, [[], []])
 
 
@@ -91,10 +89,12 @@ class TestAnnotationValidation(unittest.TestCase):
     """Test annotation column detection edge cases."""
 
     def test_multiple_barcode_columns_raises(self):
-        annotations = pd.DataFrame({
-            "CellBarcode": ["AAAA"],
-            "Sample_Barcode": ["BBBB"],
-        })
+        annotations = pd.DataFrame(
+            {
+                "CellBarcode": ["AAAA"],
+                "Sample_Barcode": ["BBBB"],
+            }
+        )
         with self.assertRaises(ValueError):
             protocol.create(
                 platform="10x",
@@ -103,10 +103,12 @@ class TestAnnotationValidation(unittest.TestCase):
             )
 
     def test_multiple_batch_columns_raises(self):
-        annotations = pd.DataFrame({
-            "batch_1": [1],
-            "batch_2": [2],
-        })
+        annotations = pd.DataFrame(
+            {
+                "batch_1": [1],
+                "batch_2": [2],
+            }
+        )
         with self.assertRaises(ValueError):
             protocol.create(
                 platform="10x",

@@ -14,7 +14,6 @@ from utrcalling.core.helpers import (
 
 
 class TestFlatten(unittest.TestCase):
-
     def test_nested_lists(self):
         result = list(flatten([[1, 2], [3, [4, 5]]]))
         self.assertEqual(result, [1, 2, 3, 4, 5])
@@ -45,7 +44,6 @@ class TestFlatten(unittest.TestCase):
 
 
 class TestToString(unittest.TestCase):
-
     def test_bytes_to_str(self):
         self.assertEqual(to_string(b"ACGT"), "ACGT")
 
@@ -58,7 +56,6 @@ class TestToString(unittest.TestCase):
 
 
 class TestCheckIfPathAndOpen(unittest.TestCase):
-
     def test_pass_through_dataframe(self):
         df = pd.DataFrame({"a": [1, 2]})
         result = check_if_path_and_open(df)
@@ -102,7 +99,6 @@ class TestCheckIfPathAndOpen(unittest.TestCase):
 
 
 class TestCheckFileExistsAndReturnUnique(unittest.TestCase):
-
     def test_non_existing_returns_same(self):
         path = os.path.join(tempfile.gettempdir(), "utrcalling_nonexistent_test_file.txt")
         result = check_file_exists_and_return_unique(path)

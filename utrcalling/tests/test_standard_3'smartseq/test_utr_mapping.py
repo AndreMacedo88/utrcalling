@@ -44,9 +44,11 @@ class TestStandardSmartseq3(TestMapReadsToUtrSynthetic):
             platform="standard_smartseq",
             version=3,
             alignments=self.data.alignment,
-            annotations=pd.DataFrame({
-                "sample_id": ["test_sample"],
-            }),
+            annotations=pd.DataFrame(
+                {
+                    "sample_id": ["test_sample"],
+                }
+            ),
         )
         with self.data:
             self.bam_path = self.data.alignment
@@ -110,6 +112,7 @@ class TestStandardSmartseq3DistalPosition(unittest.TestCase):
     def test_plus_strand_uses_rightmost(self):
         """For + strand UTR, should always return ref_end_minus1."""
         from utrcalling.core.protocol import ProtocolStandardSmartseq3
+
         # Forward read
         pos = ProtocolStandardSmartseq3.get_read_position(100, 199, False, "+")
         self.assertEqual(pos, 199)
@@ -120,6 +123,7 @@ class TestStandardSmartseq3DistalPosition(unittest.TestCase):
     def test_minus_strand_uses_leftmost(self):
         """For - strand UTR, should always return ref_start."""
         from utrcalling.core.protocol import ProtocolStandardSmartseq3
+
         # Forward read
         pos = ProtocolStandardSmartseq3.get_read_position(100, 199, False, "-")
         self.assertEqual(pos, 100)
@@ -133,11 +137,13 @@ class TestDefaultGetReadPosition(unittest.TestCase):
 
     def test_forward_read(self):
         from utrcalling.core.protocol import Protocol
+
         pos = Protocol.get_read_position(100, 199, False, "+")
         self.assertEqual(pos, 100)
 
     def test_reverse_read(self):
         from utrcalling.core.protocol import Protocol
+
         pos = Protocol.get_read_position(100, 199, True, "+")
         self.assertEqual(pos, 199)
 

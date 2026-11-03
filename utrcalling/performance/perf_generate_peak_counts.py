@@ -25,7 +25,8 @@ class GeneratePeakCounts:
 
     def perf_test(self):
         count_matrix.generate_counts_and_anno(
-            utr_sizes=self.data, protocol=self.protocol,
+            utr_sizes=self.data,
+            protocol=self.protocol,
             size_transform=self.protocol.peak_calling,
         )
 

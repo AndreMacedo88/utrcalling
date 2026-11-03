@@ -24,12 +24,8 @@ def create_parser():
     from utrcalling.tests import test_case
 
     # create the main parser object
-    parser = argparse.ArgumentParser(
-        description="Suite of tools to map reads to the UTR."
-    )
-    parser.add_argument(
-        "--version", "-V", action="version", version=f"Software version: {version}"
-    )
+    parser = argparse.ArgumentParser(description="Suite of tools to map reads to the UTR.")
+    parser.add_argument("--version", "-V", action="version", version=f"Software version: {version}")
 
     # start adding all the subparsers/commands
     subparsers = parser.add_subparsers()
@@ -61,6 +57,7 @@ def create_parser():
 # The main function creating the parser and executing all commands
 def main():
     from utrcalling import show_logo
+
     show_logo()
 
     parser = create_parser()

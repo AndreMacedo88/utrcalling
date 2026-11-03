@@ -14,6 +14,7 @@ from utrcalling.core import module_log
 # Module-level private helpers (extracted for testability)
 # ---------------------------------------------------------------------------
 
+
 def _join_unique(x: pd.Series) -> str:
     """Join unique values in a Series with '|' delimiter."""
     return "|".join(x.unique().astype(str))
@@ -93,6 +94,7 @@ def _compute_gene_offsets(df: pd.DataFrame) -> dict[str, int]:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
 
 def merge_samples_utr_sizes(
     utr_sizes: list[pd.DataFrame], method: str = "intersection"
@@ -208,18 +210,14 @@ def merge_utrs_per_gene(
     n_cat = len(categories)
 
     # Per-category lookups (small: one entry per reference UTR).
-    in_ref = np.fromiter(
-        (c in utr_name_to_gene for c in categories), dtype=bool, count=n_cat
-    )
+    in_ref = np.fromiter((c in utr_name_to_gene for c in categories), dtype=bool, count=n_cat)
     offset_by_cat = np.fromiter(
         (offset_map.get(c, 0) for c in categories), dtype=np.int32, count=n_cat
     )
     sortorder_by_cat = np.fromiter(
         (utr_sort_order.get(c, 0) for c in categories), dtype=np.int32, count=n_cat
     )
-    gene_of_cat = np.array(
-        [utr_name_to_gene.get(c, None) for c in categories], dtype=object
-    )
+    gene_of_cat = np.array([utr_name_to_gene.get(c, None) for c in categories], dtype=object)
 
     # Gene categories = sorted unique gene names, matching the categories that
     # `pd.Categorical(<gene names>)` produced in the old implementation. Sorting
@@ -240,9 +238,9 @@ def merge_utrs_per_gene(
     del codes, safe_codes
 
     gene_codes = utrcat_to_genecode[kept_codes]
-    new_sizes = (
-        read_mappings["utr_size"].to_numpy()[keep] + offset_by_cat[kept_codes]
-    ).astype(np.int32)
+    new_sizes = (read_mappings["utr_size"].to_numpy()[keep] + offset_by_cat[kept_codes]).astype(
+        np.int32
+    )
     obs_kept = pd.Categorical(read_mappings["observation_id"])[keep]
 
     # Order rows by gene, then by per-gene genomic position (stable lexsort on
@@ -251,9 +249,7 @@ def merge_utrs_per_gene(
 
     result = pd.DataFrame(
         {
-            "utr_name": pd.Categorical.from_codes(
-                gene_codes[order], categories=gene_categories
-            ),
+            "utr_name": pd.Categorical.from_codes(gene_codes[order], categories=gene_categories),
             "observation_id": obs_kept[order],
             "utr_size": new_sizes[order],
         }

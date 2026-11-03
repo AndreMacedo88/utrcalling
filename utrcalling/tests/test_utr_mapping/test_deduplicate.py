@@ -4,7 +4,6 @@ from utrcalling.core.utr_mapping import deduplicate_reads, deduplicate_reads_kee
 
 
 class TestDeduplicateReads(unittest.TestCase):
-
     def test_basic_dedup(self):
         """Same barcode+UMI pair should keep only the first occurrence."""
         read_umis = ["UMI1", "UMI1", "UMI2"]

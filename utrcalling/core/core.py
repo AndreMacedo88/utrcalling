@@ -42,9 +42,7 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 
-def prepare_utr_reference_regions(
-    gtf: str, feature: str, store: bool = False
-) -> pd.DataFrame:
+def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:
     """Parse a GTF file and build a non-overlapping UTR reference.
 
     Extracts UTR features from the GTF, sorts by chromosome and start position,
@@ -206,18 +204,14 @@ def map_aligned_reads(
     intervals = utr_mapping.generate_utr_intervals(utr_regions)
 
     if isinstance(alignments, (list, tuple)) and len(alignments) > 1:
-        read_mappings = _map_multiple_bams(
-            alignments, intervals, protocol, n_jobs=n_jobs
-        )
+        read_mappings = _map_multiple_bams(alignments, intervals, protocol, n_jobs=n_jobs)
         if store:
             storage.store_read_mappings_multi(read_mappings)
     else:
         if isinstance(alignments, (list, tuple)):
             alignments = alignments[0]
         batch_idx = _resolve_batch_idx(alignments, protocol)
-        read_mappings = _map_single_bam(
-            alignments, intervals, protocol, batch_idx, n_jobs=n_jobs
-        )
+        read_mappings = _map_single_bam(alignments, intervals, protocol, batch_idx, n_jobs=n_jobs)
         if store:
             storage.store_read_mappings_single(read_mappings)
 

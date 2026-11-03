@@ -13,14 +13,12 @@ class TestCase(unittest.TestCase):
 
 
 class TestImport(TestCase):
-
     def test_utrcalling_import(self):
         with self.assertNotRaises(ModuleNotFoundError):
             import utrcalling
 
 
 class TestVersion(unittest.TestCase):
-
     def test_version(self):
         import utrcalling
 

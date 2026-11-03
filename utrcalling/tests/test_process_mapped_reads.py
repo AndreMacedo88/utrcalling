@@ -44,8 +44,11 @@ class TestPeakCalling(unittest.TestCase):
         )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(
-                bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first",
-                batch_idx=str(i + 1)
+                bam=alignment,
+                intervals=intervals,
+                protocol=cls.protocol_,
+                read="first",
+                batch_idx=str(i + 1),
             )
             for i, alignment in enumerate([alignment_1, alignment_2])
         ]
@@ -59,9 +62,7 @@ class TestMergeSamplesUtrSizesIntersection(TestPeakCalling):
         )
 
     def test_details(self):
-        utr_data = self.merged[
-            self.merged["utr_name"] == "ENSMUSG00000025917"
-        ]
+        utr_data = self.merged[self.merged["utr_name"] == "ENSMUSG00000025917"]
         obs = utr_data["observation_id"].tolist()
         sizes = utr_data["utr_size"].tolist()
         expected_obs = [
@@ -93,9 +94,7 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
         )
 
     def test_identical_index(self):
-        utr_data = self.merged[
-            self.merged["utr_name"] == "ENSMUSG00000025917"
-        ]
+        utr_data = self.merged[self.merged["utr_name"] == "ENSMUSG00000025917"]
         obs = utr_data["observation_id"].tolist()
         sizes = utr_data["utr_size"].tolist()
         expected_obs = [
@@ -115,18 +114,14 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
         self.assertListEqual(sizes, expected_sizes)
 
     def test_index_on_first_df(self):
-        utr_data = self.merged[
-            self.merged["utr_name"] == "ENSMUSG00000115423"
-        ]
+        utr_data = self.merged[self.merged["utr_name"] == "ENSMUSG00000115423"]
         obs = utr_data["observation_id"].tolist()
         sizes = utr_data["utr_size"].tolist()
         self.assertListEqual(obs, ["CGAGAAGGTGCAACGA-1", "CAGTCCTAGAAGGACA-1"])
         self.assertListEqual(sizes, [53, 28])
 
     def test_index_on_second_df(self):
-        utr_data = self.merged[
-            self.merged["utr_name"] == "ENSMUSG00000079334"
-        ]
+        utr_data = self.merged[self.merged["utr_name"] == "ENSMUSG00000079334"]
         obs = utr_data["observation_id"].tolist()
         sizes = utr_data["utr_size"].tolist()
         self.assertListEqual(obs, ["ACAGCTATCCTTAATC-2"])
@@ -136,8 +131,11 @@ class TestMergeSamplesUtrSizesUnion(TestPeakCalling):
         n_unique_utrs = len(self.merged["utr_name"].unique())
         expected = len(
             self.mappings[0]["utr_name"].unique().tolist()
-            + [u for u in self.mappings[1]["utr_name"].unique()
-               if u not in self.mappings[0]["utr_name"].unique().tolist()]
+            + [
+                u
+                for u in self.mappings[1]["utr_name"].unique()
+                if u not in self.mappings[0]["utr_name"].unique().tolist()
+            ]
         )
         self.assertEqual(n_unique_utrs, expected)
 
@@ -181,10 +179,8 @@ class TestMergeUtrsPerGene(unittest.TestCase):
         mapped_data = synthetic_data.MappedData()
         utr_regions = mapped_data.utr_regions
         mapped_reads = mapped_data.mapped_reads
-        self.utr_regions, self.merged_mapped_reads = (
-            process_mapped_reads.merge_utrs_per_gene(
-                utr_regions=utr_regions, read_mappings=mapped_reads
-            )
+        self.utr_regions, self.merged_mapped_reads = process_mapped_reads.merge_utrs_per_gene(
+            utr_regions=utr_regions, read_mappings=mapped_reads
         )
 
     def test_index(self):
@@ -201,9 +197,7 @@ class TestMergeUtrsPerGene(unittest.TestCase):
         )
 
     def test_positive_strand_sizes(self):
-        pos_strand_genes = self.utr_regions[
-            self.utr_regions["strand"] == "+"
-        ].index.tolist()
+        pos_strand_genes = self.utr_regions[self.utr_regions["strand"] == "+"].index.tolist()
         pos_data = self.merged_mapped_reads[
             self.merged_mapped_reads["utr_name"].isin(pos_strand_genes)
         ]
@@ -222,9 +216,7 @@ class TestMergeUtrsPerGene(unittest.TestCase):
         self.assertDictEqual(result, expected)
 
     def test_negative_strand_sizes(self):
-        neg_strand_genes = self.utr_regions[
-            self.utr_regions["strand"] == "-"
-        ].index.tolist()
+        neg_strand_genes = self.utr_regions[self.utr_regions["strand"] == "-"].index.tolist()
         neg_data = self.merged_mapped_reads[
             self.merged_mapped_reads["utr_name"].isin(neg_strand_genes)
         ]
@@ -312,22 +304,22 @@ class TestMergeUtrsPerGene(unittest.TestCase):
             "ENSMUSG3": [("CAAGACGG", 90)],
             "ENSMUSG4": [("CTAGACGT", 50), ("CTGATGA", 45)],
             "ENSMUSG5": [
-                ("TAAGACGA", 20), ("TTGATGA", 25),
-                ("ATAGCCGT", 80), ("GTAGCCGT", 240), ("GTAGACGT", 350),
+                ("TAAGACGA", 20),
+                ("TTGATGA", 25),
+                ("ATAGCCGT", 80),
+                ("GTAGCCGT", 240),
+                ("GTAGACGT", 350),
             ],
         }
         for gene, expected_pairs in expected.items():
-            gene_data = self.merged_mapped_reads[
-                self.merged_mapped_reads["utr_name"] == gene
-            ]
-            actual_pairs = list(zip(
-                gene_data["observation_id"].tolist(),
-                gene_data["utr_size"].tolist(),
-            ))
-            self.assertListEqual(
-                actual_pairs, expected_pairs,
-                msg=f"mismatch for {gene}"
+            gene_data = self.merged_mapped_reads[self.merged_mapped_reads["utr_name"] == gene]
+            actual_pairs = list(
+                zip(
+                    gene_data["observation_id"].tolist(),
+                    gene_data["utr_size"].tolist(),
+                )
             )
+            self.assertListEqual(actual_pairs, expected_pairs, msg=f"mismatch for {gene}")
 
 
 class TestMergeUtrsPerGeneCategoricalOffsetMap(unittest.TestCase):
@@ -394,9 +386,7 @@ class TestMergeUtrsPerGeneCategoricalOffsetMap(unittest.TestCase):
         # non-zero). Applied to utr_size (10 and 20), result should be {110, 220}.
         self.assertEqual(reads_out["utr_size"].dtype, np.int32)
         self.assertEqual(len(reads_out), 2)
-        self.assertListEqual(
-            sorted(reads_out["utr_size"].tolist()), [110, 220]
-        )
+        self.assertListEqual(sorted(reads_out["utr_size"].tolist()), [110, 220])
 
 
 class TestFilterBarcodes(TestPeakCalling):
@@ -440,12 +430,8 @@ class TestFilterBarcodes(TestPeakCalling):
         filtered = barcode_filtering.filter_barcodes(
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
-        merged_count = len(
-            self.merged[self.merged["utr_name"] == "ENSMUSG00000025917"]
-        )
-        filtered_count = len(
-            filtered[filtered["utr_name"] == "ENSMUSG00000025917"]
-        )
+        merged_count = len(self.merged[self.merged["utr_name"] == "ENSMUSG00000025917"])
+        filtered_count = len(filtered[filtered["utr_name"] == "ENSMUSG00000025917"])
         self.assertNotEqual(merged_count, filtered_count)
 
     def test_specific_utr_2(self):
@@ -464,9 +450,7 @@ class TestFilterBarcodes(TestPeakCalling):
             utr_sizes=self.merged, whitelist=self.protocol_.barcode_whitelist
         )
         utr_data = filtered[filtered["utr_name"] == "ENSMUSG00000025917"]
-        self.assertListEqual(
-            utr_data["observation_id"].tolist(), barcodes_real
-        )
+        self.assertListEqual(utr_data["observation_id"].tolist(), barcodes_real)
 
     def test_using_annotations_as_dataframe(self):
         annotations = pd.read_csv(self.annotations)
@@ -521,11 +505,13 @@ class TestMergeSamplesEdgeCases(unittest.TestCase):
     """Edge case tests for merge_samples_utr_sizes()."""
 
     def _make_df(self, utr_names, obs_ids, sizes):
-        return pd.DataFrame({
-            "utr_name": pd.Categorical(utr_names),
-            "observation_id": pd.Categorical(obs_ids),
-            "utr_size": np.array(sizes, dtype=np.int32),
-        })
+        return pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(utr_names),
+                "observation_id": pd.Categorical(obs_ids),
+                "utr_size": np.array(sizes, dtype=np.int32),
+            }
+        )
 
     def test_single_sample_union(self):
         """Single-sample merge should return the same data."""
@@ -544,9 +530,7 @@ class TestMergeSamplesEdgeCases(unittest.TestCase):
         """Intersection with no common UTRs should return empty DataFrame."""
         df1 = self._make_df(["A"], ["obs1"], [10])
         df2 = self._make_df(["B"], ["obs2"], [20])
-        result = process_mapped_reads.merge_samples_utr_sizes(
-            [df1, df2], method="intersection"
-        )
+        result = process_mapped_reads.merge_samples_utr_sizes([df1, df2], method="intersection")
         self.assertEqual(len(result), 0)
 
     def test_invalid_method_raises(self):
@@ -561,11 +545,13 @@ class TestSubsetReferenceDataEdgeCases(unittest.TestCase):
 
     def test_no_matching_utrs(self):
         """When no UTR names match the reference, result should be empty."""
-        utr_sizes = pd.DataFrame({
-            "utr_name": pd.Categorical(["NONEXISTENT"]),
-            "observation_id": pd.Categorical(["obs1"]),
-            "utr_size": np.array([10], dtype=np.int32),
-        })
+        utr_sizes = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["NONEXISTENT"]),
+                "observation_id": pd.Categorical(["obs1"]),
+                "utr_size": np.array([10], dtype=np.int32),
+            }
+        )
         utr_ref = pd.DataFrame(
             {"chrom": ["1"], "start": [100], "end": [200]},
             index=pd.Index(["SOME_UTR"], name="utr_name"),
@@ -575,11 +561,13 @@ class TestSubsetReferenceDataEdgeCases(unittest.TestCase):
 
     def test_all_matching_utrs(self):
         """When all UTRs match, result should have the same number of rows."""
-        utr_sizes = pd.DataFrame({
-            "utr_name": pd.Categorical(["UTR1", "UTR2"]),
-            "observation_id": pd.Categorical(["obs1", "obs2"]),
-            "utr_size": np.array([10, 20], dtype=np.int32),
-        })
+        utr_sizes = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["UTR1", "UTR2"]),
+                "observation_id": pd.Categorical(["obs1", "obs2"]),
+                "utr_size": np.array([10, 20], dtype=np.int32),
+            }
+        )
         utr_ref = pd.DataFrame(
             {"chrom": ["1", "1"], "start": [100, 200], "end": [150, 250]},
             index=pd.Index(["UTR1", "UTR2"], name="utr_name"),

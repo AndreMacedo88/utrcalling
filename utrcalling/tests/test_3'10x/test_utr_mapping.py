@@ -21,9 +21,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 class TestTenxTwo(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        self.intervals = utr_mapping.generate_utr_intervals(
-            utr_regions=self.utr_regions
-        )
+        self.intervals = utr_mapping.generate_utr_intervals(utr_regions=self.utr_regions)
         protocol_ = protocol.create(
             platform="10x",
             version=2,
@@ -34,9 +32,7 @@ class TestTenxTwo(TestMapReadsToUtr):
         )
 
     def test_details(self):
-        utr_data = self.mappings[
-            self.mappings["utr_name"] == "ENSMUSG00000005804"
-        ]
+        utr_data = self.mappings[self.mappings["utr_name"] == "ENSMUSG00000005804"]
         self.assertListEqual(
             utr_data["observation_id"].tolist(),
             ["GATGAAACATTAACCG", "TGCGCAGAGTCCATAC", "GCTGGGTGTACGCACC"],
@@ -53,9 +49,7 @@ class TestTenxTwo(TestMapReadsToUtr):
 class TestTenxThree(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        self.intervals = utr_mapping.generate_utr_intervals(
-            utr_regions=self.utr_regions
-        )
+        self.intervals = utr_mapping.generate_utr_intervals(utr_regions=self.utr_regions)
         protocol_ = protocol.create(
             platform="10x",
             version=3,
@@ -66,9 +60,7 @@ class TestTenxThree(TestMapReadsToUtr):
         )
 
     def test_details(self):
-        utr_data = self.mappings[
-            self.mappings["utr_name"] == "ENSMUSG00000005804"
-        ]
+        utr_data = self.mappings[self.mappings["utr_name"] == "ENSMUSG00000005804"]
         self.assertListEqual(
             utr_data["observation_id"].tolist(),
             ["GATGAAACATTAACCG", "TGCGCAGAGTCCATAC", "GCTGGGTGTACGCACC"],
@@ -85,9 +77,7 @@ class TestTenxThree(TestMapReadsToUtr):
 class TestTenxThreeNoBarcodes(TestMapReadsToUtr):
     def setUp(self) -> None:
         self.maxDiff = None
-        self.intervals = utr_mapping.generate_utr_intervals(
-            utr_regions=self.utr_regions
-        )
+        self.intervals = utr_mapping.generate_utr_intervals(utr_regions=self.utr_regions)
         annotations = pd.read_csv("./test_data/vivo_anno.csv")
         annotations = annotations.drop("CellBarcode", axis=1)
 
@@ -97,9 +87,7 @@ class TestTenxThreeNoBarcodes(TestMapReadsToUtr):
         )
 
     def test_details(self):
-        utr_data = self.mappings[
-            self.mappings["utr_name"] == "ENSMUSG00000005804"
-        ]
+        utr_data = self.mappings[self.mappings["utr_name"] == "ENSMUSG00000005804"]
         self.assertListEqual(
             utr_data["observation_id"].tolist(),
             ["GATGAAACATTAACCG", "TGCGCAGAGTCCATAC", "GCTGGGTGTACGCACC"],

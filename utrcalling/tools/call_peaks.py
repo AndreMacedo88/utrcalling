@@ -102,14 +102,10 @@ def call_peaks(
         )
 
     elif isinstance(utr_sizes_counts, list):
-        utr_sizes_counts = helpers.check_if_path_and_open(
-            utr_sizes_counts[0], method="parquet"
-        )
+        utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts[0], method="parquet")
     else:
         # utr_size_counts can still be a path if merging was not applied
-        utr_sizes_counts = helpers.check_if_path_and_open(
-            utr_sizes_counts, method="parquet"
-        )
+        utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts, method="parquet")
 
     # Collapse UTR size information to gene-level
     if summarization_level.lower() != "utr":

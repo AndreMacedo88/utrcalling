@@ -35,10 +35,7 @@ def _resolve_workers(n_jobs: int | None) -> int:
     for both ``Parallel(n_jobs=...)`` and the batch-count formula.
     """
     n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
-    return (
-        n_jobs_resolved if n_jobs_resolved > 0
-        else max(1, helpers.get_number_cores(left_out=1))
-    )
+    return n_jobs_resolved if n_jobs_resolved > 0 else max(1, helpers.get_number_cores(left_out=1))
 
 
 # ---------------------------------------------------------------------------
@@ -92,9 +89,7 @@ def _peak_call_single_utr(
     mtx_new = mtx_new_t.groupby("sizes").sum().T
 
     # create new polyA names
-    polya_names = [
-        f"{gene}_{utr_number}pA{x}" for x in range(1, len(mtx_new.columns) + 1)
-    ]
+    polya_names = [f"{gene}_{utr_number}pA{x}" for x in range(1, len(mtx_new.columns) + 1)]
 
     # generate new utr_var
     utr_var_new = pd.DataFrame([utr_var] * len(mtx_new.columns))
@@ -139,9 +134,7 @@ def _peak_call_single_utr_compact(
     utr_number = f"UTR{utr_name_parts[1]}_" if len(utr_name_parts) > 1 else ""
     utr_var = var_sub.iloc[0]
 
-    umi_utr_sizes = _utr_sizes_vector_from_read_counts(
-        X_sub, var_sub.utr_size.astype(int)
-    )
+    umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size.astype(int))
 
     if method.lower() == "kde":
         peaks = _call_peaks_using_kernel_density_estimator(
@@ -161,13 +154,9 @@ def _peak_call_single_utr_compact(
     # Build the col-to-peak aggregator matrix (one 1 per input column).
     size_to_col = {int(s): k for k, s in enumerate(unique_sizes_sorted)}
     agg_rows = np.arange(n_in, dtype=np.int32)
-    agg_cols = np.array(
-        [size_to_col[int(s)] for s in sizes_arr], dtype=np.int32
-    )
+    agg_cols = np.array([size_to_col[int(s)] for s in sizes_arr], dtype=np.int32)
     agg_data = np.ones(n_in, dtype=np.int32)
-    agg = scipy.sparse.csc_matrix(
-        (agg_data, (agg_rows, agg_cols)), shape=(n_in, n_out)
-    )
+    agg = scipy.sparse.csc_matrix((agg_data, (agg_rows, agg_cols)), shape=(n_in, n_out))
 
     if scipy.sparse.issparse(X_sub):
         X_peaks = X_sub[:, cols_pos]
@@ -176,9 +165,7 @@ def _peak_call_single_utr_compact(
         X_peaks = np.asarray(X_sub)[:, cols_pos]
         new_mtx = X_peaks @ agg.toarray()
 
-    polya_names = [
-        f"{gene}_{utr_number}pA{x}" for x in range(1, n_out + 1)
-    ]
+    polya_names = [f"{gene}_{utr_number}pA{x}" for x in range(1, n_out + 1)]
     utr_var_new = pd.DataFrame([utr_var] * n_out)
     utr_var_new.index = polya_names
     # Match original behavior: utr_size column uses peak_sizes.unique() (insertion
@@ -251,9 +238,7 @@ def _peak_call_utr_batch(
 ) -> list[tuple[int, npt.NDArray[Any], pd.DataFrame]]:
     out = []
     for orig_idx, _utr_name, X_sub, var_sub in batch:
-        mtx, var_df = _peak_call_single_utr_compact(
-            X_sub, var_sub, method, bandwidth
-        )
+        mtx, var_df = _peak_call_single_utr_compact(X_sub, var_sub, method, bandwidth)
         out.append((orig_idx, mtx, var_df))
     return out
 
@@ -358,13 +343,13 @@ def peak_call_anndata_parallel(
 
     logger.info(
         "Calling peaks across %d UTRs (%d workers, %d batches)",
-        len(per_utr_inputs), n_workers, len(batches),
+        len(per_utr_inputs),
+        n_workers,
+        len(batches),
     )
 
     try:
-        with joblib.parallel_config(
-            backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-        ):
+        with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
                     joblib.delayed(_peak_call_utr_batch)(batch, method, bandwidth)
@@ -441,9 +426,7 @@ def peak_call_anndata(
         if min_umis:
             total_umis = adata_utr.X.sum()
             if total_umis < min_umis:
-                logger.info(
-                    f"Skipping UTR {utr} with only {total_umis} UMIs (< {min_umis})"
-                )
+                logger.info(f"Skipping UTR {utr} with only {total_umis} UMIs (< {min_umis})")
                 continue
 
         mtx, var = _peak_call_single_utr(adata_utr, method=method, bandwidth=bandwidth)
@@ -485,9 +468,7 @@ def remove_peaks_below_count(
     # Sparse-safe: sum columns directly instead of materializing dense matrix
     col_sums = np.asarray(adata.X.sum(axis=0)).ravel()
     utr_total_counts = pd.Series(col_sums).groupby(utr_names, observed=True).sum()
-    utrs_thresholds = utr_total_counts.apply(
-        lambda x: max(x * threshold, minimum_counts)
-    )
+    utrs_thresholds = utr_total_counts.apply(lambda x: max(x * threshold, minimum_counts))
 
     thresholds = adata.var.join(utrs_thresholds.to_frame("thresh"), on="utr_name")[
         "thresh"
@@ -581,13 +562,13 @@ def pas_distance(
 
     logger.info(
         "Computing PAS distances across %d UTRs (%d workers, %d batches)",
-        len(per_utr_inputs), n_workers, len(batches),
+        len(per_utr_inputs),
+        n_workers,
+        len(batches),
     )
 
     try:
-        with joblib.parallel_config(
-            backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-        ):
+        with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
                     joblib.delayed(_pas_distance_utr_batch)(batch, hamming, genome)
@@ -631,13 +612,13 @@ def _score_peak_assignment(
 
     logger.info(
         "Scoring peaks across %d UTRs (%d workers, %d batches)",
-        len(per_utr_inputs), n_workers, len(batches),
+        len(per_utr_inputs),
+        n_workers,
+        len(batches),
     )
 
     try:
-        with joblib.parallel_config(
-            backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-        ):
+        with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
                     joblib.delayed(_score_distances_utr_batch)(batch, hamming)
@@ -671,9 +652,7 @@ def _score_peak_assignment(
 # ---------------------------------------------------------------------------
 
 
-def _find_pas(
-    var: pd.DataFrame, genome: Any, hamming: int = 1
-) -> tuple[list[int], list[str], str]:
+def _find_pas(var: pd.DataFrame, genome: Any, hamming: int = 1) -> tuple[list[int], list[str], str]:
     """Find polyadenylation signal (PAS) sites in a UTR sequence.
 
     Extracts the genomic sequence described in *var* (one UTR's metadata

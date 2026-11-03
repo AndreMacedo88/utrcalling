@@ -12,9 +12,7 @@ os.chdir(str(Path(__file__).resolve().parents[1]))
 class TestMapReadsToUtr(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.utr_regions = pd.read_parquet(
-            "./test_data/test_UTR_reference_5prime.parquet"
-        )
+        cls.utr_regions = pd.read_parquet("./test_data/test_UTR_reference_5prime.parquet")
 
         # test data for 5'smartseq
         cls.alignment = "./test_data/test_CapPhospho_genome_102_coordsort.bam"
@@ -22,9 +20,7 @@ class TestMapReadsToUtr(unittest.TestCase):
 
 class TestSmartSeq3(TestMapReadsToUtr):
     def setUp(self) -> None:
-        self.intervals_5prime = utr_mapping.generate_utr_intervals(
-            utr_regions=self.utr_regions
-        )
+        self.intervals_5prime = utr_mapping.generate_utr_intervals(utr_regions=self.utr_regions)
         protocol_ = protocol.create(
             platform="smart-seq_cap-readname",
             version=3,
@@ -39,9 +35,7 @@ class TestSmartSeq3(TestMapReadsToUtr):
         )
 
     def test_details(self):
-        utr_data = self.mappings[
-            self.mappings["utr_name"] == "ENSMUSG00000023905"
-        ]
+        utr_data = self.mappings[self.mappings["utr_name"] == "ENSMUSG00000023905"]
         self.assertListEqual(
             utr_data["observation_id"].tolist(),
             [self.alignment, self.alignment, self.alignment],
@@ -146,9 +140,7 @@ class TestSmartSeqPhosphoSynthetic(TestMapReadsToUtrSynthetic):
             utr_data = self.mappings[self.mappings["utr_name"] == utr]
             obs_per_utr.append(utr_data["observation_id"].tolist())
             sizes_per_utr.append(utr_data["utr_size"].tolist())
-        self.assertListEqual(
-            obs_per_utr, [[self.data.alignment], [self.data.alignment]]
-        )
+        self.assertListEqual(obs_per_utr, [[self.data.alignment], [self.data.alignment]])
         self.assertListEqual(sizes_per_utr, [[404], [69]])
 
     def test_length(self):

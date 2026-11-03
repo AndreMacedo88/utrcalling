@@ -48,8 +48,7 @@ class MergeMethod(Enum):
             return cls(value.lower())
         except ValueError:
             raise ValueError(
-                f"Invalid merge method {value!r}. "
-                f"Must be one of: {', '.join(m.value for m in cls)}"
+                f"Invalid merge method {value!r}. Must be one of: {', '.join(m.value for m in cls)}"
             )
 
 
@@ -85,8 +84,7 @@ def _validate_strandedness(value: str | None) -> str | None:
     normalized = str(value).lower()
     if normalized not in _VALID_STRANDEDNESS:
         raise ValueError(
-            f"Invalid strandedness {value!r}. "
-            f"Must be one of: {', '.join(_VALID_STRANDEDNESS)}"
+            f"Invalid strandedness {value!r}. Must be one of: {', '.join(_VALID_STRANDEDNESS)}"
         )
     return normalized
 
@@ -172,9 +170,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.strandedness = _validate_strandedness(strandedness)
 
         # set variables from the arguments
-        self.annotations = helpers.check_if_path_and_open(
-            to_check=annotations, method="csv"
-        )
+        self.annotations = helpers.check_if_path_and_open(to_check=annotations, method="csv")
         try:
             self.annotations = self.annotations.dropna(axis=0, how="all")
         except TypeError:
@@ -234,7 +230,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
         )
 
     # set-up methods
-    def get_sample_names(self, alignments: str | list[str]) -> tuple[bidict[str, str], dict[str, str]]:
+    def get_sample_names(
+        self, alignments: str | list[str]
+    ) -> tuple[bidict[str, str], dict[str, str]]:
         sample_names_dict = bidict()
         sample_idx_dict = dict()
         if not isinstance(alignments, list):
@@ -249,9 +247,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             # the sample ID is found whether it is embedded in the filename or
             # is the parent directory name (e.g. STAR output).  Token-boundary
             # delimiters (/, _, .) prevent prefix-collision false matches.
-            sample_bam = [
-                bam for bam in alignments if helpers.sample_in_path(sample, bam)
-            ]
+            sample_bam = [bam for bam in alignments if helpers.sample_in_path(sample, bam)]
             sample_bam_len = len(sample_bam)
             if sample_bam_len > 1:
                 msg = (
@@ -276,9 +272,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 sample_names_dict[sample_bam[0]] = str(sample)
                 # No batch column -> no batch index for this sample.
                 sample_idx_dict[sample_bam[0]] = (
-                    self.batches_range[idx]
-                    if self.batches_range is not None
-                    else None
+                    self.batches_range[idx] if self.batches_range is not None else None
                 )
 
         return sample_names_dict, sample_idx_dict
@@ -286,9 +280,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
     def _get_sample_column(self) -> str:
         try:
             sample_column_name = (
-                self.annotations.columns.str.extract(
-                    r"(.*sample_id.*)", flags=re.IGNORECASE
-                )
+                self.annotations.columns.str.extract(r"(.*sample_id.*)", flags=re.IGNORECASE)
                 .dropna()
                 .values
             )
@@ -303,8 +295,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         if len(sample_column_name) > 1:
             raise ValueError(
-                "Too many columns in the annotation file with 'sample_id' in "
-                "their name."
+                "Too many columns in the annotation file with 'sample_id' in their name."
             )
         else:
             sample_column_name = sample_column_name[0][0]
@@ -326,9 +317,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             return None
 
         if len(batch_column_name) > 1:
-            raise ValueError(
-                "Too many columns in the annotation file with 'batch' in " "their name."
-            )
+            raise ValueError("Too many columns in the annotation file with 'batch' in their name.")
         else:
             batch_column_name = batch_column_name[0][0]
         return batch_column_name
@@ -352,8 +341,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         if len(barcode_column_name) > 1:
             raise ValueError(
-                "Too many columns in the annotation file with 'barcode' in "
-                "their name."
+                "Too many columns in the annotation file with 'barcode' in their name."
             )
         else:
             barcode_column_name = barcode_column_name[0][0]
@@ -390,10 +378,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 )
             return annotations
         elif self.label_batches:
-            msg = (
-                "Please use a column in your annotation file with the "
-                "batch information"
-            )
+            msg = "Please use a column in your annotation file with the batch information"
             self.logger.error(msg)
             raise KeyError(msg)
         else:
@@ -513,9 +498,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
             A genomic position (int) to pass to ``get_utr_size_from_read``.
         """
         del mate_ref_start, template_length, mate_is_usable
-        return Protocol.get_read_position(
-            ref_start, ref_end_minus1, is_reverse, interval_strand
-        )
+        return Protocol.get_read_position(ref_start, ref_end_minus1, is_reverse, interval_strand)
 
     @staticmethod
     def get_read_position(
@@ -598,9 +581,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 class ProtocolThreePrime(Protocol):
     """Protocol base for 3' UTR sequencing platforms."""
 
-    def filter_utr_sizes(
-        self, utr_sizes: pd.DataFrame, threshold: int = 1
-    ) -> pd.DataFrame:
+    def filter_utr_sizes(self, utr_sizes: pd.DataFrame, threshold: int = 1) -> pd.DataFrame:
         self.logger.info("Filtering UTR sizes using threshold of %s counts.", threshold)
         return utr_sizes[utr_sizes["utr_size"] > threshold].copy()
 
@@ -697,9 +678,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
         )
 
         try:
-            self.sample_names, self.sample_idx = self.get_sample_names(
-                alignments=alignments
-            )
+            self.sample_names, self.sample_idx = self.get_sample_names(alignments=alignments)
         except TypeError as err:
             if alignments is None:
                 self.sample_names, self.sample_idx = None, None
@@ -753,9 +732,7 @@ class ProtocolStandardSmartseq3(ProtocolSmartseq):
         return ref_start
 
     @staticmethod
-    def get_reads_identity(
-        alignment: _PySamAdapter, **kwargs: str
-    ) -> tuple[None, str]:
+    def get_reads_identity(alignment: _PySamAdapter, **kwargs: str) -> tuple[None, str]:
         read_batch_id = kwargs.get("bam_name", "S")
         return None, read_batch_id
 
@@ -812,9 +789,7 @@ class ProtocolTruseq(ProtocolSmartseq):
         return ref_end_minus1 if interval_strand == "+" else ref_start
 
     @staticmethod
-    def get_reads_identity(
-        alignment: _PySamAdapter, **kwargs: str
-    ) -> tuple[None, str]:
+    def get_reads_identity(alignment: _PySamAdapter, **kwargs: str) -> tuple[None, str]:
         read_batch_id = kwargs.get("bam_name", "S")
         return None, read_batch_id
 
@@ -948,9 +923,7 @@ class ProtocolCapseq(ProtocolFivePrime):
         )
 
         try:
-            self.sample_names, self.sample_idx = self.get_sample_names(
-                alignments=alignments
-            )
+            self.sample_names, self.sample_idx = self.get_sample_names(alignments=alignments)
         except TypeError as err:
             if alignments is None:
                 self.sample_names, self.sample_idx = None, None
@@ -1008,9 +981,7 @@ class ProtocolFiveTenx(ProtocolFivePrime):
         return True
 
     @staticmethod
-    def get_reads_identity(
-        alignment: _PySamAdapter, **_: str
-    ) -> tuple[str | None, str | None]:
+    def get_reads_identity(alignment: _PySamAdapter, **_: str) -> tuple[str | None, str | None]:
         """Get read UMI and barcode from 5' 10x version 1.1 via BAM tags.
 
         Args:
@@ -1091,9 +1062,7 @@ class ProtocolStandardTenx3(ProtocolTenx):
         return ref_start
 
     @staticmethod
-    def get_reads_identity(
-        alignment: _PySamAdapter, **_: str
-    ) -> tuple[str | None, str | None]:
+    def get_reads_identity(alignment: _PySamAdapter, **_: str) -> tuple[str | None, str | None]:
         try:
             read_barcode = alignment.optional_field("CB")
         except KeyError:
@@ -1161,14 +1130,10 @@ def create(platform: str, version: int, **kwargs) -> Protocol:
         if version == 3:
             return ProtocolStandardSmartseq3(**kwargs)
         raise NotImplementedError(error_message)
-    if platform.lower() in (
-        "truseq", "truseq_stranded", "standard_truseq", "standard_bulk"
-    ):
+    if platform.lower() in ("truseq", "truseq_stranded", "standard_truseq", "standard_bulk"):
         # Bulk RNA-seq has no protocol "version" — accept any.
         return ProtocolTruseq(**kwargs)
-    if platform.lower() in (
-        "bulk_pe", "bulk-pe", "standard_bulk_pe", "unstranded_bulk_pe"
-    ):
+    if platform.lower() in ("bulk_pe", "bulk-pe", "standard_bulk_pe", "unstranded_bulk_pe"):
         # Bulk RNA-seq has no protocol "version" — accept any.
         return ProtocolBulkPe(**kwargs)
     raise NotImplementedError(error_message)

@@ -62,9 +62,7 @@ class _TruseqMappingBase(TestMapReadsToUtrSynthetic):
             )
 
     def _sizes(self, utr_name):
-        return sorted(
-            self.mappings[self.mappings["utr_name"] == utr_name]["utr_size"].tolist()
-        )
+        return sorted(self.mappings[self.mappings["utr_name"] == utr_name]["utr_size"].tolist())
 
 
 class TestTruseqProtocolProperties(_TruseqMappingBase):
@@ -91,9 +89,7 @@ class TestTruseqReverse(_TruseqMappingBase):
     STRANDEDNESS = "reverse"
 
     def test_utrs_found(self):
-        self.assertEqual(
-            sorted(self.mappings["utr_name"].unique().tolist()), ["UTR2", "UTR3"]
-        )
+        self.assertEqual(sorted(self.mappings["utr_name"].unique().tolist()), ["UTR2", "UTR3"])
 
     def test_utr3_sizes(self):
         # + strand UTR, antisense (reverse) reads kept.
@@ -143,9 +139,7 @@ class TestTruseqPairedEnd(TestMapReadsToUtrSynthetic):
             platform="truseq",
             version=1,
             alignments=self.data.alignment,
-            annotations=pd.DataFrame(
-                {"sample_id": [Path(self.data.alignment).stem]}
-            ),
+            annotations=pd.DataFrame({"sample_id": [Path(self.data.alignment).stem]}),
         )
         with self.data:
             self.mappings = utr_mapping.map_reads_to_utr(

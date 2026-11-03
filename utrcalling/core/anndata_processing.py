@@ -1,4 +1,5 @@
 """Post-processing utilities for AnnData objects produced by the utrcalling pipeline."""
+
 from __future__ import annotations
 
 import re
@@ -47,9 +48,7 @@ def generate_utr_site_names_from_gene_name(
     missing = gene_col.isna() | (gene_col.astype(str) == "None")
     resolved = gene_col.astype(object)
     resolved[missing] = (
-        adata.var.loc[missing, utr_name_column]
-        .str.split(r"[-_]", regex=True)
-        .str[0]
+        adata.var.loc[missing, utr_name_column].str.split(r"[-_]", regex=True).str[0]
     )
 
     # Sequential numbering within each resolved gene (1-based), preserving row order
@@ -88,14 +87,10 @@ def select_alternative_transcription_events(
     """
     unique_df = adata.var.groupby("utr_name", observed=True).nunique()
 
-    return adata[
-        :, adata.var.utr_name.isin(unique_df[unique_df.utr_size > 1].index)
-    ].copy()
+    return adata[:, adata.var.utr_name.isin(unique_df[unique_df.utr_size > 1].index)].copy()
 
 
-def counts_to_percentages(
-    adata: anndata.AnnData, utr_name_column: str
-) -> anndata.AnnData:
+def counts_to_percentages(adata: anndata.AnnData, utr_name_column: str) -> anndata.AnnData:
     """Convert raw UMI counts to within-UTR percentages.
 
     For each UTR, divides count values by the row-wise sum so that each
@@ -179,26 +174,18 @@ def compute_utr_size_means(
     obs_index_name = adata.obs.index.name
     adata.var = adata.var.set_index(utr_name_column)
 
-    var_new = adata.var[~adata.var.index.duplicated(keep="first")].drop(
-        "utr_size", axis=1
-    )
+    var_new = adata.var[~adata.var.index.duplicated(keep="first")].drop("utr_size", axis=1)
 
     df = adata.to_df()
     df_mult = df.mul(adata.var["utr_size"])
 
-    df = (
-        pd.melt(df, ignore_index=False).groupby([obs_index_name, utr_name_column]).sum()
-    )
+    df = pd.melt(df, ignore_index=False).groupby([obs_index_name, utr_name_column]).sum()
     df_mult_sum = (
-        pd.melt(df_mult, ignore_index=False)
-        .groupby([obs_index_name, utr_name_column])
-        .sum()
+        pd.melt(df_mult, ignore_index=False).groupby([obs_index_name, utr_name_column]).sum()
     )
 
     df = (df_mult_sum / df).reset_index()
-    df = df.pivot(index=obs_index_name, columns=utr_name_column)["value"].reindex(
-        adata.obs.index
-    )
+    df = df.pivot(index=obs_index_name, columns=utr_name_column)["value"].reindex(adata.obs.index)
 
     if not (df.columns == var_new.index).all():
         var_new = var_new.reindex(df.columns)
@@ -267,9 +254,7 @@ def concatenate_adata(
     var_dfs = []
     for adata in adata_list:
         canonical = (
-            adata.var["utr_name"]
-            + "|"
-            + adata.var["utr_size"].astype(int).astype(str)
+            adata.var["utr_name"] + "|" + adata.var["utr_size"].astype(int).astype(str)
         ).values
         X = adata.X
         if not scipy.sparse.issparse(X):
@@ -288,25 +273,21 @@ def concatenate_adata(
     del prepared
 
     # Reconstruct var metadata from originals
-    all_var = (
-        pd.concat(var_dfs, axis=0)
-        .drop("utr_size", axis=1)
-        .drop_duplicates()
-    )
+    all_var = pd.concat(var_dfs, axis=0).drop("utr_size", axis=1).drop_duplicates()
     del var_dfs
 
     # Parse canonical var_names back into (utr_name, utr_size)
     split = adata_concat.var_names.to_series().str.rsplit("|", n=1, expand=True)
-    concat_cols_frame = pd.DataFrame({
-        "utr_name": split[0].values,
-        "utr_size": split[1].astype(int).values,
-    })
+    concat_cols_frame = pd.DataFrame(
+        {
+            "utr_name": split[0].values,
+            "utr_size": split[1].astype(int).values,
+        }
+    )
 
     var_new = pd.merge(concat_cols_frame, all_var, on="utr_name", how="left")
     var_new["polyA"] = (
-        var_new["utr_name"]
-        + "-"
-        + (var_new.groupby("utr_name").cumcount() + 1).astype(str)
+        var_new["utr_name"] + "-" + (var_new.groupby("utr_name").cumcount() + 1).astype(str)
     )
     var_new = var_new.set_index("polyA")
 
@@ -366,17 +347,15 @@ def split_train_test_data(
 
     try:
         batch_columns = (
-            adata.obs.columns.str.extract(r"(.*batch.*)", flags=re.IGNORECASE)
-            .dropna()
-            .values[0][0]
+            adata.obs.columns.str.extract(r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0][0]
         )
     except IndexError:
         batch_columns = None
 
     groupby_cols = [c for c in [batch_columns, bins_columns] if c is not None]
-    obs_train = adata.obs.groupby(
-        groupby_cols, group_keys=False
-    ).apply(lambda x: x.sample(frac=train_fraction, random_state=seed))
+    obs_train = adata.obs.groupby(groupby_cols, group_keys=False).apply(
+        lambda x: x.sample(frac=train_fraction, random_state=seed)
+    )
 
     obs_test = adata.obs.drop(labels=obs_train.index, axis=0)
 

@@ -10,9 +10,7 @@ def check_distance_to_pas(input_path, out_path, genome_path, hamming, cores=None
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     genome = pybedtools.BedTool(genome_path)
-    distances_array = pc.pas_distance(
-        adata=adata, genome=genome, hamming=hamming, n_jobs=cores
-    )
+    distances_array = pc.pas_distance(adata=adata, genome=genome, hamming=hamming, n_jobs=cores)
 
     joblib.dump(distances_array, out_path)
 
@@ -25,9 +23,7 @@ def create_parser(subparsers):
     )
 
     description = (
-        f"{help} "
-        "Degeneration of the canonical PAS can be accounted for by "
-        "supplying hamming > 0."
+        f"{help} Degeneration of the canonical PAS can be accounted for by supplying hamming > 0."
     )
 
     parser = subparsers.add_parser(
@@ -46,9 +42,7 @@ def create_parser(subparsers):
         "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
     )
     parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-    parser.add_argument(
-        "genome_path", type=str, help="Path to a genome file (fasta format)."
-    )
+    parser.add_argument("genome_path", type=str, help="Path to a genome file (fasta format).")
     parser.add_argument(
         "-H",
         "--hamming",

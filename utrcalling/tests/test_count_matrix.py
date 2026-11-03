@@ -45,8 +45,11 @@ class TestPeakCalling(unittest.TestCase):
         )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(
-                bam=alignment, intervals=intervals, protocol=cls.protocol_, read="first",
-                batch_idx=str(i + 1)
+                bam=alignment,
+                intervals=intervals,
+                protocol=cls.protocol_,
+                read="first",
+                batch_idx=str(i + 1),
             )
             for i, alignment in enumerate([alignment_1, alignment_2])
         ]
@@ -249,45 +252,59 @@ class TestCountMatrixEdgeCases(unittest.TestCase):
 
     def test_empty_dataframe(self):
         """Empty input should produce an empty sparse matrix and empty var."""
-        empty_df = pd.DataFrame({
-            "utr_name": pd.Categorical([]),
-            "observation_id": pd.Categorical([]),
-            "utr_size": np.array([], dtype=np.int32),
-        })
+        empty_df = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical([]),
+                "observation_id": pd.Categorical([]),
+                "utr_size": np.array([], dtype=np.int32),
+            }
+        )
         matrix, var, obs = count_matrix.generate_counts_and_anno(
-            utr_sizes=empty_df, protocol=self.protocol_,
+            utr_sizes=empty_df,
+            protocol=self.protocol_,
         )
         self.assertEqual(matrix.shape, (0, 0))
         self.assertEqual(len(var), 0)
 
     def test_single_observation(self):
         """Single observation should produce a 1-row matrix."""
-        single_obs = pd.DataFrame({
-            "utr_name": pd.Categorical(["UTR1", "UTR1"]),
-            "observation_id": pd.Categorical([
-                "AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAA-1",
-            ]),
-            "utr_size": np.array([100, 200], dtype=np.int32),
-        })
+        single_obs = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["UTR1", "UTR1"]),
+                "observation_id": pd.Categorical(
+                    [
+                        "AAAAAAAAAAAAAAAA-1",
+                        "AAAAAAAAAAAAAAAA-1",
+                    ]
+                ),
+                "utr_size": np.array([100, 200], dtype=np.int32),
+            }
+        )
         matrix, var, obs = count_matrix.generate_counts_and_anno(
-            utr_sizes=single_obs, protocol=self.protocol_,
+            utr_sizes=single_obs,
+            protocol=self.protocol_,
         )
         self.assertEqual(matrix.shape[0], 1)
         self.assertGreater(matrix.shape[1], 0)
 
     def test_single_utr(self):
         """Single UTR with multiple observations should produce peaks from that UTR only."""
-        single_utr = pd.DataFrame({
-            "utr_name": pd.Categorical(["UTR1"] * 3),
-            "observation_id": pd.Categorical([
-                "AAAAAAAAAAAAAAAA-1",
-                "AAAAAAAAAAAAAAAG-1",
-                "GAAAAAAAAAAAAAAT-2",
-            ]),
-            "utr_size": np.array([100, 100, 200], dtype=np.int32),
-        })
+        single_utr = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["UTR1"] * 3),
+                "observation_id": pd.Categorical(
+                    [
+                        "AAAAAAAAAAAAAAAA-1",
+                        "AAAAAAAAAAAAAAAG-1",
+                        "GAAAAAAAAAAAAAAT-2",
+                    ]
+                ),
+                "utr_size": np.array([100, 100, 200], dtype=np.int32),
+            }
+        )
         matrix, var, obs = count_matrix.generate_counts_and_anno(
-            utr_sizes=single_utr, protocol=self.protocol_,
+            utr_sizes=single_utr,
+            protocol=self.protocol_,
         )
         self.assertEqual(matrix.shape[0], 3)
         # All peak names should start with "UTR1-"

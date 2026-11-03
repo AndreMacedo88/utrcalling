@@ -36,7 +36,9 @@ warnings.filterwarnings("ignore", category=FutureWarning)
 def _process_utr_group_batch(
     batch: list[tuple[int, str, npt.NDArray[np.int32], npt.NDArray[np.int32]]],
     func: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
-) -> list[tuple[int, list[npt.NDArray[np.int32]], list[npt.NDArray[np.int32]], list[str], list[int]]]:
+) -> list[
+    tuple[int, list[npt.NDArray[np.int32]], list[npt.NDArray[np.int32]], list[str], list[int]]
+]:
     """Process a batch of UTR groups in a single worker task.
 
     Module-level so loky can pickle it. Batching amortizes joblib dispatch
@@ -203,8 +205,7 @@ def generate_counts_and_anno(
         # Non-positive resolves to all-but-one (cgroup/affinity-aware).
         n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
         n_workers = (
-            n_jobs_resolved if n_jobs_resolved > 0
-            else max(1, helpers.get_number_cores(left_out=1))
+            n_jobs_resolved if n_jobs_resolved > 0 else max(1, helpers.get_number_cores(left_out=1))
         )
 
         # Sort UTRs descending by molecule count, then round-robin into
@@ -215,22 +216,17 @@ def generate_counts_and_anno(
         n_batches = max(1, min(n_workers * 4, n_utrs))
         batches = [groups[i::n_batches] for i in range(n_batches)]
 
-        logger.info(
-            "Parallelizing across UTRs (%d workers, %d batches)", n_workers, n_batches
-        )
+        logger.info("Parallelizing across UTRs (%d workers, %d batches)", n_workers, n_batches)
 
         # inner_max_num_threads=1 prevents BLAS/OpenMP inside sklearn's KDE
         # from spawning extra threads per worker — without it 27 workers ×
         # ~8 BLAS threads = 200+ threads competing for cores on a 27-core box.
         # joblib requires `backend` here when passing inner_max_num_threads.
         try:
-            with joblib.parallel_config(
-                backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1
-            ):
+            with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
                 batch_results = list(
                     joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                        joblib.delayed(_process_utr_group_batch)(b, func)
-                        for b in batches
+                        joblib.delayed(_process_utr_group_batch)(b, func) for b in batches
                     )
                 )
         finally:
@@ -310,13 +306,9 @@ def add_to_peaks_var(peak_var: pd.DataFrame, annotations: pd.DataFrame) -> pd.Da
     peak_var_new = peak_var.copy(deep=True)
     # Split on the *last* hyphen to handle UTR names that contain hyphens
     # e.g., "RP11-123B3.1-42" → utr_name="RP11-123B3.1", peak_size="42"
-    peak_var_new["utr_name"] = peak_var_new.index.str.replace(
-        r"-(\d+)$", "", regex=True
-    )
+    peak_var_new["utr_name"] = peak_var_new.index.str.replace(r"-(\d+)$", "", regex=True)
 
-    peak_var_new = peak_var_new.join(
-        annotations, on="utr_name", how="left", rsuffix="_right"
-    )
+    peak_var_new = peak_var_new.join(annotations, on="utr_name", how="left", rsuffix="_right")
 
     peak_var_new = peak_var_new.drop("utr_name_right", axis=1)
 

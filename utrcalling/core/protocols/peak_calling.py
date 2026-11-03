@@ -28,7 +28,9 @@ def get_caller(method: str, bandwidth: int = 12) -> Callable[[npt.ArrayLike], np
         )
 
 
-def call_peaks_using_kernel_density_estimator(utr_sizes_vector: npt.ArrayLike, bandwidth: int = 12) -> npt.NDArray[np.int32]:
+def call_peaks_using_kernel_density_estimator(
+    utr_sizes_vector: npt.ArrayLike, bandwidth: int = 12
+) -> npt.NDArray[np.int32]:
     """
     Fit a kernel density model to predict the peak's ditribution density function
 
@@ -94,5 +96,3 @@ def call_peaks_using_kernel_density_estimator(utr_sizes_vector: npt.ArrayLike, b
     # peaks scored
     peaks[peaks == 0] = max_
     return peaks
-
-

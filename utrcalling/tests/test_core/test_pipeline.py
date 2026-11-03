@@ -24,9 +24,7 @@ os.chdir(str(Path(__file__).resolve().parents[1]))
 class TestPrepareUtrReferenceRegionsSynthetic(unittest.TestCase):
     def setUp(self) -> None:
         gtf = synthetic_annotations.GtfEnsembl()
-        with (
-            gtf
-        ):  # context manager so that the GtfMouse class cleans the file at the end
+        with gtf:  # context manager so that the GtfMouse class cleans the file at the end
             self.regions = core.prepare_utr_reference_regions(
                 gtf=gtf.file_path,
                 feature="three_prime_utr",
@@ -117,9 +115,7 @@ class TestMapAlignedReads(unittest.TestCase):
             "./test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam",
         ] * self.alignments_n
 
-        self.read_mappings = core.map_aligned_reads(
-            alignments, utr_regions, protocol_, store=False
-        )
+        self.read_mappings = core.map_aligned_reads(alignments, utr_regions, protocol_, store=False)
 
         self.true_results_5804 = {
             "read_barcodes": [
@@ -225,7 +221,6 @@ class TestCallPeaksSmartseq3Minimal(unittest.TestCase):
 
 
 class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
-
     def test_is_anndata(self):
         self.assertIsInstance(self.results_label, ad.AnnData)
 
@@ -239,13 +234,10 @@ class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertEqual(self.results_label.obs_names[0], "CACTGT-1")
 
     def test_utr_names(self):
-        self.assertListEqual(
-            self.results_label.var_names.to_list(), ["UTR1-223", "UTR1-1-158"]
-        )
+        self.assertListEqual(self.results_label.var_names.to_list(), ["UTR1-223", "UTR1-1-158"])
 
 
 class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
-
     def test_is_anndata(self):
         self.assertIsInstance(self.results_nolabel, ad.AnnData)
 
@@ -259,9 +251,7 @@ class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertEqual(self.results_nolabel.obs_names[0], "CACTGT")
 
     def test_utr_names(self):
-        self.assertListEqual(
-            self.results_nolabel.var_names.to_list(), ["UTR1-223", "UTR1-1-158"]
-        )
+        self.assertListEqual(self.results_nolabel.var_names.to_list(), ["UTR1-223", "UTR1-1-158"])
 
 
 class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
@@ -301,9 +291,7 @@ class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
 
     def test_utr_names(self):
-        self.assertListEqual(
-            self.results.var_names.to_list(), ["UTR1-223", "UTR1-1-158"]
-        )
+        self.assertListEqual(self.results.var_names.to_list(), ["UTR1-223", "UTR1-1-158"])
 
 
 # ---------------------------------------------------------------------------
@@ -356,9 +344,7 @@ class TestPipeline3TenxV3Synthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index("utr_name")
         cls._data = synthetic_data_3tenx.Bam()
         cls._data.enter()
 
@@ -411,9 +397,7 @@ class TestPipeline3TenxV2Synthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index("utr_name")
         cls._data = synthetic_data_3tenx.Bam()
         cls._data.enter()
 
@@ -463,9 +447,7 @@ class TestPipeline5TenxSynthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_5TENX).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_5TENX).set_index("utr_name")
         cls._data = synthetic_data_5tenx.Bam()
         cls._data.enter()
 
@@ -512,9 +494,7 @@ class TestPipeline5CapseqSynthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_5SMARTSEQ).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_5SMARTSEQ).set_index("utr_name")
         cls._data = synthetic_data_5smartseq.Bam()
         cls._data.enter()
 
@@ -564,6 +544,7 @@ class TestPipeline5CapseqSynthetic(unittest.TestCase):
 # 4.4: dtype preservation tests
 # ---------------------------------------------------------------------------
 
+
 class TestDtypePreservationSmartseq3(TestCallPeaksSmartseq3Minimal):
     """Verify that intermediate DataFrames use canonical dtypes."""
 
@@ -574,17 +555,13 @@ class TestDtypePreservationSmartseq3(TestCallPeaksSmartseq3Minimal):
         self.assertIsInstance(self.mapped.dtypes["utr_name"], pd.CategoricalDtype)
 
     def test_mapped_observation_id_is_categorical(self):
-        self.assertIsInstance(
-            self.mapped.dtypes["observation_id"], pd.CategoricalDtype
-        )
+        self.assertIsInstance(self.mapped.dtypes["observation_id"], pd.CategoricalDtype)
 
     def test_filtered_utr_size_dtype(self):
         self.assertEqual(self.filtered_nolabel.dtypes["utr_size"], np.int32)
 
     def test_filtered_utr_name_is_categorical(self):
-        self.assertIsInstance(
-            self.filtered_nolabel.dtypes["utr_name"], pd.CategoricalDtype
-        )
+        self.assertIsInstance(self.filtered_nolabel.dtypes["utr_name"], pd.CategoricalDtype)
 
     def test_anndata_x_is_numeric(self):
         # anndata may convert int32 to float32; verify it's a valid numeric type
@@ -594,6 +571,7 @@ class TestDtypePreservationSmartseq3(TestCallPeaksSmartseq3Minimal):
 # ---------------------------------------------------------------------------
 # 4.5: Determinism tests
 # ---------------------------------------------------------------------------
+
 
 class TestPipelineDeterminism(unittest.TestCase):
     """Verify that running the pipeline twice produces identical results."""
@@ -612,9 +590,7 @@ class TestPipelineDeterminism(unittest.TestCase):
             "gene_name": ["Gene1", "Gene1", "Gene1", "Gene2", "Gene3"],
         }
         utr_regions = pd.DataFrame(utr_regions).set_index("utr_name")
-        alignments = [
-            "./test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam"
-        ]
+        alignments = ["./test_data/smartseq3_test_sorted_AS-740066-LR-59119.bam"]
         annotations = pd.read_csv("./test_data/smartseq3_anno.csv")
         annotations = annotations.query("Sample_ID=='AS-740066-LR-59119'")
         annotations = annotations.drop_duplicates(subset=["Sample_Barcode"])
@@ -654,23 +630,17 @@ class TestPipelineDeterminism(unittest.TestCase):
         self.assertTupleEqual(self.run1.shape, self.run2.shape)
 
     def test_same_var_names(self):
-        self.assertListEqual(
-            self.run1.var_names.tolist(), self.run2.var_names.tolist()
-        )
+        self.assertListEqual(self.run1.var_names.tolist(), self.run2.var_names.tolist())
 
     def test_same_obs_names(self):
-        self.assertListEqual(
-            self.run1.obs_names.tolist(), self.run2.obs_names.tolist()
-        )
+        self.assertListEqual(self.run1.obs_names.tolist(), self.run2.obs_names.tolist())
 
     def test_same_count_matrix(self):
         diff = self.run1.X - self.run2.X
         self.assertEqual(diff.nnz, 0)
 
     def test_same_var_utr_sizes(self):
-        self.assertListEqual(
-            self.run1.var.utr_size.to_list(), self.run2.var.utr_size.to_list()
-        )
+        self.assertListEqual(self.run1.var.utr_size.to_list(), self.run2.var.utr_size.to_list())
 
 
 class TestPipelineStandard3TenxV3Synthetic(unittest.TestCase):
@@ -678,9 +648,7 @@ class TestPipelineStandard3TenxV3Synthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index("utr_name")
         cls._data = synthetic_data_standard_3tenx.Bam()
         cls._data.enter()
 
@@ -734,9 +702,7 @@ class TestPipelineStandard3TenxV2Synthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index("utr_name")
         cls._data = synthetic_data_standard_3tenx.Bam()
         cls._data.enter()
 
@@ -782,9 +748,7 @@ class TestPipelineStandard3SmartseqSynthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index("utr_name")
         cls._data = synthetic_data_standard_3smartseq.Bam()
         cls._data.enter()
 
@@ -792,9 +756,11 @@ class TestPipelineStandard3SmartseqSynthetic(unittest.TestCase):
             platform="standard_smartseq",
             version=3,
             alignments=cls._data.alignment,
-            annotations=pd.DataFrame({
-                "sample_id": ["test_sample"],
-            }),
+            annotations=pd.DataFrame(
+                {
+                    "sample_id": ["test_sample"],
+                }
+            ),
         )
         mapped = core.map_aligned_reads(
             alignments=cls._data.alignment,
@@ -840,9 +806,7 @@ class TestPipelineTruseqSynthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index("utr_name")
         cls._data1 = synthetic_data_truseq.Bam()
         cls._data2 = synthetic_data_truseq.Bam()
         cls._data1.enter()
@@ -894,9 +858,7 @@ class TestPipelineTruseqSynthetic(unittest.TestCase):
     def test_two_observations_named_by_sample_id(self):
         """Two BAMs -> two observations named by their annotation sample_id."""
         self.assertEqual(self.results.shape[0], 2)
-        self.assertEqual(
-            sorted(self.results.obs_names.tolist()), sorted(self.sample_ids)
-        )
+        self.assertEqual(sorted(self.results.obs_names.tolist()), sorted(self.sample_ids))
 
     def test_only_antisense_utrs_present(self):
         """Reverse-stranded: only the antisense-covered UTRs (UTR2/UTR3)."""
@@ -993,16 +955,16 @@ class TestPipeline3TenxV3WithBarcodeWhitelist(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index(
-            "utr_name"
-        )
+        cls.utr_regions = pd.DataFrame(_SYNTHETIC_UTR_REGIONS_3PRIME).set_index("utr_name")
         cls._data = synthetic_data_3tenx.Bam()
         cls._data.enter()
 
-        cls.annotations = pd.DataFrame({
-            "barcode": cls._BARCODES,
-            "batch_number": [1, 1, 1],
-        })
+        cls.annotations = pd.DataFrame(
+            {
+                "barcode": cls._BARCODES,
+                "batch_number": [1, 1, 1],
+            }
+        )
 
         cls.protocol_ = protocol.create(
             platform="10x",

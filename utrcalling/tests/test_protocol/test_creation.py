@@ -27,8 +27,7 @@ class Test10x(unittest.TestCase):
         )
         cls.mappings = [
             utr_mapping.map_reads_to_utr(
-                alignment, intervals, cls.protocol, read="first",
-                batch_idx=str(i + 1)
+                alignment, intervals, cls.protocol, read="first", batch_idx=str(i + 1)
             )
             for i, alignment in enumerate([alignment_1, alignment_2])
         ]
@@ -55,9 +54,7 @@ class TestFilterUtrSizes(Test10x):
         self.assertEqual(n_unique_utrs, 63)
 
     def test_is_filtered(self):
-        utr_data = self.filtered[
-            self.filtered["utr_name"] == "ENSMUSG00000001036"
-        ]
+        utr_data = self.filtered[self.filtered["utr_name"] == "ENSMUSG00000001036"]
         self.assertListEqual(
             utr_data["observation_id"].tolist(),
             [
@@ -109,9 +106,7 @@ class TestFilterUtrSizesSmartSeqCap(TestSmartSeqCapPhosphoReadname):
 
     def test_is_filtered(self):
         # For 5'UTRs we don't want filtering by default — all rows stay including size=1
-        utr_data = self.filtered[
-            self.filtered["utr_name"] == "ENSMUSG00000023905"
-        ]
+        utr_data = self.filtered[self.filtered["utr_name"] == "ENSMUSG00000023905"]
         self.assertListEqual(
             utr_data["observation_id"].tolist(),
             [self.alignment] * 3,
@@ -127,21 +122,24 @@ class TestStandardTenxCreation(unittest.TestCase):
 
     def test_create_standard_10x_v3(self):
         p = protocol.create(
-            "standard_10x", 3,
+            "standard_10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertIsInstance(p, protocol.ProtocolStandardTenx3)
 
     def test_create_standard_10x_v2(self):
         p = protocol.create(
-            "standard_10x", 2,
+            "standard_10x",
+            2,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertIsInstance(p, protocol.ProtocolStandardTenx2)
 
     def test_standard_10x_properties(self):
         p = protocol.create(
-            "standard_10x", 3,
+            "standard_10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertTrue(p.has_umi)
@@ -152,7 +150,8 @@ class TestStandardTenxCreation(unittest.TestCase):
         """Alternative platform name spellings."""
         for name in ("standard_10x", "standard_10_x", "standard_tenx"):
             p = protocol.create(
-                name, 3,
+                name,
+                3,
                 annotations=pd.DataFrame({"sample": ["test"]}),
             )
             self.assertIsInstance(p, protocol.ProtocolStandardTenx3)
@@ -161,7 +160,8 @@ class TestStandardTenxCreation(unittest.TestCase):
         """Cell Ranger 10x 3' v3 R2 aligns sense to the gene, so standard_10x
         overrides the ProtocolThreePrime default to require matching strands."""
         p = protocol.create(
-            "standard_10x", 3,
+            "standard_10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         # + strand UTR → + strand read passes; - strand read is wrong-strand
@@ -174,7 +174,8 @@ class TestStandardTenxCreation(unittest.TestCase):
     def test_standard_10x_unsupported_version(self):
         with self.assertRaises(NotImplementedError):
             protocol.create(
-                "standard_10x", 1,
+                "standard_10x",
+                1,
                 annotations=pd.DataFrame({"sample": ["test"]}),
             )
 
@@ -184,19 +185,25 @@ class TestStandardSmartseqCreation(unittest.TestCase):
 
     def test_create_standard_smartseq_v3(self):
         p = protocol.create(
-            "standard_smartseq", 3,
-            annotations=pd.DataFrame({
-                "sample_id": ["test"],
-            }),
+            "standard_smartseq",
+            3,
+            annotations=pd.DataFrame(
+                {
+                    "sample_id": ["test"],
+                }
+            ),
         )
         self.assertIsInstance(p, protocol.ProtocolStandardSmartseq3)
 
     def test_standard_smartseq_properties(self):
         p = protocol.create(
-            "standard_smartseq", 3,
-            annotations=pd.DataFrame({
-                "sample_id": ["test"],
-            }),
+            "standard_smartseq",
+            3,
+            annotations=pd.DataFrame(
+                {
+                    "sample_id": ["test"],
+                }
+            ),
         )
         self.assertFalse(p.has_umi)
         self.assertEqual(p.dedup_strategy, "keep_first")
@@ -204,10 +211,13 @@ class TestStandardSmartseqCreation(unittest.TestCase):
 
     def test_standard_smartseq_both_strands(self):
         p = protocol.create(
-            "standard_smartseq", 3,
-            annotations=pd.DataFrame({
-                "sample_id": ["test"],
-            }),
+            "standard_smartseq",
+            3,
+            annotations=pd.DataFrame(
+                {
+                    "sample_id": ["test"],
+                }
+            ),
         )
         self.assertTrue(p.check_strand_matches("+", "+"))
         self.assertTrue(p.check_strand_matches("-", "+"))
@@ -217,17 +227,21 @@ class TestStandardSmartseqCreation(unittest.TestCase):
     def test_standard_smartseq_aliases(self):
         for name in ("standard_smartseq", "standard_smart-seq"):
             p = protocol.create(
-                name, 3,
-                annotations=pd.DataFrame({
-                    "sample_id": ["test"],
-                }),
+                name,
+                3,
+                annotations=pd.DataFrame(
+                    {
+                        "sample_id": ["test"],
+                    }
+                ),
             )
             self.assertIsInstance(p, protocol.ProtocolStandardSmartseq3)
 
     def test_standard_smartseq_unsupported_version(self):
         with self.assertRaises(NotImplementedError):
             protocol.create(
-                "standard_smartseq", 2,
+                "standard_smartseq",
+                2,
                 annotations=pd.DataFrame({"sample_id": ["test"]}),
             )
 
@@ -238,7 +252,8 @@ class TestTruseqCreation(unittest.TestCase):
     @staticmethod
     def _make(version=1, **kwargs):
         return protocol.create(
-            "truseq", version,
+            "truseq",
+            version,
             annotations=pd.DataFrame({"sample_id": ["test"]}),
             **kwargs,
         )
@@ -248,9 +263,7 @@ class TestTruseqCreation(unittest.TestCase):
 
     def test_truseq_aliases(self):
         for name in ("truseq", "truseq_stranded", "standard_truseq", "standard_bulk"):
-            p = protocol.create(
-                name, 1, annotations=pd.DataFrame({"sample_id": ["test"]})
-            )
+            p = protocol.create(name, 1, annotations=pd.DataFrame({"sample_id": ["test"]}))
             self.assertIsInstance(p, protocol.ProtocolTruseq)
 
     def test_truseq_version_agnostic(self):
@@ -296,7 +309,8 @@ class TestTruseqCreation(unittest.TestCase):
     def test_other_protocols_accept_strandedness_kwarg(self):
         # strandedness is a universal kwarg; non-stranded protocols ignore it.
         p = protocol.create(
-            "10x", 3,
+            "10x",
+            3,
             annotations=pd.DataFrame({"barcode": ["AAAA"], "batch": [1]}),
             strandedness=None,
         )
@@ -308,7 +322,8 @@ class TestExistingProtocolDefaults(unittest.TestCase):
 
     def test_tenx3_defaults(self):
         p = protocol.create(
-            "10x", 3,
+            "10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertTrue(p.has_umi)
@@ -317,7 +332,8 @@ class TestExistingProtocolDefaults(unittest.TestCase):
 
     def test_smartseq3_defaults(self):
         p = protocol.create(
-            "smartseq", 3,
+            "smartseq",
+            3,
             annotations=pd.DataFrame({"sample_id": ["test"]}),
         )
         self.assertTrue(p.has_umi)
@@ -330,49 +346,56 @@ class TestReadsBatchSuffixProperty(unittest.TestCase):
 
     def test_tenx3_no_suffix(self):
         p = protocol.create(
-            "10x", 3,
+            "10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertFalse(p._reads_have_batch_suffix)
 
     def test_tenx2_no_suffix(self):
         p = protocol.create(
-            "10x", 2,
+            "10x",
+            2,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertFalse(p._reads_have_batch_suffix)
 
     def test_five_tenx_has_suffix(self):
         p = protocol.create(
-            "5'10x", 1,
+            "5'10x",
+            1,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertTrue(p._reads_have_batch_suffix)
 
     def test_standard_tenx3_has_suffix(self):
         p = protocol.create(
-            "standard_10x", 3,
+            "standard_10x",
+            3,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertTrue(p._reads_have_batch_suffix)
 
     def test_standard_tenx2_has_suffix(self):
         p = protocol.create(
-            "standard_10x", 2,
+            "standard_10x",
+            2,
             annotations=pd.DataFrame({"sample": ["test"]}),
         )
         self.assertTrue(p._reads_have_batch_suffix)
 
     def test_smartseq3_no_suffix(self):
         p = protocol.create(
-            "smartseq", 3,
+            "smartseq",
+            3,
             annotations=pd.DataFrame({"sample_id": ["test"]}),
         )
         self.assertFalse(p._reads_have_batch_suffix)
 
     def test_standard_smartseq3_no_suffix(self):
         p = protocol.create(
-            "standard_smartseq", 3,
+            "standard_smartseq",
+            3,
             annotations=pd.DataFrame({"sample_id": ["test"]}),
         )
         self.assertFalse(p._reads_have_batch_suffix)
@@ -385,7 +408,8 @@ class TestBatchColumnDtypes(unittest.TestCase):
 
     def _batches_range(self, batches):
         p = protocol.create(
-            "10x", 3,
+            "10x",
+            3,
             annotations=pd.DataFrame({"barcode": ["AAAA", "CCCC", "GGGG"], "batch": batches}),
             label_batches=False,
         )

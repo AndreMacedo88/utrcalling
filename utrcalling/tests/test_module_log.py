@@ -8,7 +8,6 @@ from utrcalling.core.module_log import module_logger, log_end_run
 
 
 class TestModuleLogger(unittest.TestCase):
-
     def setUp(self):
         # Reset the global logging disable threshold — run-tests sets
         # logging.disable(CRITICAL) which silences all messages globally.

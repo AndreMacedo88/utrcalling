@@ -6,9 +6,7 @@ def concatenate_experiments(input_paths, out_path):
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
-    adata_list = [
-        helpers.check_if_path_and_open(path_, method="h5ad") for path_ in input_paths
-    ]
+    adata_list = [helpers.check_if_path_and_open(path_, method="h5ad") for path_ in input_paths]
     adata_result = ap.concatenate_adata(adata_list=adata_list)
     adata_result.write_h5ad(out_path)
 

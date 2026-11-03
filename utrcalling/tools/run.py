@@ -68,9 +68,7 @@ def run(
     # Set up logging
     store_log = store_log and not no_log_file
     log_dir = os.path.dirname(os.path.abspath(out)) if store_log else None
-    logger = module_logger(
-        disable=False, store_log=store_log, log_dir=log_dir, level=log_level
-    )
+    logger = module_logger(disable=False, store_log=store_log, log_dir=log_dir, level=log_level)
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}")
 
@@ -182,7 +180,7 @@ def create_parser(subparsers):
 
     help = "Runs the entire UTR calling pipeline."
 
-    description = f"{help} " "Exports the UTR sizes count matrix to a h5ad file."
+    description = f"{help} Exports the UTR sizes count matrix to a h5ad file."
 
     parser = subparsers.add_parser(
         name="run",
@@ -197,9 +195,7 @@ def create_parser(subparsers):
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
-    parser.add_argument(
-        "utr_annotation", type=str, help="GTF file with the genome annotations"
-    )
+    parser.add_argument("utr_annotation", type=str, help="GTF file with the genome annotations")
 
     parser.add_argument(
         "--alignments",

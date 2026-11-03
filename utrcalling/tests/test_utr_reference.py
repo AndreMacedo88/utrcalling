@@ -92,9 +92,7 @@ class TestReduceRegionsStandard(TestReduceRegions):
         annotations = ["gene_id", "score", "strand", "transcript_id"]
         columns, ann_idx = utr_reference.prepare_annotations_index(annotations)
         utr_bed = pybedtools.BedTool.from_dataframe(self.utr, columns=columns)
-        self.utr_reduced = utr_reference.reduce_regions(
-            utr_bed, annotations_index=ann_idx
-        )
+        self.utr_reduced = utr_reference.reduce_regions(utr_bed, annotations_index=ann_idx)
 
     def test_number_of_features(self) -> None:
         """
@@ -133,9 +131,7 @@ class TestReduceRegionsExtended(TestReduceRegions):
         annotations = ["gene_id", "score", "strand", "transcript_id", "gene_name"]
         columns, ann_idx = utr_reference.prepare_annotations_index(annotations)
         utr_bed = pybedtools.BedTool.from_dataframe(self.utr, columns=columns)
-        self.utr_reduced = utr_reference.reduce_regions(
-            utr_bed, annotations_index=ann_idx
-        )
+        self.utr_reduced = utr_reference.reduce_regions(utr_bed, annotations_index=ann_idx)
 
     def test_number_of_features(self) -> None:
         """
