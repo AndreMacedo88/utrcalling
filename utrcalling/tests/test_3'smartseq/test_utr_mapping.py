@@ -1,8 +1,10 @@
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
+
 import pandas as pd
-from utrcalling.core import protocol, utr_mapping, module_log
+
+from utrcalling.core import module_log, protocol, utr_mapping
 
 # we change working dir to the base test dir so that relative paths are sane
 os.chdir(str(Path(__file__).resolve().parents[1]))

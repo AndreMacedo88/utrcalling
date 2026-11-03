@@ -1,10 +1,11 @@
-from utrcalling.core import core, protocol, utr_mapping
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
+from utrcalling.core import core, protocol, utr_mapping
 
 os.chdir(str(Path(__file__).resolve().parents[1]))
 

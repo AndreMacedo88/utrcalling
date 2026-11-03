@@ -1,12 +1,13 @@
-from utrcalling.tests.test_data import synthetic_data
-from utrcalling.core import core, module_log, protocol
-import os
-from pathlib import Path
 import cProfile
-import pstats
 import logging
+import os
+import pstats
+from pathlib import Path
 
 import pandas as pd
+
+from utrcalling.core import core, module_log, protocol
+from utrcalling.tests.test_data import synthetic_data
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 

@@ -1,8 +1,9 @@
-import os
 import argparse
+import logging as log_module
+import os
 import sys
 import unittest
-import logging as log_module
+
 from utrcalling.core import module_log
 
 # os.environ["MODIN_CPUS"] = "1"

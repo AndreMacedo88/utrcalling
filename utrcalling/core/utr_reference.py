@@ -9,8 +9,8 @@ import gzip
 
 import pandas as pd
 import pybedtools
-from pandas.api.types import is_numeric_dtype
 from gtfparse import read_gtf
+from pandas.api.types import is_numeric_dtype
 
 from utrcalling.core.module_log import module_logger
 

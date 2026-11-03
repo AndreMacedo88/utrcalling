@@ -9,20 +9,19 @@ from __future__ import annotations
 import math
 from typing import Any
 
-import regex
+import anndata as ad
+import joblib
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import anndata as ad
-import scipy.sparse
-from sklearn.neighbors import KernelDensity
-from scipy.signal import argrelextrema
-
 import pybedtools
-import joblib
+import regex
+import scipy.sparse
+from scipy.signal import argrelextrema
+from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 
-from utrcalling.core import module_log, helpers
+from utrcalling.core import helpers, module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
 
 

@@ -1,22 +1,22 @@
+import copy
+import os
+import unittest
+from pathlib import Path
+from unittest import mock
+
+import numpy as np
+import pandas as pd
 from test_data import synthetic_data
+
 from utrcalling.core import (
     barcode_filtering,
+    helpers,
+    module_log,
     process_mapped_reads,
     protocol,
     utr_mapping,
     utr_reference,
-    module_log,
-    helpers,
 )
-
-import os
-from pathlib import Path
-from unittest import mock
-import unittest
-
-import pandas as pd
-import numpy as np
-import copy
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))

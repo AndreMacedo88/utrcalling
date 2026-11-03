@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import pandas as pd
 import psutil
-from rapidfuzz import process, distance
+from rapidfuzz import distance, process
 
 from utrcalling.core import module_log
 

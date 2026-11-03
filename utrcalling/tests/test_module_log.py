@@ -4,7 +4,7 @@ import re
 import tempfile
 import unittest
 
-from utrcalling.core.module_log import module_logger, log_end_run
+from utrcalling.core.module_log import log_end_run, module_logger
 
 
 class TestModuleLogger(unittest.TestCase):
@@ -52,7 +52,7 @@ class TestModuleLogger(unittest.TestCase):
                 handler.flush()
             log_files = [f for f in os.listdir(tmpdir) if f.endswith(".log")]
             log_path = os.path.join(tmpdir, log_files[0])
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 content = f.read()
             self.assertNotIn("\x1b[", content)
             self.assertNotRegex(content, re.compile(r"\x1b\["))
@@ -66,7 +66,7 @@ class TestModuleLogger(unittest.TestCase):
                 handler.flush()
             log_files = [f for f in os.listdir(tmpdir) if f.endswith(".log")]
             log_path = os.path.join(tmpdir, log_files[0])
-            with open(log_path, "r") as f:
+            with open(log_path) as f:
                 content = f.read()
             self.assertIn("debug breadcrumb", content)
 

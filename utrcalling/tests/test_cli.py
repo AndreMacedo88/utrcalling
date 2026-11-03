@@ -3,10 +3,10 @@
 import contextlib
 import io
 import os
-from pathlib import Path
 import subprocess
 import sys
 import unittest
+from pathlib import Path
 from unittest import mock
 
 os.chdir(str(Path(__file__).resolve().parents[0]))

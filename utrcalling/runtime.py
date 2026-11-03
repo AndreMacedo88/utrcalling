@@ -1,27 +1,28 @@
-import sys
 import argparse
+import sys
 
 from utrcalling._metadata import __version__ as version
 
 
 # Function to create the parser with subparsers
 def create_parser():
-    from utrcalling.tools import run
-    from utrcalling.tools import call_peaks
-    from utrcalling.tools import prepare_reference_and_map_reads
-    from utrcalling.tools import remove_peaks_below_count_threshold
-    from utrcalling.tools import select_alternative_transcription_events
-    from utrcalling.tools import generate_utr_names
-    from utrcalling.tools import compute_mean_utr_sizes
-    from utrcalling.tools import counts_to_percentages
-    from utrcalling.tools import concatenate_experiments
-    from utrcalling.tools import subset_experiments
-    from utrcalling.tools import split_train_test
-    from utrcalling.tools import estimate_best_bandwidth
-    from utrcalling.tools import check_distance_to_pas
-    from utrcalling.tools import call_peaks_different_bandwidths
-
     from utrcalling.tests import test_case
+    from utrcalling.tools import (
+        call_peaks,
+        call_peaks_different_bandwidths,
+        check_distance_to_pas,
+        compute_mean_utr_sizes,
+        concatenate_experiments,
+        counts_to_percentages,
+        estimate_best_bandwidth,
+        generate_utr_names,
+        prepare_reference_and_map_reads,
+        remove_peaks_below_count_threshold,
+        run,
+        select_alternative_transcription_events,
+        split_train_test,
+        subset_experiments,
+    )
 
     # create the main parser object
     parser = argparse.ArgumentParser(description="Suite of tools to map reads to the UTR.")

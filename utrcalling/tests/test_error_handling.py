@@ -1,8 +1,8 @@
 """Error handling and negative tests — verify graceful failures for invalid inputs."""
 
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 import numpy as np
 import pandas as pd

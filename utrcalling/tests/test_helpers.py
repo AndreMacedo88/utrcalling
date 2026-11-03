@@ -5,11 +5,11 @@ import unittest
 import pandas as pd
 
 from utrcalling.core.helpers import (
-    flatten,
-    to_string,
-    check_if_path_and_open,
     check_file_exists_and_return_unique,
+    check_if_path_and_open,
+    flatten,
     shutdown_joblib_pool,
+    to_string,
 )
 
 

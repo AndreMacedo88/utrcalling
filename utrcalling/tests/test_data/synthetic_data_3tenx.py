@@ -7,6 +7,7 @@ for test speed.
 
 import os
 from tempfile import mkstemp
+
 import pysam
 
 

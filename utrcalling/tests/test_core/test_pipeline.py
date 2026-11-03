@@ -1,21 +1,22 @@
-from utrcalling.tests.test_data import (
-    synthetic_annotations,
-    synthetic_data_3tenx,
-    synthetic_data_5tenx,
-    synthetic_data_5smartseq,
-    synthetic_data_standard_3tenx,
-    synthetic_data_standard_3smartseq,
-    synthetic_data_truseq,
-)
-from utrcalling.core import core, module_log, protocol
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 
+import anndata as ad
 import numpy as np
 import pandas as pd
 import scipy.sparse
-import anndata as ad
+
+from utrcalling.core import core, module_log, protocol
+from utrcalling.tests.test_data import (
+    synthetic_annotations,
+    synthetic_data_3tenx,
+    synthetic_data_5smartseq,
+    synthetic_data_5tenx,
+    synthetic_data_standard_3smartseq,
+    synthetic_data_standard_3tenx,
+    synthetic_data_truseq,
+)
 
 # we change working dir to the base test dir so that relative paths are sane
 os.chdir(str(Path(__file__).resolve().parents[1]))

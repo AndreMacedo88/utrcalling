@@ -7,12 +7,15 @@ For the source see: https://github.com/AndreMacedo88/utrcalling
 For detailed documentation see: https://github.com/AndreMacedo88/utrcalling
 """
 
-from utrcalling._metadata import __version__, __author__, __license__
+# Re-exported as package attributes (utrcalling.__version__, ...).
+from utrcalling._metadata import __author__ as __author__
+from utrcalling._metadata import __license__ as __license__
+from utrcalling._metadata import __version__ as __version__
 
 
 def show_logo():
     import psutil
-    from colorama import init, Fore, Style
+    from colorama import Fore, Style, init
 
     # Prevent joblib worker processes from printing the header
     caller_process = psutil.Process().cmdline()

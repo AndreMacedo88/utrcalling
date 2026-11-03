@@ -1,16 +1,18 @@
 # import general purpose tools
-from utrcalling.core import anndata_processing as ap
-from utrcalling.core import module_log
 import os
-from pathlib import Path
 import tempfile
 import unittest
+from pathlib import Path
+
+import anndata as ad
 
 # import data wrangling tools
 import numpy as np
 import pandas as pd
-import anndata as ad
 import scipy.sparse
+
+from utrcalling.core import anndata_processing as ap
+from utrcalling.core import module_log
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))

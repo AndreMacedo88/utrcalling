@@ -1,9 +1,10 @@
+import logging
 import os
 from datetime import datetime
-import logging
+
 import coloredlogs
-from colorama import Fore, Style
 import verboselogs
+from colorama import Fore, Style
 
 verboselogs.install()
 

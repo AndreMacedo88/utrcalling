@@ -1,11 +1,11 @@
-import os
-from pathlib import Path
-import unittest
 import copy
+import os
+import unittest
+from pathlib import Path
 
 import pandas as pd
 
-from utrcalling.core import protocol, utr_mapping, process_mapped_reads, module_log
+from utrcalling.core import module_log, process_mapped_reads, protocol, utr_mapping
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[1]))

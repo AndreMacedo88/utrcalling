@@ -1,5 +1,6 @@
 import unittest
 from contextlib import contextmanager
+
 from utrcalling.core import module_log
 
 
@@ -9,7 +10,7 @@ class TestCase(unittest.TestCase):
         try:
             yield None
         except exc_type:
-            raise self.failureException("{} raised".format(exc_type.__name__))
+            raise self.failureException(f"{exc_type.__name__} raised")
 
 
 class TestImport(TestCase):

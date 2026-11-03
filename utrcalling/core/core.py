@@ -20,25 +20,27 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import anndata
+import joblib
 import pandas as pd
 import pybedtools
-import joblib
 from tqdm import tqdm
 
-from utrcalling.core.module_log import module_logger
-from utrcalling.core import helpers
+from utrcalling.core import (
+    barcode_filtering,
+    count_matrix,
+    helpers,
+    process_mapped_reads,
+    storage,
+    utr_mapping,
+    utr_reference,
+)
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
-from utrcalling.core import utr_reference
-from utrcalling.core import utr_mapping
-from utrcalling.core import process_mapped_reads
-from utrcalling.core import count_matrix
-from utrcalling.core import barcode_filtering
-from utrcalling.core import storage
 from utrcalling.core.protocol import Protocol
 from utrcalling.core.utr_mapping import _IntervalData
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     import numpy.typing as npt
 
 

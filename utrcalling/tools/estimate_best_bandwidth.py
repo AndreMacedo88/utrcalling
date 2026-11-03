@@ -4,8 +4,9 @@ import argparse
 
 def estimate_best_bandwidth(input_path, out_path, bandwidths, cores=None):
     import joblib
-    from utrcalling.core import peak_calling_anndata as pc
+
     from utrcalling.core import helpers
+    from utrcalling.core import peak_calling_anndata as pc
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
 

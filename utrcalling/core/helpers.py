@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
-from typing import Any, TYPE_CHECKING
 import os
-import re
 import pathlib
 import pickle
+import re
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd

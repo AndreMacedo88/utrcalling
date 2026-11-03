@@ -4,11 +4,10 @@ import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
-import pandas as pd
 import numpy as np
+import pandas as pd
 
 from utrcalling.core import module_log
-
 
 # ---------------------------------------------------------------------------
 # Module-level private helpers (extracted for testability)
@@ -217,7 +216,7 @@ def merge_utrs_per_gene(
     sortorder_by_cat = np.fromiter(
         (utr_sort_order.get(c, 0) for c in categories), dtype=np.int32, count=n_cat
     )
-    gene_of_cat = np.array([utr_name_to_gene.get(c, None) for c in categories], dtype=object)
+    gene_of_cat = np.array([utr_name_to_gene.get(c) for c in categories], dtype=object)
 
     # Gene categories = sorted unique gene names, matching the categories that
     # `pd.Categorical(<gene names>)` produced in the old implementation. Sorting

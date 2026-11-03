@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 
+import anndata as ad
 import numpy as np
 import pandas as pd
-import anndata as ad
 import scipy.sparse
 
-from utrcalling.core import peak_calling_anndata as pca
 from utrcalling.core import module_log
+from utrcalling.core import peak_calling_anndata as pca
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 

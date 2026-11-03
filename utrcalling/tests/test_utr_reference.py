@@ -1,10 +1,11 @@
 import os
-from pathlib import Path
 import unittest
+from pathlib import Path
 
 import pandas as pd
 import pybedtools
-from utrcalling.core import utr_reference, module_log
+
+from utrcalling.core import module_log, utr_reference
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))

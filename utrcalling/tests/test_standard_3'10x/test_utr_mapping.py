@@ -142,6 +142,7 @@ class TestStandardTenxMissingTags(TestMapReadsToUtrSynthetic):
         """Reads without CB or UB tags should be silently skipped."""
         import os
         from tempfile import mkstemp
+
         import pysam
 
         fd, bam_path = mkstemp(suffix=".bam", dir="./test_data/")
@@ -204,6 +205,7 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
     def _build_bam(self) -> str:
         import os
         from tempfile import mkstemp
+
         import pysam
 
         fd, bam_path = mkstemp(suffix=".bam", dir="./test_data/")

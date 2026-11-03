@@ -5,20 +5,21 @@ count_matrix.py - sparse count matrix building from UTR size data.
 from __future__ import annotations
 
 import warnings
-from typing import NamedTuple, TYPE_CHECKING
+from typing import TYPE_CHECKING, NamedTuple
 
-import numpy as np
-import pandas as pd
 import anndata
 import joblib
+import numpy as np
+import pandas as pd
 from scipy.sparse import coo_matrix, csr_matrix
 
-from utrcalling.core import module_log, helpers
+from utrcalling.core import helpers, module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
 from utrcalling.core.protocol import Protocol
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
     import numpy.typing as npt
 
 

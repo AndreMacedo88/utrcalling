@@ -13,11 +13,12 @@ Note:
 
 from __future__ import annotations
 
+import re
+
 # built-in packages
 from abc import ABC, ABCMeta, abstractmethod
 from enum import Enum
 from typing import TYPE_CHECKING
-import re
 
 # data wrangling packages
 import numpy as np
@@ -25,11 +26,12 @@ import pandas as pd
 from bidict import bidict
 
 # internal packages
-from utrcalling.core import module_log, helpers
+from utrcalling.core import helpers, module_log
 from utrcalling.core.protocols import peak_calling as pc
 
 if TYPE_CHECKING:
     import numpy.typing as npt
+
     from utrcalling.core.utr_mapping import _IntervalData, _PySamAdapter
 
 
@@ -40,7 +42,7 @@ class MergeMethod(Enum):
     INTERSECTION = "intersection"
 
     @classmethod
-    def from_str(cls, value: str | None) -> "MergeMethod":
+    def from_str(cls, value: str | None) -> MergeMethod:
         """Create from string, defaulting to UNION if None."""
         if value is None:
             return cls.UNION
@@ -59,7 +61,7 @@ class PeakCallingMethod(Enum):
     BYPASS = "bypass"
 
     @classmethod
-    def from_str(cls, value: str) -> "PeakCallingMethod":
+    def from_str(cls, value: str) -> PeakCallingMethod:
         """Create from string."""
         try:
             return cls(value.lower())
@@ -369,7 +371,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         annotations = self.annotations.copy()
         if self.label_batches and (self.batches_list is not None):
             barcodes = annotations.loc[:, self.barcode_column_name]
-            if barcodes.str.match(".*-[\d]$").all():
+            if barcodes.str.match(r".*-[\d]$").all():
                 pass
             else:
                 barcodes_suffix = [f"-{val}" for val in self.batches_range]

@@ -1,8 +1,8 @@
-import os
-from pathlib import Path
 import cProfile
-import pstats
 import logging
+import os
+import pstats
+from pathlib import Path
 
 import pandas as pd
 

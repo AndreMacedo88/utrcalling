@@ -6,25 +6,26 @@ BED files with UTR regions annotations
 
 from __future__ import annotations
 
-# general tools
-from utrcalling.core.module_log import module_logger
-from utrcalling.core import helpers
-from utrcalling.core.helpers import (
-    JOBLIB_DEFAULT_BACKEND,
-    ensure_mapped_reads_dtypes,
-)
-from utrcalling.core.protocol import Protocol
-from functools import partial
 import logging
+from functools import partial
 
 # data handling tools
 import joblib
-import numpy as np
 import pandas as pd
 import pysam
 
 # QOL tools
 from tqdm import tqdm as std_tqdm
+
+from utrcalling.core import helpers
+from utrcalling.core.helpers import (
+    JOBLIB_DEFAULT_BACKEND,
+    ensure_mapped_reads_dtypes,
+)
+
+# general tools
+from utrcalling.core.module_log import module_logger
+from utrcalling.core.protocol import Protocol
 
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
@@ -50,7 +51,7 @@ class _PySamReadAdapter:
     original read sequence.
     """
 
-    __slots__ = ("seq", "name")
+    __slots__ = ("name", "seq")
 
     def __init__(self, pysam_read):
         seq = pysam_read.query_sequence or ""
@@ -63,7 +64,7 @@ class _PySamReadAdapter:
 class _PySamAdapter:
     """Adapt a pysam AlignedSegment to the Protocol interface."""
 
-    __slots__ = ("read", "_get_tag")
+    __slots__ = ("_get_tag", "read")
 
     def __init__(self, pysam_read):
         self.read = _PySamReadAdapter(pysam_read)
@@ -80,7 +81,7 @@ class _IntervalData:
     chrom, start, end, strand, plus directional start/end (start_d, end_d).
     """
 
-    __slots__ = ("chrom", "start", "end", "strand", "start_d", "end_d")
+    __slots__ = ("chrom", "end", "end_d", "start", "start_d", "strand")
 
     def __init__(self, chrom: str, start: int, end: int, strand: str):
         self.chrom = str(chrom)

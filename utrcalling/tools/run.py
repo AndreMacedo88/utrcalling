@@ -62,8 +62,8 @@ def run(
     """
 
     from utrcalling.core import core, helpers, protocol
-    from utrcalling.core.protocols import peak_calling as pc
     from utrcalling.core.module_log import module_logger
+    from utrcalling.core.protocols import peak_calling as pc
 
     # Set up logging
     store_log = store_log and not no_log_file

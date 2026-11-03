@@ -1,10 +1,10 @@
+from collections.abc import Callable
 from functools import partial
-from typing import Callable
 
 import numpy as np
 import numpy.typing as npt
-from sklearn.neighbors import KernelDensity
 from scipy.signal import argrelextrema
+from sklearn.neighbors import KernelDensity
 
 # Methods to aggregate individual molecules' UTR sizes to consensus peaks:
 

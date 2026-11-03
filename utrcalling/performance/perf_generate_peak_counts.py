@@ -1,10 +1,11 @@
-from utrcalling.tests.test_data import synthetic_data
-from utrcalling.core import count_matrix, module_log, protocol
-import os
-from pathlib import Path
 import cProfile
-import pstats
 import logging
+import os
+import pstats
+from pathlib import Path
+
+from utrcalling.core import count_matrix, module_log, protocol
+from utrcalling.tests.test_data import synthetic_data
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
