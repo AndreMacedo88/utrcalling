@@ -1,5 +1,6 @@
 # utrcalling
 
+[![CI](https://github.com/AndreMacedo88/utrcalling/actions/workflows/tests.yml/badge.svg)](https://github.com/AndreMacedo88/utrcalling/actions/workflows/tests.yml)
 ![Python >= 3.11](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-green)
 ![Version 3.1.10](https://img.shields.io/badge/version-3.1.10-orange)

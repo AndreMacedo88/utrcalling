@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  # Weekly run: environment.yml resolves the latest compatible dependencies, so
+  # this catches breaking upstream releases (like pandas 3) before users do.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install ruff (pinned in the dev dependency group)
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --group dev
+      # `ruff check` is not enforced yet: the remaining findings need case-by-case fixes.
+      - run: ruff format --check .
+
+  tests:
+    name: tests (${{ matrix.environment-file }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        environment-file: [environment.yml, envs/utrcalling-frozen.yml]
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+      # The same command users run, so the install instructions are tested too.
+      - name: Create the environment
+        run: conda env create -n utrcalling -f ${{ matrix.environment-file }}
+      - name: Show the resolved versions
+        run: conda run -n utrcalling pip list
+      - name: Run the test suite
+        run: conda run --no-capture-output -n utrcalling utrcalling run-tests --verbosity 1
