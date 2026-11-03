@@ -1,0 +1,6 @@
+# Bulk style commits, skipped by git blame (GitHub reads this file automatically;
+# locally: git config blame.ignoreRevsFile .git-blame-ignore-revs).
+# style: format the codebase with ruff
+10e3836ff9051a1804eab22bb4fa36adc76d0a69
+# style: fix the auto-fixable ruff lint findings
+b6d18d81ed350620cb5ebc72afb79e3eae6ec4b5
