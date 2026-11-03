@@ -19,6 +19,7 @@ classifiers = [
 ]
 # Compatible ranges, so utrcalling can share an environment with other tools.
 # Upper bounds only where a release breaks utrcalling or is not yet validated.
+# The exact versions the test suite passes with are in envs/utrcalling-frozen.yml.
 dependencies = [
     "numpy>=1.22.3",
     "pandas>=1.3.0,<3",  # tests pass on pandas 3; cap until outputs are validated on real data

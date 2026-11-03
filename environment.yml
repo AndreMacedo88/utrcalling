@@ -1,5 +1,6 @@
 # Recommended install: a dedicated conda environment with the latest compatible
 # versions of every dependency (ranges are declared in pyproject.toml).
+# If this ever stops resolving to a working set, use envs/utrcalling-frozen.yml.
 name: utrcalling
 channels:
   - conda-forge
