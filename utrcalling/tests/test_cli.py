@@ -1,5 +1,7 @@
 """CLI tests — verify that all subcommands parse correctly and --help works."""
 
+import contextlib
+import io
 import os
 from pathlib import Path
 import subprocess
@@ -150,6 +152,34 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
         from utrcalling.tools.call_peaks import call_peaks
         kwargs = self._protocol_kwargs(call_peaks, "utr_reference.bed", "mappings.parquet")
         self.assertEqual(kwargs["kde_bandwidth"], 150)
+
+
+class TestRunTestsExitCode(unittest.TestCase):
+    """`utrcalling run-tests` must exit non-zero when tests fail, so scripts and CI notice."""
+
+    def _run_suite(self, should_fail):
+        # Defined here, not at module level, so test discovery never collects it.
+        class Probe(unittest.TestCase):
+            def runTest(self):
+                if should_fail:
+                    self.fail("deliberate failure")
+
+        from utrcalling.tests import test_case
+        with (
+            mock.patch.object(
+                unittest.TestLoader, "discover", return_value=unittest.TestSuite([Probe()])
+            ),
+            contextlib.redirect_stderr(io.StringIO()),
+        ):
+            test_case.run_all_tests(verbosity=0, logging=True)
+
+    def test_passing_suite_returns_normally(self):
+        self._run_suite(should_fail=False)
+
+    def test_failing_suite_exits_with_code_1(self):
+        with self.assertRaises(SystemExit) as ctx:
+            self._run_suite(should_fail=True)
+        self.assertEqual(ctx.exception.code, 1)
 
 
 if __name__ == "__main__":

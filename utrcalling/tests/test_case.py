@@ -1,5 +1,6 @@
 import os
 import argparse
+import sys
 import unittest
 import logging as log_module
 from utrcalling.core import module_log
@@ -28,9 +29,13 @@ def run_all_tests(verbosity, logging):
     # Adds all files starting in 'test' to the suite
     suite = loader.discover(start_dir=dir_path, pattern="test_*.py")
     # Runs the test suite
-    unittest.TextTestRunner(verbosity=verbosity).run(suite)
+    result = unittest.TextTestRunner(verbosity=verbosity).run(suite)
 
     module_log.log_end_run("Finished testing")
+
+    # Exit non-zero on failure, so scripts and CI can rely on the exit code
+    if not result.wasSuccessful():
+        sys.exit(1)
 
 
 def create_parser(subparsers):
