@@ -49,6 +49,11 @@ Homepage = "https://github.com/AndreMacedo88/utrcalling"
 [project.scripts]
 utrcalling = "utrcalling.runtime:main"
 
+# Development tools, not installed for users: `pip install --group dev`.
+# Ruff is pinned because its formatting style changes between releases.
+[dependency-groups]
+dev = ["ruff==0.17.3"]
+
 [tool.setuptools.dynamic]
 version = { attr = "utrcalling._metadata.__version__" }
 
