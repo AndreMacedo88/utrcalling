@@ -5,6 +5,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
+from unittest import mock
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
@@ -119,6 +120,36 @@ class TestCLIParserCreation(unittest.TestCase):
         with self.assertRaises(SystemExit) as ctx:
             parser.parse_args(["--version"])
         self.assertEqual(ctx.exception.code, 0)
+
+
+class _StopAfterProtocol(Exception):
+    """Raised by the patched protocol factory to end the tool run early."""
+
+
+class TestToolsForwardKdeBandwidth(unittest.TestCase):
+    """`--kde_bandwidth` must reach the protocol, which builds the standard-path peak caller.
+
+    Without it, the standard (non --raw_sizes) path silently uses the default
+    bandwidth of 12 whatever the user passes.
+    """
+
+    def _protocol_kwargs(self, tool, *args, **kwargs):
+        with (
+            mock.patch("utrcalling.core.protocol.create", side_effect=_StopAfterProtocol) as create,
+            self.assertRaises(_StopAfterProtocol),
+        ):
+            tool(*args, kde_bandwidth=150, log_level="error", no_log_file=True, **kwargs)
+        return create.call_args.kwargs
+
+    def test_run_forwards_kde_bandwidth(self):
+        from utrcalling.tools.run import run
+        kwargs = self._protocol_kwargs(run, "annotation.gtf", ["sample.bam"])
+        self.assertEqual(kwargs["kde_bandwidth"], 150)
+
+    def test_call_peaks_forwards_kde_bandwidth(self):
+        from utrcalling.tools.call_peaks import call_peaks
+        kwargs = self._protocol_kwargs(call_peaks, "utr_reference.bed", "mappings.parquet")
+        self.assertEqual(kwargs["kde_bandwidth"], 150)
 
 
 if __name__ == "__main__":

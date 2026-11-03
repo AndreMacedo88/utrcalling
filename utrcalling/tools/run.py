@@ -88,6 +88,7 @@ def run(
         alignments=alignments,
         annotations=annotations_file,
         strandedness=strandedness,
+        kde_bandwidth=kde_bandwidth,
     )
 
     # Get UTR reference data from the organisms GTF annotation file
@@ -306,7 +307,15 @@ def create_parser(subparsers):
         "--kde_bandwidth",
         type=int,
         default=12,
-        help="Bandwidth for the Gaussian KDE when --raw_sizes produces the KDE peaks output.",
+        help="""
+                        Bandwidth of the Gaussian KDE that collapses UTR sizes into
+                        consensus peaks. Applies to the standard peak-calling path and
+                        to the KDE output of --raw_sizes. The default of 12 is tuned for
+                        3'-end-enriched assays where reads pile within a few bp of a true
+                        polyadenylation site; random-fragmentation libraries have a much
+                        broader per-site spread and need a wider kernel, otherwise the
+                        smear is carved into many closely-spaced pseudo-peaks.
+                        """,
     )
 
     parser.add_argument(

@@ -145,6 +145,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         label_batches: bool | str | None = None,
         alignments: str | list[str] | None = None,
         strandedness: str | None = None,
+        kde_bandwidth: int = 12,
     ) -> None:
         """Initialize the protocol with pipeline configuration.
 
@@ -159,6 +160,12 @@ class Protocol(ABC, metaclass=CombinedMeta):
             strandedness: Library strandedness ('reverse', 'forward', or
                 'unstranded'). Only used by stranded bulk protocols (e.g. TruSeq);
                 ignored by protocols that fix their own strand convention.
+            kde_bandwidth: Bandwidth of the Gaussian KDE used to collapse UTR
+                sizes into consensus peaks. The default of 12 is tuned for
+                3'-end-enriched assays, where reads pile within a few bp of a
+                true polyadenylation site. Random-fragmentation libraries have a
+                far broader per-site spread and need a wider kernel, otherwise
+                the smear is carved into many closely-spaced pseudo-peaks.
         """
         self.logger = module_log.module_logger()
 
@@ -184,8 +191,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         self.call_peaks = call_peaks
 
+        self.kde_bandwidth = kde_bandwidth
         if self.call_peaks:
-            self.peak_calling = pc.get_caller(call_peaks_method)
+            self.peak_calling = pc.get_caller(call_peaks_method, bandwidth=kde_bandwidth)
         else:
             self.peak_calling = None
 
@@ -612,6 +620,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
         alignments=None,
         annotations=None,
         strandedness=None,
+        kde_bandwidth=12,
     ) -> None:
 
         super().__init__(
@@ -622,6 +631,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
             alignments=alignments,
             annotations=annotations,
             strandedness=strandedness,
+            kde_bandwidth=kde_bandwidth,
         )
 
         try:
@@ -774,6 +784,7 @@ class ProtocolCapseq(ProtocolFivePrime):
         alignments=None,
         annotations=None,
         strandedness=None,
+        kde_bandwidth=12,
     ) -> None:
 
         super().__init__(
@@ -784,6 +795,7 @@ class ProtocolCapseq(ProtocolFivePrime):
             alignments=alignments,
             annotations=annotations,
             strandedness=strandedness,
+            kde_bandwidth=kde_bandwidth,
         )
 
         try:
