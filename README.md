@@ -345,7 +345,7 @@ listed on that page. Citation metadata is in `CITATION.cff`, and GitHub's
 
 ## License
 
-BSD-3-Clause
+BSD-3-Clause. See [LICENSE](LICENSE).
 
 ## Author
 
