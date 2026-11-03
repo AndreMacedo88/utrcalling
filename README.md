@@ -80,8 +80,9 @@ bulk protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
 
 ### With conda (recommended)
 
-The provided `environment.yml` creates a conda environment with all
-dependencies, including BEDTools:
+The provided `environment.yml` creates a dedicated conda environment with
+Python 3.12, BEDTools, and the latest compatible versions of all Python
+dependencies, and installs utrcalling in editable mode:
 
 ```bash
 git clone https://github.com/AndreMacedo88/utrcalling.git
@@ -90,9 +91,24 @@ conda env create -f environment.yml
 conda activate utrcalling
 ```
 
-This installs the package in editable mode automatically.
+### Frozen environment (reproducible)
 
-### From source
+`envs/utrcalling-frozen.yml` pins every package to the exact versions the
+test suite was validated with. Use it if the recommended install fails or
+behaves differently, for example after breaking releases of dependencies in
+the future:
+
+```bash
+conda env create -f envs/utrcalling-frozen.yml
+conda activate utrcalling
+utrcalling run-tests
+```
+
+### Into an existing environment
+
+To install utrcalling alongside other tools, install it with `pip` inside your
+active environment. Compatible versions are resolved from the ranges declared
+in `pyproject.toml`, and BEDTools must be available on your `PATH`:
 
 ```bash
 git clone https://github.com/AndreMacedo88/utrcalling.git
@@ -289,23 +305,27 @@ utrcalling/
 │   ├── tools/                   CLI subcommand implementations
 │   ├── tests/                   Unit and integration tests
 │   └── notebooks/               Example notebooks
-├── setup.py
-├── environment.yml
+├── envs/
+│   └── utrcalling-frozen.yml   Exact versions validated by the test suite
+├── pyproject.toml              Package metadata and dependency ranges
+├── environment.yml             Recommended conda environment
 └── README.md
 ```
 
 ## Dependencies
 
-Core Python dependencies (installed automatically via `pip`):
+Python dependencies are installed automatically. Their compatible version
+ranges are declared in `pyproject.toml`, and the exact validated versions in
+`envs/utrcalling-frozen.yml`. The main ones are:
 
-- **pysam** (>= 0.20.0) --- BAM file reading
-- **pybedtools** (>= 0.8.2) --- genomic interval operations (requires BEDTools)
-- **anndata** (>= 0.12.0) / **scanpy** (>= 1.11.0) --- single-cell data structures
-- **pandas** (>= 1.3.0) / **numpy** (>= 1.22.3) / **scipy** (>= 1.6.2)
-- **joblib** (>= 1.0.1) --- parallelism
-- **gtfparse** (>= 1.2.1, < 2) --- GTF file parsing
-- **rapidfuzz** (>= 2.0.0) --- fuzzy barcode matching
-- **scikit-learn** (>= 0.23.2) --- used by KDE peak calling
+- **pysam** --- BAM file reading
+- **pybedtools** --- genomic interval operations (requires BEDTools)
+- **anndata** / **scanpy** --- single-cell data structures
+- **pandas** / **numpy** / **scipy**
+- **joblib** --- parallelism
+- **gtfparse** --- GTF file parsing
+- **rapidfuzz** --- fuzzy barcode matching
+- **scikit-learn** --- used by KDE peak calling
 - **pyarrow** --- Parquet I/O
 
 System dependency:
