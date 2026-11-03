@@ -1,9 +1,13 @@
+# Recommended install: a dedicated conda environment with the latest compatible
+# versions of every dependency (ranges are declared in pyproject.toml).
 name: utrcalling
 channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python>=3.11
+  # Pinned to the tested Python: an open-ended python>=3.11 lets conda pick a
+  # release that some compiled dependencies (pybedtools, h5py) have no wheels for.
+  - python=3.12
   - bedtools>=2.30.0
   - pip
   - pip:
