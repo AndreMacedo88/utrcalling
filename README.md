@@ -14,8 +14,8 @@ single-cell resolution.
 ## Features
 
 - **Multi-protocol support** --- works with modified and standard versions of
-  10x Chromium and SmartSeq3 sequencing, as well as CapSeq and 5' 10x
-  protocols.
+  10x Chromium and SmartSeq3 sequencing, CapSeq and 5' 10x protocols, and
+  stranded or unstranded paired-end bulk RNA-seq.
 - **3'UTR and 5'UTR calling** --- analyse either end of the transcript.
 - **Flexible summarisation** --- aggregate results at UTR, transcript, or gene
   level.
@@ -44,8 +44,11 @@ parsing, deduplication, and UTR size estimation logic:
 | `standard_smartseq` | Any | No | none | Standard SmartSeq3. One BAM per cell, no barcodes/UMIs. Accepts reads from both strands and uses the distal read position (closest to polyA). |
 | `smart-seq_cap` | Read 1 | Yes | keep first | CapSeq SmartSeq3. |
 | `smart-seq_cap-readname` | Read 1 | Yes | keep first | CapSeq SmartSeq3 with read-name UMI extraction. |
+| `truseq` | Any | No | none | Stranded bulk RNA-seq (e.g. TruSeq Stranded mRNA), single- or paired-end. One BAM per sample. Strand-aware via `--strandedness` (default `reverse`, correct for dUTP libraries). Uses the distal read position. |
+| `bulk_pe` | Any | No | fragment | Unstranded paired-end bulk RNA-seq (e.g. TruSeq RNA v2). One BAM per sample. Counts each fragment once (mates collapsed by read name) and uses the fragment's distal base, so it reaches further into the UTR than a single mate. Fragments running past the annotated 3' end are placed at the UTR end rather than dropped. |
 
-Each platform is used with a `--protocol_version` (typically `2` or `3`).
+Each platform is used with a `--protocol_version` (typically `2` or `3`). The
+bulk protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
 
 ## Input
 
@@ -155,6 +158,29 @@ utrcalling run \
     --out smartseq3_results.h5ad
 ```
 
+### Bulk RNA-seq
+
+For bulk RNA-seq with one BAM per sample. The annotations file needs a
+`sample_id` column whose values appear in the BAM paths (e.g. `S1` for
+`aligned/S1.bam`). Use `truseq` for stranded libraries and `bulk_pe` for
+unstranded paired-end libraries:
+
+```bash
+utrcalling run \
+    genome_annotations.gtf.gz \
+    --alignments aligned/S1.bam aligned/S2.bam \
+    --annotations_file annotations.csv \
+    --protocol_platform bulk_pe \
+    --protocol_version 1 \
+    --out bulk_results.h5ad
+```
+
+Random-fragmentation libraries spread reads over a much wider window around
+each polyadenylation site than 3'-end assays do, so a wider `--kde_bandwidth`
+than the default of 12 is usually needed. Otherwise the spread is split into
+many closely spaced pseudo-peaks. `utrcalling estimate-best-bandwidth` can help
+choose a value.
+
 ### Step-by-step execution
 
 The pipeline can also be run in two stages for large datasets or debugging:
@@ -185,6 +211,7 @@ utrcalling call-peaks \
 | `--summarization_level / -s` | Aggregate at `UTR`, `transcript`, or `gene` level. |
 | `--raw_sizes / -r` | Output both raw UTR sizes and KDE peaks. |
 | `--kde_bandwidth` | KDE bandwidth for peak calling (default: 12). |
+| `--strandedness` | Library strandedness for `truseq`: `reverse` (default), `forward`, or `unstranded`. |
 | `--batch_merge_method / -m` | How to merge batches: `union` or `intersection`. |
 | `--store_intermediate / -i` | Save intermediate files for resumable workflows. |
 | `--label_batches / -L` | Append batch index to cell barcodes. |
@@ -226,8 +253,8 @@ utrcalling check-distance-to-pas results.h5ad distances.joblib genome.fa
 
 ## Testing
 
-The test suite contains 359 tests covering all protocols, edge cases, and the
-full pipeline end-to-end.
+The test suite covers all protocols, edge cases, and the full pipeline
+end-to-end.
 
 ```bash
 # Run all tests via the CLI entry point
@@ -260,7 +287,7 @@ utrcalling/
 │   │   ├── storage.py
 │   │   └── ...
 │   ├── tools/                   CLI subcommand implementations
-│   ├── tests/                   359 unit and integration tests
+│   ├── tests/                   Unit and integration tests
 │   └── notebooks/               Example notebooks
 ├── setup.py
 ├── environment.yml
