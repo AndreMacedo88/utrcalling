@@ -378,6 +378,34 @@ class TestReadsBatchSuffixProperty(unittest.TestCase):
         self.assertFalse(p._reads_have_batch_suffix)
 
 
+class TestBatchColumnDtypes(unittest.TestCase):
+    """Batch columns load as pandas extension dtypes too: string columns default
+    to ``StringDtype`` in pandas 3, and nullable integers are ``Int64``.
+    numpy's dtype checks raise on those, so they must not be used here."""
+
+    def _batches_range(self, batches):
+        p = protocol.create(
+            "10x", 3,
+            annotations=pd.DataFrame({"barcode": ["AAAA", "CCCC", "GGGG"], "batch": batches}),
+            label_batches=False,
+        )
+        return list(p.batches_range)
+
+    def test_object_strings_are_factorized(self):
+        self.assertEqual(self._batches_range(["b1", "b1", "b2"]), ["1", "1", "2"])
+
+    def test_string_dtype_is_factorized(self):
+        batches = pd.array(["b1", "b1", "b2"], dtype="string")
+        self.assertEqual(self._batches_range(batches), ["1", "1", "2"])
+
+    def test_integers_are_kept(self):
+        self.assertEqual(self._batches_range([3, 3, 7]), ["3", "3", "7"])
+
+    def test_nullable_integers_are_kept(self):
+        batches = pd.array([3, 3, 7], dtype="Int64")
+        self.assertEqual(self._batches_range(batches), ["3", "3", "7"])
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")
