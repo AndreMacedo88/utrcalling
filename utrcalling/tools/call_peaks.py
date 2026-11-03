@@ -233,7 +233,9 @@ def create_parser(subparsers):
             "Sequencing platform used. Options: 10x, smartseq, "
             "smart-seq_cap, smart-seq_cap-readname, 5prime10x, "
             "standard_10x (Cell Ranger BAM), standard_smartseq, "
-            "truseq (stranded bulk RNA-seq, e.g. TruSeq Stranded mRNA)."
+            "truseq (stranded bulk RNA-seq, e.g. TruSeq Stranded mRNA), "
+            "bulk_pe (unstranded paired-end bulk RNA-seq; one observation "
+            "per fragment, positioned at the fragment's polyA-distal base)."
         ),
         default="10x",
     )

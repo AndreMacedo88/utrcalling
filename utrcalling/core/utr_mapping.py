@@ -139,6 +139,7 @@ def _process_interval_batch(
         "PCR duplicates": 0,
         "Alignments not primary alignment": 0,
         "Alignments in interval but wrong strand": 0,
+        "Positions clamped to the UTR end": 0,
     }
 
     # Cache protocol method lookups as local variables
@@ -147,8 +148,13 @@ def _process_interval_batch(
     get_utr_size = protocol.get_utr_size_from_read
     get_obs_id = protocol.get_observation_id
     get_read_pos = protocol.get_read_position
+    get_frag_pos = protocol.get_fragment_position
     has_umi = protocol.has_umi
     dedup_strat = protocol.dedup_strategy
+    # Hoisted out of the read loop so protocols that do not opt in pay nothing.
+    use_fragment = protocol.uses_fragment_position
+    clamp_bounds = protocol.clamp_out_of_bounds
+    dedup_fragments = dedup_strat == "fragment"
 
     all_utr_names: list[str] = []
     all_observation_ids: list[str] = []
@@ -172,6 +178,7 @@ def _process_interval_batch(
 
             read_barcodes: list[str] = []
             read_umis: list[str] = []
+            read_names: list[str] = []
             utr_sizes_from_reads: list[int] = []
 
             try:
@@ -208,18 +215,45 @@ def _process_interval_batch(
                         continue
 
                     # Position extraction (protocol-controlled)
-                    read_pos = get_read_pos(
-                        aln.reference_start, aln.reference_end - 1,
-                        aln.is_reverse, iv_strand,
-                    )
-
-                    # Position bounds check
-                    if iv_strand == "+":
-                        if read_pos < iv_start_d or read_pos > iv_end_d:
-                            continue
+                    if use_fragment:
+                        tlen = aln.template_length
+                        mate_is_usable = bool(
+                            (flag & 0x2)                       # proper pair
+                            and not (flag & 0x8)               # mate mapped
+                            and aln.next_reference_id == aln.reference_id
+                            and tlen != 0
+                        )
+                        read_pos = get_frag_pos(
+                            aln.reference_start, aln.reference_end - 1,
+                            aln.is_reverse, iv_strand,
+                            aln.next_reference_start, tlen, mate_is_usable,
+                        )
                     else:
-                        if read_pos > iv_start_d or read_pos < iv_end_d:
+                        read_pos = get_read_pos(
+                            aln.reference_start, aln.reference_end - 1,
+                            aln.is_reverse, iv_strand,
+                        )
+
+                    # Position bounds check. Fragment-positioned protocols clamp
+                    # onto the UTR's distal boundary instead of dropping, so that
+                    # fragments reaching past the annotated 3' end are not lost —
+                    # dropping them would bias every distribution proximally.
+                    if iv_strand == "+":
+                        if read_pos < iv_start_d:
                             continue
+                        if read_pos > iv_end_d:
+                            if not clamp_bounds:
+                                continue
+                            read_pos = iv_end_d
+                            mapping_stats["Positions clamped to the UTR end"] += 1
+                    else:
+                        if read_pos > iv_start_d:
+                            continue
+                        if read_pos < iv_end_d:
+                            if not clamp_bounds:
+                                continue
+                            read_pos = iv_end_d
+                            mapping_stats["Positions clamped to the UTR end"] += 1
 
                     # Identity extraction via adapter (only for reads that pass all checks)
                     adapter = _PySamAdapter(aln)
@@ -235,13 +269,20 @@ def _process_interval_batch(
                     read_barcodes.append(observation_id)
                     if has_umi:
                         read_umis.append(read_umi)
+                    if dedup_fragments:
+                        read_names.append(aln.query_name)
                     utr_sizes_from_reads.append(utr_size)
             except ValueError:
                 continue
 
             # Deduplicate or pass through
             if read_barcodes:
-                if has_umi and read_umis:
+                if dedup_fragments:
+                    mapped_read_information = deduplicate_fragments(
+                        read_names=read_names,
+                        read_info=[read_barcodes, utr_sizes_from_reads],
+                    )
+                elif has_umi and read_umis:
                     if dedup_strat == "keep_max":
                         mapped_read_information = deduplicate_reads_keep_max(
                             read_umis=read_umis,
@@ -339,6 +380,7 @@ def map_reads_to_utr(
         "PCR duplicates",
         "Alignments not primary alignment",
         "Alignments in interval but wrong strand",
+        "Positions clamped to the UTR end",
     ]
 
     if parallel and len(interval_items) > 50:
@@ -369,13 +411,15 @@ def map_reads_to_utr(
         all_utr_names: list[str] = []
         all_observation_ids: list[str] = []
         all_utr_sizes: list[int] = []
+        # Seeded from stat_keys so the reporting order is stable, but any key a
+        # worker adds is accumulated too — counters are protocol-dependent.
         merged_stats = {k: 0 for k in stat_keys}
         for utr_names, obs_ids, utr_sizes, stats in results:
             all_utr_names.extend(utr_names)
             all_observation_ids.extend(obs_ids)
             all_utr_sizes.extend(utr_sizes)
             for k, v in stats.items():
-                merged_stats[k] += v
+                merged_stats[k] = merged_stats.get(k, 0) + v
         mapping_stats = merged_stats
     else:
         # Sequential path — single batch with progress bar
@@ -459,5 +503,35 @@ def deduplicate_reads_keep_max(
         if key not in best or size > utr_sizes[best[key]]:
             best[key] = idx
     idx_unique = sorted(best.values())
+    return [[element[i] for i in idx_unique] for element in read_info]
+
+
+def deduplicate_fragments(
+    read_names: list[str], read_info: list[list[str | int]]
+) -> list[list[str | int]]:
+    """Collapse the two mates of a paired-end fragment into one observation.
+
+    For a UMI-less paired-end protocol positioned by fragment, both mates of a
+    pair produce the same (barcode, utr_size); keeping both would double every
+    count. This keeps the first occurrence of each read name.
+
+    Read names are unique per fragment within a BAM, so no barcode is needed in
+    the key — unlike the UMI de-duplicators, where the same UMI may legitimately
+    recur across cells.
+
+    Args:
+        read_names: Query name of each read, parallel to *read_info*.
+        read_info: List of parallel lists (barcodes, sizes, ...) filtered in sync.
+
+    Returns:
+        A filtered copy of *read_info* with one entry per read name, in the
+        original order.
+    """
+    seen: set[str] = set()
+    idx_unique = []
+    for idx, name in enumerate(read_names):
+        if name not in seen:
+            idx_unique.append(idx)
+            seen.add(name)
     return [[element[i] for i in idx_unique] for element in read_info]
 

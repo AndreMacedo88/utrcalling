@@ -427,12 +427,14 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     @property
     def dedup_strategy(self) -> str:
-        """Deduplication strategy: ``'keep_first'`` or ``'keep_max'``.
+        """Deduplication strategy: ``'keep_first'``, ``'keep_max'`` or ``'fragment'``.
 
         ``'keep_first'`` keeps the first occurrence of each (barcode, UMI) pair
         (the historical default). ``'keep_max'`` keeps the entry with the
         largest ``utr_size`` — appropriate for standard protocols where
         different fragments from the same molecule have different lengths.
+        ``'fragment'`` is for UMI-less paired-end protocols: it keeps one
+        observation per *read name*, so the two mates of a fragment count once.
         """
         return "keep_first"
 
@@ -456,6 +458,62 @@ class Protocol(ABC, metaclass=CombinedMeta):
         pipeline via ``get_observation_id()``.
         """
         return False
+
+    @property
+    def uses_fragment_position(self) -> bool:
+        """Whether to position a read pair by its *fragment*, not by one mate.
+
+        ``False`` (default) makes the read loop call ``get_read_position``.
+        ``True`` makes it call ``get_fragment_position`` instead, which also
+        sees the mate coordinates — appropriate for paired-end bulk protocols
+        where the fragment reaches further into the UTR than either mate.
+        """
+        return False
+
+    @property
+    def clamp_out_of_bounds(self) -> bool:
+        """Whether a position past the UTR's distal end is clamped or dropped.
+
+        ``False`` (default) drops such reads, the historical behaviour. Protocols
+        that position by fragment set this to ``True``: a fragment can extend
+        past the annotated 3' end, and dropping those would remove exactly the
+        most distal fragments, biasing every UTR-size distribution proximally.
+        """
+        return False
+
+    @staticmethod
+    def get_fragment_position(
+        ref_start: int,
+        ref_end_minus1: int,
+        is_reverse: bool,
+        interval_strand: str,
+        mate_ref_start: int,
+        template_length: int,
+        mate_is_usable: bool,
+    ) -> int:
+        """Return the position used for UTR size calculation, fragment-aware.
+
+        The default implementation ignores the mate and delegates to
+        ``get_read_position``, so protocols that do not set
+        ``uses_fragment_position`` are unaffected.
+
+        Args:
+            ref_start: ``alignment.reference_start`` (0-based leftmost).
+            ref_end_minus1: ``alignment.reference_end - 1`` (0-based rightmost).
+            is_reverse: ``alignment.is_reverse``.
+            interval_strand: Strand of the UTR interval ('+' or '-').
+            mate_ref_start: ``alignment.next_reference_start``.
+            template_length: ``alignment.template_length`` (signed TLEN).
+            mate_is_usable: True when the pair is a proper pair whose mate is
+                mapped to the same reference with a non-zero TLEN.
+
+        Returns:
+            A genomic position (int) to pass to ``get_utr_size_from_read``.
+        """
+        del mate_ref_start, template_length, mate_is_usable
+        return Protocol.get_read_position(
+            ref_start, ref_end_minus1, is_reverse, interval_strand
+        )
 
     @staticmethod
     def get_read_position(
@@ -774,6 +832,93 @@ class ProtocolTruseq(ProtocolSmartseq):
         return name
 
 
+class ProtocolBulkPe(ProtocolTruseq):
+    """Unstranded, paired-end, full-length bulk RNA-seq (e.g. TruSeq RNA v2).
+
+    Differs from :class:`ProtocolTruseq` in the two ways that matter for an
+    unstranded paired-end library:
+
+    * **one observation per fragment, not per mate.** Under an unstranded strand
+      filter both mates of a fragment pass, and each one reports a *different*
+      UTR size (they sit at opposite ends of the fragment). That doubles the
+      counts and injects a spurious bimodality into every UTR-size distribution.
+      ``dedup_strategy == 'fragment'`` collapses the mates by read name.
+    * **the fragment's distal base is used, not the mate's.** A 50 bp mate reaches
+      at most 50 bp into the UTR from where it starts; the fragment it belongs to
+      is typically ~200 bp, and its distal end is the better estimate of how far
+      the molecule extends. Mate coordinates give this for free.
+
+    ``read_in_pair`` stays ``'any'`` deliberately. Restricting to read 1 would
+    also count each fragment once, but reads are fetched per UTR interval, so a
+    fragment is only seen when the fetched mate overlaps the interval. For
+    fragments straddling the UTR's proximal boundary, read 1 lies outside the
+    interval about half the time (the library is unstranded, so which mate is
+    proximal is random), which would systematically deplete the proximal end of
+    every UTR. Accepting either mate and de-duplicating by name is unbiased.
+
+    Because a fragment can extend past the annotated 3' end,
+    ``clamp_out_of_bounds`` is ``True``: such fragments are placed at the UTR's
+    distal boundary rather than dropped, which would otherwise remove exactly the
+    most distal fragments.
+
+    Single-end or improperly paired alignments degrade gracefully — the fragment
+    position falls back to the single-read position, i.e. to ``ProtocolTruseq``
+    behaviour.
+    """
+
+    _default_strandedness = "unstranded"
+
+    def __init__(self, *args, **kwargs) -> None:
+        if kwargs.get("strandedness") is None:
+            kwargs["strandedness"] = self._default_strandedness
+        super().__init__(*args, **kwargs)
+
+    @property
+    def uses_fragment_position(self) -> bool:
+        return True
+
+    @property
+    def clamp_out_of_bounds(self) -> bool:
+        return True
+
+    @property
+    def dedup_strategy(self) -> str:
+        return "fragment"
+
+    @staticmethod
+    def get_fragment_position(
+        ref_start: int,
+        ref_end_minus1: int,
+        is_reverse: bool,
+        interval_strand: str,
+        mate_ref_start: int,
+        template_length: int,
+        mate_is_usable: bool,
+    ) -> int:
+        """Return the polyA-distal base of the whole fragment.
+
+        ``TLEN`` is defined as (rightmost mate end - leftmost mate start), so the
+        fragment spans ``[min(ref_start, mate_ref_start),
+        min(...) + abs(template_length))``. For a ``+`` strand UTR the distal
+        base is the fragment's rightmost base, for a ``-`` strand UTR its
+        leftmost.
+
+        When the pair is unusable (single-end read, mate unmapped or on another
+        reference, ``TLEN == 0``) this falls back to the single-read distal base,
+        which is exactly what :meth:`ProtocolTruseq.get_read_position` returns.
+        Both mates of a usable pair return the same value, which is what makes
+        fragment-level de-duplication well defined.
+        """
+        if not mate_is_usable:
+            return ProtocolTruseq.get_read_position(
+                ref_start, ref_end_minus1, is_reverse, interval_strand
+            )
+        frag_start = ref_start if ref_start < mate_ref_start else mate_ref_start
+        if interval_strand == "+":
+            return frag_start + abs(template_length) - 1
+        return frag_start
+
+
 class ProtocolCapseq(ProtocolFivePrime):
     _default_label_batches = False
 
@@ -1019,4 +1164,9 @@ def create(platform: str, version: int, **kwargs) -> Protocol:
     ):
         # Bulk RNA-seq has no protocol "version" — accept any.
         return ProtocolTruseq(**kwargs)
+    if platform.lower() in (
+        "bulk_pe", "bulk-pe", "standard_bulk_pe", "unstranded_bulk_pe"
+    ):
+        # Bulk RNA-seq has no protocol "version" — accept any.
+        return ProtocolBulkPe(**kwargs)
     raise NotImplementedError(error_message)
