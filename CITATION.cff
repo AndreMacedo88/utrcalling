@@ -11,8 +11,6 @@ abstract: >-
 authors:
   - given-names: André
     family-names: Macedo
-  - given-names: Jooa
-    family-names: Hooli
 version: 3.1.10
 date-released: 2026-10-27
 identifiers:
