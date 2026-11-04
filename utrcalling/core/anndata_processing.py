@@ -261,7 +261,8 @@ def concatenate_adata(
     var_dfs = []
     for adata in adata_list:
         canonical = (
-            adata.var["utr_name"] + "|" + adata.var["utr_size"].astype(int).astype(str)
+            # astype(str): h5ad files store utr_name as categorical
+            adata.var["utr_name"].astype(str) + "|" + adata.var["utr_size"].astype(int).astype(str)
         ).values
         X = adata.X
         if not scipy.sparse.issparse(X):

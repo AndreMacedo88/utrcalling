@@ -434,5 +434,43 @@ class TestComputeMeanUtrSizesCommand(_InTempDir):
             np.testing.assert_allclose(_dense(self.means[:, utr].X).ravel(), expected)
 
 
+class TestConcatenateExperimentsCommand(_InTempDir):
+    """`concatenate-experiments` puts back together two experiments of one data set."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        old = raw[raw.obs.CellAge == "old"]
+        young = raw[raw.obs.CellAge == "young"]
+        # Each experiment only has the sites it saw: the rest are filled with zeros.
+        for name, part in (("old", old), ("young", young)):
+            seen = _dense(part.X).sum(axis=0) > 0
+            part[:, seen].copy().write_h5ad(cls.tmp / f"{name}.h5ad")
+        utrcalling(
+            "concatenate-experiments",
+            "-i",
+            "old.h5ad",
+            "young.h5ad",
+            "-o",
+            "all.h5ad",
+            cwd=cls.tmp,
+        )
+        cls.raw = raw
+        cls.combined = ad.read_h5ad(cls.tmp / "all.h5ad")
+        cls.expected_cells = list(old.obs_names) + list(young.obs_names)
+
+    def test_has_the_cells_of_both_experiments(self):
+        self.assertListEqual(list(self.combined.obs_names), self.expected_cells)
+
+    def test_counts_per_site_match_the_original_data(self):
+        self.assertCountEqual(_site_keys(self.combined), _site_keys(self.raw))
+        order = {key: i for i, key in enumerate(_site_keys(self.raw))}
+        columns = [order[key] for key in _site_keys(self.combined)]
+        np.testing.assert_array_equal(
+            _dense(self.combined.X), _dense(self.raw[self.expected_cells].X)[:, columns]
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
