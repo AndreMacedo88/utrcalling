@@ -273,6 +273,54 @@ class TestEstimateBestBandwidthTool(unittest.TestCase):
         self.assertDictEqual(joblib.load(out_path), {7: 0.25, 12: 0.5})
 
 
+class TestCheckDistanceToPasCommand(unittest.TestCase):
+    """`utrcalling check-distance-to-pas`: distance of every molecule to its PAS hexamer."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmpdir)
+        # One + strand UTR on chr1:100-200 (1-based) with molecules ending at UTR
+        # sizes 40, 41 and 42: 5, 20 and 8 molecules over the four cells.
+        var = pd.DataFrame(
+            {
+                "utr_name": ["UTR0"] * 3,
+                "utr_size": [40, 41, 42],
+                "gene_name": ["Gene0"] * 3,
+                "chrom": ["chr1"] * 3,
+                "start": [100] * 3,
+                "end": [200] * 3,
+                "strand": ["+"] * 3,
+            },
+            index=["UTR0-40", "UTR0-41", "UTR0-42"],
+        )
+        counts = np.array([[2, 5, 2], [1, 6, 1], [2, 4, 3], [0, 5, 2]], dtype=np.int32)
+        obs = pd.DataFrame(index=[f"cell_{i}" for i in range(4)])
+        ad.AnnData(X=counts, obs=obs, var=var).write_h5ad(self.tmpdir / "sites.h5ad")
+
+    def _distances(self, chr1):
+        (self.tmpdir / "genome.fa").write_text(f">chr1\n{chr1}\n")
+        argv = ["utrcalling", "check-distance-to-pas", str(self.tmpdir / "sites.h5ad")]
+        argv += [str(self.tmpdir / "distances.joblib"), str(self.tmpdir / "genome.fa")]
+        argv += ["-H", "0", "--cores", "1"]
+        from utrcalling import runtime
+
+        with mock.patch.object(sys, "argv", argv):
+            runtime.main()
+        return joblib.load(self.tmpdir / "distances.joblib")
+
+    def test_distance_is_counted_from_the_end_of_the_hexamer(self):
+        # The UTR sequence starts at 0-based genome position 99, so an AATAAA at
+        # 119 ends 26 nt into the UTR: molecules at 40, 41 and 42 are 14, 15 and
+        # 16 nt downstream of it.
+        distances = self._distances("C" * 119 + "AATAAA" + "C" * 175)
+        self.assertListEqual(sorted(distances.tolist()), [14] * 5 + [15] * 20 + [16] * 8)
+
+    def test_no_hexamer_gives_no_distances(self):
+        # Used to crash: numpy cannot concatenate an empty list of arrays.
+        distances = self._distances("C" * 300)
+        self.assertEqual(distances.size, 0)
+
+
 class TestPytestFailsOnUtrcallingDeprecations(unittest.TestCase):
     """The pytest config turns deprecations raised from utrcalling code into failures.
 

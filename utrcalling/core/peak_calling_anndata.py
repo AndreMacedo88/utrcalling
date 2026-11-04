@@ -586,6 +586,8 @@ def pas_distance(
     flat = [item for br in batch_results for item in br]
     flat.sort(key=lambda x: x[0])
     distances_list = [arr for _idx, arr in flat if arr is not None]
+    if not distances_list:  # no UTR contains a polyadenylation signal
+        return np.empty(0, dtype=np.int64)
     distances_array = np.concatenate(distances_list)
 
     return distances_array
