@@ -90,6 +90,122 @@ class _InTempDir(unittest.TestCase):
         cls.addClassCleanup(shutil.rmtree, cls.tmp)
 
 
+class TestRunCommand(unittest.TestCase):
+    """`utrcalling run -r -i` with the flags of the paper's 10x workflow."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        cls.kde = ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
+        cls.annotations = pd.read_csv(ANNOTATIONS, index_col="CellBarcode")
+
+    def test_raw_sites_are_named_after_their_utr_and_size(self):
+        var = self.raw.var
+        expected = var.utr_name.astype(str) + "-" + var.utr_size.astype(str)
+        self.assertListEqual(list(self.raw.var_names), expected.tolist())
+
+    def test_cells_and_their_columns_come_from_the_annotation_file(self):
+        self.assertGreater(self.raw.n_obs, 0)
+        expected = self.annotations.loc[self.raw.obs_names]
+        for column in expected.columns:
+            with self.subTest(column=column):
+                self.assertListEqual(
+                    self.raw.obs[column].astype(str).tolist(), expected[column].astype(str).tolist()
+                )
+
+    def test_cells_are_labelled_with_the_batch_of_their_bam(self):
+        # -L True: each barcode gets the 1-based position of its BAM as suffix.
+        suffix = self.raw.obs_names.str.rsplit("-", n=1).str[1]
+        expected = self.raw.obs.CellAge.astype(str).map({"old": "1", "young": "2"})
+        self.assertListEqual(suffix.tolist(), expected.tolist())
+
+    def test_kde_peaks_keep_every_molecule_of_every_cell(self):
+        np.testing.assert_array_equal(
+            _dense(self.kde.X).sum(axis=1), _dense(self.raw.X).sum(axis=1)
+        )
+        pd.testing.assert_index_equal(self.kde.obs_names, self.raw.obs_names)
+
+    def test_kde_peaks_lie_within_the_sizes_of_their_utr(self):
+        ranges = self.raw.var.groupby("utr_name", observed=True).utr_size.agg(["min", "max"])
+        peaks = self.kde.var.join(ranges, on="utr_name")
+        self.assertTrue(peaks.utr_size.between(peaks["min"], peaks["max"]).all())
+        self.assertLess(self.kde.n_vars, self.raw.n_vars)
+
+    def test_intermediate_files_are_stored(self):
+        self.assertTrue(
+            {
+                "utr_reference_regions.parquet",
+                "UTR_sizes_counts_1.parquet",
+                "UTR_sizes_counts_2.parquet",
+                "UTR_sizes_counts_merged_union.parquet",
+            }
+            <= {path.name for path in (WORKDIR / "intermediate").iterdir()}
+        )
+
+
+class TestRunCommandWithoutRawSizes(_InTempDir):
+    """Without -r, `run` writes only the peaks: the same as the _kde file of -r."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        utrcalling(
+            "run",
+            GTF,
+            "-a",
+            *BAMS,
+            "-f",
+            "three_prime_utr",
+            *PIPELINE_FLAGS,
+            "-o",
+            "peaks.h5ad",
+            cwd=cls.tmp,
+        )
+
+    def test_peaks_match_the_kde_output_of_raw_sizes(self):
+        assert_same_anndata(
+            ad.read_h5ad(self.tmp / "peaks.h5ad"), ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
+        )
+
+    def test_writes_neither_raw_sizes_nor_intermediate_files(self):
+        written = {path.name for path in self.tmp.iterdir()}
+        self.assertIn("peaks.h5ad", written)
+        self.assertNotIn("peaks_kde.h5ad", written)
+        self.assertNotIn("intermediate", written)
+
+
+class TestCallPeaksCommand(_InTempDir):
+    """`call-peaks` on the intermediate files of `run` (the paper's fallback rule)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        intermediate = WORKDIR / "intermediate"
+        utrcalling(
+            "call-peaks",
+            intermediate / "utr_reference_regions.parquet",
+            "-c",
+            intermediate / "UTR_sizes_counts_1.parquet",
+            intermediate / "UTR_sizes_counts_2.parquet",
+            *PIPELINE_FLAGS,
+            "-r",
+            "-i",
+            "-o",
+            "peaks.h5ad",
+            cwd=cls.tmp,
+        )
+
+    def test_raw_sizes_match_run(self):
+        assert_same_anndata(
+            ad.read_h5ad(self.tmp / "peaks.h5ad"), ad.read_h5ad(WORKDIR / "raw.h5ad")
+        )
+
+    def test_peaks_match_run(self):
+        assert_same_anndata(
+            ad.read_h5ad(self.tmp / "peaks_kde.h5ad"), ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
+        )
+
+
 class TestPrepareReferenceThenCallPeaks(_InTempDir):
     """Running the pipeline in two halves gives the same result as `run`.
 
@@ -140,6 +256,149 @@ class TestPrepareReferenceThenCallPeaks(_InTempDir):
         assert_same_anndata(
             ad.read_h5ad(self.tmp / "halves_kde.h5ad"), ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
         )
+
+
+def _site_keys(adata):
+    """(utr_name, utr_size) of each site, which identifies it whatever its name."""
+    return list(zip(adata.var.utr_name.astype(str), adata.var.utr_size.astype(int), strict=True))
+
+
+class TestCallPeaksDifferentBandwidthsCommand(_InTempDir):
+    """`call-peaks-different-bandwidths` on the raw sizes of `run`."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        utrcalling(
+            "call-peaks-different-bandwidths",
+            WORKDIR / "raw.h5ad",
+            "peaks",
+            "-b",
+            "12",
+            "60",
+            "--cores",
+            "2",
+            cwd=cls.tmp,
+        )
+        cls.bw12 = ad.read_h5ad(cls.tmp / "peaks_bw12.h5ad")
+        cls.bw60 = ad.read_h5ad(cls.tmp / "peaks_bw60.h5ad")
+
+    def test_bandwidth_12_finds_the_peaks_of_run(self):
+        # run's own KDE uses bandwidth 12 too; only the site names differ.
+        kde = ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
+        self.assertCountEqual(_site_keys(self.bw12), _site_keys(kde))
+        order = {key: i for i, key in enumerate(_site_keys(kde))}
+        columns = [order[key] for key in _site_keys(self.bw12)]
+        bw12 = self.bw12[kde.obs_names]
+        np.testing.assert_array_equal(_dense(bw12.X), _dense(kde.X)[:, columns])
+
+    def test_sites_are_named_after_their_gene_and_size_rank(self):
+        # <gene>_pA<k>, k = 1 for the shortest site of the UTR. A gene with more
+        # than one UTR adds UTR<n>_, from the _<n> suffix of the UTR name.
+        var = self.bw12.var
+        rank = var.groupby("utr_name", observed=True).utr_size.rank(method="first").astype(int)
+        utr_number = var.utr_name.astype(str).str.extract(r"_(\d+)$")[0]
+        infix = ("UTR" + utr_number + "_").fillna("")
+        expected = var.gene_name.astype(str) + "_" + infix + "pA" + rank.astype(str)
+        self.assertListEqual(list(self.bw12.var_names), expected.tolist())
+
+    def test_every_bandwidth_keeps_every_molecule(self):
+        raw_totals = _dense(ad.read_h5ad(WORKDIR / "raw.h5ad").X).sum(axis=1)
+        for adata in (self.bw12, self.bw60):
+            np.testing.assert_array_equal(_dense(adata.X).sum(axis=1), raw_totals)
+
+    def test_a_wider_bandwidth_merges_peaks(self):
+        self.assertLess(self.bw60.n_vars, self.bw12.n_vars)
+
+
+class TestSiteProcessingCommands(_InTempDir):
+    """The paper's steps after peak calling, each on the output of the previous one."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        utrcalling("call-peaks-different-bandwidths", WORKDIR / "raw.h5ad", "peaks", cwd=cls.tmp)
+        # The paper's thresholds leave no site with alternative polyadenylation
+        # in the small test data, so the chain continues from -m 2.
+        utrcalling(
+            "remove-peaks-below-threshold",
+            "peaks_bw12.h5ad",
+            "paper_thresholds.h5ad",
+            "-t",
+            "0.05",
+            "-m",
+            "10",
+            cwd=cls.tmp,
+        )
+        commands = [
+            [
+                "remove-peaks-below-threshold",
+                "peaks_bw12.h5ad",
+                "kept.h5ad",
+                "-t",
+                "0.05",
+                "-m",
+                "2",
+            ],
+            ["select-alternative-transcription-events", "kept.h5ad", "apa.h5ad"],
+            ["generate-names", "apa.h5ad", "named.h5ad", "-u", "utr_name", "-g", "gene_name"],
+            ["counts-to-percentages", "named.h5ad", "fractions.h5ad", "-u", "utr_name"],
+        ]
+        for command in commands:
+            utrcalling(*command, cwd=cls.tmp)
+        cls.peaks = ad.read_h5ad(cls.tmp / "peaks_bw12.h5ad")
+        cls.kept = ad.read_h5ad(cls.tmp / "kept.h5ad")
+        cls.apa = ad.read_h5ad(cls.tmp / "apa.h5ad")
+        cls.named = ad.read_h5ad(cls.tmp / "named.h5ad")
+        cls.fractions = ad.read_h5ad(cls.tmp / "fractions.h5ad")
+
+    def _kept_by_threshold(self, threshold, minimum_counts):
+        site_counts = pd.Series(_dense(self.peaks.X).sum(axis=0), index=self.peaks.var_names)
+        utr_counts = site_counts.groupby(self.peaks.var.utr_name.astype(str).values).transform(
+            "sum"
+        )
+        return site_counts >= np.maximum(utr_counts * threshold, minimum_counts)
+
+    def test_threshold_keeps_the_sites_with_enough_of_their_utr_counts(self):
+        # A site stays if it has at least max(5% of its UTR's molecules, 10).
+        paper = ad.read_h5ad(self.tmp / "paper_thresholds.h5ad")
+        keep = self._kept_by_threshold(0.05, 10)
+        self.assertListEqual(list(paper.var_names), list(keep[keep].index))
+        self.assertListEqual(
+            list(self.kept.var_names), list(self._kept_by_threshold(0.05, 2)[lambda s: s].index)
+        )
+        np.testing.assert_array_equal(_dense(paper.X), _dense(self.peaks[:, paper.var_names].X))
+
+    def test_apa_selection_keeps_exactly_the_utrs_with_two_or_more_sites(self):
+        sites_per_utr = self.kept.var.groupby("utr_name", observed=True).size()
+        expected = set(sites_per_utr[sites_per_utr >= 2].index)
+        self.assertGreater(len(expected), 0)
+        self.assertSetEqual(set(self.apa.var.utr_name.astype(str)), expected)
+        np.testing.assert_array_equal(
+            _dense(self.apa.X), _dense(self.kept[:, self.apa.var_names].X)
+        )
+
+    def test_generated_names_number_each_genes_sites_and_add_their_size(self):
+        # <gene>_<k>-<size>, k = 1, 2, ... within each gene, in the order of the sites.
+        var = self.apa.var
+        number = var.groupby("gene_name", observed=True).cumcount() + 1
+        expected = (
+            var.gene_name.astype(str) + "_" + number.astype(str) + "-" + var.utr_size.astype(str)
+        )
+        self.assertListEqual(list(self.named.var_names), expected.tolist())
+        self.assertListEqual(self.named.var.UTR_site.tolist(), list(self.apa.var_names))
+        np.testing.assert_array_equal(_dense(self.named.X), _dense(self.apa.X))
+
+    def test_fractions_sum_to_one_per_cell_and_utr(self):
+        self.assertTrue(scipy.sparse.issparse(self.fractions.X))
+        fractions = _dense(self.fractions.X)
+        counts = _dense(self.named.X)
+        for utr in self.named.var.utr_name.unique():
+            columns = (self.named.var.utr_name == utr).to_numpy()
+            has_counts = counts[:, columns].sum(axis=1) > 0
+            sums = fractions[:, columns].sum(axis=1)
+            np.testing.assert_allclose(sums[has_counts], 1.0)
+            np.testing.assert_array_equal(sums[~has_counts], 0.0)
 
 
 if __name__ == "__main__":
