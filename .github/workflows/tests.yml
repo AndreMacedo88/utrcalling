@@ -50,8 +50,10 @@ jobs:
         run: conda env create -n utrcalling -f ${{ matrix.environment-file }}
       - name: Show the resolved versions
         run: conda run -n utrcalling pip list
+      - name: Install the test tools (pinned in the test dependency group)
+        run: conda run -n utrcalling python -m pip install --group test
       - name: Run the test suite
-        run: conda run --no-capture-output -n utrcalling utrcalling run-tests --verbosity 1
+        run: conda run --no-capture-output -n utrcalling pytest
       # Only against the frozen versions: numpy and pysam ship the type stubs, so
       # the result then changes only when the code or the pins change.
       - name: Type-check the library with mypy

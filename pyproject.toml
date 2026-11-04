@@ -49,10 +49,12 @@ Homepage = "https://github.com/AndreMacedo88/utrcalling"
 [project.scripts]
 utrcalling = "utrcalling.runtime:main"
 
-# Development tools, not installed for users: `pip install --group dev`.
-# Ruff is pinned because its formatting style changes between releases.
+# Development tools, not installed for users. `pip install --group test` for
+# running the tests, `pip install --group dev` for everything.
+# Pinned because their verdicts (formatting, type errors) change between releases.
 [dependency-groups]
-dev = ["mypy==2.4.1", "ruff==0.17.3"]
+test = ["coverage==7.17.1", "pytest==9.2.0"]
+dev = [{ include-group = "test" }, "mypy==2.4.1", "ruff==0.17.3"]
 
 [tool.setuptools.dynamic]
 version = { attr = "utrcalling._metadata.__version__" }
@@ -94,6 +96,20 @@ allow-star-arg-any = true
 
 [tool.ruff.lint.isort]
 known-first-party = ["utrcalling"]
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["utrcalling/tests"]
+# importlib: several test folders hold a test_utr_mapping.py, and folder names
+# such as test_3'10x are not valid package names.
+addopts = ["--import-mode=importlib", "--strict-config", "--strict-markers"]
+filterwarnings = [
+    # Deprecations triggered by utrcalling's own code fail the run: they flag
+    # behaviour that changes in upcoming dependency releases (e.g. pandas 3).
+    # pandas and anndata attribute these warnings to the calling module.
+    'error::DeprecationWarning:utrcalling\.',
+    'error::FutureWarning:utrcalling\.',
+]
 
 [tool.mypy]
 files = ["utrcalling"]

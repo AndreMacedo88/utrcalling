@@ -104,7 +104,8 @@ the future:
 ```bash
 conda env create -f envs/utrcalling-frozen.yml
 conda activate utrcalling
-utrcalling run-tests
+pip install --group test   # pytest, to check the installation
+pytest
 ```
 
 ### Into an existing environment
@@ -276,17 +277,16 @@ The test suite covers all protocols, edge cases, and the full pipeline
 end-to-end.
 
 ```bash
-# Run all tests via the CLI entry point
-utrcalling run-tests
+# Install the test tools once, inside the utrcalling environment
+pip install --group test
 
-# Or via unittest directly
-python -m unittest discover -s utrcalling/tests -p "test_*.py"
+# Run all tests
+pytest
 
-# Run a single test module
-python -m unittest utrcalling.tests.test_core.test_pipeline
-
-# Run a single test class
-python -m unittest utrcalling.tests.test_core.test_pipeline.TestCallPeaksSmartseq3LabelMinimal
+# Run a single test module, class or test
+pytest utrcalling/tests/test_core/test_pipeline.py
+pytest utrcalling/tests/test_core/test_pipeline.py::TestCallPeaksSmartseq3LabelMinimal
+pytest -k kde_bandwidth   # tests whose names match
 ```
 
 ## Project structure

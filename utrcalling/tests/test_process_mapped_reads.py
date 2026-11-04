@@ -7,7 +7,6 @@ from unittest import mock
 
 import numpy as np
 import pandas as pd
-from test_data import synthetic_data
 
 from utrcalling.core import (
     barcode_filtering,
@@ -18,6 +17,7 @@ from utrcalling.core import (
     utr_mapping,
     utr_reference,
 )
+from utrcalling.tests.test_data import synthetic_data
 
 # make sure file paths resolve correctly for the test case
 os.chdir(str(Path(__file__).resolve().parents[0]))

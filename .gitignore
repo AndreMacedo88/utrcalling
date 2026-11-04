@@ -6,4 +6,7 @@ build/*
 dist/*
 .claude/
 CLAUDE.md
-RELEASE.md
+RELEASE.md.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/

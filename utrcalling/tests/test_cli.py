@@ -1,14 +1,11 @@
 """CLI tests: subcommands parse, --help works, and the tool entry points behave."""
 
-import contextlib
-import io
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import unittest
-import warnings
 from pathlib import Path
 from unittest import mock
 
@@ -54,10 +51,6 @@ class TestCLIHelp(unittest.TestCase):
 
     def test_prepare_reference_help(self):
         result = _run_cli("prepare-reference-and-map-reads", "--help")
-        self.assertEqual(result.returncode, 0)
-
-    def test_run_tests_help(self):
-        result = _run_cli("run-tests", "--help")
         self.assertEqual(result.returncode, 0)
 
     def test_remove_peaks_help(self):
@@ -278,47 +271,39 @@ class TestEstimateBestBandwidthTool(unittest.TestCase):
         self.assertDictEqual(joblib.load(out_path), {7: 0.25, 12: 0.5})
 
 
-class TestRunTestsExitCode(unittest.TestCase):
-    """`utrcalling run-tests` must exit non-zero when tests fail, so scripts and CI notice."""
+class TestPytestFailsOnUtrcallingDeprecations(unittest.TestCase):
+    """The pytest config turns deprecations raised from utrcalling code into failures.
 
-    def _run_suite(self, body):
-        # Defined here, not at module level, so test discovery never collects it.
-        class Probe(unittest.TestCase):
-            def runTest(self):
-                body(self)
+    They flag behaviour that changes in upcoming dependency releases (e.g. pandas 3).
+    pandas and anndata attribute these warnings to the calling module, so warnings
+    from inside other packages must not fail the run.
+    """
 
-        from utrcalling.tests import test_case
+    PYPROJECT = Path(__file__).resolve().parents[2] / "pyproject.toml"
 
-        with (
-            mock.patch.object(
-                unittest.TestLoader, "discover", return_value=unittest.TestSuite([Probe()])
-            ),
-            contextlib.redirect_stderr(io.StringIO()),
-        ):
-            test_case.run_all_tests(verbosity=0, logging=True)
+    def _pytest_exit_code(self, module):
+        with tempfile.TemporaryDirectory() as tmp:
+            probe = Path(tmp) / "test_probe.py"
+            probe.write_text(
+                "import warnings\n\n\n"
+                "def test_probe():\n"
+                f"    warnings.warn_explicit('deprecated', FutureWarning, 'caller.py', 1, module={module!r})\n"
+            )
+            command = [sys.executable, "-m", "pytest", "-c", str(self.PYPROJECT)]
+            command += ["--rootdir", tmp, "-p", "no:cacheprovider", "-q", str(probe)]
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+        return result.returncode
 
-    @staticmethod
-    def _warn_from(module):
-        # As pandas does: the warning is attributed to the module that called it.
-        return lambda case: warnings.warn_explicit(
-            "deprecated", FutureWarning, "caller.py", 1, module=module
-        )
-
-    def test_passing_suite_returns_normally(self):
-        self._run_suite(lambda case: None)
-
-    def test_failing_suite_exits_with_code_1(self):
-        with self.assertRaises(SystemExit) as ctx:
-            self._run_suite(lambda case: case.fail("deliberate failure"))
-        self.assertEqual(ctx.exception.code, 1)
-
-    def test_deprecation_in_utrcalling_code_exits_with_code_1(self):
-        with self.assertRaises(SystemExit) as ctx:
-            self._run_suite(self._warn_from("utrcalling.core.caller"))
-        self.assertEqual(ctx.exception.code, 1)
+    def test_deprecation_in_utrcalling_code_fails(self):
+        self.assertEqual(self._pytest_exit_code("utrcalling.core.caller"), 1)
 
     def test_deprecation_in_other_packages_does_not_fail(self):
-        self._run_suite(self._warn_from("anndata._core.caller"))
+        self.assertEqual(self._pytest_exit_code("anndata._core.caller"), 0)
 
 
 if __name__ == "__main__":

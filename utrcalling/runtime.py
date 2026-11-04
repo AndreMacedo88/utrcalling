@@ -6,7 +6,6 @@ from utrcalling._metadata import __version__ as version
 
 # Function to create the parser with subparsers
 def create_parser() -> argparse.ArgumentParser:
-    from utrcalling.tests import test_case
     from utrcalling.tools import (
         call_peaks,
         call_peaks_different_bandwidths,
@@ -34,9 +33,6 @@ def create_parser() -> argparse.ArgumentParser:
     run.create_parser(subparsers=subparsers)
     call_peaks.create_parser(subparsers=subparsers)
     prepare_reference_and_map_reads.create_parser(subparsers=subparsers)
-
-    # add the command to run the tests
-    test_case.create_parser(subparsers=subparsers)
 
     # add other tools
     remove_peaks_below_count_threshold.create_parser(subparsers=subparsers)
