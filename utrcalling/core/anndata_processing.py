@@ -8,21 +8,55 @@ import pandas as pd
 import scipy.sparse
 
 
+def site_names(
+    var: pd.DataFrame, utr_name_column: str = "utr_name", gene_name_column: str = "gene_name"
+) -> pd.Index:
+    """Name UTR sites ``<gene>_<n>-<size>``, as utrcalling names all its outputs.
+
+    *gene* is the gene name; genes without one (missing or ``"None"``) use the
+    first part of their UTR name, the Ensembl ID. *n* numbers the sites of each
+    gene from 1, by UTR name and then size, so ``1`` is the shortest site of the
+    gene's first UTR. *size* is the UTR size (for peaks, the peak position).
+    The names are unique: *n* is unique within each gene, and a name splits
+    back into gene, *n* and size in only one way.
+
+    Args:
+        var: Site annotations with *utr_name_column*, ``utr_size`` and, if
+            available, *gene_name_column*.
+        utr_name_column: Column of *var* with the UTR names.
+        gene_name_column: Column of *var* with the gene names.
+
+    Returns:
+        The site names, in the order of the rows of *var*.
+    """
+    utr_names = var[utr_name_column].astype(str).reset_index(drop=True)
+    if gene_name_column in var.columns:
+        genes = var[gene_name_column].astype(object).reset_index(drop=True)
+    else:
+        genes = pd.Series([None] * len(var), dtype=object)
+    missing = genes.isna() | (genes.astype(str) == "None")
+    ensembl_ids = utr_names.str.split(r"[-_]", regex=True).str[0]
+    genes = genes.astype(str).where(~missing, ensembl_ids)
+    sizes = var["utr_size"].astype(int).reset_index(drop=True)
+
+    in_order = pd.DataFrame({"gene": genes, "utr": utr_names, "size": sizes}).sort_values(
+        ["gene", "utr", "size"], kind="stable"
+    )
+    number = (in_order.groupby("gene", sort=False).cumcount() + 1).sort_index()
+    names = genes + "_" + number.astype(str) + "-" + sizes.astype(str)
+    return pd.Index(names.to_numpy(), dtype=object)
+
+
 def generate_utr_site_names_from_gene_name(
     adata: anndata.AnnData,
     utr_name_column: str = "utr_name",
     gene_name_column: str = "gene_name",
 ) -> anndata.AnnData:
-    """Generate human-readable UTR site names from gene names.
+    """Renumber the sites of *adata* with :func:`site_names`.
 
-    Creates names in the format ``<gene_name>_<utr_number>-<utr_size>`` for
-    each row in ``.var``, then replaces ``var_names`` with those new names.
-    The original names/IDs are preserved in ``.var['UTR_site']``.
-
-    When *gene_name* is missing (``NaN`` or ``"None"``), the first component
-    of *utr_name* (split on ``-`` or ``_``) is used as fallback.  The UTR
-    number is a 1-based sequential counter within each resolved gene name,
-    preserving the original row order.
+    utrcalling already names sites ``<gene>_<n>-<size>`` when it writes them.
+    Renumbering after filtering steps closes the gaps that removed sites leave
+    in *n*. The previous names are kept in ``.var['UTR_site']``.
 
     Args:
         adata: The AnnData object whose ``var_names`` will be renamed.
@@ -33,34 +67,9 @@ def generate_utr_site_names_from_gene_name(
         A copy of *adata* with renamed ``var_names``.
     """
     adata = adata.copy()
-
-    # Preserve original var_names
     adata.var["UTR_site"] = adata.var_names
-
-    # Resolve gene names: use gene_name if present, else extract prefix from utr_name
-    gene_col = adata.var[gene_name_column]
-    missing = gene_col.isna() | (gene_col.astype(str) == "None")
-    resolved = gene_col.astype(object)
-    resolved[missing] = (
-        adata.var.loc[missing, utr_name_column].str.split(r"[-_]", regex=True).str[0]
-    )
-
-    # Sequential numbering within each resolved gene (1-based), preserving row order
-    utr_number = resolved.groupby(resolved, sort=False).cumcount() + 1
-
-    # Build names: <gene_name>_<utr_number>-<utr_size>
-    utr_size_str = adata.var["utr_size"].astype(int).astype(str)
-    new_names = resolved + "_" + utr_number.astype(str) + "-" + utr_size_str
-
-    # Handle any remaining duplicates (rare edge case)
-    dup_mask = new_names.duplicated(keep=False)
-    if dup_mask.any():
-        suffix = new_names[dup_mask].groupby(new_names[dup_mask], sort=False).cumcount() + 1
-        new_names[dup_mask] = new_names[dup_mask] + "_" + suffix.astype(str)
-
-    adata.var_names = new_names.values
+    adata.var_names = site_names(adata.var, utr_name_column, gene_name_column)
     adata.var.index.name = None
-
     return adata
 
 
@@ -249,10 +258,7 @@ def concatenate_adata(
     )
 
     var_new = pd.merge(concat_cols_frame, all_var, on="utr_name", how="left")
-    var_new["polyA"] = (
-        var_new["utr_name"] + "-" + (var_new.groupby("utr_name").cumcount() + 1).astype(str)
-    )
-    var_new = var_new.set_index("polyA")
+    var_new.index = site_names(var_new)
 
     adata_concat.var = var_new
 

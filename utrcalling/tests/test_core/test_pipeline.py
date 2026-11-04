@@ -235,7 +235,7 @@ class TestCallPeaksSmartseq3LabelMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertEqual(self.results_label.obs_names[0], "CACTGT-1")
 
     def test_utr_names(self):
-        self.assertListEqual(self.results_label.var_names.to_list(), ["UTR1-223", "UTR1-1-158"])
+        self.assertListEqual(self.results_label.var_names.to_list(), ["Gene1_1-223", "Gene1_2-158"])
 
 
 class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
@@ -252,7 +252,9 @@ class TestCallPeaksSmartseq3NoLabelMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertEqual(self.results_nolabel.obs_names[0], "CACTGT")
 
     def test_utr_names(self):
-        self.assertListEqual(self.results_nolabel.var_names.to_list(), ["UTR1-223", "UTR1-1-158"])
+        self.assertListEqual(
+            self.results_nolabel.var_names.to_list(), ["Gene1_1-223", "Gene1_2-158"]
+        )
 
 
 class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
@@ -292,7 +294,7 @@ class TestCallPeaksSmartseq3NoBarcodeMinimal(TestCallPeaksSmartseq3Minimal):
         self.assertListEqual(self.results.var.utr_size.to_list(), [223, 158])
 
     def test_utr_names(self):
-        self.assertListEqual(self.results.var_names.to_list(), ["UTR1-223", "UTR1-1-158"])
+        self.assertListEqual(self.results.var_names.to_list(), ["Gene1_1-223", "Gene1_2-158"])
 
 
 # ---------------------------------------------------------------------------
@@ -863,7 +865,7 @@ class TestPipelineTruseqSynthetic(unittest.TestCase):
 
     def test_only_antisense_utrs_present(self):
         """Reverse-stranded: only the antisense-covered UTRs (UTR2/UTR3)."""
-        utrs = {name.rsplit("-", 1)[0] for name in self.results.var_names}
+        utrs = set(self.results.var.utr_name.astype(str))
         self.assertTrue(utrs <= {"UTR2", "UTR3"})
 
 

@@ -26,6 +26,7 @@ import pybedtools
 from tqdm import tqdm
 
 from utrcalling.core import (
+    anndata_processing,
     barcode_filtering,
     count_matrix,
     helpers,
@@ -339,6 +340,7 @@ def build_count_matrix(
     peaks_obs = result.peaks_obs
 
     peaks_var = count_matrix.add_to_peaks_var(peaks_var, utr_reference_subset)
+    peaks_var.index = anndata_processing.site_names(peaks_var)
 
     if store:
         storage.store_peak_calling_results(

@@ -22,12 +22,14 @@ def generate_names(
 
 def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
-    help = "Generates names for each distinct UTR size based on the gene name and UTR number."
+    help = "Renumbers the UTR sites of an AnnData object, for example after filtering."
 
     description = (
         f"{help} "
-        "Then, changes the var_names of an AnnData object to contain the gene name. "
-        "New name format is: <gene_name>_<utr_number>-<UTR_length_in_bp>."
+        "utrcalling names sites <gene_name>_<n>-<UTR_length_in_bp> when it writes them, "
+        "where n numbers the sites of each gene. Filtering steps remove sites and leave "
+        "gaps in n: this numbers each gene's remaining sites 1, 2, ... again. The "
+        "previous names are kept in .var['UTR_site']."
     )
 
     parser = subparsers.add_parser(

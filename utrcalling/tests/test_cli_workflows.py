@@ -6,6 +6,7 @@ at UTR level). These command lines must keep working when the CLI changes.
 """
 
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -60,6 +61,28 @@ def assert_same_anndata(actual, expected):
     np.testing.assert_array_equal(_dense(actual.X), _dense(expected.X))
 
 
+def expected_site_names(var):
+    """<gene>_<n>-<size>, worked out here independently of utrcalling's code.
+
+    Genes without a name use the Ensembl ID at the start of their UTR name; n
+    numbers each gene's sites by UTR name and then size.
+    """
+    sites = []
+    utr_names = var.utr_name.astype(str)
+    sizes = var.utr_size.astype(int)
+    genes = var.gene_name.astype(object)
+    for row, (utr, gene, size) in enumerate(zip(utr_names, genes, sizes, strict=True)):
+        if pd.isna(gene) or str(gene) == "None":
+            gene = re.split(r"[-_]", utr)[0]
+        sites.append((str(gene), utr, size, row))
+    names = [""] * len(sites)
+    numbers = {}
+    for gene, _utr, size, row in sorted(sites):
+        numbers[gene] = numbers.get(gene, 0) + 1
+        names[row] = f"{gene}_{numbers[gene]}-{size}"
+    return names
+
+
 def setUpModule():
     global WORKDIR
     WORKDIR = Path(tempfile.mkdtemp())
@@ -99,10 +122,11 @@ class TestRunCommand(unittest.TestCase):
         cls.kde = ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
         cls.annotations = pd.read_csv(ANNOTATIONS, index_col="CellBarcode")
 
-    def test_raw_sites_are_named_after_their_utr_and_size(self):
-        var = self.raw.var
-        expected = var.utr_name.astype(str) + "-" + var.utr_size.astype(str)
-        self.assertListEqual(list(self.raw.var_names), expected.tolist())
+    def test_sites_are_named_gene_number_size(self):
+        for adata in (self.raw, self.kde):
+            names = list(adata.var_names)
+            self.assertListEqual(names, expected_site_names(adata.var))
+            self.assertEqual(len(set(names)), len(names))
 
     def test_cells_and_their_columns_come_from_the_annotation_file(self):
         self.assertGreater(self.raw.n_obs, 0)
@@ -292,15 +316,14 @@ class TestCallPeaksDifferentBandwidthsCommand(_InTempDir):
         bw12 = self.bw12[kde.obs_names]
         np.testing.assert_array_equal(_dense(bw12.X), _dense(kde.X)[:, columns])
 
-    def test_sites_are_named_after_their_gene_and_size_rank(self):
-        # <gene>_pA<k>, k = 1 for the shortest site of the UTR. A gene with more
-        # than one UTR adds UTR<n>_, from the _<n> suffix of the UTR name.
-        var = self.bw12.var
-        rank = var.groupby("utr_name", observed=True).utr_size.rank(method="first").astype(int)
-        utr_number = var.utr_name.astype(str).str.extract(r"_(\d+)$")[0]
-        infix = ("UTR" + utr_number + "_").fillna("")
-        expected = var.gene_name.astype(str) + "_" + infix + "pA" + rank.astype(str)
-        self.assertListEqual(list(self.bw12.var_names), expected.tolist())
+    def test_peak_calling_the_raw_sizes_reproduces_the_peaks_of_run(self):
+        # Same sites, counts, annotations and names; only the cells come sorted.
+        kde = ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
+        assert_same_anndata(self.bw12[kde.obs_names], kde)
+
+    def test_sites_are_named_gene_number_size(self):
+        for adata in (self.bw12, self.bw60):
+            self.assertListEqual(list(adata.var_names), expected_site_names(adata.var))
 
     def test_every_bandwidth_keeps_every_molecule(self):
         raw_totals = _dense(ad.read_h5ad(WORKDIR / "raw.h5ad").X).sum(axis=1)
@@ -462,6 +485,9 @@ class TestConcatenateExperimentsCommand(_InTempDir):
 
     def test_has_the_cells_of_both_experiments(self):
         self.assertListEqual(list(self.combined.obs_names), self.expected_cells)
+
+    def test_sites_are_named_gene_number_size(self):
+        self.assertListEqual(list(self.combined.var_names), expected_site_names(self.combined.var))
 
     def test_counts_per_site_match_the_original_data(self):
         self.assertCountEqual(_site_keys(self.combined), _site_keys(self.raw))

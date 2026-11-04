@@ -68,6 +68,12 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
   observations and UTR peaks as variables.
 - **Raw sizes mode** (`--raw_sizes`) --- produces two files: raw UTR sizes
   and KDE-estimated peaks (`*_kde.h5ad`).
+- **Site names** --- every output names its sites (raw UTR sizes or peaks)
+  `<gene>_<n>-<size>`, e.g. `TSPAN6_2-816`: the gene name (the Ensembl ID for
+  genes without one), the number of the site within its gene (1 is the
+  shortest site of the gene's first UTR) and its UTR size in nt. A site keeps
+  its name through the filtering commands. `.var` also holds `utr_name`,
+  `utr_size` and `gene_name`.
 - **Intermediate files** (`--store_intermediate`) --- `.bed` UTR reference
   and `.parquet` read mappings for resumable workflows.
 - **Log files** --- automatically written to the output directory (suppress with
@@ -250,7 +256,7 @@ utrcalling remove-peaks-below-threshold results.h5ad filtered.h5ad \
 # Keep only genes with multiple UTR isoforms (APA/ATI events)
 utrcalling select-alternative-transcription-events filtered.h5ad apa.h5ad
 
-# Generate human-readable UTR site names
+# Optional: number each gene's remaining sites 1, 2, ... again after filtering
 utrcalling generate-names apa.h5ad named.h5ad
 
 # Compute mean UTR sizes per gene

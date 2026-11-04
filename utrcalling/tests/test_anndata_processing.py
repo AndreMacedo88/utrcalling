@@ -146,6 +146,45 @@ class TestComputeMeanSizes(unittest.TestCase):
         np.testing.assert_array_almost_equal(self.adata_means.X, expected)
 
 
+class TestSiteNames(unittest.TestCase):
+    """Sites are named <gene>_<n>-<size>, n numbering each gene's sites."""
+
+    @staticmethod
+    def _var(utr_names, utr_sizes, gene_names):
+        return pd.DataFrame(
+            {"utr_name": utr_names, "utr_size": utr_sizes, "gene_name": gene_names},
+            index=[f"site{i}" for i in range(len(utr_names))],
+        )
+
+    def test_numbered_by_utr_and_size_whatever_the_row_order(self):
+        # Gene A has two UTRs: ENSG1 (sites at 100 and 300) and ENSG1_2 (at 50).
+        var = self._var(["ENSG1", "ENSG1_2", "ENSG1"], [300, 50, 100], ["A", "A", "A"])
+        self.assertListEqual(list(ap.site_names(var)), ["A_2-300", "A_3-50", "A_1-100"])
+
+    def test_genes_without_a_name_use_the_ensembl_id(self):
+        var = self._var(
+            ["ENSG1", "ENSG2_2", "ENSG3-x", "ENSG4"], [10, 20, 30, 40], [np.nan, "None", None, "D"]
+        )
+        self.assertListEqual(
+            list(ap.site_names(var)), ["ENSG1_1-10", "ENSG2_1-20", "ENSG3_1-30", "D_1-40"]
+        )
+
+    def test_categorical_columns_from_h5ad_files(self):
+        var = self._var(["U1", "U1", "U2"], [5, 7, 9], ["A", "A", "B"]).astype(
+            {"utr_name": "category", "gene_name": "category"}
+        )
+        self.assertListEqual(list(ap.site_names(var)), ["A_1-5", "A_2-7", "B_1-9"])
+
+    def test_without_a_gene_name_column(self):
+        var = self._var(["ENSG1", "ENSG1"], [5, 7], [None, None]).drop(columns="gene_name")
+        self.assertListEqual(list(ap.site_names(var)), ["ENSG1_1-5", "ENSG1_2-7"])
+
+    def test_a_gene_named_like_another_genes_ensembl_id_shares_its_numbers(self):
+        # Both resolve to "ENSG1", so they are numbered together and stay unique.
+        var = self._var(["ENSG1", "ENSG9"], [5, 5], [np.nan, "ENSG1"])
+        self.assertListEqual(list(ap.site_names(var)), ["ENSG1_1-5", "ENSG1_2-5"])
+
+
 class TestGenerateUtrSiteNamesFromGeneName(unittest.TestCase):
     def setUp(self) -> None:
         adata = ad.read_h5ad("./test_data/anndata_test.h5ad")

@@ -22,7 +22,7 @@ from scipy.signal import argrelextrema
 from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 
-from utrcalling.core import helpers, module_log
+from utrcalling.core import anndata_processing, helpers, module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
 
 
@@ -62,12 +62,6 @@ def _peak_call_single_utr(
         numpy array (obs x new_peaks) and *var_df* is the corresponding
         ``.var`` DataFrame.
     """
-    gene = adata_utr.var.gene_name.iloc[0]
-    utr_name_parts = adata_utr.var.utr_name.iloc[0].split("_")
-    if len(utr_name_parts) > 1:
-        utr_number = f"UTR{utr_name_parts[1]}_"
-    else:
-        utr_number = ""
     utr_var = adata_utr.var.iloc[0]
 
     # generate a vector of one UTR size per UMI count
@@ -87,12 +81,8 @@ def _peak_call_single_utr(
     mtx_new_t["sizes"] = peak_sizes.tolist()
     mtx_new = mtx_new_t.groupby("sizes").sum().T
 
-    # create new polyA names
-    polya_names = [f"{gene}_{utr_number}pA{x}" for x in range(1, len(mtx_new.columns) + 1)]
-
-    # generate new utr_var
+    # generate new utr_var; the caller names the peaks of all UTRs together
     utr_var_new = pd.DataFrame([utr_var] * len(mtx_new.columns))
-    utr_var_new.index = polya_names
     # The counts are summed per peak in size order: label the peaks in that order
     utr_var_new["utr_size"] = np.sort(peak_sizes.unique())
 
@@ -129,9 +119,6 @@ def _peak_call_single_utr_compact(
     column belongs to that peak. Then ``X_sub_subset @ aggregator`` produces
     an (n_obs x n_peaks) result in one shot, sparse or dense as appropriate.
     """
-    gene = var_sub.gene_name.iloc[0]
-    utr_name_parts = var_sub.utr_name.iloc[0].split("_")
-    utr_number = f"UTR{utr_name_parts[1]}_" if len(utr_name_parts) > 1 else ""
     utr_var = var_sub.iloc[0]
 
     umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size.astype(int))
@@ -164,9 +151,8 @@ def _peak_call_single_utr_compact(
         X_peaks = np.asarray(X_sub)[:, cols_pos]
         new_mtx = X_peaks @ agg.toarray()
 
-    polya_names = [f"{gene}_{utr_number}pA{x}" for x in range(1, n_out + 1)]
+    # the caller names the peaks of all UTRs together
     utr_var_new = pd.DataFrame([utr_var] * n_out)
-    utr_var_new.index = polya_names
     # The counts are summed per peak in size order: label the peaks in that order
     utr_var_new["utr_size"] = np.sort(peak_sizes.unique())
 
@@ -360,6 +346,7 @@ def peak_call_anndata_parallel(
     var_list = [item[2] for item in flat]
 
     var_df = pd.concat(var_list, axis=0).drop("pA", axis=1, errors="ignore")
+    var_df.index = anndata_processing.site_names(var_df)
     # Stay sparse end-to-end when input was sparse — np.hstack on dense per-UTR
     # results was the OOM trigger at 100% (intermediate dense matrix ~ n_obs *
     # total_peaks * 4 bytes, then doubled during AnnData's re-sparsify step).
@@ -429,6 +416,7 @@ def peak_call_anndata(
         var_list.append(var)
 
     var_df = pd.concat(var_list, axis=0).drop("pA", axis=1, errors="ignore")
+    var_df.index = anndata_processing.site_names(var_df)
     new_adata = ad.AnnData(X=np.hstack(mtx_list), obs=new_obs, var=var_df)
 
     if sparse_adata:
