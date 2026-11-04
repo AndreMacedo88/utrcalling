@@ -49,8 +49,9 @@ parsing, deduplication, and UTR size estimation logic:
 | `truseq` | Any | No | none | Stranded bulk RNA-seq (e.g. TruSeq Stranded mRNA), single- or paired-end. One BAM per sample. Strand-aware via `--strandedness` (default `reverse`, correct for dUTP libraries). Uses the distal read position. |
 | `bulk_pe` | Any | No | fragment | Unstranded paired-end bulk RNA-seq (e.g. TruSeq RNA v2). One BAM per sample. Counts each fragment once (mates collapsed by read name) and uses the fragment's distal base, so it reaches further into the UTR than a single mate. Fragments running past the annotated 3' end are placed at the UTR end rather than dropped. |
 
-Each platform is used with a `--protocol_version` (typically `2` or `3`). The
-bulk protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
+Each platform is used with a `--protocol_version`, which defaults to `3`. `10x`
+and `standard_10x` also support `2`, and `5prime10x` needs `1`. The bulk
+protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
 
 ## Input
 

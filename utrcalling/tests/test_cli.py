@@ -147,6 +147,46 @@ class TestCLIParserCreation(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 0)
 
 
+class TestProtocolVersionDefault(unittest.TestCase):
+    """Without -v, the commands and their tool functions default to version 3.
+
+    Version 2 used to be the command default, although only 10x and standard_10x
+    implement it, so e.g. `-p smartseq` failed unless the user passed `-v 3`.
+    """
+
+    def test_commands_default_to_version_3(self):
+        from utrcalling.runtime import create_parser
+
+        parser = create_parser()
+        commands = {
+            "run": ["run", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv"],
+            "call-peaks": ["call-peaks", "utr_reference.bed", "-c", "mappings.parquet"],
+            "prepare-reference-and-map-reads": [
+                "prepare-reference-and-map-reads",
+                "annotation.gtf",
+                "-a",
+                "sample.bam",
+            ],
+        }
+        for name, argv in commands.items():
+            with self.subTest(command=name):
+                self.assertEqual(parser.parse_args(argv).protocol_version, 3)
+
+    def test_tool_functions_default_to_version_3(self):
+        import inspect
+
+        from utrcalling.tools.call_peaks import call_peaks
+        from utrcalling.tools.prepare_reference_and_map_reads import (
+            generate_utr_reference_and_map_reads,
+        )
+        from utrcalling.tools.run import run
+
+        for tool in (run, call_peaks, generate_utr_reference_and_map_reads):
+            with self.subTest(tool=tool.__name__):
+                default = inspect.signature(tool).parameters["protocol_version"].default
+                self.assertEqual(default, 3)
+
+
 class _StopAfterProtocol(Exception):
     """Raised by the patched protocol factory to end the tool run early."""
 

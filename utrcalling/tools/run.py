@@ -259,7 +259,7 @@ def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
         "-v",
         type=int,
         help="Version of the protocol used in library preparation.",
-        default=2,
+        default=3,
     )
 
     parser.add_argument(

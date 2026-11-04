@@ -40,7 +40,7 @@ def call_peaks(
     annotations_file: str | None = None,
     batch_merge_method: str | None = None,
     protocol_platform: str = "10x",
-    protocol_version: int = 2,
+    protocol_version: int = 3,
     label_batches: bool | str | None = None,
     summarization_level: str = "UTR",
     raw_sizes: bool = False,
@@ -249,7 +249,7 @@ def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
         "-v",
         type=int,
         help="Version of the protocol used in library preparation.",
-        default=2,
+        default=3,
     )
 
     parser.add_argument(
