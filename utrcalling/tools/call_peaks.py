@@ -57,7 +57,7 @@ def call_peaks(
     annotation files.
 
     Args:
-        utr_annotation (str): Path to a .bed file with the utr annotations.
+        utr_annotation (str): Path to the UTR reference (.parquet, or .pkl).
         utr_sizes_counts (str): Path to a parquet object with a UtrMappings object.
         single_cell_annotation (str, optional): Path to the experiments' annotation file.
             Defaults to None.
@@ -196,7 +196,10 @@ def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
     parser.add_argument(
         "utr_annotation",
         type=str,
-        help="BED, parquet, or pickle file with the UTR annotations",
+        help=(
+            "UTR reference: the utr_reference_regions.parquet that run -i or "
+            "prepare-reference-and-map-reads write (or a .pkl from older versions)."
+        ),
     )
 
     parser.add_argument(

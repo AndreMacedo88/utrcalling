@@ -13,7 +13,6 @@ from utrcalling.core import module_log
 
 if TYPE_CHECKING:
     import anndata
-    import pybedtools
 
 # Joblib defaults — used consistently across the codebase. Override per-run via
 # the `--cores` CLI flag, which threads down to every Parallel call site as
@@ -198,29 +197,26 @@ def check_if_path_and_open(to_check: object, method: str = "parquet") -> object:
         return to_check
 
 
-def load_annotations(annotation_path: str) -> pd.DataFrame | pybedtools.BedTool:
-    """Load an annotation file based on its file extension.
+def load_annotations(annotation_path: str) -> pd.DataFrame:
+    """Load a UTR reference written by utrcalling, by its file extension.
 
     Args:
-        annotation_path: Path to a .parquet, .bed, or .pkl annotation file.
+        annotation_path: Path to a .parquet (or, from older versions, .pkl) file.
 
     Returns:
-        A DataFrame (parquet/pickle) or BedTool (bed) object.
+        The UTR reference DataFrame, indexed by utr_name.
 
     Raises:
         RuntimeError: If the file extension is not recognized.
     """
     if annotation_path.endswith(".parquet"):
-        output = pd.read_parquet(annotation_path)
-    elif annotation_path.endswith(".bed"):
-        import pybedtools
-
-        output = pybedtools.BedTool(annotation_path)
-    elif annotation_path.endswith(".pkl"):
-        output = pd.read_pickle(annotation_path)
-    else:
-        raise RuntimeError(f"Annotation file {annotation_path} is of a not recognized type.")
-    return output
+        return pd.read_parquet(annotation_path)
+    if annotation_path.endswith(".pkl"):
+        return pd.read_pickle(annotation_path)
+    raise RuntimeError(
+        f"UTR reference {annotation_path} is not a .parquet or .pkl file: use the "
+        "utr_reference_regions.parquet that run -i or prepare-reference-and-map-reads write."
+    )
 
 
 def sample_in_path(sample: str | int, bam_path: str) -> bool:

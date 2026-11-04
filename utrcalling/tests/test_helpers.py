@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 import unittest
 
@@ -6,6 +7,7 @@ import pandas as pd
 
 from utrcalling.core.helpers import (
     check_if_path_and_open,
+    load_annotations,
     shutdown_joblib_pool,
     to_string,
 )
@@ -64,6 +66,30 @@ class TestCheckIfPathAndOpen(unittest.TestCase):
                 check_if_path_and_open(tmp_path, method="xml")
         finally:
             os.unlink(tmp_path)
+
+
+class TestLoadAnnotations(unittest.TestCase):
+    """The UTR reference that call-peaks reads: parquet, or pickle from older versions."""
+
+    def setUp(self):
+        self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir)
+        self.reference = pd.DataFrame(
+            {"chrom": ["1", "2"], "start": [100, 500], "end": [200, 900]},
+            index=pd.Index(["UTR1", "UTR2"], name="utr_name"),
+        )
+
+    def test_parquet_and_pickle_give_the_same_reference(self):
+        for suffix, write in ((".parquet", "to_parquet"), (".pkl", "to_pickle")):
+            with self.subTest(suffix=suffix):
+                path = os.path.join(self.tmpdir, f"reference{suffix}")
+                getattr(self.reference, write)(path)
+                pd.testing.assert_frame_equal(load_annotations(path), self.reference)
+
+    def test_other_files_are_refused_with_a_hint(self):
+        # A BED file used to load as a BedTool, which call-peaks then crashed on.
+        with self.assertRaisesRegex(RuntimeError, "utr_reference_regions.parquet"):
+            load_annotations(os.path.join(self.tmpdir, "utrs_unmerged.bed"))
 
 
 class TestShutdownJoblibPool(unittest.TestCase):
