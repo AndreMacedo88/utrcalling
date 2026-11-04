@@ -80,15 +80,13 @@ def run(
         n_jobs=cores,
     )
 
-    if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
+    # A list with one table per BAM, when there are several
+    if isinstance(utr_sizes_counts, list):
         utr_sizes_counts = core.merge_samples_utr_sizes(
             utr_sizes_counts=utr_sizes_counts,
             protocol=protocol_,
             store=store_intermediate,
         )
-
-    elif isinstance(utr_sizes_counts, list):
-        utr_sizes_counts = utr_sizes_counts[0]
 
     # Collapse UTR size information to gene-level
     if summarization_level.lower() != "utr":

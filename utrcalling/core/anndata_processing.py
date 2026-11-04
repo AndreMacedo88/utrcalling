@@ -196,9 +196,8 @@ def compute_utr_size_means(
     df = (df_mult_sum / df).reset_index()
     df = df.pivot(index=obs_index_name, columns=utr_name_column)["value"].reindex(adata.obs.index)
 
-    if not (df.columns == var_new.index).all():
-        var_new = var_new.reindex(df.columns)
-    adata = anndata.AnnData(df, obs=adata.obs, var=var_new)
+    # pivot sorts the UTRs: put their annotations in the same order
+    adata = anndata.AnnData(df, obs=adata.obs, var=var_new.reindex(df.columns))
     return adata
 
 

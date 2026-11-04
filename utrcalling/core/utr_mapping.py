@@ -205,7 +205,7 @@ def _process_interval_batch(
                                 continue
                             elif flag & 0x400:
                                 mapping_stats["PCR duplicates"] += 1
-                            elif flag & 0x100:
+                            else:  # 0x100, the last excluded flag
                                 mapping_stats["Alignments not primary alignment"] += 1
                             continue
                     else:
@@ -216,7 +216,7 @@ def _process_interval_batch(
                                 mapping_stats["Alignments not proper pair"] += 1
                             elif flag & 0x400:
                                 mapping_stats["PCR duplicates"] += 1
-                            elif flag & 0x100:
+                            else:  # 0x100, the last excluded flag
                                 mapping_stats["Alignments not primary alignment"] += 1
                             continue
 

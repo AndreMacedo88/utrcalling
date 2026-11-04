@@ -14,14 +14,7 @@ from utrcalling._metadata import __version__ as __version__
 
 
 def show_logo() -> None:
-    import psutil
     from colorama import Fore, Style, init
-
-    # Prevent joblib worker processes from printing the header
-    caller_process = psutil.Process().cmdline()
-    for element in caller_process:
-        if "joblib" in element:
-            return
 
     init()
     print(
