@@ -35,19 +35,15 @@ def filter_barcodes(utr_sizes: pd.DataFrame, whitelist: npt.NDArray[np.str_]) ->
         if barcode in whitelist:
             barcodes_correct.add(barcode)
         else:
-            try:
-                match = process.extract(
-                    barcode, whitelist, scorer=distance.Hamming.distance, score_cutoff=1
-                )
-            except ValueError as err:
-                logger.error(
-                    f"\nError matching sample barcode/ID: {barcode}\nPlease check if "
-                    f"the barcodes in the annotation file are correct or, if using "
-                    f"different batches with similar barcodes/IDs, if all the batches "
-                    f"are correctly described in the annotations file."
-                )
-                logger.error(f"Barcodes from the annotation file:\n{whitelist}")
-                raise err
+            # pad: barcodes of different lengths count the missing positions as
+            # mismatches (without it, rapidfuzz raises a ValueError).
+            match = process.extract(
+                barcode,
+                whitelist,
+                scorer=distance.Hamming.distance,
+                score_cutoff=1,
+                scorer_kwargs={"pad": True},
+            )
             if match:
                 barcode_correct = [bc[0] for bc in match]
                 for bc in barcode_correct:
