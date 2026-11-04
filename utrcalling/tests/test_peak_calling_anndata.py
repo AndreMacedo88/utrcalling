@@ -273,6 +273,41 @@ class TestCalculateUmiDistanceToPas(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+class TestPeakCallingDoesNotDependOnSiteOrder(unittest.TestCase):
+    """Each peak gets the counts of its own sites, whatever order they come in.
+
+    Both peak callers summed the counts in size order but labelled the peaks in
+    the order the sites came in, so unsorted input swapped counts between peaks.
+    """
+
+    def setUp(self):
+        # One UTR: the sites at 100 and 101 form one peak, the site at 300 another.
+        self.adata = _make_adata(
+            count_matrix=[[1, 2, 7], [3, 0, 5], [0, 4, 6], [2, 2, 0], [1, 1, 9]],
+            utr_names=["UTR1"] * 3,
+            utr_sizes=[100, 101, 300],
+            gene_names=["GeneA"] * 3,
+        )
+
+    def _check(self, call_peaks):
+        for order in ([0, 1, 2], [2, 1, 0]):
+            with self.subTest(sizes=[self.adata.var.utr_size.iloc[i] for i in order]):
+                result = call_peaks(self.adata[:, order].copy())
+                self.assertEqual(result.n_vars, 2)
+                long_peak = int(np.argmax(result.var.utr_size.to_numpy()))
+                self.assertEqual(result.var.utr_size.iloc[long_peak], 300)
+                counts = result[self.adata.obs_names].X
+                counts = counts.toarray() if scipy.sparse.issparse(counts) else counts
+                np.testing.assert_array_equal(counts[:, long_peak], [7, 5, 6, 0, 9])
+                np.testing.assert_array_equal(counts[:, 1 - long_peak], [3, 3, 4, 4, 2])
+
+    def test_parallel_caller(self):
+        self._check(lambda a: pca.peak_call_anndata_parallel(a, "kde", bandwidth=5, n_jobs=1))
+
+    def test_sequential_caller(self):
+        self._check(lambda a: pca.peak_call_anndata(a, "kde", bandwidth=5))
+
+
 class TestPeakCallSingleUtr(unittest.TestCase):
     def test_output_shape(self):
         adata = _make_adata(

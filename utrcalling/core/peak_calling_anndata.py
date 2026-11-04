@@ -81,7 +81,6 @@ def _peak_call_single_utr(
         )
         peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
         peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
-        peak_sizes_unique = peak_sizes.unique()
 
     # create new matrix with the sum of UMIs for each new peak
     mtx_new_t = adata_utr[:, peak_sizes.index.values].to_df().T
@@ -94,7 +93,8 @@ def _peak_call_single_utr(
     # generate new utr_var
     utr_var_new = pd.DataFrame([utr_var] * len(mtx_new.columns))
     utr_var_new.index = polya_names
-    utr_var_new["utr_size"] = peak_sizes_unique
+    # The counts are summed per peak in size order: label the peaks in that order
+    utr_var_new["utr_size"] = np.sort(peak_sizes.unique())
 
     return mtx_new.to_numpy(), utr_var_new
 
@@ -142,7 +142,6 @@ def _peak_call_single_utr_compact(
         )
         peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
         peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
-        peak_sizes_unique = peak_sizes.unique()
 
     cols_pos = var_sub.index.get_indexer(peak_sizes.index)
     sizes_arr = np.asarray(peak_sizes.values)
@@ -168,9 +167,8 @@ def _peak_call_single_utr_compact(
     polya_names = [f"{gene}_{utr_number}pA{x}" for x in range(1, n_out + 1)]
     utr_var_new = pd.DataFrame([utr_var] * n_out)
     utr_var_new.index = polya_names
-    # Match original behavior: utr_size column uses peak_sizes.unique() (insertion
-    # order), which equals sorted order in practice when var is utr_size-sorted.
-    utr_var_new["utr_size"] = peak_sizes_unique
+    # The counts are summed per peak in size order: label the peaks in that order
+    utr_var_new["utr_size"] = np.sort(peak_sizes.unique())
 
     return new_mtx, utr_var_new
 
