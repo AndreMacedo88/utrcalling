@@ -351,9 +351,14 @@ def split_train_test_data(
         batch_columns = None
 
     groupby_cols = [c for c in [batch_columns, bins_columns] if c is not None]
-    obs_train = adata.obs.groupby(groupby_cols, group_keys=False).apply(
-        lambda x: x.sample(frac=train_fraction, random_state=seed)
-    )
+    # Only the sampled index is used. Explicit observed=True and column selection
+    # keep the result identical across pandas versions: pandas 3 changes both
+    # defaults (observed, and dropping grouping columns inside apply).
+    # Not groupby().sample(): it draws all groups from one random stream, which
+    # would change the split that a given seed has always produced.
+    obs_train = adata.obs.groupby(groupby_cols, group_keys=False, observed=True)[
+        groupby_cols
+    ].apply(lambda x: x.sample(frac=train_fraction, random_state=seed))
 
     obs_test = adata.obs.drop(labels=obs_train.index, axis=0)
 

@@ -4,7 +4,6 @@ count_matrix.py - sparse count matrix building from UTR size data.
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, NamedTuple
 
 import anndata
@@ -29,9 +28,6 @@ class CountMatrixResult(NamedTuple):
     count_matrix: csr_matrix
     peaks_var: pd.DataFrame
     peaks_obs: pd.DataFrame | None = None
-
-
-warnings.filterwarnings("ignore", category=FutureWarning)
 
 
 def _process_utr_group_batch(

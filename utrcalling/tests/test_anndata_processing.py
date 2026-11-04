@@ -2,6 +2,7 @@
 import os
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
 
 import anndata as ad
@@ -228,6 +229,31 @@ class TestSplitTrainTestData(unittest.TestCase):
         test_prop = test_batch_counts[0] / test_batch_counts[1]
 
         self.assertTrue(train_prop == test_prop == orig_prop)
+
+    def test_seed_reproduces_the_same_split(self):
+        # Pinned split: a given seed must keep producing it across pandas versions.
+        train, _ = ap.split_train_test_data(self.adata, train_fraction=0.66, seed=1)
+        self.assertListEqual(
+            sorted(train.obs_names),
+            [
+                "AAAAAAAAAAAAAAAA-1",
+                "AAAAAAAAAAAAAAAA-1-1",
+                "AAAAAAAAAAAAAAAA-1-2",
+                "AAAAAAAAAAAAAAAG-1",
+                "AAAAAAAAAAAAAAGG-2",
+                "AAAAAAAAAAAAAAGG-2-2",
+                "AAAAAAAAAAAAATTT-1",
+                "AAAAAAAAAAAAATTT-1-2",
+                "GAAAAAAAAAAAAAAT-2",
+                "GAAAAAAAAAAAAAAT-2-2",
+            ],
+        )
+
+    def test_no_pandas_deprecation_warnings(self):
+        # pandas 3 changes the groupby defaults these warnings are about.
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", FutureWarning)
+            ap.split_train_test_data(self.adata, train_fraction=0.66, seed=1)
 
 
 class TestSplitTrainTestDataUmiCol(TestSplitTrainTestData):
