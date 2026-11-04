@@ -178,20 +178,6 @@ def get_paths_from_folders(folders_path: str, suffix: str = ".bam") -> list[str]
     return file_list
 
 
-def get_parent_folders_names_from_file(file_path: str) -> str:
-    """Return the name of the parent directory of a file path.
-
-    Args:
-        file_path: A file path string.
-
-    Returns:
-        The immediate parent directory name.
-    """
-    path = os.path.normpath(file_path)
-    parent = path.split(os.sep)[-2]
-    return parent
-
-
 def check_if_exists_and_mkdir(folders_path: str) -> None:
     """Create a directory (and parents) if it does not already exist.
 
@@ -314,20 +300,6 @@ def check_if_dir_and_list_files(path: str | list[str], suffix: str = ".parquet")
         return file_list
     else:
         return path
-
-
-def split_list(a: list[Any], n: int) -> Iterable[list[Any]]:
-    """Split a list into n roughly equal-sized chunks.
-
-    Args:
-        a: The list to split.
-        n: Number of chunks.
-
-    Returns:
-        A generator yielding n sub-lists.
-    """
-    k, m = divmod(len(a), n)
-    return (a[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
 def sample_in_path(sample: str | int, bam_path: str) -> bool:
