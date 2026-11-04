@@ -123,8 +123,8 @@ parallel = true
 sigterm = true
 
 [tool.coverage.report]
-# Raised as tests are added; the goal is 100.
-fail_under = 91
+# Every line and branch: test new code, or delete it if nothing can reach it.
+fail_under = 100
 show_missing = true
 skip_covered = true
 exclude_also = ["if TYPE_CHECKING:", 'if __name__ == "__main__":']
