@@ -263,7 +263,8 @@ class RandomThreePrimeBarcoded:
             n_reads = size[1]
             obs = list(rng.choice(barcodes_pool, size=n_reads))
             sizes = rng.multinomial(n=100, pvals=[0.25, 0.75], size=n_reads)
-            utr_sizes_list = [int(rng.choice(s, 1)) for s in sizes]
+            # [0]: numpy 2.4+ refuses int() on a one-element array
+            utr_sizes_list = [int(rng.choice(s, 1)[0]) for s in sizes]
             all_utr_names.extend([utrs[i]] * n_reads)
             all_observation_ids.extend(obs)
             all_utr_sizes.extend(utr_sizes_list)
