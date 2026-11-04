@@ -3,6 +3,7 @@ import logging as log_module
 import os
 import sys
 import unittest
+import warnings
 
 from utrcalling.core import module_log
 
@@ -24,13 +25,20 @@ def run_all_tests(verbosity, logging):
         # disable logging for tests
         log_module.disable(log_module.CRITICAL)
 
-    # Gets this file directory, the tests dir
-    dir_path = os.path.dirname(os.path.realpath(__file__))
-    loader = unittest.TestLoader()  # Initiates the test loader
-    # Adds all files starting in 'test' to the suite
-    suite = loader.discover(start_dir=dir_path, pattern="test_*.py")
-    # Runs the test suite
-    result = unittest.TextTestRunner(verbosity=verbosity).run(suite)
+    with warnings.catch_warnings():
+        # Deprecations triggered by utrcalling's own code fail the run: they flag
+        # behaviour that changes in upcoming dependency releases (e.g. pandas 3).
+        # pandas and anndata attribute these warnings to the calling module.
+        for category in (DeprecationWarning, FutureWarning):
+            warnings.filterwarnings("error", category=category, module=r"utrcalling\.")
+
+        # Gets this file directory, the tests dir
+        dir_path = os.path.dirname(os.path.realpath(__file__))
+        loader = unittest.TestLoader()  # Initiates the test loader
+        # Adds all files starting in 'test' to the suite
+        suite = loader.discover(start_dir=dir_path, pattern="test_*.py")
+        # Runs the test suite
+        result = unittest.TextTestRunner(verbosity=verbosity).run(suite)
 
     module_log.log_end_run("Finished testing")
 

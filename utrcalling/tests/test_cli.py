@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import unittest
+import warnings
 from pathlib import Path
 from unittest import mock
 
@@ -161,12 +162,11 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
 class TestRunTestsExitCode(unittest.TestCase):
     """`utrcalling run-tests` must exit non-zero when tests fail, so scripts and CI notice."""
 
-    def _run_suite(self, should_fail):
+    def _run_suite(self, body):
         # Defined here, not at module level, so test discovery never collects it.
         class Probe(unittest.TestCase):
             def runTest(self):
-                if should_fail:
-                    self.fail("deliberate failure")
+                body(self)
 
         from utrcalling.tests import test_case
 
@@ -178,13 +178,28 @@ class TestRunTestsExitCode(unittest.TestCase):
         ):
             test_case.run_all_tests(verbosity=0, logging=True)
 
+    @staticmethod
+    def _warn_from(module):
+        # As pandas does: the warning is attributed to the module that called it.
+        return lambda case: warnings.warn_explicit(
+            "deprecated", FutureWarning, "caller.py", 1, module=module
+        )
+
     def test_passing_suite_returns_normally(self):
-        self._run_suite(should_fail=False)
+        self._run_suite(lambda case: None)
 
     def test_failing_suite_exits_with_code_1(self):
         with self.assertRaises(SystemExit) as ctx:
-            self._run_suite(should_fail=True)
+            self._run_suite(lambda case: case.fail("deliberate failure"))
         self.assertEqual(ctx.exception.code, 1)
+
+    def test_deprecation_in_utrcalling_code_exits_with_code_1(self):
+        with self.assertRaises(SystemExit) as ctx:
+            self._run_suite(self._warn_from("utrcalling.core.caller"))
+        self.assertEqual(ctx.exception.code, 1)
+
+    def test_deprecation_in_other_packages_does_not_fail(self):
+        self._run_suite(self._warn_from("anndata._core.caller"))
 
 
 if __name__ == "__main__":
