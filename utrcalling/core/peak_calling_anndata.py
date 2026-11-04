@@ -182,15 +182,13 @@ def _get_distances_per_utr_compact(
     genome: str | pybedtools.BedTool,
 ) -> npt.NDArray[Any] | None:
     """Compute PAS distances for one UTR, given its raw ``(X, var)`` slices."""
-    pas_end, _, seq_strand = _find_pas(var_sub, hamming=hamming, genome=genome)
+    pas_end, _, _ = _find_pas(var_sub, hamming=hamming, genome=genome)
 
     if not pas_end:
         return None
 
     umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size)
-    distances = _calculate_umi_distance_to_pas(
-        umi_utr_sizes=umi_utr_sizes, pas_end=pas_end, seq_strand=seq_strand
-    )
+    distances = _calculate_umi_distance_to_pas(umi_utr_sizes=umi_utr_sizes, pas_end=pas_end)
     return distances.to_numpy().flatten()
 
 
@@ -201,15 +199,13 @@ def _get_score_distances_per_utr_compact(
     genome: str | pybedtools.BedTool,
 ) -> list[float | tuple[float, npt.NDArray[Any]]] | None:
     """Score PAS distances for one UTR, given its raw ``(X, var)`` slices."""
-    pas_end, _, seq_strand = _find_pas(var_sub, hamming=hamming, genome=genome)
+    pas_end, _, _ = _find_pas(var_sub, hamming=hamming, genome=genome)
 
     if not pas_end:
         return None
 
     umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size)
-    distances = _calculate_umi_distance_to_pas(
-        umi_utr_sizes=umi_utr_sizes, pas_end=pas_end, seq_strand=seq_strand
-    )
+    distances = _calculate_umi_distance_to_pas(umi_utr_sizes=umi_utr_sizes, pas_end=pas_end)
 
     distances_ = distances.to_numpy().flatten()
 
@@ -722,58 +718,27 @@ def _find_pas(
     return (pas_end, pas_seq, seq_strand)
 
 
-def _calculate_umi_distance_to_pas(
-    umi_utr_sizes: pd.Series,
-    pas_end: list[int],
-    seq_strand: str,
-) -> pd.Series:
-    """Calculate the distance from each UMI to the nearest PAS site.
+def _calculate_umi_distance_to_pas(umi_utr_sizes: pd.Series, pas_end: list[int]) -> pd.Series:
+    """Calculate the distance from each UMI to its nearest PAS hexamer.
+
+    The definition of Fig. 1B of Macedo et al. 2026. UTR sizes and hexamer ends
+    are both positions along the UTR in transcript orientation (``_find_pas``
+    reads the reverse complement of - strand UTRs), so the distance is
+    ``utr_size - pas_end`` on both strands: positive when the molecule ends
+    downstream of the hexamer. With several hexamers the nearest one counts,
+    by absolute distance (the first of equally near ones).
 
     Args:
         umi_utr_sizes: Series of UTR sizes (one per UMI).
-        pas_end: List of PAS end positions within the UTR.
-        seq_strand: Genomic strand (``"+"`` or ``"-"``).
+        pas_end: PAS end positions within the UTR, as returned by ``_find_pas``.
 
     Returns:
-        A Series of signed distances to the chosen PAS site.
+        A Series of signed distances, with the index of *umi_utr_sizes*.
     """
-    if seq_strand not in ("+", "-"):
-        raise ValueError(f"Strand {seq_strand} not supported")
-
-    sign = 1 if seq_strand == "+" else -1
-
-    if len(pas_end) == 1:
-        return (umi_utr_sizes - pas_end[0]) * sign
-
-    # Build distances matrix for all PAS sites
-    distances_list = [(umi_utr_sizes - end) * sign for end in pas_end]
-    distances = pd.concat(distances_list, axis=1, ignore_index=True)
-
-    # Vectorised selection of closest PAS
-    dist_arr = distances.values
-    in_range = (dist_arr >= 10) & (dist_arr <= 30)
-    n_in_range = in_range.sum(axis=1)
-
-    abs_dist = np.abs(dist_arr)
-
-    # Default: absolute minimum distance
-    chosen = abs_dist.argmin(axis=1)
-
-    # Where exactly one is in range: pick that one
-    single_mask = n_in_range == 1
-    if single_mask.any():
-        chosen[single_mask] = np.argmax(in_range[single_mask], axis=1)
-
-    # Where multiple are in range: pick the closest (min abs) among those in range
-    multi_mask = n_in_range > 1
-    if multi_mask.any():
-        masked = np.where(in_range[multi_mask], abs_dist[multi_mask], np.inf)
-        chosen[multi_mask] = masked.argmin(axis=1)
-
-    return pd.Series(
-        dist_arr[np.arange(len(dist_arr)), chosen],
-        index=distances.index,
-    )
+    sizes = umi_utr_sizes.to_numpy()
+    distances = sizes[:, np.newaxis] - np.asarray(pas_end)[np.newaxis, :]
+    nearest = np.abs(distances).argmin(axis=1)
+    return pd.Series(distances[np.arange(len(sizes)), nearest], index=umi_utr_sizes.index)
 
 
 def _utr_sizes_vector_from_read_counts(

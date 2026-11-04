@@ -229,8 +229,11 @@ class TestCheckDistanceToPasCommand(unittest.TestCase):
     def setUp(self):
         self.tmpdir = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, self.tmpdir)
-        # One + strand UTR on chr1:100-200 (1-based) with molecules ending at UTR
-        # sizes 40, 41 and 42: 5, 20 and 8 molecules over the four cells.
+        self._write_sites("+")
+
+    def _write_sites(self, strand):
+        # One UTR on chr1:100-200 (1-based) with molecules ending at UTR sizes
+        # 40, 41 and 42: 5, 20 and 8 molecules over the four cells.
         var = pd.DataFrame(
             {
                 "utr_name": ["UTR0"] * 3,
@@ -239,7 +242,7 @@ class TestCheckDistanceToPasCommand(unittest.TestCase):
                 "chrom": ["chr1"] * 3,
                 "start": [100] * 3,
                 "end": [200] * 3,
-                "strand": ["+"] * 3,
+                "strand": [strand] * 3,
             },
             index=["UTR0-40", "UTR0-41", "UTR0-42"],
         )
@@ -263,6 +266,14 @@ class TestCheckDistanceToPasCommand(unittest.TestCase):
         # 119 ends 26 nt into the UTR: molecules at 40, 41 and 42 are 14, 15 and
         # 16 nt downstream of it.
         distances = self._distances("C" * 119 + "AATAAA" + "C" * 175)
+        self.assertListEqual(sorted(distances.tolist()), [14] * 5 + [15] * 20 + [16] * 8)
+
+    def test_minus_strand_utrs_give_the_same_distances(self):
+        # UTR sizes count from the UTR's 5' end in transcript orientation, which
+        # on the - strand is genome position 200. TTTATT at 0-based 174-179 is
+        # an AATAAA ending 26 nt into the UTR on that strand, as above.
+        self._write_sites("-")
+        distances = self._distances("C" * 174 + "TTTATT" + "C" * 120)
         self.assertListEqual(sorted(distances.tolist()), [14] * 5 + [15] * 20 + [16] * 8)
 
     def test_no_hexamer_gives_no_distances(self):

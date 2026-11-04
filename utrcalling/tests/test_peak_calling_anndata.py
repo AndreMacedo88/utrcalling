@@ -239,33 +239,33 @@ class TestPeakCallAnndata(unittest.TestCase):
 
 
 class TestCalculateUmiDistanceToPas(unittest.TestCase):
-    def test_single_pas_plus_strand(self):
+    """The Fig. 1B definition: utr_size - hexamer end, to the nearest hexamer."""
+
+    def test_single_pas(self):
         sizes = pd.Series([100, 150, 200], index=["a", "b", "c"])
-        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[120], seq_strand="+")
+        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[120])
         expected = pd.Series([-20, 30, 80], index=["a", "b", "c"])
         pd.testing.assert_series_equal(result, expected)
 
-    def test_single_pas_minus_strand(self):
-        sizes = pd.Series([100, 150, 200], index=["a", "b", "c"])
-        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[120], seq_strand="-")
-        expected = pd.Series([20, -30, -80], index=["a", "b", "c"])
-        pd.testing.assert_series_equal(result, expected)
-
     def test_multiple_pas_closest_selected(self):
-        # Two PAS at positions 100 and 200, + strand
-        # UMI at size 115 → distance to PAS1: 15 (in 10-30 range), PAS2: -85 → pick PAS1
-        # UMI at size 215 → distance to PAS1: 115, PAS2: 15 (in 10-30 range) → pick PAS2
+        # UMI a: 15 nt after the hexamer at 100, 85 nt before the one at 200.
+        # UMI b: 115 nt after the first, 15 nt after the second.
         sizes = pd.Series([115, 215], index=["a", "b"])
-        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[100, 200], seq_strand="+")
-        # UMI a: PAS1 distance = 15 (in range), PAS2 = -85 → pick 15
-        # UMI b: PAS1 = 115, PAS2 = 15 (in range) → pick 15
-        self.assertEqual(result.iloc[0], 15)
-        self.assertEqual(result.iloc[1], 15)
+        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[100, 200])
+        self.assertListEqual(result.tolist(), [15, 15])
 
-    def test_invalid_strand_raises(self):
-        sizes = pd.Series([100])
-        with self.assertRaises(ValueError):
-            pca._calculate_umi_distance_to_pas(sizes, pas_end=[50], seq_strand="?")
+    def test_nearest_hexamer_wins_over_one_10_to_30_nt_upstream(self):
+        # 18 nt after the hexamer at 100 but 2 nt before the one at 120: the
+        # nearest counts. The package used to prefer distances in [10, 30],
+        # which inflates the share of molecules found in that window.
+        sizes = pd.Series([118], index=["a"])
+        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[100, 120])
+        self.assertListEqual(result.tolist(), [-2])
+
+    def test_equally_near_hexamers_take_the_first(self):
+        sizes = pd.Series([110], index=["a"])
+        result = pca._calculate_umi_distance_to_pas(sizes, pas_end=[100, 120])
+        self.assertListEqual(result.tolist(), [10])
 
 
 # ---------------------------------------------------------------------------
