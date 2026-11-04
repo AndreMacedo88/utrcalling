@@ -18,7 +18,7 @@ def estimate_best_bandwidth(input_path, out_path, bandwidths, cores=None):
         n_jobs=cores,
     )
 
-    scores = {bandwidth: score for bandwidth, score in zip(bandwidths, fit_score)}
+    scores = {bandwidth: score for bandwidth, score in zip(bandwidths, fit_score, strict=True)}
 
     joblib.dump(scores, out_path)
 

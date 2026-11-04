@@ -265,6 +265,7 @@ class TestCountMatrixEdgeCases(unittest.TestCase):
         )
         self.assertEqual(matrix.shape, (0, 0))
         self.assertEqual(len(var), 0)
+        self.assertEqual(len(obs), 0)
 
     def test_single_observation(self):
         """Single observation should produce a 1-row matrix."""
@@ -286,6 +287,8 @@ class TestCountMatrixEdgeCases(unittest.TestCase):
         )
         self.assertEqual(matrix.shape[0], 1)
         self.assertGreater(matrix.shape[1], 0)
+        self.assertEqual(len(var), matrix.shape[1])
+        self.assertListEqual(list(obs.index), ["AAAAAAAAAAAAAAAA-1"])
 
     def test_single_utr(self):
         """Single UTR with multiple observations should produce peaks from that UTR only."""
@@ -307,6 +310,10 @@ class TestCountMatrixEdgeCases(unittest.TestCase):
             protocol=self.protocol_,
         )
         self.assertEqual(matrix.shape[0], 3)
+        # obs rows line up with the matrix rows
+        self.assertListEqual(
+            list(obs.index), ["AAAAAAAAAAAAAAAA-1", "AAAAAAAAAAAAAAAG-1", "GAAAAAAAAAAAAAAT-2"]
+        )
         # All peak names should start with "UTR1-"
         for name in var.index:
             self.assertTrue(name.startswith("UTR1-"), f"Unexpected peak name: {name}")

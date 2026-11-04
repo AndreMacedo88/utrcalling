@@ -152,8 +152,9 @@ class TestShutdownJoblibPool(unittest.TestCase):
         shutdown_joblib_pool()
         # After shutdown, get_reusable_executor() returns either a fresh
         # executor or the old one in a shut state. The contract we care
-        # about is that submitting work to the prior executor fails.
-        with self.assertRaises(Exception):
+        # about is that submitting work to the prior executor fails, with the
+        # RuntimeError that concurrent.futures raises for a shut-down executor.
+        with self.assertRaises(RuntimeError):
             executor_before.submit(lambda: 1).result(timeout=2)
 
 

@@ -141,6 +141,7 @@ ANNOTATION_THREE_PRIME_TENX = pd.DataFrame(
                 "AAAAAAAAAAAAAAGG-2",
             ],
             [2.3, 4.4, 5.0, 2.1, 3.0],
+            strict=True,
         )
     ),
 )
@@ -289,7 +290,7 @@ class RandomThreePrimeBarcoded:
         batch = [1] * anno_length
 
         self._anno = pd.DataFrame(
-            data=list(zip(sample_id, barcodes, batch)),
+            data=list(zip(sample_id, barcodes, batch, strict=True)),
             columns=["sample_id", "barcodes", "batch"],
         )
 

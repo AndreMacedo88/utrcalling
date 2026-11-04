@@ -112,14 +112,14 @@ def counts_to_percentages(adata: anndata.AnnData, utr_name_column: str) -> annda
         A copy of *adata* with ``.X`` replaced by fractional values.
     """
     adata = adata.copy()
-    n_obs, n_vars = adata.X.shape
+    n_vars = adata.n_vars
 
     utr_names = np.asarray(adata.var[utr_name_column].values)
     _, utr_codes = np.unique(utr_names, return_inverse=True)
     utr_codes = utr_codes.astype(np.int64)
     n_groups = int(utr_codes.max()) + 1 if n_vars > 0 else 0
 
-    # Aggregator (n_vars × n_groups): one nonzero per column placed in its
+    # Aggregator (n_vars x n_groups): one nonzero per column placed in its
     # UTR's group column. ``X @ aggregator`` yields per-(obs, UTR) row sums
     # in one matmul, replacing the per-UTR Python loop.
     aggregator = scipy.sparse.csc_matrix(

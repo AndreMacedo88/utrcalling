@@ -174,7 +174,7 @@ def _map_multiple_bams(
                 parallel=False,
             )
             for alignment, bidx in tqdm(
-                zip(alignments, batch_indices), colour="#ffb700", ascii=" ■"
+                zip(alignments, batch_indices, strict=True), colour="#ffb700", ascii=" ■"
             )
         )
     finally:

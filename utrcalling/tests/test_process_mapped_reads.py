@@ -1,4 +1,5 @@
 import copy
+import itertools
 import os
 import unittest
 from pathlib import Path
@@ -317,6 +318,7 @@ class TestMergeUtrsPerGene(unittest.TestCase):
                 zip(
                     gene_data["observation_id"].tolist(),
                     gene_data["utr_size"].tolist(),
+                    strict=True,
                 )
             )
             self.assertListEqual(actual_pairs, expected_pairs, msg=f"mismatch for {gene}")
@@ -334,22 +336,15 @@ class TestMergeUtrsPerGeneCategoricalOffsetMap(unittest.TestCase):
     is not among the Categorical's categories.
     """
 
-    _offset_counter = [0]
-
-    @classmethod
-    def _nonzero_unique_offsets(cls, group: pd.DataFrame) -> dict[str, int]:
+    def _nonzero_unique_offsets(self, group: pd.DataFrame) -> dict[str, int]:
         # Deterministic injective non-zero mapping across all calls, so every
         # UTR gets a distinct non-zero offset. This is what triggers the pandas
         # Categorical preservation behavior that the bug relied on.
-        out = {}
-        for name in group.index.tolist():
-            cls._offset_counter[0] += 1
-            out[name] = cls._offset_counter[0] * 100
-        return out
+        return {name: next(self._offsets) for name in group.index.tolist()}
 
     def setUp(self) -> None:
-        # Reset counter so repeated runs stay deterministic.
-        type(self)._offset_counter[0] = 0
+        # A fresh counter per test (100, 200, ...) keeps repeated runs deterministic.
+        self._offsets = itertools.count(start=100, step=100)
 
     def test_does_not_crash_when_offsets_are_all_nonzero_distinct(self):
         utr_regions = pd.DataFrame(
@@ -378,7 +373,7 @@ class TestMergeUtrsPerGeneCategoricalOffsetMap(unittest.TestCase):
             "_compute_gene_offsets",
             side_effect=self._nonzero_unique_offsets,
         ):
-            regions_out, reads_out = process_mapped_reads.merge_utrs_per_gene(
+            _, reads_out = process_mapped_reads.merge_utrs_per_gene(
                 utr_regions=utr_regions, read_mappings=read_mappings
             )
 

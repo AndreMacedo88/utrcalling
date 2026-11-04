@@ -9,8 +9,8 @@ class TestCase(unittest.TestCase):
     def assertNotRaises(self, exc_type):
         try:
             yield None
-        except exc_type:
-            raise self.failureException(f"{exc_type.__name__} raised")
+        except exc_type as err:
+            raise self.failureException(f"{exc_type.__name__} raised") from err
 
 
 class TestImport(TestCase):

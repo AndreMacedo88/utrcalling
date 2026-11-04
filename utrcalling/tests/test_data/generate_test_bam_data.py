@@ -22,7 +22,7 @@ def match_alignments(bam_path, output_path, intervals):
         pysam.AlignmentFile(bam_path, "rb") as bam_in,
         pysam.AlignmentFile(output_path, "wb", header=bam_in.header) as bam_out,
     ):
-        for chrom, start, stop, strand in intervals:
+        for chrom, start, stop, _strand in intervals:
             num_1 = random.random()
             if num_1 < 0.33:
                 continue

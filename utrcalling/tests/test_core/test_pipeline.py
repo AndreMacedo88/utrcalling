@@ -952,7 +952,7 @@ class TestPipeline3TenxV3WithBarcodeWhitelist(unittest.TestCase):
 
     # Raw 16 bp barcodes extracted from the first-in-pair reads in the
     # synthetic 10x BAM (first 16 bp of query_sequence for reads a1, b1, c1).
-    _BARCODES = ["ACTGTAGCCGAATTTA", "GACTCTCCACAATGAA", "AGCCGAATTTAACTGG"]
+    _BARCODES = ("ACTGTAGCCGAATTTA", "GACTCTCCACAATGAA", "AGCCGAATTTAACTGG")
 
     @classmethod
     def setUpClass(cls):

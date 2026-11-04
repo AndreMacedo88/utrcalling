@@ -62,7 +62,7 @@ class TestPrepareAnnotationsIndex(unittest.TestCase):
         self.assertListEqual(ann_index, [4, 5, 6, 7])
 
     def test_different_annotations(self) -> None:
-        annotations = self.annotations + ["gene_name"]
+        annotations = [*self.annotations, "gene_name"]
         ann_columns, _ = utr_reference.prepare_annotations_index(annotations)
         self.assertListEqual(
             ann_columns,

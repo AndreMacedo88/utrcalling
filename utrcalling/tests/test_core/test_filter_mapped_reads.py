@@ -137,6 +137,7 @@ class TestFilterMappedReadsNoWhitelist(unittest.TestCase):
         # filter_utr_sizes with threshold=1 keeps sizes > 1
         # Both 50 and 100 are > 1 so both should pass
         self.assertEqual(len(filtered), 2)
+        self.assertListEqual(list(ref_subset.index), ["UTR1"])
 
 
 if __name__ == "__main__":

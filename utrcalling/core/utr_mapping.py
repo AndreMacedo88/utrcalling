@@ -475,7 +475,7 @@ def deduplicate_reads(
     barcodes = read_info[0]
     umis_unique = {barcode: set() for barcode in barcodes}
     idx_unique = []
-    for idx, (umi, barcode) in enumerate(zip(read_umis, barcodes)):
+    for idx, (umi, barcode) in enumerate(zip(read_umis, barcodes, strict=True)):
         barcode_umis = umis_unique[barcode]
         if umi not in barcode_umis:
             idx_unique.append(idx)
@@ -509,7 +509,7 @@ def deduplicate_reads_keep_max(
     utr_sizes = read_info[1]
     # Track the best (largest-size) index per (barcode, UMI)
     best: dict[tuple[str, str], int] = {}
-    for idx, (umi, barcode, size) in enumerate(zip(read_umis, barcodes, utr_sizes)):
+    for idx, (umi, barcode, size) in enumerate(zip(read_umis, barcodes, utr_sizes, strict=True)):
         key = (barcode, umi)
         if key not in best or size > utr_sizes[best[key]]:
             best[key] = idx

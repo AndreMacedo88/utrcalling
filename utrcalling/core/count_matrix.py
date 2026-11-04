@@ -216,7 +216,7 @@ def generate_counts_and_anno(
         logger.info("Parallelizing across UTRs (%d workers, %d batches)", n_workers, n_batches)
 
         # inner_max_num_threads=1 prevents BLAS/OpenMP inside sklearn's KDE
-        # from spawning extra threads per worker — without it 27 workers ×
+        # from spawning extra threads per worker — without it 27 workers x
         # ~8 BLAS threads = 200+ threads competing for cores on a 27-core box.
         # joblib requires `backend` here when passing inner_max_num_threads.
         try:
@@ -243,7 +243,9 @@ def generate_counts_and_anno(
     col_offset = 0
 
     for _orig_idx, rows_list, data_list, names_list, sizes_list in flat:
-        for rows, data, name, size in zip(rows_list, data_list, names_list, sizes_list):
+        for rows, data, name, size in zip(
+            rows_list, data_list, names_list, sizes_list, strict=True
+        ):
             all_rows.append(rows)
             all_cols.append(np.full(len(rows), col_offset, dtype=np.int32))
             all_data.append(data)

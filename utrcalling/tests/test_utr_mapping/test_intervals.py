@@ -22,7 +22,7 @@ class TestGenerateUtrIntervals(unittest.TestCase):
         _IntervalData start location will be a smaller number by 1.
         """
         correct = ["ENSMUSG00000051285", 7160891, 7161063, "+"]
-        name, interval = list(self.intervals.items())[0]
+        name, interval = next(iter(self.intervals.items()))
         self.assertListEqual([name, interval.start_d, interval.end_d, interval.strand], correct)
 
 

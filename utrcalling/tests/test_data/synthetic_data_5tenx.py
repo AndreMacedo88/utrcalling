@@ -26,6 +26,7 @@ class Bam:
 
     def __init__(self) -> None:
         fd, self.alignment = mkstemp(suffix=".bam", dir="./test_data/")
+        os.close(fd)
 
     def enter(self):
         # set-up the temporary alignment file

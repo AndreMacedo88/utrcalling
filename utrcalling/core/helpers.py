@@ -76,10 +76,10 @@ def shutdown_joblib_pool() -> None:
         return
     try:
         get_reusable_executor().shutdown(wait=True)
-    except Exception:
+    except Exception as exc:
         # Best-effort cleanup: if loky's internals refuse for any reason,
         # don't mask the real outcome of the parallel block.
-        pass
+        module_log.module_logger().debug("Could not shut down the joblib worker pool: %r", exc)
 
 
 def ensure_mapped_reads_dtypes(df: pd.DataFrame) -> pd.DataFrame:

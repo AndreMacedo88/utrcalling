@@ -212,7 +212,7 @@ def _get_score_distances_per_utr_compact(
     distances_ = distances.to_numpy().flatten()
 
     total_umis = len(distances)
-    threshold = int(math.ceil(total_umis * 0.01))
+    threshold = math.ceil(total_umis * 0.01)
     distances_bigger_ten = distances[distances.groupby(level=0).count() > threshold]
     in_range_of_pas = distances_bigger_ten.between(10, 30)
 
