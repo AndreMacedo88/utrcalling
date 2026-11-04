@@ -451,6 +451,16 @@ class TestProtocolArgumentErrors(unittest.TestCase):
             protocol.PeakCallingMethod.from_str("gmm")
 
 
+class TestSmartseqWithoutAlignments(unittest.TestCase):
+    """Without BAM paths there are no sample names to resolve."""
+
+    def test_no_sample_names_and_no_sample_id_column_needed(self):
+        # Used to fail looking for a sample_id column it had no use for.
+        p = protocol.create("smartseq", 3, annotations=pd.DataFrame({"barcode": ["AAAAAA"]}))
+        self.assertIsNone(p.sample_names)
+        self.assertIsNone(p.sample_idx)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

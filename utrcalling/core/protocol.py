@@ -682,13 +682,8 @@ class ProtocolSmartseq(ProtocolThreePrime):
             kde_bandwidth=kde_bandwidth,
         )
 
-        try:
+        if alignments is not None:
             self.sample_names, self.sample_idx = self.get_sample_names(alignments=alignments)
-        except TypeError as err:
-            if alignments is None:
-                self.sample_names, self.sample_idx = None, None
-            else:
-                raise err
 
 
 class ProtocolSmartseq3(ProtocolSmartseq):
@@ -927,13 +922,8 @@ class ProtocolCapseq(ProtocolFivePrime):
             kde_bandwidth=kde_bandwidth,
         )
 
-        try:
+        if alignments is not None:
             self.sample_names, self.sample_idx = self.get_sample_names(alignments=alignments)
-        except TypeError as err:
-            if alignments is None:
-                self.sample_names, self.sample_idx = None, None
-            else:
-                raise err
 
 
 class ProtocolCapseqSmartseq3(ProtocolCapseq):
