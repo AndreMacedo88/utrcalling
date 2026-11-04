@@ -218,16 +218,112 @@ class TestCallPeaksCommand(_InTempDir):
             "peaks.h5ad",
             cwd=cls.tmp,
         )
+        # The merged counts file that -i stores is a single input on its own.
+        utrcalling(
+            "call-peaks",
+            intermediate / "utr_reference_regions.parquet",
+            "-c",
+            intermediate / "UTR_sizes_counts_merged_union.parquet",
+            *PIPELINE_FLAGS,
+            "-r",
+            "-o",
+            "merged.h5ad",
+            cwd=cls.tmp,
+        )
+        # Without -r: only the peaks.
+        utrcalling(
+            "call-peaks",
+            intermediate / "utr_reference_regions.parquet",
+            "-c",
+            intermediate / "UTR_sizes_counts_1.parquet",
+            intermediate / "UTR_sizes_counts_2.parquet",
+            *PIPELINE_FLAGS,
+            "-o",
+            "peaks_only.h5ad",
+            cwd=cls.tmp,
+        )
 
     def test_raw_sizes_match_run(self):
         assert_same_anndata(
             ad.read_h5ad(self.tmp / "peaks.h5ad"), ad.read_h5ad(WORKDIR / "raw.h5ad")
         )
 
+    def test_the_merged_counts_file_alone_gives_the_same_result(self):
+        assert_same_anndata(
+            ad.read_h5ad(self.tmp / "merged.h5ad"), ad.read_h5ad(WORKDIR / "raw.h5ad")
+        )
+
+    def test_without_raw_sizes_writes_only_the_peaks(self):
+        assert_same_anndata(
+            ad.read_h5ad(self.tmp / "peaks_only.h5ad"), ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
+        )
+        self.assertFalse((self.tmp / "peaks_only_kde.h5ad").exists())
+
     def test_peaks_match_run(self):
         assert_same_anndata(
             ad.read_h5ad(self.tmp / "peaks_kde.h5ad"), ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
         )
+
+
+class TestRunCommandAtGeneLevel(_InTempDir):
+    """`run -s gene` (the paper's mouse and blood workflows) joins the UTRs of each gene."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        gene_flags = [flag if flag != "utr" else "gene" for flag in PIPELINE_FLAGS]
+        utrcalling("run", GTF, "-a", *BAMS, *gene_flags, "-r", "-i", "-o", "gene.h5ad", cwd=cls.tmp)
+        intermediate = cls.tmp / "intermediate"
+        utrcalling(
+            "call-peaks",
+            intermediate / "utr_reference_regions.parquet",
+            "-c",
+            intermediate / "UTR_sizes_counts_1.parquet",
+            intermediate / "UTR_sizes_counts_2.parquet",
+            *gene_flags,
+            "-r",
+            "-o",
+            "call_peaks.h5ad",
+            cwd=cls.tmp,
+        )
+        cls.gene = ad.read_h5ad(cls.tmp / "gene.h5ad")
+        cls.utr = ad.read_h5ad(WORKDIR / "raw.h5ad")
+
+    def test_a_genes_utrs_become_one(self):
+        # At UTR level, a gene's second, third... UTR are named <gene ID>_2, _3...
+        second_utrs = r"_\d+$"
+        self.assertTrue(self.utr.var.utr_name.astype(str).str.contains(second_utrs).any())
+        self.assertFalse(self.gene.var.utr_name.astype(str).str.contains(second_utrs).any())
+
+    def test_every_molecule_of_every_cell_is_kept(self):
+        np.testing.assert_array_equal(
+            _dense(self.gene[self.utr.obs_names].X).sum(axis=1), _dense(self.utr.X).sum(axis=1)
+        )
+
+    def test_call_peaks_gives_the_same_result(self):
+        assert_same_anndata(ad.read_h5ad(self.tmp / "call_peaks.h5ad"), self.gene)
+
+
+class TestRunCommandWithOneBam(_InTempDir):
+    """A sample's cells get the same counts whether it is run alone or with others."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        utrcalling("run", GTF, "-a", BAMS[0], *PIPELINE_FLAGS, "-r", "-o", "old.h5ad", cwd=cls.tmp)
+        cls.alone = ad.read_h5ad(cls.tmp / "old.h5ad")
+        cls.together = ad.read_h5ad(WORKDIR / "raw.h5ad")[cls.alone.obs_names]
+
+    def test_has_only_the_cells_of_that_sample(self):
+        self.assertSetEqual(set(self.alone.obs.CellAge.astype(str)), {"old"})
+
+    def test_counts_match_the_run_with_both_samples(self):
+        together_sites = {key: i for i, key in enumerate(_site_keys(self.together))}
+        columns = [together_sites[key] for key in _site_keys(self.alone)]
+        np.testing.assert_array_equal(_dense(self.alone.X), _dense(self.together.X)[:, columns])
+        # and no site with molecules of these cells is missing
+        seen = _dense(self.together.X).sum(axis=0) > 0
+        self.assertEqual(int(seen.sum()), len(columns))
 
 
 class TestPrepareReferenceThenCallPeaks(_InTempDir):
