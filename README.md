@@ -262,7 +262,7 @@ utrcalling concatenate-experiments \
     -o combined.h5ad
 
 # Estimate optimal KDE bandwidth
-utrcalling estimate-best-bandwidth raw_sizes.h5ad bandwidth_scores.joblib \
+utrcalling estimate-best-bandwidth raw_sizes.h5ad bandwidth_scores.joblib genome.fa \
     --bandwidths 1 7 12 15
 
 # Validate peaks against known polyadenylation signals

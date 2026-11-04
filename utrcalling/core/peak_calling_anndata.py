@@ -197,9 +197,10 @@ def _get_score_distances_per_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
     hamming: int,
+    genome: str | pybedtools.BedTool,
 ) -> list[float | tuple[float, npt.NDArray[Any]]] | None:
     """Score PAS distances for one UTR, given its raw ``(X, var)`` slices."""
-    pas_end, _, seq_strand = _find_pas(var_sub, hamming=hamming)
+    pas_end, _, seq_strand = _find_pas(var_sub, hamming=hamming, genome=genome)
 
     if not pas_end:
         return None
@@ -253,11 +254,11 @@ def _pas_distance_utr_batch(
 
 
 def _score_distances_utr_batch(
-    batch: list[CompactUtrItem], hamming: int
+    batch: list[CompactUtrItem], hamming: int, genome: str | pybedtools.BedTool
 ) -> list[tuple[int, list[float | tuple[float, npt.NDArray[Any]]] | None]]:
     out = []
     for orig_idx, _utr_name, X_sub, var_sub in batch:
-        result = _get_score_distances_per_utr_compact(X_sub, var_sub, hamming)
+        result = _get_score_distances_per_utr_compact(X_sub, var_sub, hamming, genome)
         out.append((orig_idx, result))
     return out
 
@@ -483,6 +484,7 @@ def remove_peaks_below_count(
 
 def estimate_best_bandwidth(
     adata: ad.AnnData,
+    genome: str | pybedtools.BedTool,
     method: str = "kde",
     hamming: int = 1,
     bandwidths: tuple[float, ...] | list[float] = (0.5, 1, 1.5, 2, 2.5, 3),
@@ -501,6 +503,8 @@ def estimate_best_bandwidth(
 
     Args:
         adata: AnnData with UMI counts and UTR metadata.
+        genome: Genome FASTA (path or pybedtools BedTool) to search for PAS
+            hexamers in.
         method: Peak calling method (currently only ``"kde"``).
         hamming: Maximum Hamming distance for PAS matching.
         bandwidths: Candidate bandwidth values to evaluate.
@@ -523,6 +527,7 @@ def estimate_best_bandwidth(
         )
         score = _score_peak_assignment(
             adata=adata_bandwidth,
+            genome=genome,
             hamming=hamming,
             return_distances_to_hex=return_distances_to_hex,
             n_jobs=n_jobs,
@@ -587,6 +592,7 @@ def pas_distance(
 
 def _score_peak_assignment(
     adata: ad.AnnData,
+    genome: str | pybedtools.BedTool,
     hamming: int = 1,
     return_distances_to_hex: bool = False,
     n_jobs: int | None = None,
@@ -595,6 +601,8 @@ def _score_peak_assignment(
 
     Args:
         adata: AnnData with peak-called UTR counts.
+        genome: Genome FASTA (path or pybedtools BedTool) to search for PAS
+            hexamers in.
         hamming: Maximum Hamming distance for PAS matching.
         return_distances_to_hex: If ``True``, also return the raw distance
             array.
@@ -620,7 +628,7 @@ def _score_peak_assignment(
         with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                    joblib.delayed(_score_distances_utr_batch)(batch, hamming)
+                    joblib.delayed(_score_distances_utr_batch)(batch, hamming, genome)
                     for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
                 )
             )

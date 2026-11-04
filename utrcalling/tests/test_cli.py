@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 import anndata as ad
+import joblib
 import numpy as np
 import pandas as pd
 
@@ -209,6 +210,36 @@ class TestSubsetExperimentsTool(unittest.TestCase):
         out_paths = [self.tmpdir / "a.h5ad", self.tmpdir / "b.h5ad"]
         with self.assertRaisesRegex(ValueError, "one type per file"):
             self._subset(self.tmpdir / "missing.h5ad", ["obs"], out_paths)
+
+
+class TestEstimateBestBandwidthTool(unittest.TestCase):
+    """`utrcalling estimate-best-bandwidth` passes the genome to the scorer."""
+
+    def test_genome_reaches_the_scorer(self):
+        from utrcalling.tools.estimate_best_bandwidth import estimate_best_bandwidth
+
+        tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmpdir)
+        genome_path = tmpdir / "genome.fa"
+        genome_path.write_text(">chr1\nACGT\n")
+        out_path = tmpdir / "scores.joblib"
+
+        with (
+            mock.patch("utrcalling.core.helpers.check_if_path_and_open"),
+            mock.patch(
+                "utrcalling.core.peak_calling_anndata.estimate_best_bandwidth",
+                return_value=[0.25, 0.5],
+            ) as scorer,
+        ):
+            estimate_best_bandwidth(
+                input_path="experiment.h5ad",
+                out_path=str(out_path),
+                genome_path=str(genome_path),
+                bandwidths=[7, 12],
+            )
+
+        self.assertEqual(scorer.call_args.kwargs["genome"].fn, str(genome_path))
+        self.assertDictEqual(joblib.load(out_path), {7: 0.25, 12: 0.5})
 
 
 class TestRunTestsExitCode(unittest.TestCase):

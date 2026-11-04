@@ -2,16 +2,19 @@
 import argparse
 
 
-def estimate_best_bandwidth(input_path, out_path, bandwidths, cores=None):
+def estimate_best_bandwidth(input_path, out_path, genome_path, bandwidths, cores=None):
     import joblib
+    import pybedtools
 
     from utrcalling.core import helpers
     from utrcalling.core import peak_calling_anndata as pc
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
+    genome = pybedtools.BedTool(genome_path)
 
     fit_score = pc.estimate_best_bandwidth(
         adata=adata,
+        genome=genome,
         hamming=1,
         bandwidths=bandwidths,
         return_distances_to_hex=False,
@@ -39,7 +42,8 @@ def create_parser(subparsers):
         description=f"DESCRIPTION: {description}",
         epilog="""
     Example use:
-    $ utrcalling estimate-best-bandwidth adata.h5ad estimations_scores.joblib -b 1 7 12
+    $ utrcalling estimate-best-bandwidth adata.h5ad estimations_scores.joblib
+        Homo_sapiens.GRCh38.dna.primary_assembly.fa -b 1 7 12
     """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -48,6 +52,7 @@ def create_parser(subparsers):
         "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
     )
     parser.add_argument("out_path", type=str, help="Path where output will be stored.")
+    parser.add_argument("genome_path", type=str, help="Path to a genome file (fasta format).")
     parser.add_argument(
         "-b",
         "--bandwidths",

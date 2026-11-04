@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -486,6 +488,53 @@ class TestPeakCallSingleUtrCompact(unittest.TestCase):
         total_in = X.sum()
         total_out = mtx.sum()
         self.assertEqual(int(total_in), int(total_out))
+
+
+# ---------------------------------------------------------------------------
+# estimate_best_bandwidth
+# ---------------------------------------------------------------------------
+
+
+class TestEstimateBestBandwidthWithGenome(unittest.TestCase):
+    """Bandwidth scores come from PAS hexamers found in the genome.
+
+    The scoring path used to call the PAS finder without the genome, so
+    estimate_best_bandwidth always raised a TypeError.
+    """
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmpdir)
+        # One UTR on chr1:100-200 (+ strand, see _make_adata), with UTR sizes
+        # around 41 nt.
+        self.adata = _make_adata(
+            count_matrix=[[2, 5, 2], [1, 6, 1], [2, 4, 3], [0, 5, 2]],
+            utr_names=["UTR0"] * 3,
+            utr_sizes=[40, 41, 42],
+            n_obs=4,
+        )
+
+    def _genome(self, chr1: str) -> str:
+        path = self.tmpdir / "genome.fa"
+        path.write_text(f">chr1\n{chr1}\n")
+        return str(path)
+
+    def _scores(self, chr1: str, bandwidths: list[float]) -> list:
+        return pca.estimate_best_bandwidth(
+            self.adata, genome=self._genome(chr1), hamming=0, bandwidths=bandwidths, n_jobs=1
+        )
+
+    def test_hexamer_upstream_of_the_peaks_scores_above_zero(self):
+        # The UTR sequence starts at 0-based position 99, so an AATAAA at 119
+        # ends 26 nt into the UTR: ~15 nt before the reads end, inside the
+        # 10-30 nt window that counts.
+        scores = self._scores("C" * 119 + "AATAAA" + "C" * 175, bandwidths=[1, 3])
+        self.assertEqual(len(scores), 2)
+        for score in scores:
+            self.assertGreater(score, 0)
+
+    def test_genome_without_a_hexamer_scores_zero(self):
+        self.assertListEqual(self._scores("C" * 300, bandwidths=[1]), [0.0])
 
 
 if __name__ == "__main__":
