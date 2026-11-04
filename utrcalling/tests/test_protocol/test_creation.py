@@ -430,6 +430,27 @@ class TestBatchColumnDtypes(unittest.TestCase):
         self.assertEqual(self._batches_range(batches), ["3", "3", "7"])
 
 
+class TestProtocolArgumentErrors(unittest.TestCase):
+    """Invalid protocol arguments raise errors that say what to pass instead."""
+
+    def test_missing_annotations_raises_type_error(self):
+        # Used to fail with an unrelated AttributeError on None.
+        for platform, version in [("10x", 3), ("smartseq", 3), ("truseq", 1)]:
+            with (
+                self.subTest(platform=platform),
+                self.assertRaisesRegex(TypeError, "requires annotations"),
+            ):
+                protocol.create(platform, version)
+
+    def test_invalid_merge_method_lists_the_valid_ones(self):
+        with self.assertRaisesRegex(ValueError, "Must be one of: union, intersection"):
+            protocol.MergeMethod.from_str("average")
+
+    def test_invalid_peak_calling_method_lists_the_valid_ones(self):
+        with self.assertRaisesRegex(ValueError, "Must be one of: kde, bypass"):
+            protocol.PeakCallingMethod.from_str("gmm")
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

@@ -51,7 +51,7 @@ class MergeMethod(Enum):
         except ValueError:
             raise ValueError(
                 f"Invalid merge method {value!r}. Must be one of: {', '.join(m.value for m in cls)}"
-            )
+            ) from None
 
 
 class PeakCallingMethod(Enum):
@@ -69,7 +69,7 @@ class PeakCallingMethod(Enum):
             raise ValueError(
                 f"Invalid peak calling method {value!r}. "
                 f"Must be one of: {', '.join(m.value for m in cls)}"
-            )
+            ) from None
 
 
 _VALID_STRANDEDNESS = ("reverse", "forward", "unstranded")
@@ -151,6 +151,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
         Args:
             annotations: Path to a CSV annotations file, or a pre-loaded DataFrame.
+                Required; ``None`` raises a TypeError.
             merge_method: How to merge UTRs across samples ('union' or 'intersection').
             call_peaks: Whether to call consensus peaks on UTR size distributions.
             call_peaks_method: Peak calling algorithm ('kde' for kernel density estimator).
@@ -172,11 +173,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.strandedness = _validate_strandedness(strandedness)
 
         # set variables from the arguments
+        if annotations is None:
+            raise TypeError(
+                "Protocol requires annotations: the path to a CSV annotation file "
+                "or a pandas DataFrame."
+            )
         self.annotations = helpers.check_if_path_and_open(to_check=annotations, method="csv")
-        try:
-            self.annotations = self.annotations.dropna(axis=0, how="all")
-        except TypeError:
-            pass
+        self.annotations = self.annotations.dropna(axis=0, how="all")
 
         # Validate and store merge method
         self._merge_method_enum = MergeMethod.from_str(merge_method)
