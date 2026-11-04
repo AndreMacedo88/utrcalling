@@ -220,5 +220,28 @@ class TestGetObservationIdStandardSmartseq(unittest.TestCase):
         self.assertFalse(self.prot.label_batches)
 
 
+class TestGetObservationIdTruseq(unittest.TestCase):
+    """Bulk samples are named by the annotated sample_id their BAM path holds."""
+
+    def _protocol(self, **kwargs):
+        return protocol.create(
+            "truseq",
+            1,
+            annotations=pd.DataFrame({"sample_id": ["S1"], "batch": [5]}),
+            alignments=["/data/S1.bam"],
+            **kwargs,
+        )
+
+    def test_a_bam_is_named_by_its_sample_id(self):
+        self.assertEqual(self._protocol().get_observation_id("/data/S1.bam"), "S1")
+
+    def test_a_bam_without_an_annotated_sample_keeps_its_path(self):
+        self.assertEqual(self._protocol().get_observation_id("/data/S2.bam"), "/data/S2.bam")
+
+    def test_labelled_batches_are_appended(self):
+        p = self._protocol(label_batches=True)
+        self.assertEqual(p.get_observation_id("/data/S1.bam", batch_idx="5"), "S1-5")
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2)

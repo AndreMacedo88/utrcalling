@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 import pandas as pd
+import pysam
 
 from utrcalling.core import module_log, process_mapped_reads, protocol, utr_mapping
 
@@ -459,6 +460,103 @@ class TestSmartseqWithoutAlignments(unittest.TestCase):
         p = protocol.create("smartseq", 3, annotations=pd.DataFrame({"barcode": ["AAAAAA"]}))
         self.assertIsNone(p.sample_names)
         self.assertIsNone(p.sample_idx)
+
+
+class TestProtocolSettingsFromText(unittest.TestCase):
+    """Settings can arrive as text, from the CLI or from Python callers."""
+
+    def setUp(self):
+        self.annotations = pd.DataFrame({"barcode": ["AAAA", "CCCC"], "batch": [1, 2]})
+
+    def test_merge_method_defaults_to_union(self):
+        p = protocol.create("10x", 3, annotations=self.annotations, merge_method=None)
+        self.assertEqual(p.merge_method, "union")
+
+    def test_label_batches_accepts_yes_no_words(self):
+        cases = {"yes": True, "True": True, "1": True, "no": False, "FALSE": False, "0": False}
+        for text, expected in cases.items():
+            with self.subTest(label_batches=text):
+                p = protocol.create("10x", 3, annotations=self.annotations, label_batches=text)
+                self.assertIs(p.label_batches, expected)
+
+    def test_other_words_are_refused(self):
+        with self.assertRaisesRegex(ValueError, "invalid truth value 'maybe'"):
+            protocol.create("10x", 3, annotations=self.annotations, label_batches="maybe")
+
+    def test_labelling_batches_needs_a_batch_column(self):
+        with self.assertRaisesRegex(KeyError, "batch information"):
+            protocol.create(
+                "10x", 3, annotations=pd.DataFrame({"barcode": ["AAAA"]}), label_batches=True
+            )
+
+    def test_unsupported_version_of_capseq_readname_raises(self):
+        with self.assertRaises(NotImplementedError):
+            protocol.create(
+                "smart-seq_cap-readname", 2, annotations=pd.DataFrame({"sample_id": ["S1"]})
+            )
+
+
+class TestSampleIdsOfBams(unittest.TestCase):
+    """Bulk and CapSeq protocols find each annotated sample_id in the BAM paths."""
+
+    def test_a_sample_id_found_in_two_bams_raises(self):
+        with self.assertRaisesRegex(ValueError, "uniquely identifiable"):
+            protocol.create(
+                "truseq",
+                1,
+                annotations=pd.DataFrame({"sample_id": ["S1"]}),
+                alignments=["/data/S1/rep1.bam", "/data/S1/rep2.bam"],
+            )
+
+    def test_a_missing_sample_id_column_says_what_is_needed(self):
+        # Used to fail with a bare "index 0 is out of bounds".
+        with self.assertRaisesRegex(ValueError, "supply a column for `sample_id`"):
+            protocol.create(
+                "truseq",
+                1,
+                annotations=pd.DataFrame({"name": ["S1"]}),
+                alignments=["/data/S1.bam"],
+            )
+
+    def test_two_sample_id_columns_raise(self):
+        with self.assertRaisesRegex(ValueError, "Too many columns"):
+            protocol.create(
+                "truseq",
+                1,
+                annotations=pd.DataFrame({"sample_id": ["S1"], "old_sample_id": ["S1"]}),
+                alignments=["/data/S1.bam"],
+            )
+
+    def test_capseq_without_bams_has_no_sample_names(self):
+        p = protocol.create("smart-seq_cap", 3, annotations=pd.DataFrame({"sample_id": ["S1"]}))
+        self.assertIsNone(p.sample_names)
+
+
+class TestReadIdentityWithoutTagsOrUmi(unittest.TestCase):
+    """Reads that lack what a protocol identifies molecules by give no identity."""
+
+    @staticmethod
+    def _read(sequence, tags=()):
+        a = pysam.AlignedSegment()
+        a.query_name = "read"
+        a.query_sequence = sequence
+        a.tags = list(tags)
+        return utr_mapping._PySamAdapter(a)
+
+    def test_5prime_10x_read_without_cb_and_ub_tags(self):
+        p = protocol.create("5prime10x", 1, annotations=pd.DataFrame({"sample": ["test"]}))
+        self.assertTupleEqual(p.get_reads_identity(self._read("ACGT" * 10)), (None, None))
+        tagged = self._read("ACGT" * 10, tags=[("CB", "AAAA-1"), ("UB", "UMI1")])
+        self.assertTupleEqual(p.get_reads_identity(tagged), ("UMI1", "AAAA-1"))
+
+    def test_capseq_read_without_the_umi_pattern(self):
+        p = protocol.create("smart-seq_cap", 3, annotations=pd.DataFrame({"sample_id": ["S1"]}))
+        read = self._read("ACGT" * 10)
+        self.assertTupleEqual(p.get_reads_identity(read, bam_name="S1.bam"), (None, "S1.bam"))
+        with_umi = self._read("ATTGCGCAATG" + "ACGTACGT" + "TTTT")
+        self.assertTupleEqual(
+            p.get_reads_identity(with_umi, bam_name="S1.bam"), ("ACGTACGT", "S1.bam")
+        )
 
 
 if __name__ == "__main__":

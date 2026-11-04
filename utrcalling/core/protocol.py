@@ -284,28 +284,22 @@ class Protocol(ABC, metaclass=CombinedMeta):
         return sample_names_dict, sample_idx_dict
 
     def _get_sample_column(self) -> str:
-        try:
-            sample_column_name = (
-                self.annotations.columns.str.extract(r"(.*sample_id.*)", flags=re.IGNORECASE)
-                .dropna()
-                .values
-            )
-        except IndexError as exc:
+        """Return the annotation column whose name contains 'sample_id' (any case)."""
+        columns = self.annotations.columns
+        matches = columns[columns.str.contains("sample_id", case=False, regex=False)]
+        if len(matches) == 0:
             msg = (
                 "Please supply a column for `sample_id` in the annotation file. "
                 "This column should contain the names of each sample, corresponding "
                 "to the name in the bam file."
             )
             self.logger.error(msg)
-            raise IndexError(msg) from exc
-
-        if len(sample_column_name) > 1:
+            raise ValueError(msg)
+        if len(matches) > 1:
             raise ValueError(
                 "Too many columns in the annotation file with 'sample_id' in their name."
             )
-        else:
-            sample_column_name = sample_column_name[0][0]
-        return sample_column_name
+        return str(matches[0])
 
     def _get_batch_column(self) -> str | None:
         batch_column_name = (
