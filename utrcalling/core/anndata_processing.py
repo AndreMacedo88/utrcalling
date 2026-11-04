@@ -212,11 +212,18 @@ def subset_adata(
         A list of AnnData views, one per annotation file.
 
     Raises:
-        ValueError: If an *anno_type* is neither ``"var"`` nor ``"obs"``.
+        ValueError: If the two lists differ in length, or an *anno_type* is
+            neither ``"var"`` nor ``"obs"``.
     """
+    if len(annotations_keep) != len(anno_types):
+        raise ValueError(
+            f"Got {len(annotations_keep)} annotation files but {len(anno_types)} "
+            "annotation types: give one type per file."
+        )
+
     adata_list = []
 
-    for annotation, anno_type in zip(annotations_keep, anno_types):
+    for annotation, anno_type in zip(annotations_keep, anno_types, strict=True):
         annotation_df = pd.read_csv(annotation, index_col=0)
 
         if anno_type == "var":

@@ -6,17 +6,24 @@ def subset_experiments(input_path, annotations_keep, anno_types, out_paths):
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
-    assert len(out_paths) == len(annotations_keep), (
-        "Number of annotations does not match number of paths to "
-    )
-    "write the output"
+    # Checked before loading the input, which can take long for large files.
+    if len(out_paths) != len(annotations_keep):
+        raise ValueError(
+            f"Got {len(annotations_keep)} annotation files but {len(out_paths)} "
+            "output paths: give one output path per annotation file."
+        )
+    if len(anno_types) != len(annotations_keep):
+        raise ValueError(
+            f"Got {len(annotations_keep)} annotation files but {len(anno_types)} "
+            "annotation types: give one type per file."
+        )
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata_list = ap.subset_adata(
         adata=adata, annotations_keep=annotations_keep, anno_types=anno_types
     )
 
-    for adata_new, out_path in zip(adata_list, out_paths):
+    for adata_new, out_path in zip(adata_list, out_paths, strict=True):
         adata_new.write_h5ad(out_path)
 
 

@@ -1,14 +1,20 @@
-"""CLI tests — verify that all subcommands parse correctly and --help works."""
+"""CLI tests: subcommands parse, --help works, and the tool entry points behave."""
 
 import contextlib
 import io
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 import warnings
 from pathlib import Path
 from unittest import mock
+
+import anndata as ad
+import numpy as np
+import pandas as pd
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
@@ -157,6 +163,52 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
 
         kwargs = self._protocol_kwargs(call_peaks, "utr_reference.bed", "mappings.parquet")
         self.assertEqual(kwargs["kde_bandwidth"], 150)
+
+
+class TestSubsetExperimentsTool(unittest.TestCase):
+    """`utrcalling subset-experiments` writes one subset per annotation file."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmpdir)
+
+        self.input_path = self.tmpdir / "experiment.h5ad"
+        ad.AnnData(
+            X=np.arange(6, dtype=np.float32).reshape(3, 2),
+            obs=pd.DataFrame(index=["c1", "c2", "c3"]),
+            var=pd.DataFrame(index=["p1", "p2"]),
+        ).write_h5ad(self.input_path)
+
+        self.obs_keep = self.tmpdir / "obs_keep.csv"
+        pd.DataFrame({"val": [0, 1]}, index=["c1", "c3"]).to_csv(self.obs_keep)
+        self.var_keep = self.tmpdir / "var_keep.csv"
+        pd.DataFrame({"val": [0]}, index=["p2"]).to_csv(self.var_keep)
+
+    def _subset(self, input_path, anno_types, out_paths):
+        from utrcalling.tools.subset_experiments import subset_experiments
+
+        subset_experiments(
+            input_path=str(input_path),
+            annotations_keep=[str(self.obs_keep), str(self.var_keep)],
+            anno_types=anno_types,
+            out_paths=[str(path) for path in out_paths],
+        )
+
+    def test_writes_one_subset_per_annotation_file(self):
+        out_obs, out_var = self.tmpdir / "obs.h5ad", self.tmpdir / "var.h5ad"
+        self._subset(self.input_path, ["obs", "var"], [out_obs, out_var])
+        self.assertListEqual(list(ad.read_h5ad(out_obs).obs_names), ["c1", "c3"])
+        self.assertListEqual(list(ad.read_h5ad(out_var).var_names), ["p2"])
+
+    # The input path does not exist: these must fail before trying to read it.
+    def test_fewer_output_paths_than_files_raises_value_error(self):
+        with self.assertRaisesRegex(ValueError, "one output path per annotation file"):
+            self._subset(self.tmpdir / "missing.h5ad", ["obs", "var"], [self.tmpdir / "a.h5ad"])
+
+    def test_fewer_types_than_files_raises_value_error(self):
+        out_paths = [self.tmpdir / "a.h5ad", self.tmpdir / "b.h5ad"]
+        with self.assertRaisesRegex(ValueError, "one type per file"):
+            self._subset(self.tmpdir / "missing.h5ad", ["obs"], out_paths)
 
 
 class TestRunTestsExitCode(unittest.TestCase):

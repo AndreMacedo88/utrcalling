@@ -1,5 +1,6 @@
 # import general purpose tools
 import os
+import shutil
 import tempfile
 import unittest
 import warnings
@@ -449,6 +450,7 @@ class TestSubsetAdata(unittest.TestCase):
     def setUp(self):
         self.adata = _make_multi_site_adata()
         self.tmpdir = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.tmpdir)
 
     def _write_csv(self, index_values, filename):
         path = os.path.join(self.tmpdir, filename)
@@ -471,6 +473,13 @@ class TestSubsetAdata(unittest.TestCase):
         csv_path = self._write_csv(["c1"], "dummy.csv")
         with self.assertRaises(ValueError):
             ap.subset_adata(self.adata, [csv_path], ["invalid"])
+
+    def test_fewer_types_than_files_raises_value_error(self):
+        # Used to drop the files without a type silently.
+        var_path = self._write_csv(["p1"], "var_keep.csv")
+        obs_path = self._write_csv(["c1"], "obs_keep.csv")
+        with self.assertRaisesRegex(ValueError, "one type per file"):
+            ap.subset_adata(self.adata, [var_path, obs_path], ["var"])
 
 
 class TestConcatenateAdata(unittest.TestCase):
