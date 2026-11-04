@@ -143,7 +143,7 @@ def generate_utr_name(utr_df: pd.DataFrame) -> pd.DataFrame:
     if not isinstance(utr_df, pd.DataFrame):
         raise TypeError(f"Please turn your {type(utr_df)} object to a pandas DataFrame")
     # sort by name so that name incrementation is handled correctly later on.
-    utr_df.sort_values(by=["chrom", "start", "end"], inplace=True)
+    utr_df = utr_df.sort_values(by=["chrom", "start", "end"])
 
     # Vectorized: compute occurrence number within each name group
     occurrence = utr_df.groupby("name", sort=False).cumcount()

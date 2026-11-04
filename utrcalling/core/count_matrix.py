@@ -305,7 +305,11 @@ def add_to_peaks_var(peak_var: pd.DataFrame, annotations: pd.DataFrame) -> pd.Da
     # e.g., "RP11-123B3.1-42" → utr_name="RP11-123B3.1", peak_size="42"
     peak_var_new["utr_name"] = peak_var_new.index.str.replace(r"-(\d+)$", "", regex=True)
 
-    peak_var_new = peak_var_new.join(annotations, on="utr_name", how="left", rsuffix="_right")
+    # Same as join(rsuffix="_right"), which pandas 3 deprecates; its replacement
+    # (join(suffixes=...)) does not exist in pandas 2.
+    overlap = annotations.columns.intersection(peak_var_new.columns)
+    right = annotations.rename(columns={col: f"{col}_right" for col in overlap})
+    peak_var_new = peak_var_new.join(right, on="utr_name", how="left")
 
     peak_var_new = peak_var_new.drop("utr_name_right", axis=1)
 
