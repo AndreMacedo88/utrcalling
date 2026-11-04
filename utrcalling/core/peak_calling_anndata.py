@@ -18,12 +18,11 @@ import pandas as pd
 import pybedtools
 import regex
 import scipy.sparse
-from scipy.signal import argrelextrema
-from sklearn.neighbors import KernelDensity
 from tqdm import tqdm
 
 from utrcalling.core import anndata_processing, helpers, module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
+from utrcalling.core.protocols.peak_calling import call_peaks_using_kernel_density_estimator
 
 
 def _resolve_workers(n_jobs: int | None) -> int:
@@ -70,9 +69,7 @@ def _peak_call_single_utr(
     )
 
     if method.lower() == "kde":
-        peaks = _call_peaks_using_kernel_density_estimator(
-            umi_utr_sizes.values, bandwidth=bandwidth
-        )
+        peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
         peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
         peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
 
@@ -83,8 +80,9 @@ def _peak_call_single_utr(
 
     # generate new utr_var; the caller names the peaks of all UTRs together
     utr_var_new = pd.DataFrame([utr_var] * len(mtx_new.columns))
-    # The counts are summed per peak in size order: label the peaks in that order
-    utr_var_new["utr_size"] = np.sort(peak_sizes.unique())
+    # The counts are summed per peak in size order: label the peaks in that order.
+    # int64, as in the count matrices of run and call-peaks.
+    utr_var_new["utr_size"] = np.sort(peak_sizes.unique()).astype(np.int64)
 
     return mtx_new.to_numpy(), utr_var_new
 
@@ -124,9 +122,7 @@ def _peak_call_single_utr_compact(
     umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size.astype(int))
 
     if method.lower() == "kde":
-        peaks = _call_peaks_using_kernel_density_estimator(
-            umi_utr_sizes.values, bandwidth=bandwidth
-        )
+        peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
         peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
         peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
 
@@ -153,8 +149,9 @@ def _peak_call_single_utr_compact(
 
     # the caller names the peaks of all UTRs together
     utr_var_new = pd.DataFrame([utr_var] * n_out)
-    # The counts are summed per peak in size order: label the peaks in that order
-    utr_var_new["utr_size"] = np.sort(peak_sizes.unique())
+    # The counts are summed per peak in size order: label the peaks in that order.
+    # int64, as in the count matrices of run and call-peaks.
+    utr_var_new["utr_size"] = np.sort(peak_sizes.unique()).astype(np.int64)
 
     return new_mtx, utr_var_new
 
@@ -744,77 +741,3 @@ def _utr_sizes_vector_from_read_counts(
     # .sum works on dense and sparse matrices alike, without densifying
     counts_sum = np.asarray(counts_arr.sum(axis=0)).ravel().astype(int)
     return sizes_arr.repeat(counts_sum)
-
-
-def _call_peaks_using_kernel_density_estimator(
-    utr_sizes_vector: npt.NDArray[Any], bandwidth: float = 1
-) -> npt.NDArray[np.int32]:
-    """Assign each UMI to a consensus peak via Gaussian KDE.
-
-    Fits a KDE to the distribution of UTR sizes and uses local extrema to
-    partition molecules into peaks.
-
-    Args:
-        utr_sizes_vector: 1-D or 2-D array of UTR sizes to cluster.
-        bandwidth: KDE bandwidth parameter.
-
-    Returns:
-        1-D array of peak assignments (one per input molecule), where each
-        value is the UTR size of the assigned peak centre.
-    """
-    if len(utr_sizes_vector) <= 3:
-        peaks = np.repeat(round(np.median(utr_sizes_vector)), len(utr_sizes_vector))
-        return peaks
-
-    if np.ndim(utr_sizes_vector) == 1:
-        utr_sizes_vector = utr_sizes_vector.reshape(-1, 1)
-
-    kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(utr_sizes_vector)
-
-    # calculate an appropriate window to check the model
-    minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
-    padding = max((maximum_size - minimum_size) * 0.1, 10)
-    window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
-    # get the model predictions for that window. Specifically, the extrema.
-    evaluation = kde.score_samples(window.reshape(-1, 1))
-    minima = argrelextrema(evaluation, np.less_equal, order=1)[0][1:]
-    maxima = argrelextrema(evaluation, np.greater_equal, order=1)[0]
-    # Note: [1:] because less_equal always outputs index 0,
-    # since padding guarantees that kde rises until first value.
-
-    minima = [minimum for minimum in minima if minimum - 1 not in minima]
-    maxima = [maximum for maximum in maxima if maximum - 1 not in maxima]
-
-    if minima[0] < maxima[0]:
-        raise RuntimeError(
-            "First minima is larger than the first maxima. "
-            "Peak calling using this method is incorrect for this UTR."
-        )
-
-    # create a container to hold the UTR peak sizes
-    peaks = np.zeros(len(utr_sizes_vector), dtype=np.int32)
-
-    # attribute a peak to each cell according to their UTR sizes and the kde model:
-    # first iterate over the function' minima
-    last_min_idx = len(minima) - 1
-    for i, val in enumerate(window[minima]):
-        # get the maximum upstream that minimum (the peak) and store it
-        try:
-            max_ = round(window[maxima][i])
-        except IndexError:
-            continue
-        for j, cond in enumerate(utr_sizes_vector < val):
-            if cond and peaks[j] == 0:
-                peaks[j] = max_
-
-    # get the last maximum, just downstream the last minimum.
-    try:
-        max_ = round(window[maxima][last_min_idx + 1])
-    except IndexError:  # for those cases with just one peak, there will be no minimum
-        # so we take the median as the peak
-        max_ = round(np.median(utr_sizes_vector))
-
-    # place the last maximum in those molecules that haven't yet had their
-    # peaks scored
-    peaks[peaks == 0] = max_
-    return peaks

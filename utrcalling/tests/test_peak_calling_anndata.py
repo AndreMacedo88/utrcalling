@@ -85,44 +85,6 @@ class TestUtrSizesVectorFromReadCounts(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
-# _call_peaks_using_kernel_density_estimator
-# ---------------------------------------------------------------------------
-
-
-class TestCallPeaksUsingKDE(unittest.TestCase):
-    def test_few_umis_returns_median(self):
-        """<=3 UMIs should return median for all."""
-        sizes = np.array([100, 200, 150])
-        peaks = pca._call_peaks_using_kernel_density_estimator(sizes, bandwidth=1)
-        self.assertEqual(len(peaks), 3)
-        self.assertTrue(np.all(peaks == round(np.median(sizes))))
-
-    def test_single_peak(self):
-        """Tightly clustered sizes → all assigned same peak."""
-        rng = np.random.RandomState(42)
-        sizes = rng.normal(100, 0.5, 50).astype(int)
-        peaks = pca._call_peaks_using_kernel_density_estimator(sizes, bandwidth=1)
-        self.assertEqual(len(np.unique(peaks)), 1)
-
-    def test_two_separated_peaks(self):
-        """Two clearly separated clusters → two distinct peaks."""
-        sizes = np.concatenate(
-            [
-                np.full(30, 50),
-                np.full(30, 200),
-            ]
-        )
-        peaks = pca._call_peaks_using_kernel_density_estimator(sizes, bandwidth=1)
-        self.assertEqual(len(np.unique(peaks)), 2)
-
-    def test_dtype_is_int32(self):
-        """Output should use np.int32 dtype."""
-        sizes = np.array([100] * 10 + [200] * 10)
-        peaks = pca._call_peaks_using_kernel_density_estimator(sizes, bandwidth=1)
-        self.assertEqual(peaks.dtype, np.int32)
-
-
-# ---------------------------------------------------------------------------
 # remove_peaks_below_count
 # ---------------------------------------------------------------------------
 
