@@ -1,8 +1,9 @@
-"""Intermediate file storage utilities for the UTR calling pipeline."""
+"""File storage for the UTR calling pipeline: intermediate files and h5ad outputs."""
 
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import pandas as pd
 import pyarrow as pa
@@ -11,6 +12,9 @@ from scipy.sparse import csr_matrix, save_npz
 
 from utrcalling.core import helpers
 from utrcalling.core.module_log import module_logger
+
+if TYPE_CHECKING:
+    import anndata
 
 
 def store_utr_reference(
@@ -127,3 +131,31 @@ def store_peak_calling_results(
     _to_parquet_or_csv(peaks_var, directory, f"peaks_var_{merge_method}")
     _to_parquet_or_csv(utr_reference_subset, directory, f"UTR_reference_subset_{merge_method}")
     _to_parquet_or_csv(peaks_obs, directory, f"peaks_obs_{merge_method}")
+
+
+def write_anndata(adata: anndata.AnnData, filename: str) -> None:
+    """Write *adata* to an h5ad file.
+
+    h5ad cannot store a text column that also holds other values, such as an
+    annotation column mixing numbers and text. If writing fails on such
+    columns of ``.obs`` or ``.var``, they are written as text, with a warning.
+
+    Args:
+        adata: The AnnData object to write.
+        filename: Path of the h5ad file.
+
+    Raises:
+        TypeError: If the file still cannot be written.
+    """
+    try:
+        adata.write_h5ad(filename)
+    except TypeError:
+        for axis, frame in (("obs", adata.obs), ("var", adata.var)):
+            for column in frame.columns:
+                values = frame[column]
+                if values.dtype == object and values.dropna().map(type).nunique() > 1:
+                    module_logger().warning(
+                        f"{axis} column {column} mixes value types: writing it as text"
+                    )
+                    frame[column] = values.astype(str)
+        adata.write_h5ad(filename)

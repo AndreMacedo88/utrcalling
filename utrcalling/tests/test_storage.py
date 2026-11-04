@@ -3,6 +3,7 @@ import shutil
 import tempfile
 import unittest
 
+import anndata as ad
 import numpy as np
 import pandas as pd
 from scipy.sparse import csr_matrix
@@ -128,6 +129,31 @@ class TestStorePeakCallingResultsCsvFallback(TestStorageBase):
         self.assertIn("peaks_obs_union", logs.output[0])
         stored = pd.read_csv(os.path.join(self.tmpdir, "peaks_obs_union.csv"), index_col=0)
         self.assertListEqual(stored.batch.astype(str).tolist(), ["1", "b2"])
+
+
+class TestWriteAnndata(TestStorageBase):
+    """run and call-peaks write their h5ad files through storage.write_anndata."""
+
+    def test_columns_mixing_numbers_and_text_are_written_as_text(self):
+        obs = pd.DataFrame({"Sample_Name": [1, "b2"], "age": [3, 4]}, index=["c1", "c2"])
+        var = pd.DataFrame({"chrom": [1, "X"], "utr_size": [10, 20]}, index=["s1", "s2"])
+        adata = ad.AnnData(np.ones((2, 2)), obs=obs, var=var)
+        path = os.path.join(self.tmpdir, "out.h5ad")
+        with self.assertLogs("utrcalling", level="WARNING") as logs:
+            storage.write_anndata(adata, path)
+        written = ad.read_h5ad(path)
+        self.assertListEqual(written.obs.Sample_Name.astype(str).tolist(), ["1", "b2"])
+        self.assertListEqual(written.var.chrom.astype(str).tolist(), ["1", "X"])
+        self.assertListEqual(written.obs.age.tolist(), [3, 4])  # untouched
+        self.assertEqual(len(logs.output), 2)
+
+    def test_a_column_that_cannot_be_written_fails_the_write(self):
+        # It used to log an error and return, so the command exited without output.
+        obs = pd.DataFrame({"info": [{"a": 1}, {"b": 2}]}, index=["c1", "c2"])
+        adata = ad.AnnData(np.ones((2, 2)), obs=obs)
+        path = os.path.join(self.tmpdir, "out.h5ad")
+        with self.assertRaises(TypeError):
+            storage.write_anndata(adata, path)
 
 
 if __name__ == "__main__":

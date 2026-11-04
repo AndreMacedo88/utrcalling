@@ -4,35 +4,6 @@ from __future__ import annotations
 import argparse
 import ast
 import os
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    import logging
-
-    import anndata
-
-
-def _write_anndata(adata: anndata.AnnData, filename: str, logger: logging.Logger) -> None:
-    """Write an AnnData object to h5ad, handling dtype issues."""
-    try:
-        adata.write(filename=filename)
-    except TypeError:
-        adata.var["chrom"] = adata.var["chrom"].astype(str)
-        adata.obs["Sample_Name"] = adata.obs["Sample_Name"].astype(str)
-        try:
-            adata.write(filename=filename)
-        except TypeError as e:
-            logger.error(
-                f"""
-Some of your annotations could not be written to a h5ad file.\n
-This could be because their type is ambiguous
-(characters/integers/etc).\n
-To deal with this, either make all annotations columns and re-run the tool,
-or run the tool with the option to output the intermediate files and
-build your h5ad object from the count matrix, obs, and var.
-The error message was:\n{e}
-            """
-            )
 
 
 def run(
@@ -69,7 +40,7 @@ def run(
         out (str, optional): [description]. Defaults to 'UTR_results.h5ad'.
     """
 
-    from utrcalling.core import core, helpers, protocol
+    from utrcalling.core import core, helpers, protocol, storage
     from utrcalling.core.module_log import module_logger
     from utrcalling.core.protocols import peak_calling as pc
 
@@ -147,7 +118,7 @@ def run(
             n_jobs=cores,
         )
         helpers.log_metrics_anndata(raw_anndata)
-        _write_anndata(raw_anndata, out, logger)
+        storage.write_anndata(raw_anndata, out)
         del raw_anndata  # free memory before KDE pass
 
         # Pass 2: KDE peaks (transform sizes via KDE)
@@ -162,7 +133,7 @@ def run(
             n_jobs=cores,
         )
         helpers.log_metrics_anndata(kde_anndata)
-        _write_anndata(kde_anndata, kde_out, logger)
+        storage.write_anndata(kde_anndata, kde_out)
         logger.info(f"Wrote KDE peaks to {kde_out}")
     else:
         # Standard: call peaks using protocol's configured KDE
@@ -175,7 +146,7 @@ def run(
             n_jobs=cores,
         )
         helpers.log_metrics_anndata(count_matrix_anndata)
-        _write_anndata(count_matrix_anndata, out, logger)
+        storage.write_anndata(count_matrix_anndata, out)
 
     return
 
