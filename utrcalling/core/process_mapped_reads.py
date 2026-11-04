@@ -29,13 +29,22 @@ def _split_and_then_join_unique(x: pd.Series) -> str:
 def _compute_gene_offsets(df: pd.DataFrame) -> dict[str, int]:
     """Compute per-region offsets for UTR sizes within a single gene group.
 
+    The gene's regions are laid end to end on one axis in transcription order,
+    without the gaps between them: a region's offset is the axis position of
+    its 5' end. Overlapping regions share axis positions.
+
     Args:
         df: DataFrame subset for one gene, with columns start, end, strand, utr_name.
 
     Returns:
         Dict mapping utr_name to its positional offset within the gene.
+
+    Raises:
+        ValueError: If the gene's strand is neither ``+`` nor ``-``.
     """
     strand = df["strand"].iloc[0]
+    if strand not in ("+", "-"):
+        raise ValueError(f"Strand {strand!r} of UTRs {list(df.utr_name)}: expected + or -")
     if strand == "-":
         df = df.copy()
         df[["start", "end"]] = df[["end", "start"]]
@@ -63,12 +72,12 @@ def _compute_gene_offsets(df: pd.DataFrame) -> dict[str, int]:
                 seen_utrs[utr_name] = left_over + (row.start - start)
                 if row.end > end:
                     end = row.end
-            elif row.start > end:
+            else:  # after a gap
                 left_over += end - start
                 seen_utrs[utr_name] = left_over
                 start = row.start
                 end = row.end
-        elif strand == "-":
+        else:
             if row.start == start:
                 seen_utrs[utr_name] = left_over
                 if row.end < end:
@@ -77,7 +86,7 @@ def _compute_gene_offsets(df: pd.DataFrame) -> dict[str, int]:
                 seen_utrs[utr_name] = left_over + (start - row.start)
                 if row.end < end:
                     end = row.end
-            elif row.start < end:
+            else:  # after a gap
                 left_over += start - end
                 seen_utrs[utr_name] = left_over
                 start = row.start

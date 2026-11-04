@@ -324,6 +324,79 @@ class TestMergeUtrsPerGene(unittest.TestCase):
             self.assertListEqual(actual_pairs, expected_pairs, msg=f"mismatch for {gene}")
 
 
+class TestComputeGeneOffsets(unittest.TestCase):
+    """A gene's UTR regions are laid end to end, in transcription order, without gaps."""
+
+    @staticmethod
+    def _offsets(regions, strand):
+        df = pd.DataFrame(regions, columns=["utr_name", "start", "end"]).assign(strand=strand)
+        return process_mapped_reads._compute_gene_offsets(df)
+
+    def test_plus_strand(self):
+        regions = [
+            ("B", 100, 150),
+            ("F", 100, 150),  # same region as B
+            ("A", 100, 200),  # same start, longer: the block now ends at 200
+            ("C", 180, 260),  # overlaps the block: 80 nt into it, extends it to 260
+            ("E", 190, 220),  # inside the block: 90 nt into it
+            ("D", 300, 350),  # after a gap: the block (160 nt) comes first
+        ]
+        self.assertDictEqual(
+            self._offsets(regions, "+"), {"A": 0, "B": 0, "F": 0, "C": 80, "E": 90, "D": 160}
+        )
+
+    def test_minus_strand_runs_from_the_highest_coordinate(self):
+        regions = [
+            ("B", 350, 400),
+            ("F", 350, 400),
+            ("A", 300, 400),  # same 5' end (400), longer: the block now ends at 300
+            ("C", 250, 320),  # 5' end 80 nt into the block, extends it to 250
+            ("E", 260, 310),  # 5' end 90 nt into the block
+            ("D", 100, 200),  # after a gap: the block (150 nt) comes first
+        ]
+        self.assertDictEqual(
+            self._offsets(regions, "-"), {"A": 0, "B": 0, "F": 0, "C": 80, "E": 90, "D": 150}
+        )
+
+    def test_a_repeated_utr_keeps_its_first_offset(self):
+        self.assertDictEqual(self._offsets([("A", 100, 200), ("A", 500, 600)], "+"), {"A": 0})
+
+    def test_unknown_strand_raises(self):
+        # Used to return no offsets, so every UTR of the gene started at 0.
+        with self.assertRaisesRegex(ValueError, "expected"):
+            self._offsets([("A", 100, 200)], ".")
+
+
+class TestMergeUtrsPerGeneDropsUnknownUtrs(unittest.TestCase):
+    """Reads of UTRs missing from the reference are dropped (an inner join)."""
+
+    def test_reads_of_unknown_utrs_are_dropped(self):
+        utr_regions = pd.DataFrame(
+            {
+                "chrom": ["1", "1"],
+                "start": [100, 300],
+                "end": [200, 350],
+                "name": ["G1", "G1"],
+                "score": [0, 0],
+                "strand": ["+", "+"],
+                "transcript_id": ["T1", "T2"],
+                "gene_name": ["Gene1", "Gene1"],
+            },
+            index=pd.Index(["G1", "G1_2"], name="utr_name"),
+        )
+        reads = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["G1", "G1_2", "OTHER"]),
+                "observation_id": pd.Categorical(["c1", "c1", "c1"]),
+                "utr_size": np.array([10, 20, 30], dtype=np.int32),
+            }
+        )
+        _, merged = process_mapped_reads.merge_utrs_per_gene(utr_regions, reads)
+        # G1_2 starts 100 nt (G1's length) down the gene axis.
+        self.assertListEqual(merged.utr_name.astype(str).tolist(), ["G1", "G1"])
+        self.assertListEqual(merged.utr_size.tolist(), [10, 120])
+
+
 class TestMergeUtrsPerGeneCategoricalOffsetMap(unittest.TestCase):
     """Regression test for pandas 2.1+ Categorical .map(dict).fillna(0) behavior.
 
