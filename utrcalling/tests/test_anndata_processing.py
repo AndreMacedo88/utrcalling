@@ -387,42 +387,6 @@ class TestCountsToPercentages(unittest.TestCase):
         np.testing.assert_array_almost_equal(out, [[0.5, 0.5, 0.5, 0.5], [0.0, 1.0, 0.0, 0.0]])
 
 
-class TestSubsetAdata(unittest.TestCase):
-    def setUp(self):
-        self.adata = _make_multi_site_adata()
-        self.tmpdir = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, self.tmpdir)
-
-    def _write_csv(self, index_values, filename):
-        path = os.path.join(self.tmpdir, filename)
-        pd.DataFrame(index=index_values, data={"val": range(len(index_values))}).to_csv(path)
-        return path
-
-    def test_var_subset(self):
-        csv_path = self._write_csv(["p1", "p3"], "var_keep.csv")
-        result = ap.subset_adata(self.adata, [csv_path], ["var"])
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].shape[1], 2)
-
-    def test_obs_subset(self):
-        csv_path = self._write_csv(["c1", "c3"], "obs_keep.csv")
-        result = ap.subset_adata(self.adata, [csv_path], ["obs"])
-        self.assertEqual(len(result), 1)
-        self.assertEqual(result[0].shape[0], 2)
-
-    def test_invalid_type_raises_value_error(self):
-        csv_path = self._write_csv(["c1"], "dummy.csv")
-        with self.assertRaises(ValueError):
-            ap.subset_adata(self.adata, [csv_path], ["invalid"])
-
-    def test_fewer_types_than_files_raises_value_error(self):
-        # Used to drop the files without a type silently.
-        var_path = self._write_csv(["p1"], "var_keep.csv")
-        obs_path = self._write_csv(["c1"], "obs_keep.csv")
-        with self.assertRaisesRegex(ValueError, "one type per file"):
-            ap.subset_adata(self.adata, [var_path, obs_path], ["var"])
-
-
 class TestConcatenateAdata(unittest.TestCase):
     def test_overlapping_vars(self):
         adata1 = _make_multi_site_adata()

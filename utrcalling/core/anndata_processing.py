@@ -193,51 +193,6 @@ def compute_utr_size_means(
     return adata
 
 
-def subset_adata(
-    adata: anndata.AnnData,
-    annotations_keep: list[str],
-    anno_types: list[str],
-) -> list[anndata.AnnData]:
-    """Subset an AnnData by external annotation CSV files.
-
-    Each annotation file is loaded and used to filter either the ``obs`` or
-    ``var`` axis of *adata*.
-
-    Args:
-        adata: The AnnData object to subset.
-        annotations_keep: Paths to CSV files whose index values define the
-            subset to keep.
-        anno_types: Parallel list of ``"var"`` or ``"obs"`` indicating which
-            axis each annotation file refers to.
-
-    Returns:
-        A list of AnnData views, one per annotation file.
-
-    Raises:
-        ValueError: If the two lists differ in length, or an *anno_type* is
-            neither ``"var"`` nor ``"obs"``.
-    """
-    if len(annotations_keep) != len(anno_types):
-        raise ValueError(
-            f"Got {len(annotations_keep)} annotation files but {len(anno_types)} "
-            "annotation types: give one type per file."
-        )
-
-    adata_list = []
-
-    for annotation, anno_type in zip(annotations_keep, anno_types, strict=True):
-        annotation_df = pd.read_csv(annotation, index_col=0)
-
-        if anno_type == "var":
-            adata_list.append(adata[:, adata.var.index.isin(annotation_df.index)])
-        elif anno_type == "obs":
-            adata_list.append(adata[adata.obs.index.isin(annotation_df.index), :])
-        else:
-            raise ValueError(f"Annotation type {anno_type} not supported")
-
-    return adata_list
-
-
 def concatenate_adata(
     adata_list: list[anndata.AnnData],
 ) -> anndata.AnnData:

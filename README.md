@@ -29,7 +29,7 @@ single-cell resolution.
 - **Sparse output** --- count matrices are stored as sparse arrays in AnnData
   objects, ready for downstream single-cell analysis with scanpy.
 - **Downstream utilities** --- filter peaks, select APA/ATI events, compute
-  mean UTR sizes, convert counts to percentages, concatenate or subset
+  mean UTR sizes, convert counts to percentages, concatenate
   experiments, and more.
 
 ## Protocols

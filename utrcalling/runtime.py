@@ -19,7 +19,6 @@ def create_parser() -> argparse.ArgumentParser:
         remove_peaks_below_count_threshold,
         run,
         select_alternative_transcription_events,
-        subset_experiments,
     )
 
     # create the main parser object
@@ -41,7 +40,6 @@ def create_parser() -> argparse.ArgumentParser:
     compute_mean_utr_sizes.create_parser(subparsers=subparsers)
     counts_to_percentages.create_parser(subparsers=subparsers)
     concatenate_experiments.create_parser(subparsers=subparsers)
-    subset_experiments.create_parser(subparsers=subparsers)
     estimate_best_bandwidth.create_parser(subparsers=subparsers)
     check_distance_to_pas.create_parser(subparsers=subparsers)
     call_peaks_different_bandwidths.create_parser(subparsers=subparsers)
