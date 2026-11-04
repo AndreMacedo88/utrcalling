@@ -2,11 +2,15 @@ import os
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
+import numpy as np
 import pandas as pd
 
+from utrcalling.core import helpers
 from utrcalling.core.helpers import (
     check_if_path_and_open,
+    ensure_mapped_reads_dtypes,
     load_annotations,
     shutdown_joblib_pool,
     to_string,
@@ -57,6 +61,15 @@ class TestCheckIfPathAndOpen(unittest.TestCase):
             pd.testing.assert_frame_equal(result, df)
         finally:
             os.unlink(tmp_path)
+
+    def test_load_pickles(self):
+        df = pd.DataFrame({"x": [10, 20]})
+        with tempfile.TemporaryDirectory() as tmpdir:
+            path = os.path.join(tmpdir, "data.pkl")
+            df.to_pickle(path)
+            for method in ("pickle", "pickle_pandas"):
+                with self.subTest(method=method):
+                    pd.testing.assert_frame_equal(check_if_path_and_open(path, method), df)
 
     def test_unsupported_method_raises(self):
         with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
@@ -121,6 +134,52 @@ class TestShutdownJoblibPool(unittest.TestCase):
         # RuntimeError that concurrent.futures raises for a shut-down executor.
         with self.assertRaises(RuntimeError):
             executor_before.submit(lambda: 1).result(timeout=2)
+
+    def test_other_backends_are_left_alone(self):
+        with (
+            mock.patch.object(helpers, "JOBLIB_DEFAULT_BACKEND", "threading"),
+            mock.patch("joblib.externals.loky.get_reusable_executor") as get_executor,
+        ):
+            shutdown_joblib_pool()
+        get_executor.assert_not_called()
+
+    def test_a_failing_shutdown_is_logged_not_raised(self):
+        # Cleanup must not hide the result of the parallel block it follows.
+        executor = mock.Mock()
+        executor.shutdown.side_effect = OSError("worker already gone")
+        with (
+            mock.patch("joblib.externals.loky.get_reusable_executor", return_value=executor),
+            self.assertLogs("utrcalling", level="DEBUG") as logs,
+        ):
+            shutdown_joblib_pool()
+        self.assertIn("worker already gone", logs.output[0])
+
+
+class TestEnsureMappedReadsDtypes(unittest.TestCase):
+    """Mapped reads get categorical names and int32 sizes, whatever they came with."""
+
+    def test_converts_to_the_canonical_dtypes(self):
+        df = pd.DataFrame(
+            {"utr_name": ["U1", "U2"], "observation_id": ["c1", "c1"], "utr_size": [5, 7]}
+        )
+        result = ensure_mapped_reads_dtypes(df)
+        self.assertIsInstance(result.utr_name.dtype, pd.CategoricalDtype)
+        self.assertIsInstance(result.observation_id.dtype, pd.CategoricalDtype)
+        self.assertEqual(result.utr_size.dtype, np.int32)
+        self.assertListEqual(result.utr_size.tolist(), [5, 7])
+
+    def test_canonical_columns_are_kept_as_they_are(self):
+        names = pd.Categorical(["U1", "U2"], categories=["U2", "U1", "U3"])
+        df = pd.DataFrame(
+            {
+                "utr_name": names,
+                "observation_id": pd.Categorical(["c1", "c1"]),
+                "utr_size": np.array([5, 7], dtype=np.int32),
+            }
+        )
+        result = ensure_mapped_reads_dtypes(df)
+        # Not rebuilt: the category order (and unused categories) survive.
+        self.assertListEqual(list(result.utr_name.cat.categories), ["U2", "U1", "U3"])
 
 
 if __name__ == "__main__":

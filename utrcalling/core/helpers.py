@@ -68,10 +68,8 @@ def shutdown_joblib_pool() -> None:
     """
     if JOBLIB_DEFAULT_BACKEND != "loky":
         return
-    try:
-        from joblib.externals.loky import get_reusable_executor
-    except ImportError:
-        return
+    from joblib.externals.loky import get_reusable_executor
+
     try:
         get_reusable_executor().shutdown(wait=True)
     except Exception as exc:
