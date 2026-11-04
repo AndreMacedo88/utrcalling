@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def compute_mean_utr_sizes(input_path, out_path, utr_name_column="utr_name"):
+def compute_mean_utr_sizes(
+    input_path: str, out_path: str, utr_name_column: str = "utr_name"
+) -> None:
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
@@ -11,7 +15,7 @@ def compute_mean_utr_sizes(input_path, out_path, utr_name_column="utr_name"):
     adata.write_h5ad(out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = "Computes the mean UTR size per row of the AnnData object provided."
 

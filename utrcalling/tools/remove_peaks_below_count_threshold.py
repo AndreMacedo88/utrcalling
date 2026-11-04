@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def remove_peaks_below_count_threshold(input_path, out_path, threshold, minimum_counts):
+def remove_peaks_below_count_threshold(
+    input_path: str, out_path: str, threshold: float, minimum_counts: int
+) -> None:
     from utrcalling.core import helpers
     from utrcalling.core import peak_calling_anndata as pc
 
@@ -15,7 +19,7 @@ def remove_peaks_below_count_threshold(input_path, out_path, threshold, minimum_
     adata_new.write_h5ad(out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = (
         "Removes the UTR location peaks that have less than `threshold` counts in "

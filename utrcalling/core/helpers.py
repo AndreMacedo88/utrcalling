@@ -5,7 +5,7 @@ import pathlib
 import pickle
 import re
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, overload
 
 import numpy as np
 import pandas as pd
@@ -202,9 +202,18 @@ def check_if_exists_and_mkdir(folders_path: str) -> None:
         os.makedirs(folders_path)
 
 
+@overload
 def check_if_path_and_open(
-    to_check: str | pathlib.PurePath | pd.DataFrame | anndata.AnnData, method: str = "parquet"
-) -> pd.DataFrame | anndata.AnnData | object:
+    to_check: str | pathlib.PurePath | pd.DataFrame,
+    method: Literal["parquet", "pickle_pandas", "csv"] = ...,
+) -> pd.DataFrame: ...
+@overload
+def check_if_path_and_open(
+    to_check: str | pathlib.PurePath | anndata.AnnData, method: Literal["h5ad"]
+) -> anndata.AnnData: ...
+@overload
+def check_if_path_and_open(to_check: object, method: Literal["pickle"]) -> object: ...
+def check_if_path_and_open(to_check: object, method: str = "parquet") -> object:
     """If the input is a file path, load it using the specified method; otherwise pass through.
 
     Args:

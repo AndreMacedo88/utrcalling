@@ -7,6 +7,7 @@ peak consolidation, PAS distance scoring, and bandwidth estimation.
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from typing import Any
 
 import anndata as ad
@@ -178,7 +179,7 @@ def _get_distances_per_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
     hamming: int,
-    genome: Any,
+    genome: str | pybedtools.BedTool,
 ) -> npt.NDArray[Any] | None:
     """Compute PAS distances for one UTR, given its raw ``(X, var)`` slices."""
     pas_end, _, seq_strand = _find_pas(var_sub, hamming=hamming, genome=genome)
@@ -244,7 +245,7 @@ def _peak_call_utr_batch(
 
 
 def _pas_distance_utr_batch(
-    batch: list[CompactUtrItem], hamming: int, genome: Any
+    batch: list[CompactUtrItem], hamming: int, genome: str | pybedtools.BedTool
 ) -> list[tuple[int, npt.NDArray[Any] | None]]:
     out = []
     for orig_idx, _utr_name, X_sub, var_sub in batch:
@@ -487,10 +488,10 @@ def estimate_best_bandwidth(
     genome: str | pybedtools.BedTool,
     method: str = "kde",
     hamming: int = 1,
-    bandwidths: tuple[float, ...] | list[float] = (0.5, 1, 1.5, 2, 2.5, 3),
+    bandwidths: float | Sequence[float] = (0.5, 1, 1.5, 2, 2.5, 3),
     return_distances_to_hex: bool = False,
     n_jobs: int | None = None,
-) -> list[float] | list[tuple[float, npt.NDArray[Any]]]:
+) -> list[float | tuple[float, npt.NDArray[Any]]]:
     """Estimate the best KDE bandwidth by scoring PAS proximity.
 
     Runs peak calling at each candidate bandwidth, then scores each result
@@ -659,7 +660,9 @@ def _score_peak_assignment(
 # ---------------------------------------------------------------------------
 
 
-def _find_pas(var: pd.DataFrame, genome: Any, hamming: int = 1) -> tuple[list[int], list[str], str]:
+def _find_pas(
+    var: pd.DataFrame, genome: str | pybedtools.BedTool, hamming: int = 1
+) -> tuple[list[int], list[str], str]:
     """Find polyadenylation signal (PAS) sites in a UTR sequence.
 
     Extracts the genomic sequence described in *var* (one UTR's metadata
@@ -785,9 +788,8 @@ def _utr_sizes_vector_from_read_counts(
         A pandas Series with each size repeated by the column-sum of its
         counts, preserving the original index (var names).
     """
-    if scipy.sparse.issparse(counts_arr):
-        counts_arr = counts_arr.toarray()
-    counts_sum = np.asarray(np.sum(counts_arr, axis=0)).ravel().astype(int)
+    # .sum works on dense and sparse matrices alike, without densifying
+    counts_sum = np.asarray(counts_arr.sum(axis=0)).ravel().astype(int)
     return sizes_arr.repeat(counts_sum)
 
 

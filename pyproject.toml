@@ -52,7 +52,7 @@ utrcalling = "utrcalling.runtime:main"
 # Development tools, not installed for users: `pip install --group dev`.
 # Ruff is pinned because its formatting style changes between releases.
 [dependency-groups]
-dev = ["ruff==0.17.3"]
+dev = ["mypy==2.4.1", "ruff==0.17.3"]
 
 [tool.setuptools.dynamic]
 version = { attr = "utrcalling._metadata.__version__" }
@@ -75,6 +75,7 @@ select = [
     "B",    # flake8-bugbear
     "SIM",  # flake8-simplify
     "RUF",  # ruff-specific rules
+    "ANN",  # type annotations on every function signature (library code only)
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
@@ -84,7 +85,22 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"utrcalling/tests/*" = ["F401", "E402"]  # unused imports and import order in tests
+# Tests: unused imports, import order, and no required annotations.
+"utrcalling/tests/*" = ["F401", "E402", "ANN"]
+
+[tool.ruff.lint.flake8-annotations]
+# *args/**kwargs that are passed straight through to another callable.
+allow-star-arg-any = true
 
 [tool.ruff.lint.isort]
 known-first-party = ["utrcalling"]
+
+[tool.mypy]
+files = ["utrcalling"]
+exclude = ["^utrcalling/tests/"]
+python_version = "3.11"
+# Most scientific dependencies ship no type information (pandas without
+# pandas-stubs, anndata internals, pybedtools, gtfparse): treat them as Any.
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true

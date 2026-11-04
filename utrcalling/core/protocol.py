@@ -18,7 +18,7 @@ import re
 # built-in packages
 from abc import ABC, ABCMeta, abstractmethod
 from enum import Enum
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 # data wrangling packages
 import numpy as np
@@ -110,7 +110,7 @@ class Meta(type):
     Allows logging at the end of the protocol initialization.
     """
 
-    def __call__(cls, *args, **kwargs):
+    def __call__(cls, *args: Any, **kwargs: Any) -> Protocol:
         instance = super().__call__(*args, **kwargs)
         instance.protocol_log()
         return instance
@@ -193,6 +193,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.call_peaks = call_peaks
 
         self.kde_bandwidth = kde_bandwidth
+        self.peak_calling: pc.SizeTransform | None
         if self.call_peaks:
             self.peak_calling = pc.get_caller(call_peaks_method, bandwidth=kde_bandwidth)
         else:
@@ -201,8 +202,8 @@ class Protocol(ABC, metaclass=CombinedMeta):
         # set variables to be modified by the different protocols
         self.umis = False
         self.barcode_whitelist = None
-        self.sample_names = None
-        self.sample_idx = None
+        self.sample_names: bidict[str, str] | None = None
+        self.sample_idx: dict[str, str | None] | None = None
 
         # set variables that are calculated from the inputs
         self.barcode_column_name = self._get_barcode_column()
@@ -225,7 +226,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     # log the protocol:
 
-    def protocol_log(self):
+    def protocol_log(self) -> None:
         self.logger.info(
             "Protocol:\n"
             + f"║ Position counts merging method: {self.merge_method}\n"
@@ -237,9 +238,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
     # set-up methods
     def get_sample_names(
         self, alignments: str | list[str]
-    ) -> tuple[bidict[str, str], dict[str, str]]:
-        sample_names_dict = bidict()
-        sample_idx_dict = dict()
+    ) -> tuple[bidict[str, str], dict[str, str | None]]:
+        sample_names_dict: bidict[str, str] = bidict()
+        sample_idx_dict: dict[str, str | None] = {}
         if not isinstance(alignments, list):
             alignments = [alignments]
 
@@ -372,7 +373,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     def _resolve_barcode_reuse_by_batch(self) -> pd.DataFrame:
         annotations = self.annotations.copy()
-        if self.label_batches and (self.batches_list is not None):
+        if self.label_batches and (self.batches_range is not None):
             barcodes = annotations.loc[:, self.barcode_column_name]
             if barcodes.str.match(r".*-[\d]$").all():
                 pass
@@ -542,9 +543,8 @@ class Protocol(ABC, metaclass=CombinedMeta):
             A (umi, barcode) tuple. Either value may be None if extraction fails.
         """
 
-    @staticmethod
     @abstractmethod
-    def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
+    def check_strand_matches(self, read_strand: str, utr_strand: str) -> bool:
         """Check whether a read's strand matches the UTR interval strand.
 
         Args:
@@ -569,14 +569,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
         """
 
     # Methods to process UTR sizes
-    @staticmethod
     @abstractmethod
-    def filter_utr_sizes(utr_sizes: pd.DataFrame, **kwargs: int) -> pd.DataFrame:
+    def filter_utr_sizes(self, utr_sizes: pd.DataFrame, threshold: int = 1) -> pd.DataFrame:
         """Filter UTR size observations based on protocol-specific criteria.
 
         Args:
             utr_sizes: Flat DataFrame with columns (utr_name, observation_id, utr_size).
-            **kwargs: Protocol-specific arguments (e.g., threshold).
+            threshold: Minimum UTR size to keep, for protocols that filter on it.
 
         Returns:
             Filtered DataFrame.
@@ -590,8 +589,7 @@ class ProtocolThreePrime(Protocol):
         self.logger.info("Filtering UTR sizes using threshold of %s counts.", threshold)
         return utr_sizes[utr_sizes["utr_size"] > threshold].copy()
 
-    @staticmethod
-    def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
+    def check_strand_matches(self, read_strand: str, utr_strand: str) -> bool:
         return read_strand != utr_strand
 
     @staticmethod
@@ -606,8 +604,7 @@ class ProtocolFivePrime(Protocol):
     def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
         return read_strand == utr_strand
 
-    @staticmethod
-    def filter_utr_sizes(utr_sizes: pd.DataFrame, **kwargs: int) -> pd.DataFrame:
+    def filter_utr_sizes(self, utr_sizes: pd.DataFrame, threshold: int = 1) -> pd.DataFrame:
         logger = module_log.module_logger()
         logger.info(
             """
@@ -661,14 +658,14 @@ class ProtocolSmartseq(ProtocolThreePrime):
 
     def __init__(
         self,
-        merge_method="union",
-        call_peaks=True,
-        call_peaks_method="kde",
-        label_batches=None,
-        alignments=None,
-        annotations=None,
-        strandedness=None,
-        kde_bandwidth=12,
+        merge_method: str = "union",
+        call_peaks: bool = True,
+        call_peaks_method: str = "kde",
+        label_batches: bool | str | None = None,
+        alignments: str | list[str] | None = None,
+        annotations: str | pd.DataFrame | None = None,
+        strandedness: str | None = None,
+        kde_bandwidth: int = 12,
     ) -> None:
 
         super().__init__(
@@ -845,7 +842,7 @@ class ProtocolBulkPe(ProtocolTruseq):
 
     _default_strandedness = "unstranded"
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         if kwargs.get("strandedness") is None:
             kwargs["strandedness"] = self._default_strandedness
         super().__init__(*args, **kwargs)
@@ -901,14 +898,14 @@ class ProtocolCapseq(ProtocolFivePrime):
 
     def __init__(
         self,
-        merge_method="union",
-        call_peaks=True,
-        call_peaks_method="kde",
-        label_batches=None,
-        alignments=None,
-        annotations=None,
-        strandedness=None,
-        kde_bandwidth=12,
+        merge_method: str = "union",
+        call_peaks: bool = True,
+        call_peaks_method: str = "kde",
+        label_batches: bool | str | None = None,
+        alignments: str | list[str] | None = None,
+        annotations: str | pd.DataFrame | None = None,
+        strandedness: str | None = None,
+        kde_bandwidth: int = 12,
     ) -> None:
 
         super().__init__(
@@ -994,12 +991,14 @@ class ProtocolFiveTenx(ProtocolFivePrime):
         # part of a unique barcode identifier, or explicitly parsed out to leave only
         # the barcode sequence itself.
         try:
-            read_barcode = alignment.optional_field("CB")  # 16bp + "-<GEM well number>"
+            read_barcode = cast(
+                "str", alignment.optional_field("CB")
+            )  # 16bp + "-<GEM well number>"
         except KeyError:
             read_barcode = None
 
         try:
-            read_umi = alignment.optional_field("UB")  # 10bp
+            read_umi = cast("str", alignment.optional_field("UB"))  # 10bp
         except KeyError:
             read_umi = None
         return read_umi, read_barcode
@@ -1059,11 +1058,11 @@ class ProtocolStandardTenx3(ProtocolTenx):
     @staticmethod
     def get_reads_identity(alignment: _PySamAdapter, **_: str) -> tuple[str | None, str | None]:
         try:
-            read_barcode = alignment.optional_field("CB")
+            read_barcode = cast("str", alignment.optional_field("CB"))
         except KeyError:
             read_barcode = None
         try:
-            read_umi = alignment.optional_field("UB")
+            read_umi = cast("str", alignment.optional_field("UB"))
         except KeyError:
             read_umi = None
         return read_umi, read_barcode
@@ -1077,7 +1076,7 @@ class ProtocolStandardTenx2(ProtocolStandardTenx3):
     """
 
 
-def create(platform: str, version: int, **kwargs) -> Protocol:
+def create(platform: str, version: int, **kwargs: Any) -> Protocol:
     """Create a Protocol instance for the given sequencing platform and version.
 
     Args:

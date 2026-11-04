@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def subset_experiments(input_path, annotations_keep, anno_types, out_paths):
+def subset_experiments(
+    input_path: str, annotations_keep: list[str], anno_types: list[str], out_paths: list[str]
+) -> None:
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
@@ -27,7 +31,7 @@ def subset_experiments(input_path, annotations_keep, anno_types, out_paths):
         adata_new.write_h5ad(out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = (
         "Subsets an experiment file (h5ad), given a list of annotations to match one "

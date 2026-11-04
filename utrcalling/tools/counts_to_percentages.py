@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def counts_to_percentages(input_path, out_path, utr_name_column="utr_name"):
+def counts_to_percentages(
+    input_path: str, out_path: str, utr_name_column: str = "utr_name"
+) -> None:
     import scipy.sparse
 
     from utrcalling.core import anndata_processing as ap
@@ -19,7 +23,7 @@ def counts_to_percentages(input_path, out_path, utr_name_column="utr_name"):
     adata.write_h5ad(out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = (
         "Converts the UMI counts per polyA site into percentage polyA site "

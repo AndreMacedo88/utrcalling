@@ -7,7 +7,9 @@ BED files with UTR regions annotations
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from functools import partial
+from typing import TYPE_CHECKING, Any
 
 # data handling tools
 import joblib
@@ -26,6 +28,9 @@ from utrcalling.core.helpers import (
 # general tools
 from utrcalling.core.module_log import module_logger
 from utrcalling.core.protocol import Protocol
+
+if TYPE_CHECKING:
+    from pysam.libcalignedsegment import TagValue
 
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
@@ -53,7 +58,7 @@ class _PySamReadAdapter:
 
     __slots__ = ("name", "seq")
 
-    def __init__(self, pysam_read):
+    def __init__(self, pysam_read: pysam.AlignedSegment) -> None:
         seq = pysam_read.query_sequence or ""
         if pysam_read.is_reverse:
             seq = _reverse_complement(seq)
@@ -66,11 +71,11 @@ class _PySamAdapter:
 
     __slots__ = ("_get_tag", "read")
 
-    def __init__(self, pysam_read):
+    def __init__(self, pysam_read: pysam.AlignedSegment) -> None:
         self.read = _PySamReadAdapter(pysam_read)
         self._get_tag = pysam_read.get_tag
 
-    def optional_field(self, tag):
+    def optional_field(self, tag: str) -> TagValue:
         return self._get_tag(tag)
 
 
@@ -83,7 +88,7 @@ class _IntervalData:
 
     __slots__ = ("chrom", "end", "end_d", "start", "start_d", "strand")
 
-    def __init__(self, chrom: str, start: int, end: int, strand: str):
+    def __init__(self, chrom: str, start: int, end: int, strand: str) -> None:
         self.chrom = str(chrom)
         self.start = start
         self.end = end
@@ -185,7 +190,7 @@ def _process_interval_batch(
 
             read_barcodes: list[str] = []
             read_umis: list[str] = []
-            read_names: list[str] = []
+            read_names: list[str | None] = []
             utr_sizes_from_reads: list[int] = []
 
             try:
@@ -276,15 +281,15 @@ def _process_interval_batch(
                     read_umi, read_barcode = get_identity(alignment=adapter, bam_name=bam_path)
                     if not read_barcode:
                         continue
-                    if has_umi and not read_umi:
-                        continue
+                    if has_umi:
+                        if not read_umi:
+                            continue
+                        read_umis.append(read_umi)
 
                     utr_size = get_utr_size(read_pos, interval)
                     observation_id = get_obs_id(read_barcode, batch_idx)
 
                     read_barcodes.append(observation_id)
-                    if has_umi:
-                        read_umis.append(read_umi)
                     if dedup_fragments:
                         read_names.append(aln.query_name)
                     utr_sizes_from_reads.append(utr_size)
@@ -462,9 +467,7 @@ def map_reads_to_utr(
     return utr_mappings
 
 
-def deduplicate_reads(
-    read_umis: list[str], read_info: list[list[str | int]]
-) -> list[list[str | int]]:
+def deduplicate_reads(read_umis: list[str], read_info: list[list[Any]]) -> list[list[Any]]:
     """Remove PCR duplicates by keeping the first occurrence of each (barcode, UMI) pair.
 
     Args:
@@ -476,7 +479,7 @@ def deduplicate_reads(
         A filtered copy of read_info with duplicate (barcode, UMI) pairs removed.
     """
     barcodes = read_info[0]
-    umis_unique = {barcode: set() for barcode in barcodes}
+    umis_unique: dict[str, set[str]] = {barcode: set() for barcode in barcodes}
     idx_unique = []
     for idx, (umi, barcode) in enumerate(zip(read_umis, barcodes, strict=True)):
         barcode_umis = umis_unique[barcode]
@@ -487,9 +490,7 @@ def deduplicate_reads(
     return read_info_output
 
 
-def deduplicate_reads_keep_max(
-    read_umis: list[str], read_info: list[list[str | int]]
-) -> list[list[str | int]]:
+def deduplicate_reads_keep_max(read_umis: list[str], read_info: list[list[Any]]) -> list[list[Any]]:
     """Remove PCR duplicates by keeping the entry with the largest UTR size
     for each (barcode, UMI) pair.
 
@@ -521,8 +522,8 @@ def deduplicate_reads_keep_max(
 
 
 def deduplicate_fragments(
-    read_names: list[str], read_info: list[list[str | int]]
-) -> list[list[str | int]]:
+    read_names: Sequence[str | None], read_info: list[list[Any]]
+) -> list[list[Any]]:
     """Collapse the two mates of a paired-end fragment into one observation.
 
     For a UMI-less paired-end protocol positioned by fragment, both mates of a
@@ -541,7 +542,7 @@ def deduplicate_fragments(
         A filtered copy of *read_info* with one entry per read name, in the
         original order.
     """
-    seen: set[str] = set()
+    seen: set[str | None] = set()
     idx_unique = []
     for idx, name in enumerate(read_names):
         if name not in seen:

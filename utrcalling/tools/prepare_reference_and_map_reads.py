@@ -1,19 +1,21 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 import os
 
 
 def generate_utr_reference_and_map_reads(
-    utr_annotation,
-    alignments,
-    feature="three_prime_utr",
-    protocol_platform="10x",
-    protocol_version=3,
-    strandedness=None,
-    log_level="info",
-    store_log=True,
-    no_log_file=False,
-):
+    utr_annotation: str,
+    alignments: list[str],
+    feature: str = "three_prime_utr",
+    protocol_platform: str = "10x",
+    protocol_version: int = 3,
+    strandedness: str | None = None,
+    log_level: str = "info",
+    store_log: bool = True,
+    no_log_file: bool = False,
+) -> None:
     """
     Gets UTR sizes peak counts per cell/sample/batch from input file/s.
 
@@ -55,7 +57,7 @@ def generate_utr_reference_and_map_reads(
     core.map_aligned_reads(alignments, utr_reference_regions, protocol_, store=True)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = "Builds a UTR reference and then maps the supplied reads to generate raw UTR sizes."
 

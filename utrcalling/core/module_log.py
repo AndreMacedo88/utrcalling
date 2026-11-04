@@ -20,12 +20,12 @@ DATEFMT = "%Y-%m-%d %H:%M:%S"
 
 
 def module_logger(
-    disable=False,
-    store_log=False,
-    log_dir=None,
-    level="info",
-    reinstall=False,
-) -> logging.Logger:
+    disable: bool = False,
+    store_log: bool = False,
+    log_dir: str | None = None,
+    level: str = "info",
+    reinstall: bool = False,
+) -> verboselogs.VerboseLogger:
 
     logger = logging.getLogger("utrcalling")
     logger.propagate = False

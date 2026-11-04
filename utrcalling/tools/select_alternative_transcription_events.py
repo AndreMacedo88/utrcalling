@@ -1,8 +1,10 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def select_alternative_transcription_events(input_path, out_path):
+def select_alternative_transcription_events(input_path: str, out_path: str) -> None:
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
@@ -11,7 +13,7 @@ def select_alternative_transcription_events(input_path, out_path):
     adata_new.write_h5ad(out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = "Removes UTRs that have less than 2 alternative transcription sites."
 

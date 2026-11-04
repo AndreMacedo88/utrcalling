@@ -24,7 +24,7 @@ class GeneratePeakCounts:
             merge_method="union",
         )
 
-    def perf_test(self):
+    def perf_test(self) -> None:
         count_matrix.generate_counts_and_anno(
             utr_sizes=self.data,
             protocol=self.protocol,
@@ -32,7 +32,7 @@ class GeneratePeakCounts:
         )
 
 
-def generate_peak_counts_perf(lines):
+def generate_peak_counts_perf(lines: int) -> None:
     logger = module_log.module_logger()
     logger.setLevel(logging.INFO)
 

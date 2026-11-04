@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def check_distance_to_pas(input_path, out_path, genome_path, hamming, cores=None):
+def check_distance_to_pas(
+    input_path: str, out_path: str, genome_path: str, hamming: int, cores: int | None = None
+) -> None:
     import joblib
     import pybedtools
 
@@ -16,7 +20,7 @@ def check_distance_to_pas(input_path, out_path, genome_path, hamming, cores=None
     joblib.dump(distances_array, out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = (
         "Produces a vector with the distance of every mapped UMI to the canonical poly "

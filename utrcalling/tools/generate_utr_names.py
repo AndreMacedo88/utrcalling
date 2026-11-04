@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def generate_names(input_path, out_path, utr_name_column, gene_name_column):
+def generate_names(
+    input_path: str, out_path: str, utr_name_column: str, gene_name_column: str
+) -> None:
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
@@ -16,7 +20,7 @@ def generate_names(input_path, out_path, utr_name_column, gene_name_column):
     adata.write_h5ad(out_filepath)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = "Generates names for each distinct UTR size based on the gene name and UTR number."
 

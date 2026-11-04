@@ -39,9 +39,7 @@ from utrcalling.core.protocol import Protocol
 from utrcalling.core.utr_mapping import _IntervalData
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    import numpy.typing as npt
+    from utrcalling.core.protocols.peak_calling import SizeTransform
 
 
 def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:
@@ -149,7 +147,7 @@ def _map_multiple_bams(
     Returns:
         List of flat DataFrames, one per BAM file.
     """
-    if protocol.sample_names is not None:
+    if protocol.sample_idx is not None:  # set together with sample_names
         batch_indices = [protocol.sample_idx[a] for a in alignments]
     elif (
         protocol.label_batches
@@ -309,7 +307,7 @@ def build_count_matrix(
     utr_reference_subset: pd.DataFrame,
     protocol: Protocol,
     store: bool = False,
-    size_transform: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
+    size_transform: SizeTransform | None = None,
     n_jobs: int | None = None,
 ) -> anndata.AnnData:
     """Build a sparse AnnData count matrix from filtered reads.

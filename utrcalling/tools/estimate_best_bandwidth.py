@@ -1,8 +1,16 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def estimate_best_bandwidth(input_path, out_path, genome_path, bandwidths, cores=None):
+def estimate_best_bandwidth(
+    input_path: str,
+    out_path: str,
+    genome_path: str,
+    bandwidths: list[int],
+    cores: int | None = None,
+) -> None:
     import joblib
     import pybedtools
 
@@ -26,7 +34,7 @@ def estimate_best_bandwidth(input_path, out_path, genome_path, bandwidths, cores
     joblib.dump(scores, out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = "Calculates scores per bandwidth given."
 

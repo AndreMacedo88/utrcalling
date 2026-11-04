@@ -1,15 +1,19 @@
 from collections.abc import Callable
 from functools import partial
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
 from scipy.signal import argrelextrema
 from sklearn.neighbors import KernelDensity
 
+# Maps one UTR's molecule sizes to their consensus peak sizes.
+SizeTransform = Callable[[npt.ArrayLike], npt.NDArray[np.integer[Any]]]
+
 # Methods to aggregate individual molecules' UTR sizes to consensus peaks:
 
 
-def get_caller(method: str, bandwidth: int = 12) -> Callable[[npt.ArrayLike], npt.ArrayLike]:
+def get_caller(method: str, bandwidth: int = 12) -> SizeTransform:
     """Return a size transform callable for the given peak calling method.
 
     Args:
@@ -30,7 +34,7 @@ def get_caller(method: str, bandwidth: int = 12) -> Callable[[npt.ArrayLike], np
 
 def call_peaks_using_kernel_density_estimator(
     utr_sizes_vector: npt.ArrayLike, bandwidth: int = 12
-) -> npt.NDArray[np.int32]:
+) -> npt.NDArray[np.integer[Any]]:
     """
     Fit a kernel density model to predict the peak's ditribution density function
 
@@ -41,17 +45,19 @@ def call_peaks_using_kernel_density_estimator(
         np.ndarray: The vector with the peaks.
     """
 
-    if len(utr_sizes_vector) <= 3:
-        peaks = np.repeat(round(np.median(utr_sizes_vector)), len(utr_sizes_vector))
+    sizes = np.asarray(utr_sizes_vector)  # no copy when given an ndarray
+
+    if len(sizes) <= 3:
+        peaks = np.repeat(round(np.median(sizes)), len(sizes))
         return peaks
 
-    if np.ndim(utr_sizes_vector) == 1:
-        utr_sizes_vector = utr_sizes_vector.reshape(-1, 1)
+    if np.ndim(sizes) == 1:
+        sizes = sizes.reshape(-1, 1)
 
-    kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(utr_sizes_vector)
+    kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(sizes)
 
     # calculate an appropriate window to check the model
-    minimum_size, maximum_size = utr_sizes_vector.min(), utr_sizes_vector.max()
+    minimum_size, maximum_size = sizes.min(), sizes.max()
     padding = max((maximum_size - minimum_size) * 0.1, 10)
     window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
     # get the model predictions for that window. Specifically, the extrema.
@@ -71,7 +77,7 @@ def call_peaks_using_kernel_density_estimator(
         )
 
     # create a container to hold the UTR peak sizes
-    peaks = np.zeros(len(utr_sizes_vector), dtype=np.uint32)
+    peaks = np.zeros(len(sizes), dtype=np.uint32)
 
     # attribute a peak to each cell according to their UTR sizes and the kde model:
     # first iterate over the function' minima
@@ -82,7 +88,7 @@ def call_peaks_using_kernel_density_estimator(
             max_ = round(window[maxima][idx_minimum])
         except IndexError:
             continue
-        for idx_maximum, cond in enumerate(utr_sizes_vector < val):
+        for idx_maximum, cond in enumerate(sizes < val):
             if cond and peaks[idx_maximum] == 0:
                 peaks[idx_maximum] = max_
     # get the last maximum, just downstream the last minimum.
@@ -90,7 +96,7 @@ def call_peaks_using_kernel_density_estimator(
         max_ = round(window[maxima][idx_minimum + 1])
     except IndexError:  # for those cases with just one peak, there will be no minimum
         # so we take the median as the peak
-        max_ = round(np.median(utr_sizes_vector))
+        max_ = round(np.median(sizes))
 
     # place the last maximum in those molecules that haven't yet had their
     # peaks scored

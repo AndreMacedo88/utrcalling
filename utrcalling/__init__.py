@@ -13,7 +13,7 @@ from utrcalling._metadata import __license__ as __license__
 from utrcalling._metadata import __version__ as __version__
 
 
-def show_logo():
+def show_logo() -> None:
     import psutil
     from colorama import Fore, Style, init
 

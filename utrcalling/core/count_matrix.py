@@ -17,9 +17,9 @@ from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
 from utrcalling.core.protocol import Protocol
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     import numpy.typing as npt
+
+    from utrcalling.core.protocols.peak_calling import SizeTransform
 
 
 class CountMatrixResult(NamedTuple):
@@ -32,7 +32,7 @@ class CountMatrixResult(NamedTuple):
 
 def _process_utr_group_batch(
     batch: list[tuple[int, str, npt.NDArray[np.int32], npt.NDArray[np.int32]]],
-    func: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
+    func: SizeTransform | None = None,
 ) -> list[
     tuple[int, list[npt.NDArray[np.int32]], list[npt.NDArray[np.int32]], list[str], list[int]]
 ]:
@@ -91,7 +91,7 @@ _PARALLEL_UTR_THRESHOLD = 50
 def generate_counts_and_anno(
     utr_sizes: pd.DataFrame,
     protocol: Protocol,
-    size_transform: Callable[[npt.ArrayLike], npt.ArrayLike] | None = None,
+    size_transform: SizeTransform | None = None,
     n_jobs: int | None = None,
 ) -> CountMatrixResult:
     """Transform UTR sizes per group and build a sparse count matrix.

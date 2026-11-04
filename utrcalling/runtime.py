@@ -5,7 +5,7 @@ from utrcalling._metadata import __version__ as version
 
 
 # Function to create the parser with subparsers
-def create_parser():
+def create_parser() -> argparse.ArgumentParser:
     from utrcalling.tests import test_case
     from utrcalling.tools import (
         call_peaks,
@@ -56,7 +56,7 @@ def create_parser():
 
 
 # The main function creating the parser and executing all commands
-def main():
+def main() -> None:
     from utrcalling import show_logo
 
     show_logo()
@@ -64,7 +64,8 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     if len(sys.argv) == 1:
-        sys.exit(parser.print_usage())
+        parser.print_usage()
+        sys.exit(0)
 
     args_prepared = vars(args).copy()
     del args_prepared["func"]

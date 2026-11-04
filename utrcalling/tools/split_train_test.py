@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def split_train_test(input_path, seed, train_fraction, out_path):
+def split_train_test(
+    input_path: str, seed: int | None, train_fraction: float, out_path: str
+) -> None:
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
@@ -23,7 +27,7 @@ def split_train_test(input_path, seed, train_fraction, out_path):
     adata_test.write_h5ad(path_test)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = (
         "Splits an UTR sizes experiment file (h5ad) into train/test samples, "

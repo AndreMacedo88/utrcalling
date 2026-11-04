@@ -1,8 +1,10 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def concatenate_experiments(input_paths, out_path):
+def concatenate_experiments(input_paths: list[str], out_path: str) -> None:
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
@@ -11,7 +13,7 @@ def concatenate_experiments(input_paths, out_path):
     adata_result.write_h5ad(out_path)
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = "Concatenates 2 or more files containing raw 3'UTR sizes per UTR."
 

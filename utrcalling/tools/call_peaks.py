@@ -1,10 +1,18 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 import ast
 import os
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import logging
+
+    import anndata
 
 
-def _write_anndata(adata, filename, logger):
+def _write_anndata(adata: anndata.AnnData, filename: str, logger: logging.Logger) -> None:
     """Write an AnnData object to h5ad, handling dtype issues."""
     try:
         adata.write(filename=filename)
@@ -27,23 +35,23 @@ The error message was:\n{e}
 
 
 def call_peaks(
-    utr_annotation,
-    utr_sizes_counts,
-    annotations_file=None,
-    batch_merge_method=None,
-    protocol_platform="10x",
-    protocol_version=2,
-    label_batches=None,
-    summarization_level="UTR",
-    raw_sizes=False,
-    kde_bandwidth=12,
-    store_intermediate=False,
-    log_level="info",
-    out="UTR_results.h5ad",
-    store_log=True,
-    no_log_file=False,
-    cores=None,
-):
+    utr_annotation: str,
+    utr_sizes_counts: list[str],
+    annotations_file: str | None = None,
+    batch_merge_method: str | None = None,
+    protocol_platform: str = "10x",
+    protocol_version: int = 2,
+    label_batches: bool | str | None = None,
+    summarization_level: str = "UTR",
+    raw_sizes: bool = False,
+    kde_bandwidth: int = 12,
+    store_intermediate: bool = False,
+    log_level: str = "info",
+    out: str = "UTR_results.h5ad",
+    store_log: bool = True,
+    no_log_file: bool = False,
+    cores: int | None = None,
+) -> None:
     """
     Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR
     annotation files.
@@ -168,7 +176,7 @@ def call_peaks(
     return
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = "Calls consensus peaks based on raw UTR size counts."
 

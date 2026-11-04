@@ -1,8 +1,12 @@
 # import general tools
+from __future__ import annotations
+
 import argparse
 
 
-def call_peaks_different_bandwidths(input_path, out_path, bandwidths, cores=None):
+def call_peaks_different_bandwidths(
+    input_path: str, out_path: str, bandwidths: list[int], cores: int | None = None
+) -> None:
     from utrcalling.core import helpers
     from utrcalling.core import peak_calling_anndata as pc
 
@@ -16,7 +20,7 @@ def call_peaks_different_bandwidths(input_path, out_path, bandwidths, cores=None
         adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")
 
 
-def create_parser(subparsers):
+def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
 
     help = (
         "Converts raw UMI sizes to consensus peaks, using a Gaussian KDE with the "

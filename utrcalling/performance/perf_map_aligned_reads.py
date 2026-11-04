@@ -22,11 +22,11 @@ class MapAlignedReads:
             "../tests/test_data/test_UTRoldNSCgenome_bwt2_102_sort.bam",
         ] * alignments_n
 
-    def perf_test(self):
+    def perf_test(self) -> None:
         core.map_aligned_reads(self.alignments, self.utr_regions, self.protocol, store=False)
 
 
-def map_aligned_reads_perf(lines):
+def map_aligned_reads_perf(lines: int) -> None:
     logger = module_log.module_logger()
     logger.setLevel(logging.WARNING)
 
