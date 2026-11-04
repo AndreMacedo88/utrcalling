@@ -205,64 +205,6 @@ class TestGenerateUtrSiteNamesFromGeneName(unittest.TestCase):
         )
 
 
-class TestSplitTrainTestData(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls) -> None:
-        adata = ad.read_h5ad("./test_data/anndata_test.h5ad")
-        adata.X = adata.X * np.array([1, 1, 60, 1, 100])[:, np.newaxis]
-        adata.obs["batch_new"] = [2021, 2021, 2021, 2022, 2022]
-        cls.adata = ad.concat([adata, adata, adata], merge="same")
-        cls.adata.obs_names_make_unique()
-
-    def test_split_fraction(self):
-        train, test = ap.split_train_test_data(self.adata, train_fraction=0.66, seed=1)
-        self.assertEqual(train.shape[0], test.shape[0] * 2)
-
-    def test_keep_balance(self):
-        train, test = ap.split_train_test_data(self.adata, train_fraction=0.66, seed=1)
-
-        orig_batch_counts = self.adata.obs.batch_new.value_counts().to_list()
-        orig_prop = orig_batch_counts[0] / orig_batch_counts[1]
-
-        train_batch_counts = train.obs.batch_new.value_counts().to_list()
-        train_prop = train_batch_counts[0] / train_batch_counts[1]
-
-        test_batch_counts = test.obs.batch_new.value_counts().to_list()
-        test_prop = test_batch_counts[0] / test_batch_counts[1]
-
-        self.assertTrue(train_prop == test_prop == orig_prop)
-
-    def test_seed_reproduces_the_same_split(self):
-        # Pinned split: a given seed must keep producing it across pandas versions.
-        train, _ = ap.split_train_test_data(self.adata, train_fraction=0.66, seed=1)
-        self.assertListEqual(
-            sorted(train.obs_names),
-            [
-                "AAAAAAAAAAAAAAAA-1",
-                "AAAAAAAAAAAAAAAA-1-1",
-                "AAAAAAAAAAAAAAAA-1-2",
-                "AAAAAAAAAAAAAAAG-1",
-                "AAAAAAAAAAAAAAGG-2",
-                "AAAAAAAAAAAAAAGG-2-2",
-                "AAAAAAAAAAAAATTT-1",
-                "AAAAAAAAAAAAATTT-1-2",
-                "GAAAAAAAAAAAAAAT-2",
-                "GAAAAAAAAAAAAAAT-2-2",
-            ],
-        )
-
-    def test_no_pandas_deprecation_warnings(self):
-        # pandas 3 changes the groupby defaults these warnings are about.
-        with warnings.catch_warnings():
-            warnings.simplefilter("error", FutureWarning)
-            ap.split_train_test_data(self.adata, train_fraction=0.66, seed=1)
-
-
-class TestSplitTrainTestDataUmiCol(TestSplitTrainTestData):
-    def setUp(self) -> None:
-        self.adata.obs["umi_test_bin"] = [1, 1, 2, 1, 2] * 3
-
-
 # ---------------------------------------------------------------------------
 # New test classes for previously untested functions
 # ---------------------------------------------------------------------------
@@ -309,7 +251,6 @@ class TestSelectAlternativeTranscriptionEvents(unittest.TestCase):
     def test_no_pandas_future_warning(self):
         """`groupby` must pass `observed=True` so the pandas 2.x default
         deprecation does not surface as a warning to users."""
-        import warnings
 
         adata = _make_multi_site_adata()
         with warnings.catch_warnings():
@@ -392,7 +333,6 @@ class TestCountsToPercentages(unittest.TestCase):
 
     def test_no_future_warnings(self):
         """Vectorized implementation must not trigger anndata/pandas FutureWarnings."""
-        import warnings
 
         adata = _make_multi_site_adata()
         adata.X = scipy.sparse.csr_matrix(adata.X.astype(np.int32))

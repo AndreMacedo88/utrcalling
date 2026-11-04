@@ -88,10 +88,6 @@ class TestCLIHelp(unittest.TestCase):
         result = _run_cli("subset-experiments", "--help")
         self.assertEqual(result.returncode, 0)
 
-    def test_split_train_test_help(self):
-        result = _run_cli("split-train-test", "--help")
-        self.assertEqual(result.returncode, 0)
-
 
 class TestCLIInvalidArgs(unittest.TestCase):
     """Test that invalid arguments produce appropriate errors."""
@@ -103,19 +99,6 @@ class TestCLIInvalidArgs(unittest.TestCase):
     def test_call_peaks_no_args_fails(self):
         result = _run_cli("call-peaks")
         self.assertNotEqual(result.returncode, 0)
-
-    def test_split_train_test_requires_out_path(self):
-        # Without it, the tool used to crash on a None path after loading the data.
-        from utrcalling.runtime import create_parser
-
-        parser = create_parser()
-        with (
-            contextlib.redirect_stderr(io.StringIO()) as stderr,
-            self.assertRaises(SystemExit) as ctx,
-        ):
-            parser.parse_args(["split-train-test", "experiment.h5ad"])
-        self.assertEqual(ctx.exception.code, 2)
-        self.assertIn("--out_path", stderr.getvalue())
 
     def test_nonexistent_subcommand(self):
         result = _run_cli("nonexistent-command")

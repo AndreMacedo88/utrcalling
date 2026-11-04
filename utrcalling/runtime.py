@@ -20,7 +20,6 @@ def create_parser() -> argparse.ArgumentParser:
         remove_peaks_below_count_threshold,
         run,
         select_alternative_transcription_events,
-        split_train_test,
         subset_experiments,
     )
 
@@ -47,7 +46,6 @@ def create_parser() -> argparse.ArgumentParser:
     counts_to_percentages.create_parser(subparsers=subparsers)
     concatenate_experiments.create_parser(subparsers=subparsers)
     subset_experiments.create_parser(subparsers=subparsers)
-    split_train_test.create_parser(subparsers=subparsers)
     estimate_best_bandwidth.create_parser(subparsers=subparsers)
     check_distance_to_pas.create_parser(subparsers=subparsers)
     call_peaks_different_bandwidths.create_parser(subparsers=subparsers)

@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-import re
-
 import anndata
 import numpy as np
 import pandas as pd
 import scipy.sparse
-
-from utrcalling.core import module_log
 
 
 def generate_utr_site_names_from_gene_name(
@@ -299,76 +295,3 @@ def concatenate_adata(
     adata_concat.var = var_new
 
     return adata_concat
-
-
-def split_train_test_data(
-    adata: anndata.AnnData, train_fraction: float, seed: int | None
-) -> tuple[anndata.AnnData, anndata.AnnData]:
-    """Split an AnnData into stratified train and test sets.
-
-    Stratification is performed on UMI-count bins (auto-detected or derived
-    via KDE) and, when present, a batch column.
-
-    Args:
-        adata: The AnnData object to split.
-        train_fraction: Fraction of observations to assign to the training set
-            (e.g. ``0.8``).
-        seed: Random seed for reproducible sampling, or ``None``.
-
-    Returns:
-        A ``(train, test)`` tuple of AnnData views.
-    """
-    logger = module_log.module_logger()
-
-    try:
-        bins_columns = (
-            adata.obs.columns.str.extract(r"(.*umi.*.*bin.*)", flags=re.IGNORECASE)
-            .dropna()
-            .values[0][0]
-        )
-    except IndexError:
-        from scipy.signal import argrelextrema
-        from sklearn.neighbors import KernelDensity
-        from statsmodels.nonparametric.bandwidths import bw_silverman
-
-        umis_per_id = np.sum(adata.X, axis=1)
-        # Find optimal number of bins
-        kde_bandwidth = bw_silverman(umis_per_id)
-        a = umis_per_id.reshape(-1, 1)
-        kde = KernelDensity(kernel="gaussian", bandwidth=kde_bandwidth).fit(a)
-        s = np.linspace(min(a), max(a))
-        e = kde.score_samples(s.reshape(-1, 1))
-        mi, _ = argrelextrema(e, np.less)[0], argrelextrema(e, np.greater)[0]
-        cuts = len(mi) + 1
-
-        logger.info(
-            f"Binning UTRs into {cuts} bins for stratified sampling. "
-            "Bins can be found in .obs['UMI_bins']"
-        )
-
-        umi_bins = pd.qcut(umis_per_id, q=cuts, labels=range(1, cuts + 1))
-        bins_columns = "UMI_bins"
-        adata.obs[bins_columns] = umi_bins
-
-    try:
-        batch_columns = (
-            adata.obs.columns.str.extract(r"(.*batch.*)", flags=re.IGNORECASE).dropna().values[0][0]
-        )
-    except IndexError:
-        batch_columns = None
-
-    groupby_cols = [c for c in [batch_columns, bins_columns] if c is not None]
-    # Only the sampled index is used. Explicit observed=True and column selection
-    # keep the result identical across pandas versions: pandas 3 changes both
-    # defaults (observed, and dropping grouping columns inside apply).
-    # Not groupby().sample(): it draws all groups from one random stream, which
-    # would change the split that a given seed has always produced.
-    obs_train = adata.obs.groupby(groupby_cols, group_keys=False, observed=True)[
-        groupby_cols
-    ].apply(lambda x: x.sample(frac=train_fraction, random_state=seed))
-
-    obs_test = adata.obs.drop(labels=obs_train.index, axis=0)
-
-    adata_train = adata[adata.obs_names.isin(obs_train.index), :]
-    adata_test = adata[adata.obs_names.isin(obs_test.index), :]
-    return adata_train, adata_test

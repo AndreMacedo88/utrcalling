@@ -330,25 +330,6 @@ def split_list(a: list[Any], n: int) -> Iterable[list[Any]]:
     return (a[i * k + min(i, m) : (i + 1) * k + min(i + 1, m)] for i in range(n))
 
 
-def check_file_suffix_and_append_before(path: str, to_append: str, suffix: str) -> str:
-    """Insert a string before the file suffix in a path.
-
-    Args:
-        path: The original file path.
-        to_append: String to insert before the suffix.
-        suffix: The file suffix (e.g., '.h5ad').
-
-    Returns:
-        The modified path with to_append inserted before the suffix.
-    """
-    if not suffix.startswith("."):
-        suffix = f".{suffix}"
-    if suffix in path:
-        path = path.replace(suffix, "")
-
-    return f"{path}{to_append}{suffix}"
-
-
 def sample_in_path(sample: str | int, bam_path: str) -> bool:
     """Return True if *sample* appears as a delimited token anywhere in *bam_path*.
 
