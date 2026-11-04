@@ -133,7 +133,9 @@ def generate_counts_and_anno(
     # objects and exhausts RAM (OOM). ``.unique()`` on a Categorical returns just
     # the present categories, which we then sort to lock row ordering.
     obs_series = utr_sizes["observation_id"]
-    obs_ids_sorted = np.sort(np.asarray(obs_series.unique()).astype(str))
+    obs_ids = obs_series.unique()
+    # A missing ID is not an observation: such reads are caught below.
+    obs_ids_sorted = np.sort(np.asarray(obs_ids[pd.notna(obs_ids)]).astype(str))
     n_obs = len(obs_ids_sorted)
 
     # Pre-encode observation_id to int32 row indices ONCE (workers receive only

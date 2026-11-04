@@ -199,6 +199,37 @@ class TestObsSynthetic(TestGeneratePeakCountsSynthetic):
         self.assertEqual(non_zeros_count, 10)
 
 
+class TestCountsFromPlainColumns(TestGeneratePeakCountsSynthetic):
+    """Mapped reads with plain (non-categorical) columns count the same."""
+
+    def _counts(self, data):
+        matrix, var, obs = count_matrix.generate_counts_and_anno(
+            utr_sizes=data, protocol=self.protocol_, size_transform=self.protocol_.peak_calling
+        )
+        return matrix.toarray(), var, obs
+
+    def test_plain_columns_give_the_same_counts(self):
+        plain = self.data.astype({"utr_name": object, "observation_id": object})
+        self.assertNotIsInstance(plain.utr_name.dtype, pd.CategoricalDtype)
+        expected, expected_var, expected_obs = self._counts(self.data)
+        counts, var, obs = self._counts(plain)
+        np.testing.assert_array_equal(counts, expected)
+        pd.testing.assert_index_equal(var.index, expected_var.index)
+        pd.testing.assert_index_equal(obs.index, expected_obs.index)
+
+    def test_a_read_without_an_observation_raises(self):
+        # In a plain column, the missing ID used to become a cell named "nan".
+        plain = self.data.astype({"observation_id": object})
+        plain.loc[plain.index[0], "observation_id"] = np.nan
+        categorical = plain.astype({"observation_id": "category"})
+        for data in (plain, categorical):
+            with (
+                self.subTest(dtype=str(data.observation_id.dtype)),
+                self.assertRaisesRegex(ValueError, "unmapped observation_id"),
+            ):
+                self._counts(data)
+
+
 class TestGenerateCountMatrixAnndata(TestPeakCalling):
     @classmethod
     def setUpClass(cls) -> None:
