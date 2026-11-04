@@ -173,9 +173,15 @@ def compute_utr_size_means(
     df = adata.to_df()
     df_mult = df.mul(adata.var["utr_size"])
 
-    df = pd.melt(df, ignore_index=False).groupby([obs_index_name, utr_name_column]).sum()
+    df = (
+        pd.melt(df, ignore_index=False)
+        .groupby([obs_index_name, utr_name_column], observed=True)
+        .sum()
+    )
     df_mult_sum = (
-        pd.melt(df_mult, ignore_index=False).groupby([obs_index_name, utr_name_column]).sum()
+        pd.melt(df_mult, ignore_index=False)
+        .groupby([obs_index_name, utr_name_column], observed=True)
+        .sum()
     )
 
     df = (df_mult_sum / df).reset_index()

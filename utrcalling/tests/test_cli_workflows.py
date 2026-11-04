@@ -401,5 +401,38 @@ class TestSiteProcessingCommands(_InTempDir):
             np.testing.assert_array_equal(sums[~has_counts], 0.0)
 
 
+class TestComputeMeanUtrSizesCommand(_InTempDir):
+    """`compute-mean-utr-sizes` on the raw sizes of `run` (the paper's blood workflow)."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        utrcalling(
+            "compute-mean-utr-sizes",
+            WORKDIR / "raw.h5ad",
+            "means.h5ad",
+            "-u",
+            "utr_name",
+            cwd=cls.tmp,
+        )
+        cls.raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        cls.means = ad.read_h5ad(cls.tmp / "means.h5ad")
+
+    def test_one_column_per_utr_and_the_same_cells(self):
+        self.assertListEqual(sorted(self.means.var_names), sorted(self.raw.var.utr_name.unique()))
+        pd.testing.assert_index_equal(self.means.obs_names, self.raw.obs_names)
+
+    def test_values_are_the_count_weighted_mean_size(self):
+        counts = _dense(self.raw.X)
+        sizes = self.raw.var.utr_size.to_numpy()
+        for utr in self.means.var_names:
+            columns = (self.raw.var.utr_name == utr).to_numpy()
+            total = counts[:, columns].sum(axis=1)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                expected = (counts[:, columns] * sizes[columns]).sum(axis=1) / total
+            expected[total == 0] = np.nan
+            np.testing.assert_allclose(_dense(self.means[:, utr].X).ravel(), expected)
+
+
 if __name__ == "__main__":
     unittest.main()
