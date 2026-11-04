@@ -2,15 +2,18 @@
 from __future__ import annotations
 
 import argparse
+import ast
 import os
 
 
 def generate_utr_reference_and_map_reads(
     utr_annotation: str,
     alignments: list[str],
+    annotations_file: str,
     feature: str = "three_prime_utr",
     protocol_platform: str = "10x",
     protocol_version: int = 3,
+    label_batches: bool | str | None = None,
     strandedness: str | None = None,
     log_level: str = "info",
     store_log: bool = True,
@@ -24,6 +27,9 @@ def generate_utr_reference_and_map_reads(
         alignments (str): [description]
         feature (str, optional): [description]. Defaults to 'three_prime_utr'.
         protocol_version (int, optional): [description]. Defaults to 3.
+
+    The annotation file and ``label_batches`` must match those later given to
+    ``call-peaks``: they decide the observation names stored with the mappings.
     """
 
     from utrcalling.core import core, helpers, protocol
@@ -44,7 +50,9 @@ def generate_utr_reference_and_map_reads(
     protocol_ = protocol.create(
         protocol_platform,
         int(protocol_version),
+        label_batches=label_batches,
         alignments=alignments,
+        annotations=annotations_file,
         strandedness=strandedness,
     )
 
@@ -70,7 +78,7 @@ def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
         epilog="""
     Example on how to use in command-line:
     $ utrcalling prepare-reference-and-map-reads mus_musculus.gtf
-    -a bowtie_align.bam bowtie_align_ko.bam -f three_prime_utr -p 10x -v 2
+    -a bowtie_align.bam bowtie_align_ko.bam -A experiment.csv -f three_prime_utr -p 10x -v 2
         """,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
@@ -86,6 +94,28 @@ def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
     File, or files with the read alignments. One alignment per sample/batch should be
     supplied if downstream applications involve comparisons between the samples/batches.
     Alignments must be sorted and have an index file .bai in the same directory
+    """,
+    )
+
+    parser.add_argument(
+        "--annotations_file",
+        "-A",
+        type=str,
+        required=True,
+        help="""
+    File with your experiment's information, such as cell barcodes, sample IDs, and
+    batch information. Use the same file with call-peaks.
+    """,
+    )
+
+    parser.add_argument(
+        "--label_batches",
+        "-L",
+        type=ast.literal_eval,
+        default=None,
+        help="""
+    If True, gets the batches from the annotation file and labels each barcode/sample
+    according to the batch. Use the same value with call-peaks.
     """,
     )
 

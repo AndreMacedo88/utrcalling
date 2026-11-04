@@ -206,17 +206,18 @@ choose a value.
 The pipeline can also be run in two stages for large datasets or debugging:
 
 ```bash
-# Stage 1 & 2: Build UTR reference and map reads
+# Stage 1 & 2: Build UTR reference and map reads (written to ./intermediate/)
 utrcalling prepare-reference-and-map-reads \
     genome_annotations.gtf.gz \
     --alignments sample.bam \
+    --annotations_file annotations.csv \
     --protocol_platform 10x \
     --protocol_version 3
 
-# Stage 3: Call peaks from intermediate files
+# Stage 3: Call peaks from intermediate files (same annotations and --label_batches)
 utrcalling call-peaks \
-    intermediate/utr_reference.parquet \
-    --utr_sizes_counts intermediate/mapped_reads_*.parquet \
+    intermediate/utr_reference_regions.parquet \
+    --utr_sizes_counts intermediate/UTR_sizes_counts_*.parquet \
     --annotations_file annotations.csv \
     --protocol_platform 10x \
     --protocol_version 3 \

@@ -142,6 +142,8 @@ class TestProtocolVersionDefault(unittest.TestCase):
                 "annotation.gtf",
                 "-a",
                 "sample.bam",
+                "-A",
+                "anno.csv",
             ],
         }
         for name, argv in commands.items():
