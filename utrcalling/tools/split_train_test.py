@@ -68,6 +68,7 @@ def create_parser(subparsers):
         "--out_path",
         "-o",
         type=str,
+        required=True,
         help="Path with the filename prefix to write the train and test data.",
     )
 
