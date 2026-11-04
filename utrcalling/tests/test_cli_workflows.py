@@ -412,6 +412,14 @@ class TestSiteProcessingCommands(_InTempDir):
         self.assertListEqual(self.named.var.UTR_site.tolist(), list(self.apa.var_names))
         np.testing.assert_array_equal(_dense(self.named.X), _dense(self.apa.X))
 
+    def test_generate_names_overwrites_its_output(self):
+        # Like every other command. It used to write named_1.h5ad instead,
+        # leaving the old named.h5ad for the next step to read.
+        (self.tmp / "named.h5ad").write_text("stale")
+        utrcalling("generate-names", "apa.h5ad", "named.h5ad", cwd=self.tmp)
+        assert_same_anndata(ad.read_h5ad(self.tmp / "named.h5ad"), self.named)
+        self.assertFalse((self.tmp / "named_1.h5ad").exists())
+
     def test_fractions_sum_to_one_per_cell_and_utr(self):
         self.assertTrue(scipy.sparse.issparse(self.fractions.X))
         fractions = _dense(self.fractions.X)

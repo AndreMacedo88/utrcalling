@@ -5,7 +5,6 @@ import unittest
 import pandas as pd
 
 from utrcalling.core.helpers import (
-    check_file_exists_and_return_unique,
     check_if_path_and_open,
     shutdown_joblib_pool,
     to_string,
@@ -65,35 +64,6 @@ class TestCheckIfPathAndOpen(unittest.TestCase):
                 check_if_path_and_open(tmp_path, method="xml")
         finally:
             os.unlink(tmp_path)
-
-
-class TestCheckFileExistsAndReturnUnique(unittest.TestCase):
-    def test_non_existing_returns_same(self):
-        path = os.path.join(tempfile.gettempdir(), "utrcalling_nonexistent_test_file.txt")
-        result = check_file_exists_and_return_unique(path)
-        self.assertEqual(result, path)
-
-    def test_existing_file_gets_suffix(self):
-        with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as f:
-            tmp_path = f.name
-        try:
-            result = check_file_exists_and_return_unique(tmp_path)
-            self.assertNotEqual(result, tmp_path)
-            self.assertIn("_1", result)
-        finally:
-            os.unlink(tmp_path)
-
-    def test_multiple_existing_increments(self):
-        with tempfile.TemporaryDirectory() as tmpdir:
-            base = os.path.join(tmpdir, "file.txt")
-            suffixed = os.path.join(tmpdir, "file_1.txt")
-            for name in [base, suffixed]:
-                with open(name, "w") as f:
-                    f.write("")
-            result = check_file_exists_and_return_unique(base)
-            # file.txt exists → tries file_1.txt (exists) → tries file_1_2.txt
-            expected = os.path.join(tmpdir, "file_1_2.txt")
-            self.assertEqual(result, expected)
 
 
 class TestShutdownJoblibPool(unittest.TestCase):

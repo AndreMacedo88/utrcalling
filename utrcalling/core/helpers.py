@@ -198,27 +198,6 @@ def check_if_path_and_open(to_check: object, method: str = "parquet") -> object:
         return to_check
 
 
-def check_file_exists_and_return_unique(filepath: str, append: int = 1) -> str:
-    """Return a unique file path by appending a numeric suffix if the path exists.
-
-    Recursively increments the suffix until a non-existing path is found.
-
-    Args:
-        filepath: The desired file path.
-        append: Starting suffix number.
-
-    Returns:
-        A file path guaranteed not to exist yet.
-    """
-    if not os.path.exists(filepath):
-        return filepath
-    else:
-        path_, ext = os.path.splitext(filepath)
-        filepath = f"{path_}_{append}{ext}"
-        counter = append + 1
-        return check_file_exists_and_return_unique(filepath, append=counter)
-
-
 def load_annotations(annotation_path: str) -> pd.DataFrame | pybedtools.BedTool:
     """Load an annotation file based on its file extension.
 

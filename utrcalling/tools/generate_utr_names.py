@@ -15,9 +15,7 @@ def generate_names(
         adata=adata, utr_name_column=utr_name_column, gene_name_column=gene_name_column
     )
 
-    # Write the data to disk
-    out_filepath = helpers.check_file_exists_and_return_unique(out_path)
-    adata.write_h5ad(out_filepath)
+    adata.write_h5ad(out_path)
 
 
 def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
