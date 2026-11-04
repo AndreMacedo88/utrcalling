@@ -27,7 +27,7 @@ class CountMatrixResult(NamedTuple):
 
     count_matrix: csr_matrix
     peaks_var: pd.DataFrame
-    peaks_obs: pd.DataFrame | None = None
+    peaks_obs: pd.DataFrame
 
 
 def _process_utr_group_batch(
@@ -116,7 +116,7 @@ def generate_counts_and_anno(
 
     Returns:
         A CountMatrixResult(count_matrix, peaks_var, peaks_obs) namedtuple.
-        peaks_obs is None when barcode annotations are not available.
+        Without barcode annotations, peaks_obs only has the observation IDs.
     """
     logger = module_log.module_logger()
 

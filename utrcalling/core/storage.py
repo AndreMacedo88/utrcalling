@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 import pandas as pd
+import pyarrow as pa
 import pybedtools
 from scipy.sparse import csr_matrix, save_npz
 
@@ -81,10 +82,23 @@ def store_merged_counts(
     )
 
 
+def _to_parquet_or_csv(df: pd.DataFrame, directory: str, stem: str) -> None:
+    """Write *df* to ``<stem>.parquet``, or to ``<stem>.csv`` if parquet cannot store it.
+
+    Parquet needs one type per column; a column mixing e.g. numbers and text
+    makes pyarrow raise, and CSV can still hold it.
+    """
+    try:
+        df.to_parquet(os.path.join(directory, f"{stem}.parquet"))
+    except pa.ArrowException as err:
+        module_logger().warning(f"Cannot write {stem} as parquet ({err}), writing CSV instead")
+        df.to_csv(os.path.join(directory, f"{stem}.csv"))
+
+
 def store_peak_calling_results(
     peaks_count_matrix: csr_matrix,
     peaks_var: pd.DataFrame,
-    peaks_obs: pd.DataFrame | None,
+    peaks_obs: pd.DataFrame,
     utr_reference_subset: pd.DataFrame,
     merge_method: str,
     directory: str = "./intermediate",
@@ -92,12 +106,12 @@ def store_peak_calling_results(
     """Save peak calling intermediate files.
 
     Saves the sparse count matrix (.npz), var DataFrame, obs DataFrame,
-    and subsetted UTR reference. Falls back to CSV if parquet writing fails.
+    and subsetted UTR reference. Tables that parquet cannot store go to CSV.
 
     Args:
         peaks_count_matrix: Sparse (observations x peaks) count matrix.
         peaks_var: Peaks variable DataFrame.
-        peaks_obs: Observations DataFrame (may be None).
+        peaks_obs: Observations DataFrame.
         utr_reference_subset: Subsetted UTR reference DataFrame.
         merge_method: The merge method used ('union' or 'intersection').
         directory: Directory to save files into.
@@ -106,34 +120,10 @@ def store_peak_calling_results(
     logger.info("Storing intermediate results")
     helpers.check_if_exists_and_mkdir(directory)
 
-    # store count matrix (sparse)
     save_npz(
         os.path.join(directory, f"peaks_count_matrix_{merge_method}.npz"),
         peaks_count_matrix,
     )
-
-    # store var dataframe
-    try:
-        peaks_var.to_parquet(os.path.join(directory, f"peaks_var_{merge_method}.parquet"))
-    except (OSError, PermissionError):
-        logger.warning("Parquet write failed for peaks_var, falling back to CSV")
-        peaks_var.to_csv(os.path.join(directory, f"peaks_var_{merge_method}.csv"))
-
-    # store subsetted UTR reference dataframe
-    try:
-        utr_reference_subset.to_parquet(
-            os.path.join(directory, f"UTR_reference_subset_{merge_method}.parquet")
-        )
-    except (OSError, PermissionError):
-        logger.warning("Parquet write failed for UTR_reference_subset, falling back to CSV")
-        utr_reference_subset.to_csv(
-            os.path.join(directory, f"UTR_reference_subset_{merge_method}.csv")
-        )
-
-    # store obs dataframe
-    if peaks_obs is not None:
-        try:
-            peaks_obs.to_parquet(os.path.join(directory, f"peaks_obs_{merge_method}.parquet"))
-        except (OSError, PermissionError):
-            logger.warning("Parquet write failed for peaks_obs, falling back to CSV")
-            peaks_obs.to_csv(os.path.join(directory, f"peaks_obs_{merge_method}.csv"))
+    _to_parquet_or_csv(peaks_var, directory, f"peaks_var_{merge_method}")
+    _to_parquet_or_csv(utr_reference_subset, directory, f"UTR_reference_subset_{merge_method}")
+    _to_parquet_or_csv(peaks_obs, directory, f"peaks_obs_{merge_method}")
