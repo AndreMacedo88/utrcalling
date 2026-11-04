@@ -111,6 +111,24 @@ filterwarnings = [
     'error::FutureWarning:utrcalling\.',
 ]
 
+[tool.coverage.run]
+branch = true
+source = ["utrcalling"]
+# Profiling scripts for developers, not part of what utrcalling does.
+omit = ["*/utrcalling/tests/*", "*/utrcalling/performance/*"]
+# Also measure the joblib worker processes, which run most of the mapping and
+# peak calling. Each process writes its own data file: `coverage combine`.
+patch = ["subprocess"]
+parallel = true
+sigterm = true
+
+[tool.coverage.report]
+# Raised as tests are added; the goal is 100.
+fail_under = 91
+show_missing = true
+skip_covered = true
+exclude_also = ["if TYPE_CHECKING:", 'if __name__ == "__main__":']
+
 [tool.mypy]
 files = ["utrcalling"]
 exclude = ["^utrcalling/tests/"]
