@@ -222,6 +222,9 @@ def _process_interval_batch(
                         continue
 
                     # Position extraction (protocol-controlled)
+                    ref_end = aln.reference_end
+                    if ref_end is None:  # no aligned bases, so no position
+                        continue
                     if use_fragment:
                         tlen = aln.template_length
                         mate_is_usable = bool(
@@ -232,7 +235,7 @@ def _process_interval_batch(
                         )
                         read_pos = get_frag_pos(
                             aln.reference_start,
-                            aln.reference_end - 1,
+                            ref_end - 1,
                             aln.is_reverse,
                             iv_strand,
                             aln.next_reference_start,
@@ -242,7 +245,7 @@ def _process_interval_batch(
                     else:
                         read_pos = get_read_pos(
                             aln.reference_start,
-                            aln.reference_end - 1,
+                            ref_end - 1,
                             aln.is_reverse,
                             iv_strand,
                         )

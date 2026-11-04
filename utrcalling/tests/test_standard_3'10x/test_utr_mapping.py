@@ -185,6 +185,60 @@ class TestStandardTenxMissingTags(TestMapReadsToUtrSynthetic):
             os.remove(f"{bam_path}.bai")
 
 
+class TestReadWithoutAlignedBases(TestMapReadsToUtrSynthetic):
+    """A read with no CIGAR has no reference end, so no position: skip it.
+
+    It used to raise a TypeError (None - 1) and stop the whole mapping.
+    """
+
+    def test_read_without_cigar_is_skipped(self):
+        import os
+        from tempfile import mkstemp
+
+        import pysam
+
+        fd, bam_path = mkstemp(suffix=".bam", dir="./test_data/")
+        os.close(fd)
+        header = {
+            "HD": {"VN": "1.0"},
+            "SQ": [{"LN": 195471971, "SN": "1"}, {"LN": 98207768, "SN": "16"}],
+        }
+        with pysam.AlignmentFile(bam_path, "wb", header=header) as outf:
+            # Same read as in TestStandardTenxCellRangerSingleEndFlags: UTR3, size 1231
+            for name, cigar in [("no_cigar", None), ("with_cigar", [(0, 90)])]:
+                a = pysam.AlignedSegment()
+                a.query_name = name
+                a.query_sequence = "A" * 90
+                a.flag = 0x0  # single-end forward
+                a.reference_id = 1  # chr16
+                a.reference_start = 91271800
+                a.mapping_quality = 255
+                a.cigar = cigar
+                a.query_qualities = pysam.qualitystring_to_array("C" * 90)
+                a.tags = [("CB", "AAACCCAAGAAACACT-1"), ("UB", f"UMI{name}")]
+                outf.write(a)
+
+        pysam.index(bam_path)
+
+        try:
+            protocol_ = protocol.create(
+                "standard_10x",
+                3,
+                annotations=pd.DataFrame({"sample": ["test"]}),
+            )
+            mappings = utr_mapping.map_reads_to_utr(
+                bam_path,
+                self.intervals,
+                protocol_,
+                read=protocol_.read_in_pair,
+            )
+            self.assertEqual(len(mappings), 1)
+            self.assertEqual(mappings["utr_size"].iloc[0], 1231)
+        finally:
+            os.remove(bam_path)
+            os.remove(f"{bam_path}.bai")
+
+
 class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
     """Regression test: real Cell Ranger BAMs write R2 as single-end, sense-oriented.
 
