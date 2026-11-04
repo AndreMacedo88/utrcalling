@@ -10,7 +10,6 @@ import gzip
 import pandas as pd
 import pybedtools
 from gtfparse import read_gtf
-from pandas.api.types import is_numeric_dtype
 
 from utrcalling.core.module_log import module_logger
 
@@ -73,53 +72,27 @@ def prepare_annotations_index(
     return annotations_columns, annotations_index
 
 
-def reduce_regions(
-    bed: pybedtools.BedTool,
-    annotations_index: list[int] | None = None,
-    operation_list: list[str] | None = None,
-) -> pybedtools.BedTool:
-    """Merge overlapping genomic regions in a BED object.
+def reduce_regions(bed: pybedtools.BedTool, annotations_index: list[int]) -> pybedtools.BedTool:
+    """Merge overlapping regions on the same strand in a BED object.
 
     Args:
         bed: A pybedtools BedTool with UTR regions.
-        annotations_index: Column indices to aggregate during merge.
-        operation_list: Aggregation operations per column. Defaults to 'distinct'.
+        annotations_index: Columns to keep, as the comma-separated distinct
+            values of the merged regions.
 
     Returns:
         A merged BedTool with non-overlapping regions.
     """
-    logger = module_logger()
-    if annotations_index is None:
-        annotations_index = []
-    if not operation_list:
-        operations = [
-            "distinct",
-        ] * len(annotations_index)
-    else:
-        operations = operation_list
-
-    logger.info("Merging overlapping UTR regions")
-    bed_merged = bed.merge(c=annotations_index, o=operations, s=True)
-    return bed_merged
+    module_logger().info("Merging overlapping UTR regions")
+    operations = ["distinct"] * len(annotations_index)
+    return bed.merge(c=annotations_index, o=operations, s=True)
 
 
-def turn_utr_bed_to_dataframe(
-    utr_table: pd.DataFrame | pybedtools.BedTool,
-) -> pd.DataFrame:
-    """Convert a BED-like object to a DataFrame with numeric coordinates.
-
-    Args:
-        utr_table: A BedTool or DataFrame with start/end columns.
-
-    Returns:
-        A DataFrame with integer start and end columns.
-    """
-    if not isinstance(utr_table, pd.DataFrame):
-        utr_table = utr_table.to_dataframe()
-    if not is_numeric_dtype(utr_table["start"]):
-        utr_table["start"] = utr_table["start"].astype(int)
-    if not is_numeric_dtype(utr_table["end"]):
-        utr_table["end"] = utr_table["end"].astype(int)
+def turn_utr_bed_to_dataframe(utr_bed: pybedtools.BedTool) -> pd.DataFrame:
+    """Convert a BED object to a DataFrame with integer start and end columns."""
+    utr_table = utr_bed.to_dataframe()
+    utr_table["start"] = utr_table["start"].astype(int)
+    utr_table["end"] = utr_table["end"].astype(int)
     return utr_table
 
 
