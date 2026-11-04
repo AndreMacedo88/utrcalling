@@ -80,10 +80,6 @@ def run(
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}")
 
-    # If a directory is provided instead of individual BAM files, discover them
-    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
-        alignments = helpers.get_paths_from_folders(alignments, suffix=".bam")
-
     # Set up the protocol for this specific run
     protocol_ = protocol.create(
         protocol_platform,

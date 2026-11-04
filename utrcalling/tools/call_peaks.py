@@ -92,12 +92,8 @@ def call_peaks(
     # load UTR reference file
     utr_reference_regions = helpers.load_annotations(utr_annotation)
 
-    # load UTR counts file/s
-    # utr_sizes_counts = helpers.check_if_dir_and_list_files(utr_sizes_counts,
-    #                                                        suffix='.parquet')
-
     # if more than one counts file is provided, they must be merged before peak calling
-    if isinstance(utr_sizes_counts, list) and len(utr_sizes_counts) > 1:
+    if len(utr_sizes_counts) > 1:
         utr_sizes_counts = [
             helpers.check_if_path_and_open(element, method="parquet")
             for element in utr_sizes_counts
@@ -109,11 +105,8 @@ def call_peaks(
             store=store_intermediate,
         )
 
-    elif isinstance(utr_sizes_counts, list):
-        utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts[0], method="parquet")
     else:
-        # utr_size_counts can still be a path if merging was not applied
-        utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts, method="parquet")
+        utr_sizes_counts = helpers.check_if_path_and_open(utr_sizes_counts[0], method="parquet")
 
     # Collapse UTR size information to gene-level
     if summarization_level.lower() != "utr":

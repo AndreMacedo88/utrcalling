@@ -7,40 +7,9 @@ import pandas as pd
 from utrcalling.core.helpers import (
     check_file_exists_and_return_unique,
     check_if_path_and_open,
-    flatten,
     shutdown_joblib_pool,
     to_string,
 )
-
-
-class TestFlatten(unittest.TestCase):
-    def test_nested_lists(self):
-        result = list(flatten([[1, 2], [3, [4, 5]]]))
-        self.assertEqual(result, [1, 2, 3, 4, 5])
-
-    def test_strings_not_flattened(self):
-        result = list(flatten(["abc", ["def"]]))
-        self.assertEqual(result, ["abc", "def"])
-
-    def test_empty_list(self):
-        result = list(flatten([]))
-        self.assertEqual(result, [])
-
-    def test_flat_list_passthrough(self):
-        result = list(flatten([1, 2, 3]))
-        self.assertEqual(result, [1, 2, 3])
-
-    def test_deeply_nested(self):
-        result = list(flatten([1, [2, [3, [4]]]]))
-        self.assertEqual(result, [1, 2, 3, 4])
-
-    def test_mixed_types(self):
-        result = list(flatten([[1, "a"], [2.0, [True]]]))
-        self.assertEqual(result, [1, "a", 2.0, True])
-
-    def test_bytes_not_flattened(self):
-        result = list(flatten([b"abc", [b"def"]]))
-        self.assertEqual(result, [b"abc", b"def"])
 
 
 class TestToString(unittest.TestCase):

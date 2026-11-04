@@ -4,8 +4,7 @@ import os
 import pathlib
 import pickle
 import re
-from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Literal, overload
+from typing import TYPE_CHECKING, Literal, overload
 
 import numpy as np
 import pandas as pd
@@ -102,23 +101,6 @@ def ensure_mapped_reads_dtypes(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def flatten(list_: Iterable[Any]) -> Iterable[Any]:
-    """Flatten an irregular list of lists recursively.
-
-    Args:
-        list_: An irregular list of lists — each index may contain another list,
-            a nested list of lists, an int, str, etc.
-
-    Yields:
-        The next element in the flattened sequence.
-    """
-    for element in list_:
-        if isinstance(element, Iterable) and not isinstance(element, (str, bytes)):
-            yield from flatten(element)
-        else:
-            yield element
-
-
 def get_number_cores(left_out: int = 1) -> int:
     """Return the number of CPU cores to use, reserving some.
 
@@ -160,22 +142,6 @@ def log_metrics_anndata(adata: anndata.AnnData) -> None:
     metrics = f"Called {adata.X.shape[1]} peaks in {adata.X.shape[0]} samples/cells"
     logger.info(metrics)
     logger.info(adata)
-
-
-def get_paths_from_folders(folders_path: str, suffix: str = ".bam") -> list[str]:
-    """Recursively find all files with a given suffix under a directory.
-
-    Args:
-        folders_path: Root directory to search.
-        suffix: File suffix to match (e.g., '.bam').
-
-    Returns:
-        List of absolute file paths.
-    """
-    file_list = []
-    for path in pathlib.Path(folders_path).rglob(f"*{suffix}"):
-        file_list.append(os.path.join(folders_path, path))
-    return file_list
 
 
 def check_if_exists_and_mkdir(folders_path: str) -> None:
@@ -276,30 +242,6 @@ def load_annotations(annotation_path: str) -> pd.DataFrame | pybedtools.BedTool:
     else:
         raise RuntimeError(f"Annotation file {annotation_path} is of a not recognized type.")
     return output
-
-
-def check_if_dir_and_list_files(path: str | list[str], suffix: str = ".parquet") -> str | list[str]:
-    """If path is a directory, list files with the given suffix; otherwise pass through.
-
-    Handles both single paths and lists of paths recursively.
-
-    Args:
-        path: A file path, directory path, or list of paths.
-        suffix: File suffix to match when listing directories.
-
-    Returns:
-        A single file path, or a list of file paths.
-    """
-    if isinstance(path, (list, tuple)):
-        paths = []
-        for p in path:
-            paths.append(check_if_dir_and_list_files(p, suffix=suffix))
-        return list(flatten(paths))
-    if os.path.isdir(path):
-        file_list = get_paths_from_folders(path, suffix)
-        return file_list
-    else:
-        return path
 
 
 def sample_in_path(sample: str | int, bam_path: str) -> bool:

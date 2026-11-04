@@ -32,7 +32,7 @@ def generate_utr_reference_and_map_reads(
     ``call-peaks``: they decide the observation names stored with the mappings.
     """
 
-    from utrcalling.core import core, helpers, protocol
+    from utrcalling.core import core, protocol
     from utrcalling.core.module_log import module_logger
 
     # Set up logging
@@ -41,10 +41,6 @@ def generate_utr_reference_and_map_reads(
     logger = module_logger(disable=False, store_log=store_log, log_dir=log_dir, level=log_level)
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}\n")
-
-    # If a directory is provided instead of individual BAM files, discover them
-    if (not isinstance(alignments, list)) and (os.path.isdir(alignments)):
-        alignments = helpers.get_paths_from_folders(alignments, suffix=".bam")
 
     # Set up the protocol for this specific run
     protocol_ = protocol.create(
