@@ -43,17 +43,15 @@ def _resolve_workers(n_jobs: int | None) -> int:
 
 
 def _peak_call_single_utr(
-    adata_utr: ad.AnnData, method: str, bandwidth: float
+    adata_utr: ad.AnnData, bandwidth: float
 ) -> tuple[npt.NDArray[Any], pd.DataFrame]:
-    """Run peak calling on a single UTR slice of an AnnData.
+    """Run KDE peak calling on a single UTR slice of an AnnData.
 
-    Extracts gene name and UTR numbering, builds a size vector from read
-    counts, calls peaks via the specified method, and regroups the count
-    matrix according to the new peak assignments.
+    Builds a size vector from read counts, calls peaks with a Gaussian KDE, and
+    regroups the count matrix according to the new peak assignments.
 
     Args:
         adata_utr: AnnData subset for one UTR (all peaks within that UTR).
-        method: Peak calling method (currently only ``"kde"``).
         bandwidth: KDE bandwidth parameter.
 
     Returns:
@@ -68,10 +66,9 @@ def _peak_call_single_utr(
         adata_utr.X, adata_utr.var.utr_size.astype(int)
     )
 
-    if method.lower() == "kde":
-        peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
-        peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
-        peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
+    peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
+    peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
+    peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
 
     # create new matrix with the sum of UMIs for each new peak
     mtx_new_t = adata_utr[:, peak_sizes.index.values].to_df().T
@@ -100,7 +97,6 @@ def _peak_call_single_utr(
 def _peak_call_single_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
-    method: str,
     bandwidth: float,
 ) -> tuple[npt.NDArray[Any] | scipy.sparse.spmatrix, pd.DataFrame]:
     """Per-UTR peak-calling on raw ``(X, var)`` slices.
@@ -121,10 +117,9 @@ def _peak_call_single_utr_compact(
 
     umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size.astype(int))
 
-    if method.lower() == "kde":
-        peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
-        peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
-        peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
+    peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
+    peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
+    peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
 
     cols_pos = var_sub.index.get_indexer(peak_sizes.index)
     sizes_arr = np.asarray(peak_sizes.values)
@@ -195,10 +190,7 @@ def _get_score_distances_per_utr_compact(
     distances_bigger_ten = distances[distances.groupby(level=0).count() > threshold]
     in_range_of_pas = distances_bigger_ten.between(10, 30)
 
-    try:
-        return [in_range_of_pas.value_counts().loc[True] / total_umis, distances_]
-    except KeyError:
-        return [0, distances_]
+    return [in_range_of_pas.sum() / total_umis, distances_]
 
 
 # ---------------------------------------------------------------------------
@@ -212,11 +204,11 @@ CompactUtrItem = tuple[int, str, Any, pd.DataFrame]
 
 
 def _peak_call_utr_batch(
-    batch: list[CompactUtrItem], method: str, bandwidth: float
+    batch: list[CompactUtrItem], bandwidth: float
 ) -> list[tuple[int, npt.NDArray[Any], pd.DataFrame]]:
     out = []
     for orig_idx, _utr_name, X_sub, var_sub in batch:
-        mtx, var_df = _peak_call_single_utr_compact(X_sub, var_sub, method, bandwidth)
+        mtx, var_df = _peak_call_single_utr_compact(X_sub, var_sub, bandwidth)
         out.append((orig_idx, mtx, var_df))
     return out
 
@@ -309,6 +301,8 @@ def peak_call_anndata_parallel(
     """
     logger = module_log.module_logger()
 
+    if method.lower() != "kde":
+        raise NotImplementedError(f"Peak calling method {method!r} is not implemented: use 'kde'.")
     if bandwidth == 0:
         logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
@@ -330,7 +324,7 @@ def peak_call_anndata_parallel(
         with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                    joblib.delayed(_peak_call_utr_batch)(batch, method, bandwidth)
+                    joblib.delayed(_peak_call_utr_batch)(batch, bandwidth)
                     for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
                 )
             )
@@ -385,6 +379,8 @@ def peak_call_anndata(
     """
     logger = module_log.module_logger()
 
+    if method.lower() != "kde":
+        raise NotImplementedError(f"Peak calling method {method!r} is not implemented: use 'kde'.")
     if bandwidth == 0:
         logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
@@ -408,7 +404,7 @@ def peak_call_anndata(
                 logger.info(f"Skipping UTR {utr} with only {total_umis} UMIs (< {min_umis})")
                 continue
 
-        mtx, var = _peak_call_single_utr(adata_utr, method=method, bandwidth=bandwidth)
+        mtx, var = _peak_call_single_utr(adata_utr, bandwidth=bandwidth)
         mtx_list.append(mtx)
         var_list.append(var)
 

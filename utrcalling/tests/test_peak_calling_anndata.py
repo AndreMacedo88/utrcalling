@@ -161,9 +161,18 @@ class TestPeakCallAnndata(unittest.TestCase):
         )
 
     def test_bandwidth_zero_returns_unchanged(self):
-        result = pca.peak_call_anndata(self.adata, method="kde", bandwidth=0)
-        # Should return the same object
-        self.assertIs(result, self.adata)
+        for call_peaks in (pca.peak_call_anndata, pca.peak_call_anndata_parallel):
+            with self.subTest(caller=call_peaks.__name__):
+                self.assertIs(call_peaks(self.adata, method="kde", bandwidth=0), self.adata)
+
+    def test_unknown_method_raises(self):
+        # Used to fail with an UnboundLocalError deep in the per-UTR code.
+        for call_peaks in (pca.peak_call_anndata, pca.peak_call_anndata_parallel):
+            with (
+                self.subTest(caller=call_peaks.__name__),
+                self.assertRaisesRegex(NotImplementedError, "'gmm'"),
+            ):
+                call_peaks(self.adata, method="gmm", bandwidth=1)
 
     def test_output_has_fewer_or_equal_columns(self):
         result = pca.peak_call_anndata(self.adata, method="kde", bandwidth=1)
@@ -284,7 +293,7 @@ class TestPeakCallSingleUtr(unittest.TestCase):
             utr_sizes=[50, 100, 200],
             gene_names=["Gene1", "Gene1", "Gene1"],
         )
-        mtx, var_df = pca._peak_call_single_utr(adata, method="kde", bandwidth=1)
+        mtx, var_df = pca._peak_call_single_utr(adata, bandwidth=1)
         # mtx should have same number of rows as obs
         self.assertEqual(mtx.shape[0], 5)
         # var_df should have same number of rows as mtx columns
@@ -297,7 +306,7 @@ class TestPeakCallSingleUtr(unittest.TestCase):
             utr_sizes=[50, 200],
             gene_names=["Gene1", "Gene1"],
         )
-        _, var_df = pca._peak_call_single_utr(adata, method="kde", bandwidth=1)
+        _, var_df = pca._peak_call_single_utr(adata, bandwidth=1)
         self.assertIn("utr_size", var_df.columns)
 
 
@@ -458,14 +467,14 @@ class TestPeakCallSingleUtrCompact(unittest.TestCase):
 
     def test_dense_input_returns_dense(self):
         X, var_sub = self._make_inputs(sparse=False)
-        mtx, var_df = pca._peak_call_single_utr_compact(X, var_sub, "kde", 1)
+        mtx, var_df = pca._peak_call_single_utr_compact(X, var_sub, 1)
         self.assertFalse(scipy.sparse.issparse(mtx))
         self.assertEqual(mtx.shape[0], 5)
         self.assertEqual(var_df.shape[0], mtx.shape[1])
 
     def test_sparse_input_returns_sparse(self):
         X, var_sub = self._make_inputs(sparse=True)
-        mtx, var_df = pca._peak_call_single_utr_compact(X, var_sub, "kde", 1)
+        mtx, var_df = pca._peak_call_single_utr_compact(X, var_sub, 1)
         self.assertTrue(scipy.sparse.issparse(mtx))
         self.assertEqual(mtx.shape[0], 5)
         self.assertEqual(var_df.shape[0], mtx.shape[1])
@@ -473,15 +482,15 @@ class TestPeakCallSingleUtrCompact(unittest.TestCase):
     def test_sparse_and_dense_produce_same_values(self):
         X_dense, var_sub = self._make_inputs(sparse=False)
         X_sparse, _ = self._make_inputs(sparse=True)
-        mtx_dense, _ = pca._peak_call_single_utr_compact(X_dense, var_sub, "kde", 1)
-        mtx_sparse, _ = pca._peak_call_single_utr_compact(X_sparse, var_sub, "kde", 1)
+        mtx_dense, _ = pca._peak_call_single_utr_compact(X_dense, var_sub, 1)
+        mtx_sparse, _ = pca._peak_call_single_utr_compact(X_sparse, var_sub, 1)
         np.testing.assert_array_equal(mtx_dense, mtx_sparse.toarray())
 
     def test_column_sums_preserved(self):
         """Total UMI count across all peaks must equal total in original X.
         (Aggregator routes every input column to exactly one output column.)"""
         X, var_sub = self._make_inputs(sparse=True)
-        mtx, _ = pca._peak_call_single_utr_compact(X, var_sub, "kde", 1)
+        mtx, _ = pca._peak_call_single_utr_compact(X, var_sub, 1)
         total_in = X.sum()
         total_out = mtx.sum()
         self.assertEqual(int(total_in), int(total_out))
@@ -532,6 +541,54 @@ class TestEstimateBestBandwidthWithGenome(unittest.TestCase):
 
     def test_genome_without_a_hexamer_scores_zero(self):
         self.assertListEqual(self._scores("C" * 300, bandwidths=[1]), [0.0])
+
+    def test_a_single_bandwidth_can_be_given_as_a_number(self):
+        hexamer_upstream = "C" * 119 + "AATAAA" + "C" * 175
+        self.assertEqual(len(self._scores(hexamer_upstream, bandwidths=3)), 1)
+
+    def test_a_hexamer_away_from_the_molecules_scores_zero(self):
+        # AATAAA ending 80 nt into the UTR: the molecules end ~40 nt before it.
+        self.assertListEqual(self._scores("C" * 173 + "AATAAA" + "C" * 121, bandwidths=[1]), [0.0])
+
+    def test_distances_are_returned_on_request(self):
+        ((score, distances),) = pca.estimate_best_bandwidth(
+            self.adata,
+            genome=self._genome("C" * 119 + "AATAAA" + "C" * 175),
+            hamming=0,
+            bandwidths=[1],
+            return_distances_to_hex=True,
+            n_jobs=1,
+        )
+        self.assertEqual(len(distances), 33)  # one per molecule
+        self.assertEqual(score, np.mean((distances >= 10) & (distances <= 30)))
+
+
+class TestPasDistanceHamming(unittest.TestCase):
+    """The hexamer search allows `hamming` mismatches to AATAAA."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmpdir)
+        self.adata = _make_adata(
+            count_matrix=[[2, 5, 2], [1, 6, 1], [2, 4, 3], [0, 5, 2]],
+            utr_names=["UTR0"] * 3,
+            utr_sizes=[40, 41, 42],
+            n_obs=4,
+        )
+        # AATACA, one mismatch from AATAAA, ending 26 nt into the UTR.
+        self.genome = self.tmpdir / "genome.fa"
+        self.genome.write_text(">chr1\n" + "C" * 119 + "AATACA" + "C" * 175 + "\n")
+
+    def _distances(self, hamming):
+        return pca.pas_distance(self.adata, genome=str(self.genome), hamming=hamming, n_jobs=1)
+
+    def test_one_mismatch_is_found_with_hamming_1_only(self):
+        self.assertEqual(self._distances(0).size, 0)
+        self.assertListEqual(sorted(self._distances(1).tolist()), [14] * 5 + [15] * 20 + [16] * 8)
+
+    def test_negative_hamming_raises(self):
+        with self.assertRaisesRegex(ValueError, "Hamming distance of -1"):
+            pca._find_pas(self.adata.var, genome=str(self.genome), hamming=-1)
 
 
 if __name__ == "__main__":
