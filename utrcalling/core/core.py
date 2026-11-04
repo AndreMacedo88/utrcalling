@@ -266,10 +266,12 @@ def merge_utrs_per_feature(
         A (utr_regions, read_mappings) tuple, potentially merged to gene level.
     """
     if level.lower() == "gene":
-        utr_regions, read_mappings = process_mapped_reads.merge_utrs_per_gene(
+        return process_mapped_reads.merge_utrs_per_gene(
             utr_regions=utr_regions, read_mappings=read_mappings
         )
-    return utr_regions, read_mappings
+    if level.lower() == "utr":
+        return utr_regions, read_mappings
+    raise ValueError(f"Summarization level {level!r} is not 'UTR' or 'gene'.")
 
 
 def filter_mapped_reads(

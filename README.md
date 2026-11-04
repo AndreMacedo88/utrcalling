@@ -235,7 +235,7 @@ utrcalling call-peaks \
 | Option | Description |
 | --- | --- |
 | `--feature / -f` | UTR type: `three_prime_utr` (default) or `five_prime_utr`. |
-| `--summarization_level / -s` | Aggregate at `UTR`, `transcript`, or `gene` level. |
+| `--summarization_level / -s` | `utr` (default), or `gene` to join the UTRs of each gene. |
 | `--raw_sizes / -r` | Output both raw UTR sizes and KDE peaks. |
 | `--kde_bandwidth` | KDE bandwidth for peak calling (default: 12). |
 | `--strandedness` | Library strandedness for `truseq`: `reverse` (default), `forward`, or `unstranded`. |

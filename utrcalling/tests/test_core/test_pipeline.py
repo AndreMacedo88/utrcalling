@@ -874,6 +874,47 @@ class TestPipelineTruseqSynthetic(unittest.TestCase):
 # ---------------------------------------------------------------------------
 
 
+class TestMergeUtrsPerFeature(unittest.TestCase):
+    """Summarization levels: UTR (as mapped) or gene; nothing else exists."""
+
+    def setUp(self):
+        self.regions = pd.DataFrame(
+            {
+                "chrom": ["1", "1"],
+                "start": [100, 300],
+                "end": [200, 350],
+                "name": ["G1", "G1"],
+                "score": [0, 0],
+                "strand": ["+", "+"],
+                "transcript_id": ["T1", "T2"],
+                "gene_name": ["Gene1", "Gene1"],
+            },
+            index=pd.Index(["G1", "G1_2"], name="utr_name"),
+        )
+        self.reads = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["G1", "G1_2"]),
+                "observation_id": pd.Categorical(["c1", "c1"]),
+                "utr_size": np.array([10, 20], dtype=np.int32),
+            }
+        )
+
+    def test_utr_level_leaves_the_data_as_mapped(self):
+        regions, reads = core.merge_utrs_per_feature(self.regions, self.reads, level="UTR")
+        self.assertIs(regions, self.regions)
+        self.assertIs(reads, self.reads)
+
+    def test_gene_level_joins_the_utrs_of_a_gene(self):
+        regions, reads = core.merge_utrs_per_feature(self.regions, self.reads, level="gene")
+        self.assertListEqual(list(regions.index), ["G1"])
+        self.assertListEqual(reads.utr_size.tolist(), [10, 120])
+
+    def test_other_levels_raise(self):
+        # "transcript" was offered by the CLI but silently gave UTR-level output.
+        with self.assertRaisesRegex(ValueError, "transcript"):
+            core.merge_utrs_per_feature(self.regions, self.reads, level="transcript")
+
+
 class TestResolveBatchIdx(unittest.TestCase):
     """Unit tests for _resolve_batch_idx — the single-BAM batch index resolver."""
 

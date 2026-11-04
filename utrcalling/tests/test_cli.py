@@ -89,6 +89,18 @@ class TestCLIInvalidArgs(unittest.TestCase):
         result = _run_cli("call-peaks")
         self.assertNotEqual(result.returncode, 0)
 
+    def test_summarization_level_is_utr_or_gene_in_any_case(self):
+        from utrcalling.runtime import create_parser
+
+        parser = create_parser()
+        args = ["run", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv", "-s"]
+        self.assertEqual(parser.parse_args([*args, "UTR"]).summarization_level, "utr")
+        self.assertEqual(parser.parse_args([*args, "Gene"]).summarization_level, "gene")
+        self.assertEqual(parser.parse_args(args[:-1]).summarization_level, "utr")
+        result = _run_cli(*args, "transcript")
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("invalid choice", result.stderr)
+
     def test_nonexistent_subcommand(self):
         result = _run_cli("nonexistent-command")
         self.assertNotEqual(result.returncode, 0)

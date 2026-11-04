@@ -16,7 +16,7 @@ def run(
     protocol_version: int = 3,
     label_batches: bool | str | None = None,
     strandedness: str | None = None,
-    summarization_level: str = "UTR",
+    summarization_level: str = "utr",
     raw_sizes: bool = False,
     kde_bandwidth: int = 12,
     store_intermediate: bool = False,
@@ -246,12 +246,10 @@ def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser
     parser.add_argument(
         "--summarization_level",
         "-s",
-        type=str,
-        help="""
-                        Perform UTR size calling at the level of (merged) 'UTRs',
-                        'transcript', or 'gene' level.
-                        """,
-        default="UTR",
+        type=str.lower,
+        choices=["utr", "gene"],
+        help="Call UTR sizes per (merged) UTR, or per gene, joining the UTRs of each gene.",
+        default="utr",
     )
 
     parser.add_argument(
