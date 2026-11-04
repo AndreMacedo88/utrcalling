@@ -310,9 +310,22 @@ class TestRunCommandWithOneBam(_InTempDir):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        utrcalling("run", GTF, "-a", BAMS[0], *PIPELINE_FLAGS, "-r", "-o", "old.h5ad", cwd=cls.tmp)
+        utrcalling(
+            "run", GTF, "-a", BAMS[0], *PIPELINE_FLAGS, "-r", "-i", "-o", "old.h5ad", cwd=cls.tmp
+        )
         cls.alone = ad.read_h5ad(cls.tmp / "old.h5ad")
         cls.together = ad.read_h5ad(WORKDIR / "raw.h5ad")[cls.alone.obs_names]
+
+    def test_stores_the_mappings_of_its_one_bam(self):
+        # The same mappings as the first BAM's file of the run with both samples.
+        stored = pd.read_parquet(self.tmp / "intermediate" / "UTR_sizes_counts.parquet")
+        first = pd.read_parquet(WORKDIR / "intermediate" / "UTR_sizes_counts_1.parquet")
+        columns = ["utr_name", "observation_id", "utr_size"]
+
+        def rows(df):
+            return df[columns].astype(str).sort_values(columns).reset_index(drop=True)
+
+        pd.testing.assert_frame_equal(rows(stored), rows(first))
 
     def test_has_only_the_cells_of_that_sample(self):
         self.assertSetEqual(set(self.alone.obs.CellAge.astype(str)), {"old"})
@@ -516,6 +529,15 @@ class TestSiteProcessingCommands(_InTempDir):
         assert_same_anndata(ad.read_h5ad(self.tmp / "named.h5ad"), self.named)
         self.assertFalse((self.tmp / "named_1.h5ad").exists())
 
+    def test_dense_input_gives_dense_fractions(self):
+        dense = self.named.copy()
+        dense.X = _dense(dense.X)
+        dense.write_h5ad(self.tmp / "named_dense.h5ad")
+        utrcalling("counts-to-percentages", "named_dense.h5ad", "dense.h5ad", cwd=self.tmp)
+        fractions = ad.read_h5ad(self.tmp / "dense.h5ad").X
+        self.assertFalse(scipy.sparse.issparse(fractions))
+        np.testing.assert_allclose(fractions, _dense(self.fractions.X))
+
     def test_fractions_sum_to_one_per_cell_and_utr(self):
         self.assertTrue(scipy.sparse.issparse(self.fractions.X))
         fractions = _dense(self.fractions.X)
@@ -548,6 +570,14 @@ class TestComputeMeanUtrSizesCommand(_InTempDir):
     def test_one_column_per_utr_and_the_same_cells(self):
         self.assertListEqual(sorted(self.means.var_names), sorted(self.raw.var.utr_name.unique()))
         pd.testing.assert_index_equal(self.means.obs_names, self.raw.obs_names)
+
+    def test_unsorted_utrs_keep_their_annotations(self):
+        # The means come out sorted by UTR: their annotations must follow.
+        shuffled = self.raw[:, np.random.default_rng(0).permutation(self.raw.n_vars)]
+        shuffled.write_h5ad(self.tmp / "shuffled.h5ad")
+        utrcalling("compute-mean-utr-sizes", "shuffled.h5ad", "shuffled_means.h5ad", cwd=self.tmp)
+        means = ad.read_h5ad(self.tmp / "shuffled_means.h5ad")
+        assert_same_anndata(means[:, self.means.var_names], self.means)
 
     def test_values_are_the_count_weighted_mean_size(self):
         counts = _dense(self.raw.X)

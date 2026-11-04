@@ -1,6 +1,7 @@
 import os
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import anndata as ad
 import numpy as np
@@ -913,6 +914,35 @@ class TestMergeUtrsPerFeature(unittest.TestCase):
         # "transcript" was offered by the CLI but silently gave UTR-level output.
         with self.assertRaisesRegex(ValueError, "transcript"):
             core.merge_utrs_per_feature(self.regions, self.reads, level="transcript")
+
+
+class TestBatchNumbersOfSeveralBams(unittest.TestCase):
+    """Each BAM's reads are labelled with a batch number when mapping several BAMs."""
+
+    def _batch_numbers(self, **protocol_attributes):
+        attributes = dict(
+            sample_idx=None, label_batches=False, batches_range=None, read_in_pair="first"
+        )
+        attributes.update(protocol_attributes)
+        protocol_ = mock.Mock(**attributes)
+        type(protocol_)._reads_have_batch_suffix = mock.PropertyMock(return_value=False)
+        with (
+            mock.patch.object(core, "JOBLIB_DEFAULT_BACKEND", "sequential"),
+            mock.patch.object(core.utr_mapping, "map_reads_to_utr") as map_one_bam,
+        ):
+            core._map_multiple_bams(["a.bam", "b.bam"], {}, protocol_)
+        return [call.kwargs["batch_idx"] for call in map_one_bam.call_args_list]
+
+    def test_bams_are_numbered_in_order_by_default(self):
+        self.assertListEqual(self._batch_numbers(), ["1", "2"])
+
+    def test_samples_resolved_from_the_annotations_give_their_numbers(self):
+        numbers = self._batch_numbers(sample_idx={"a.bam": "4", "b.bam": "9"})
+        self.assertListEqual(numbers, ["4", "9"])
+
+    def test_one_annotated_batch_per_bam_gives_the_annotated_batches(self):
+        numbers = self._batch_numbers(label_batches=True, batches_range=["3", "7"])
+        self.assertListEqual(numbers, ["3", "7"])
 
 
 class TestResolveBatchIdx(unittest.TestCase):
