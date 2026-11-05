@@ -318,6 +318,8 @@ although `--help` no longer lists them:
 | `estimate-best-bandwidth` | `bandwidth score` |
 | `call-peaks-different-bandwidths` | `bandwidth call-peaks` |
 
+[CHANGELOG.md](CHANGELOG.md) lists what changed in each version.
+
 ## Testing
 
 The test suite covers all protocols, edge cases, and the full pipeline
