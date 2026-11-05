@@ -1,42 +1,68 @@
-# import general tools
+"""`utrcalling call-peaks`: UTR site counts from the read mappings that run stores."""
+
 from __future__ import annotations
 
-import argparse
-import ast
 import os
+from typing import Annotated
+
+from cyclopts import Parameter
+
+from utrcalling.tools.options import (
+    INPUTS,
+    OUTPUT,
+    AnnotationsFile,
+    BatchMergeMethod,
+    Cores,
+    KdeBandwidth,
+    LabelBatches,
+    LogLevel,
+    NoLogFile,
+    Out,
+    ProtocolPlatform,
+    ProtocolVersion,
+    RawSizes,
+    StoreIntermediate,
+    SummarizationLevel,
+)
 
 
 def call_peaks(
-    utr_annotation: str,
-    utr_sizes_counts: list[str],
-    annotations_file: str | None = None,
-    batch_merge_method: str | None = None,
-    protocol_platform: str = "10x",
-    protocol_version: int = 3,
-    label_batches: bool | str | None = None,
-    summarization_level: str = "utr",
-    raw_sizes: bool = False,
-    kde_bandwidth: int = 12,
-    store_intermediate: bool = False,
-    log_level: str = "info",
-    out: str = "UTR_results.h5ad",
-    store_log: bool = True,
-    no_log_file: bool = False,
-    cores: int | None = None,
+    utr_annotation: Annotated[str, Parameter(group=INPUTS)],
+    *,
+    utr_sizes_counts: Annotated[
+        list[str], Parameter(name=("--utr-sizes-counts", "-c"), consume_multiple=1, group=INPUTS)
+    ],
+    annotations_file: AnnotationsFile | None = None,
+    protocol_platform: ProtocolPlatform = "10x",
+    protocol_version: ProtocolVersion = 3,
+    label_batches: LabelBatches = None,
+    batch_merge_method: BatchMergeMethod = None,
+    summarization_level: SummarizationLevel = "utr",
+    raw_sizes: RawSizes = False,
+    kde_bandwidth: KdeBandwidth = 12,
+    out: Out = "UTR_counts.h5ad",
+    store_intermediate: StoreIntermediate = False,
+    log_level: LogLevel = "info",
+    no_log_file: NoLogFile = False,
+    cores: Annotated[Cores, Parameter(group=OUTPUT)] = None,
 ) -> None:
-    """
-    Returns UTR length peak counts per cell/sample/batch from UTR length counts and UTR
-    annotation files.
+    """Count the molecules at each UTR site from stored read mappings.
+
+    Does the last steps of `run` (merging samples, filtering and peak calling)
+    from the files that `run -i` or `prepare-reference-and-map-reads` store in
+    ./intermediate/. Give it the same annotation file, protocol and
+    --label-batches as the command that stored them.
+
+    For example:
+
+        utrcalling call-peaks intermediate/utr_reference_regions.parquet \\
+            -c intermediate/UTR_sizes_counts_*.parquet -A experiment.csv
 
     Args:
-        utr_annotation (str): Path to the UTR reference (.parquet, or .pkl).
-        utr_sizes_counts (str): Path to a parquet object with a UtrMappings object.
-        single_cell_annotation (str, optional): Path to the experiments' annotation file.
-            Defaults to None.
-        store_intermediate (bool, optional): [description]. Defaults to False.
-        protocol_platform (str, optional): [description]. Defaults to "10x".
-        protocol_version (int, optional): [description]. Defaults to 3.
-        out (str, optional): Path to write the results. Defaults to "UTR_results.h5ad".
+        utr_annotation: UTR reference: the utr_reference_regions.parquet that run -i
+            or prepare-reference-and-map-reads stores (or a .pkl from older versions).
+        utr_sizes_counts: Read mappings (.parquet): one file per BAM, or the merged
+            file that run -i stores for several BAMs.
     """
 
     from utrcalling.core import core, helpers, protocol, storage
@@ -44,7 +70,7 @@ def call_peaks(
     from utrcalling.core.protocols import peak_calling as pc
 
     # Set up logging
-    store_log = store_log and not no_log_file
+    store_log = not no_log_file
     log_dir = os.path.dirname(os.path.abspath(out)) if store_log else None
     logger = module_logger(disable=False, store_log=store_log, log_dir=log_dir, level=log_level)
     for arg, value in locals().items():
@@ -139,191 +165,3 @@ def call_peaks(
         storage.write_anndata(count_matrix_anndata, out)
 
     return
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = "Calls consensus peaks based on raw UTR size counts."
-
-    description = (
-        f"{help} "
-        "Returns UTR size consensus peak counts per cell/sample/batch "
-        "from UTR size counts and UTR annotation files. "
-        "Exports the UTR sizes count matrix to a h5ad file. "
-        "This is the third part of the UTR calling pipeline."
-    )
-
-    parser = subparsers.add_parser(
-        name="call-peaks",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example on how to use in command-line:
-    $ utrcalling call-peaks mus_musculus_UTRs.bed -c sample-1.parquet sample-2.parquet
-    -A experiment.csv -p 10x -v 2 -i -o results.h5ad
-    """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument(
-        "utr_annotation",
-        type=str,
-        help=(
-            "UTR reference: the utr_reference_regions.parquet that run -i or "
-            "prepare-reference-and-map-reads write (or a .pkl from older versions)."
-        ),
-    )
-
-    parser.add_argument(
-        "--utr_sizes_counts",
-        "-c",
-        nargs="+",
-        type=str,
-        required=True,
-        help="""
-        File, or files with the utr and read information. One file per sample/batch should be
-        supplied if downstream applications involve comparisons between the samples/batches.
-        The files should be parquet files of a UtrMappings object.
-        """,
-    )
-
-    parser.add_argument(
-        "--annotations_file",
-        "-A",
-        type=str,
-        help="""
-                        File with your experiment's information, such as cell barcodes.
-                        """,
-        default=None,
-    )
-
-    parser.add_argument(
-        "--protocol_platform",
-        "-p",
-        type=str,
-        help=(
-            "Sequencing platform used. Options: 10x, smartseq, "
-            "smart-seq_cap, smart-seq_cap-readname, 5prime10x, "
-            "standard_10x (Cell Ranger BAM), standard_smartseq, "
-            "truseq (stranded bulk RNA-seq, e.g. TruSeq Stranded mRNA), "
-            "bulk_pe (unstranded paired-end bulk RNA-seq; one observation "
-            "per fragment, positioned at the fragment's polyA-distal base)."
-        ),
-        default="10x",
-    )
-
-    parser.add_argument(
-        "--protocol_version",
-        "-v",
-        type=int,
-        help="Version of the protocol used in library preparation.",
-        default=3,
-    )
-
-    parser.add_argument(
-        "--batch_merge_method",
-        "-m",
-        type=str,
-        help="""
-                        Method used to deal with different UTR coverage in different
-                        batches. If `union`, then the tool outputs UTRs that are not
-                        represented by all batches. If `intersection` only the reads that
-                        map to UTRs in common between all batches will be used. Default
-                        depends on the protocol used.
-                        """,
-        default=None,
-    )
-
-    parser.add_argument(
-        "--summarization_level",
-        "-s",
-        type=str.lower,
-        choices=["utr", "gene"],
-        help="Call UTR sizes per (merged) UTR, or per gene, joining the UTRs of each gene.",
-        default="utr",
-    )
-
-    parser.add_argument(
-        "--store_intermediate",
-        "-i",
-        action="store_true",
-        help="""
-                        Stores intermediate files that can be used to
-                        run quicker pipelines later on. Useful if something wrong
-                        is happening in later stages of the pipeline.
-                        """,
-    )
-
-    parser.add_argument(
-        "--raw_sizes",
-        "-r",
-        action="store_true",
-        help="""
-                        Produces a count matrix with the individual UMI UTR sizes, without
-                        aggregating individual molecules' UTR sizes into consensus peaks.
-                        Also produces a second file with KDE-estimated peaks (suffix _kde).
-                        """,
-    )
-
-    parser.add_argument(
-        "--kde_bandwidth",
-        type=int,
-        default=12,
-        help="""
-                        Bandwidth of the Gaussian KDE that collapses UTR sizes into
-                        consensus peaks. Applies to the standard peak-calling path and
-                        to the KDE output of --raw_sizes. The default of 12 is tuned for
-                        3'-end-enriched assays where reads pile within a few bp of a true
-                        polyadenylation site; random-fragmentation libraries have a much
-                        broader per-site spread and need a wider kernel, otherwise the
-                        smear is carved into many closely-spaced pseudo-peaks.
-                        """,
-    )
-
-    parser.add_argument(
-        "--label_batches",
-        "-L",
-        type=ast.literal_eval,
-        help="""
-                        If True, gets the batches from the annotation file and labels each
-                        barcode/sample according to the batch. This prevents aggregation
-                        of the results if barcodes are recycled between batches, or when
-                        2 samples have the same ID.
-                        """,
-        default=None,
-    )
-
-    parser.add_argument(
-        "--log_level",
-        "-l",
-        type=str,
-        help="Level of logging messages to retrieve during the run.",
-        default="info",
-    )
-
-    parser.add_argument(
-        "--no_log_file",
-        action="store_true",
-        help="Disable writing a log file alongside the output.",
-    )
-
-    parser.add_argument(
-        "--out",
-        "-o",
-        type=str,
-        help="Path or partial path to a folder to store the result files.",
-        default="UTR_counts.h5ad",
-    )
-
-    parser.add_argument(
-        "--cores",
-        type=int,
-        default=None,
-        help=(
-            "Max worker processes for the per-UTR parallel loop. Defaults to "
-            "JOBLIB_DEFAULT_N_JOBS (12) when omitted. Pass a non-positive "
-            "value to use all-but-one core."
-        ),
-    )
-
-    parser.set_defaults(func=call_peaks)

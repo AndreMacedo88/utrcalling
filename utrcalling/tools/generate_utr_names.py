@@ -1,12 +1,34 @@
-# import general tools
+"""`utrcalling process rename`: number each gene's sites again, after filtering."""
+
 from __future__ import annotations
 
-import argparse
+from typing import Annotated
+
+from cyclopts import Parameter
+
+from utrcalling.tools.options import UtrNameColumn
 
 
 def generate_names(
-    input_path: str, out_path: str, utr_name_column: str, gene_name_column: str
+    input_path: str,
+    out_path: str,
+    *,
+    utr_name_column: UtrNameColumn = "utr_name",
+    gene_name_column: Annotated[str, Parameter(name=("--gene-name-column", "-g"))] = "gene_name",
 ) -> None:
+    """Number each gene's sites 1, 2, ... again, for example after filtering.
+
+    utrcalling names sites `<gene>_<n>-<UTR size in bp>` when it writes them,
+    where n numbers the sites of each gene. Filtering removes sites and leaves gaps in
+    n: this numbers each gene's remaining sites again. The previous names are
+    kept in .var["UTR_site"].
+
+    Args:
+        input_path: Count matrix (.h5ad).
+        out_path: Where to write the renamed count matrix (.h5ad).
+        gene_name_column: Column of the count matrix's .var table with the gene
+            names. Genes without a name use the Ensembl ID that starts their UTR name.
+    """
     from utrcalling.core import anndata_processing as ap
     from utrcalling.core import helpers
 
@@ -16,55 +38,3 @@ def generate_names(
     )
 
     adata.write_h5ad(out_path)
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = "Renumbers the UTR sites of an AnnData object, for example after filtering."
-
-    description = (
-        f"{help} "
-        "utrcalling names sites <gene_name>_<n>-<UTR_length_in_bp> when it writes them, "
-        "where n numbers the sites of each gene. Filtering steps remove sites and leave "
-        "gaps in n: this numbers each gene's remaining sites 1, 2, ... again. The "
-        "previous names are kept in .var['UTR_site']."
-    )
-
-    parser = subparsers.add_parser(
-        name="generate-names",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example use:
-    $ utrcalling generate-names adata_old.h5ad adata_new_names.h5ad
-    """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument(
-        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
-    )
-
-    parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-
-    parser.add_argument(
-        "--utr_name_column",
-        "-u",
-        type=str,
-        help="""
-        Name of the column in the AnnData object that contains the UTR name.
-        """,
-        default="utr_name",
-    )
-
-    parser.add_argument(
-        "--gene_name_column",
-        "-g",
-        type=str,
-        help="""
-        Name of the column in the AnnData object that contains the gene name.
-        """,
-        default="gene_name",
-    )
-
-    parser.set_defaults(func=generate_names)

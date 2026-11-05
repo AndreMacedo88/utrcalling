@@ -1,42 +1,58 @@
-# import general tools
+"""`utrcalling prepare-reference-and-map-reads`: the first half of the pipeline."""
+
 from __future__ import annotations
 
-import argparse
-import ast
 import os
+from typing import Annotated
+
+from cyclopts import Parameter
+
+from utrcalling.tools.options import (
+    INPUTS,
+    Alignments,
+    AnnotationsFile,
+    Feature,
+    LabelBatches,
+    LogLevel,
+    NoLogFile,
+    ProtocolPlatform,
+    ProtocolVersion,
+    Strandedness,
+)
 
 
 def generate_utr_reference_and_map_reads(
-    utr_annotation: str,
-    alignments: list[str],
-    annotations_file: str,
-    feature: str = "three_prime_utr",
-    protocol_platform: str = "10x",
-    protocol_version: int = 3,
-    label_batches: bool | str | None = None,
-    strandedness: str | None = None,
-    log_level: str = "info",
-    store_log: bool = True,
-    no_log_file: bool = False,
+    utr_annotation: Annotated[str, Parameter(group=INPUTS)],
+    *,
+    alignments: Alignments,
+    annotations_file: AnnotationsFile,
+    feature: Feature = "three_prime_utr",
+    protocol_platform: ProtocolPlatform = "10x",
+    protocol_version: ProtocolVersion = 3,
+    strandedness: Strandedness = None,
+    label_batches: LabelBatches = None,
+    log_level: LogLevel = "info",
+    no_log_file: NoLogFile = False,
 ) -> None:
-    """
-    Gets UTR sizes peak counts per cell/sample/batch from input file/s.
+    """Build the UTR reference and map the reads to it, for call-peaks to continue.
+
+    Stores the UTR reference and each BAM's read mappings in ./intermediate/.
+    Give call-peaks the same annotation file and --label-batches: they decide
+    the observation names stored with the mappings.
+
+    For example:
+
+        utrcalling prepare-reference-and-map-reads mus_musculus.gtf -a wt.bam ko.bam -A experiment.csv
 
     Args:
-        utr_annotation (str): [description]
-        alignments (str): [description]
-        feature (str, optional): [description]. Defaults to 'three_prime_utr'.
-        protocol_version (int, optional): [description]. Defaults to 3.
-
-    The annotation file and ``label_batches`` must match those later given to
-    ``call-peaks``: they decide the observation names stored with the mappings.
+        utr_annotation: GTF file with the genome annotation (plain or gzipped).
     """
 
     from utrcalling.core import core, protocol
     from utrcalling.core.module_log import module_logger
 
     # Set up logging
-    store_log = store_log and not no_log_file
+    store_log = not no_log_file
     log_dir = os.getcwd() if store_log else None
     logger = module_logger(disable=False, store_log=store_log, log_dir=log_dir, level=log_level)
     for arg, value in locals().items():
@@ -59,118 +75,3 @@ def generate_utr_reference_and_map_reads(
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info("Mapping aligned reads to UTR reference")
     core.map_aligned_reads(alignments, utr_reference_regions, protocol_, store=True)
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = "Builds a UTR reference and then maps the supplied reads to generate raw UTR sizes."
-
-    description = f"{help} This is the first and second part of the UTR calling pipeline."
-
-    parser = subparsers.add_parser(
-        name="prepare-reference-and-map-reads",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example on how to use in command-line:
-    $ utrcalling prepare-reference-and-map-reads mus_musculus.gtf
-    -a bowtie_align.bam bowtie_align_ko.bam -A experiment.csv -f three_prime_utr -p 10x -v 2
-        """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument("utr_annotation", type=str, help="GTF file with the genome annotations")
-
-    parser.add_argument(
-        "--alignments",
-        "-a",
-        nargs="+",
-        type=str,
-        required=True,
-        help="""
-    File, or files with the read alignments. One alignment per sample/batch should be
-    supplied if downstream applications involve comparisons between the samples/batches.
-    Alignments must be sorted and have an index file .bai in the same directory
-    """,
-    )
-
-    parser.add_argument(
-        "--annotations_file",
-        "-A",
-        type=str,
-        required=True,
-        help="""
-    File with your experiment's information, such as cell barcodes, sample IDs, and
-    batch information. Use the same file with call-peaks.
-    """,
-    )
-
-    parser.add_argument(
-        "--label_batches",
-        "-L",
-        type=ast.literal_eval,
-        default=None,
-        help="""
-    If True, gets the batches from the annotation file and labels each barcode/sample
-    according to the batch. Use the same value with call-peaks.
-    """,
-    )
-
-    parser.add_argument(
-        "--feature",
-        "-f",
-        type=str,
-        help="Type of UTR that you want to map. three_prime_utr or \
-                            five_prime_utr",
-        default="three_prime_utr",
-    )
-
-    parser.add_argument(
-        "--protocol_platform",
-        "-p",
-        type=str,
-        help=(
-            "Sequencing platform used. Options: 10x, smartseq, "
-            "smart-seq_cap, smart-seq_cap-readname, 5prime10x, "
-            "standard_10x (Cell Ranger BAM), standard_smartseq, "
-            "truseq (stranded bulk RNA-seq, e.g. TruSeq Stranded mRNA), "
-            "bulk_pe (unstranded paired-end bulk RNA-seq; one observation "
-            "per fragment, positioned at the fragment's polyA-distal base)."
-        ),
-        default="10x",
-    )
-
-    parser.add_argument(
-        "--protocol_version",
-        "-v",
-        type=int,
-        help="Version of the protocol used in library preparation.",
-        default=3,
-    )
-
-    parser.add_argument(
-        "--strandedness",
-        type=str,
-        choices=["reverse", "forward", "unstranded"],
-        default=None,
-        help=(
-            "Library strandedness for stranded bulk protocols (e.g. truseq). "
-            "'reverse' (default for truseq), 'forward', or 'unstranded'. "
-            "Ignored by protocols with a fixed strand convention."
-        ),
-    )
-
-    parser.add_argument(
-        "--log_level",
-        "-l",
-        type=str,
-        help="Level of logging messages to retrieve during the run.",
-        default="info",
-    )
-
-    parser.add_argument(
-        "--no_log_file",
-        action="store_true",
-        help="Disable writing a log file alongside the output.",
-    )
-
-    parser.set_defaults(func=generate_utr_reference_and_map_reads)

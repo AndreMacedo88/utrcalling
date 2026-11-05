@@ -1,12 +1,31 @@
-# import general tools
+"""`utrcalling bandwidth call-peaks`: peaks of a raw-sizes count matrix, per bandwidth."""
+
 from __future__ import annotations
 
-import argparse
+from utrcalling.tools.options import Bandwidths, Cores
 
 
 def call_peaks_different_bandwidths(
-    input_path: str, out_path: str, bandwidths: list[int], cores: int | None = None
+    input_path: str,
+    out_path: str,
+    *,
+    bandwidths: Bandwidths = (12,),
+    cores: Cores = None,
 ) -> None:
+    """Collapse each molecule's UTR size into peaks, with one or more KDE bandwidths.
+
+    Takes the raw-sizes count matrix of `run -r` and collapses the sizes of each
+    UTR into sites (peaks), as `run` does, once per bandwidth. Writes one file per
+    bandwidth: `<out_path>_bw<bandwidth>.h5ad`.
+
+    For example:
+
+        utrcalling bandwidth call-peaks raw_sizes.h5ad peaks -b 7 12 15
+
+    Args:
+        input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.
+        out_path: Start of the output file names (a .h5ad ending is dropped).
+    """
     from utrcalling.core import helpers
     from utrcalling.core import peak_calling_anndata as pc
 
@@ -18,60 +37,3 @@ def call_peaks_different_bandwidths(
             adata, method="kde", bandwidth=bandwidth, n_jobs=cores
         )
         adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = (
-        "Converts raw UMI sizes to consensus peaks, using a Gaussian KDE with the "
-        "supplied bandwidths."
-    )
-
-    description = (
-        f"{help} "
-        "One file per bandwidth is created, by appending '_bw<N>.h5ad' to "
-        "the supplied out_path."
-    )
-
-    parser = subparsers.add_parser(
-        name="call-peaks-different-bandwidths",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example use:
-    $ utrcalling call-peaks-different-bandwidths adata.h5ad adata -b 1 7 12 15
-    """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument(
-        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
-    )
-    parser.add_argument(
-        "out_path",
-        type=str,
-        help="""
-                        Path where output will be stored. '_bw' plus the bandwidth used
-                        will be appended to out_path.
-                        """,
-    )
-    parser.add_argument(
-        "-b",
-        "--bandwidths",
-        nargs="+",
-        type=int,
-        default=[12],
-        help="One or more bandwidths to use in the gaussian kernel",
-    )
-    parser.add_argument(
-        "--cores",
-        type=int,
-        default=None,
-        help=(
-            "Max worker processes for the per-UTR parallel loop. Defaults to "
-            "JOBLIB_DEFAULT_N_JOBS (-2 = all-but-one core) when omitted. "
-            "Pass an explicit positive int to constrain (e.g. inside Snakemake)."
-        ),
-    )
-
-    parser.set_defaults(func=call_peaks_different_bandwidths)

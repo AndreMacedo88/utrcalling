@@ -1,12 +1,23 @@
-# import general tools
+"""`utrcalling process to-fractions`: each site's share of its UTR's counts."""
+
 from __future__ import annotations
 
-import argparse
+from utrcalling.tools.options import UtrNameColumn
 
 
 def counts_to_percentages(
-    input_path: str, out_path: str, utr_name_column: str = "utr_name"
+    input_path: str, out_path: str, *, utr_name_column: UtrNameColumn = "utr_name"
 ) -> None:
+    """Convert counts into each site's share of its UTR's counts, per cell.
+
+    In each cell (or sample), divides the count of every site by the total count
+    of its UTR, so a UTR's sites add up to 1 (0 where the cell has no counts in
+    that UTR).
+
+    Args:
+        input_path: Count matrix (.h5ad).
+        out_path: Where to write the fractions (.h5ad).
+    """
     import scipy.sparse
 
     from utrcalling.core import anndata_processing as ap
@@ -21,47 +32,3 @@ def counts_to_percentages(
     if is_sparse:
         adata.X = scipy.sparse.csr_matrix(adata.X)
     adata.write_h5ad(out_path)
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = (
-        "Converts the UMI counts per polyA site into percentage polyA site "
-        "usage in relation to the total sum of UMIs in the UTR."
-    )
-
-    description = f"{help} "
-
-    parser = subparsers.add_parser(
-        name="counts-to-percentages",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example use:
-    $ utrcalling counts-to-percentages adata.h5ad adata_percentages.h5ad -u utr_name
-    """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument(
-        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
-    )
-    parser.add_argument(
-        "out_path",
-        type=str,
-        help="""
-                        Path where output will be stored.
-                        """,
-    )
-    parser.add_argument(
-        "-u",
-        "--utr_name_column",
-        type=str,
-        default="utr_name",
-        help="""
-                        The name of the column in the anndata.var dataframe that
-                        contains the names of the UTRs.
-                        """,
-    )
-
-    parser.set_defaults(func=counts_to_percentages)

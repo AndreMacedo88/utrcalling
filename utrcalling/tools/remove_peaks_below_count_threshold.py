@@ -1,12 +1,34 @@
-# import general tools
+"""`utrcalling process filter`: remove the sites with few counts."""
+
 from __future__ import annotations
 
-import argparse
+from typing import Annotated
+
+from cyclopts import Parameter
 
 
 def remove_peaks_below_count_threshold(
-    input_path: str, out_path: str, threshold: float, minimum_counts: int
+    input_path: str,
+    out_path: str,
+    *,
+    threshold: Annotated[float, Parameter(name=("--threshold", "-t"))] = 0.05,
+    minimum_counts: Annotated[int, Parameter(name=("--minimum-counts", "-m"))] = 10,
 ) -> None:
+    """Remove the sites with few counts, keeping the most likely true sites.
+
+    Keeps a site if its total count over all cells reaches the larger of
+    threshold x its UTR's total count, and minimum_counts.
+
+    For example:
+
+        utrcalling process filter sites.h5ad filtered.h5ad -t 0.05 -m 10
+
+    Args:
+        input_path: Count matrix (.h5ad).
+        out_path: Where to write the filtered count matrix (.h5ad).
+        threshold: Minimum share of its UTR's counts that a site needs (0.05 is 5%).
+        minimum_counts: Minimum count that a site needs.
+    """
     from utrcalling.core import helpers
     from utrcalling.core import peak_calling_anndata as pc
 
@@ -17,49 +39,3 @@ def remove_peaks_below_count_threshold(
     )
 
     adata_new.write_h5ad(out_path)
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = (
-        "Removes the UTR location peaks that have less than `threshold` counts in "
-        "the sum of all cells/samples/batches."
-    )
-
-    description = (
-        f"{help} "
-        "This effectively curates the peaks, selecting the most common "
-        "and/or more prone to be true peaks."
-    )
-
-    parser = subparsers.add_parser(
-        name="remove-peaks-below-threshold",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example use:
-    $ utrcalling remove-peaks-below-threshold adata_old.h5ad adata_filtered.h5ad -t 10
-    """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument(
-        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
-    )
-    parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-    parser.add_argument(
-        "-t",
-        "--threshold",
-        type=float,
-        help="Percent threshold (fractional) to filter the data.",
-        default=0.05,
-    )
-    parser.add_argument(
-        "-m",
-        "--minimum_counts",
-        type=int,
-        help="Minimum counts per peak to retain the peak.",
-        default=10,
-    )
-
-    parser.set_defaults(func=remove_peaks_below_count_threshold)

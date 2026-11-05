@@ -1,12 +1,40 @@
-# import general tools
+"""`utrcalling qc pas-distance`: distances of molecules to polyadenylation signals."""
+
 from __future__ import annotations
 
-import argparse
+from typing import Annotated
+
+from cyclopts import Parameter
+
+from utrcalling.tools.options import Cores
 
 
 def check_distance_to_pas(
-    input_path: str, out_path: str, genome_path: str, hamming: int, cores: int | None = None
+    input_path: str,
+    out_path: str,
+    genome_path: str,
+    *,
+    hamming: Annotated[int, Parameter(name=("--hamming", "-H"))] = 0,
+    cores: Cores = None,
 ) -> None:
+    """Measure each molecule's distance to the nearest polyadenylation signal (PAS).
+
+    Finds the PAS hexamer AATAAA in each UTR. For every molecule, the distance
+    is its UTR size minus the position where the nearest hexamer ends, so
+    molecules cleaved 10-30 nt after a hexamer, as expected, give 10 to 30.
+    Molecules of UTRs without a hexamer give none. Saves the distances as a
+    numpy array with joblib.
+
+    For example:
+
+        utrcalling qc pas-distance sites.h5ad distances.joblib GRCh38.fa -H 1
+
+    Args:
+        input_path: Count matrix (.h5ad) of sites or raw UTR sizes.
+        out_path: Where to write the distances (joblib file).
+        genome_path: Genome sequence (FASTA) of the annotation the UTRs come from.
+        hamming: How many mismatches to AATAAA a hexamer may have.
+    """
     import joblib
     import pybedtools
 
@@ -18,54 +46,3 @@ def check_distance_to_pas(
     distances_array = pc.pas_distance(adata=adata, genome=genome, hamming=hamming, n_jobs=cores)
 
     joblib.dump(distances_array, out_path)
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = (
-        "Produces a vector with the distance of every mapped UMI to the canonical poly "
-        "adenylation start site."
-    )
-
-    description = (
-        f"{help} Degeneration of the canonical PAS can be accounted for by supplying hamming > 0."
-    )
-
-    parser = subparsers.add_parser(
-        name="check-distance-to-pas",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example use:
-    $ utrcalling check-distance-to-pas adata.h5ad distances_to_pas.joblib
-        Homo_sapiens.GRCh38.dna.primary_assembly.fa -H 0
-    """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument(
-        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
-    )
-    parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-    parser.add_argument("genome_path", type=str, help="Path to a genome file (fasta format).")
-    parser.add_argument(
-        "-H",
-        "--hamming",
-        type=int,
-        default=0,
-        help="""
-                        Number of differences to the canonical PAS hexamer (AATAAA)
-                        that can be tolerated
-                        """,
-    )
-    parser.add_argument(
-        "--cores",
-        type=int,
-        default=None,
-        help=(
-            "Max worker processes for the per-UTR parallel loop. Defaults to "
-            "JOBLIB_DEFAULT_N_JOBS (-2 = all-but-one core) when omitted."
-        ),
-    )
-
-    parser.set_defaults(func=check_distance_to_pas)

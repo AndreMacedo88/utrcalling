@@ -1,5 +1,6 @@
 """CLI tests: subcommands parse, --help works, and the tool entry points behave."""
 
+import io
 import os
 import shutil
 import subprocess
@@ -27,108 +28,191 @@ def _run_cli(*args, timeout=30):
     )
 
 
+def _parse(*tokens):
+    """The function and the arguments, defaults included, that `utrcalling <tokens>` runs."""
+    from utrcalling import runtime
+
+    command, bound, _ = runtime.app.parse_args(
+        runtime.hyphenate_long_options(list(tokens)), exit_on_error=False, print_error=False
+    )
+    bound.apply_defaults()
+    return command, bound.arguments
+
+
+def _help(*command):
+    """The help page of `utrcalling <command>`."""
+    from rich.console import Console
+
+    from utrcalling import runtime
+
+    console = Console(file=io.StringIO(), width=100)
+    runtime.app([*command, "--help"], console=console)
+    return console.file.getvalue()
+
+
+RUN = ["run", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv"]
+
+# The commands of each group, and the arguments they need.
+GROUPED_COMMANDS = {
+    ("process", "filter"): ["in.h5ad", "out.h5ad"],
+    ("process", "select-alternative"): ["in.h5ad", "out.h5ad"],
+    ("process", "rename"): ["in.h5ad", "out.h5ad"],
+    ("process", "to-fractions"): ["in.h5ad", "out.h5ad"],
+    ("process", "mean-sizes"): ["in.h5ad", "out.h5ad"],
+    ("process", "concatenate"): ["-i", "a.h5ad", "b.h5ad", "-o", "out.h5ad"],
+    ("qc", "pas-distance"): ["in.h5ad", "out.joblib", "genome.fa"],
+    ("bandwidth", "score"): ["in.h5ad", "out.joblib", "genome.fa"],
+    ("bandwidth", "call-peaks"): ["in.h5ad", "out"],
+}
+# Their names before version 4.0.0.
+OLD_NAMES = {
+    ("process", "filter"): "remove-peaks-below-threshold",
+    ("process", "select-alternative"): "select-alternative-transcription-events",
+    ("process", "rename"): "generate-names",
+    ("process", "to-fractions"): "counts-to-percentages",
+    ("process", "mean-sizes"): "compute-mean-utr-sizes",
+    ("process", "concatenate"): "concatenate-experiments",
+    ("qc", "pas-distance"): "check-distance-to-pas",
+    ("bandwidth", "score"): "estimate-best-bandwidth",
+    ("bandwidth", "call-peaks"): "call-peaks-different-bandwidths",
+}
+
+
 class TestCLIHelp(unittest.TestCase):
-    """Test that --help works for the main parser and all subcommands."""
+    """`--help` describes every command, grouped by purpose."""
 
     def test_main_help(self):
         result = _run_cli("--help")
         self.assertEqual(result.returncode, 0)
-        self.assertIn("Suite of tools", result.stdout)
+        self.assertIn("Count the molecules at each UTR site", result.stdout)
 
     def test_version(self):
         result = _run_cli("--version")
         self.assertEqual(result.returncode, 0)
         self.assertIn("Software version:", result.stdout)
 
-    def test_run_help(self):
-        result = _run_cli("run", "--help")
-        self.assertEqual(result.returncode, 0)
-        self.assertIn("utr_annotation", result.stdout)
+    def test_main_help_lists_the_pipeline_and_the_command_groups(self):
+        page = _help()
+        for panel in ("Pipeline", "Command groups"):
+            self.assertIn(panel, page)
+        for command in ("run", "prepare-reference-and-map-reads", "call-peaks"):
+            self.assertIn(command, page)
+        for group in ("process", "qc", "bandwidth"):
+            self.assertIn(group, page)
 
-    def test_call_peaks_help(self):
-        result = _run_cli("call-peaks", "--help")
-        self.assertEqual(result.returncode, 0)
+    def test_group_help_lists_its_commands(self):
+        for group, command in GROUPED_COMMANDS:
+            with self.subTest(group=group, command=command):
+                self.assertIn(command, _help(group))
 
-    def test_prepare_reference_help(self):
-        result = _run_cli("prepare-reference-and-map-reads", "--help")
-        self.assertEqual(result.returncode, 0)
+    def test_old_names_are_not_listed(self):
+        page = _help()
+        for old_name in OLD_NAMES.values():
+            with self.subTest(old_name=old_name):
+                self.assertNotIn(old_name, page)
 
-    def test_remove_peaks_help(self):
-        result = _run_cli("remove-peaks-below-threshold", "--help")
-        self.assertEqual(result.returncode, 0)
+    def test_every_command_has_a_help_page(self):
+        commands = [("run",), ("prepare-reference-and-map-reads",), ("call-peaks",)]
+        for command in [*commands, *GROUPED_COMMANDS]:
+            with self.subTest(command=command):
+                self.assertIn(f"Usage: utrcalling {' '.join(command)}", _help(*command))
 
-    def test_select_alt_transcription_help(self):
-        result = _run_cli("select-alternative-transcription-events", "--help")
-        self.assertEqual(result.returncode, 0)
+    def test_pipeline_options_are_grouped_into_panels(self):
+        page = _help("run")
+        for panel in ("Inputs", "Protocol and samples", "Peak calling", "Output and resources"):
+            self.assertIn(panel, page)
 
-    def test_generate_names_help(self):
-        result = _run_cli("generate-names", "--help")
-        self.assertEqual(result.returncode, 0)
+    def test_bandwidth_defaults_are_shown_as_typed(self):
+        self.assertIn("[default: 1 7 12 15]", _help("bandwidth", "score"))
 
-    def test_compute_mean_utr_sizes_help(self):
-        result = _run_cli("compute-mean-utr-sizes", "--help")
-        self.assertEqual(result.returncode, 0)
 
-    def test_counts_to_percentages_help(self):
-        result = _run_cli("counts-to-percentages", "--help")
-        self.assertEqual(result.returncode, 0)
+class TestOldCommandNames(unittest.TestCase):
+    """The names before version 4.0.0, which the paper's workflows use, still work."""
 
-    def test_concatenate_experiments_help(self):
-        result = _run_cli("concatenate-experiments", "--help")
-        self.assertEqual(result.returncode, 0)
+    def test_old_and_new_names_run_the_same_command(self):
+        for new_name, old_name in OLD_NAMES.items():
+            arguments = GROUPED_COMMANDS[new_name]
+            with self.subTest(old_name=old_name):
+                self.assertEqual(_parse(old_name, *arguments), _parse(*new_name, *arguments))
+
+
+class TestOptionSpellings(unittest.TestCase):
+    """Long options are spelled with hyphens, and with underscores as before 4.0.0."""
+
+    def test_underscores_and_hyphens_give_the_same_options(self):
+        options = ["--protocol_version", "2", "--kde_bandwidth", "30", "--no_log_file"]
+        self.assertEqual(
+            _parse(*RUN, *options), _parse(*RUN, *[o.replace("_", "-") for o in options])
+        )
+        _, arguments = _parse(*RUN, *options)
+        self.assertEqual(arguments["protocol_version"], 2)
+        self.assertEqual(arguments["kde_bandwidth"], 30)
+        self.assertIs(arguments["no_log_file"], True)
+
+    def test_only_the_option_name_changes(self):
+        from utrcalling.runtime import hyphenate_long_options
+
+        tokens = ["--out_path=my_out.h5ad", "-o", "my_out.h5ad", "--", "--not_an_option"]
+        self.assertListEqual(
+            hyphenate_long_options(tokens),
+            ["--out-path=my_out.h5ad", "-o", "my_out.h5ad", "--", "--not_an_option"],
+        )
+
+    def test_several_alignments_follow_one_flag(self):
+        _, arguments = _parse("run", "g.gtf", "-a", "x.bam", "y.bam", "-A", "a.csv", "-L", "True")
+        self.assertListEqual(arguments["alignments"], ["x.bam", "y.bam"])
+        self.assertIs(arguments["label_batches"], True)
 
 
 class TestCLIInvalidArgs(unittest.TestCase):
     """Test that invalid arguments produce appropriate errors."""
 
+    def assertRefused(self, *tokens, message):
+        from cyclopts import CycloptsError
+
+        with self.assertRaisesRegex(CycloptsError, message):
+            _parse(*tokens)
+
     def test_run_no_args_fails(self):
         result = _run_cli("run")
-        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("requires an argument", result.stdout + result.stderr)
 
     def test_call_peaks_no_args_fails(self):
         result = _run_cli("call-peaks")
-        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(result.returncode, 2)
 
     def test_summarization_level_is_utr_or_gene_in_any_case(self):
-        from utrcalling.runtime import create_parser
+        self.assertEqual(_parse(*RUN, "-s", "UTR")[1]["summarization_level"], "utr")
+        self.assertEqual(_parse(*RUN, "-s", "Gene")[1]["summarization_level"], "gene")
+        self.assertEqual(_parse(*RUN)[1]["summarization_level"], "utr")
+        self.assertRefused(*RUN, "-s", "transcript", message="expected one of utr, gene")
 
-        parser = create_parser()
-        args = ["run", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv", "-s"]
-        self.assertEqual(parser.parse_args([*args, "UTR"]).summarization_level, "utr")
-        self.assertEqual(parser.parse_args([*args, "Gene"]).summarization_level, "gene")
-        self.assertEqual(parser.parse_args(args[:-1]).summarization_level, "utr")
-        result = _run_cli(*args, "transcript")
-        self.assertEqual(result.returncode, 2)
-        self.assertIn("invalid choice", result.stderr)
+    def test_label_batches_takes_true_or_false(self):
+        cases = {"True": True, "yes": True, "1": True, "False": False, "no": False, "0": False}
+        for text, expected in cases.items():
+            with self.subTest(label_batches=text):
+                self.assertIs(_parse(*RUN, "-L", text)[1]["label_batches"], expected)
+        self.assertIs(_parse(*RUN, "-L", "-i")[1]["label_batches"], True)
+        self.assertIsNone(_parse(*RUN)[1]["label_batches"])
+        self.assertRefused(*RUN, "-L", "maybe", message="expected true or false, got 'maybe'")
+
+    def test_choices_are_checked(self):
+        self.assertRefused(*RUN, "--strandedness", "sideways", message="sideways")
+        self.assertRefused(*RUN, "-m", "both", message="both")
+
+    def test_a_flag_without_its_values_is_refused(self):
+        self.assertRefused("run", "g.gtf", "-a", "-A", "a.csv", message="at least 1")
 
     def test_nonexistent_subcommand(self):
         result = _run_cli("nonexistent-command")
         self.assertNotEqual(result.returncode, 0)
+        self.assertRefused("process", "nonexistent-command", message="Unknown command")
 
     def test_no_args_prints_usage(self):
         result = _run_cli()
-        # Should print usage and exit (returncode may be 0 or non-zero)
-        # The important thing is it doesn't crash
-        output = result.stdout.lower() + result.stderr.lower()
-        self.assertTrue("usage" in output or "utrcalling" in output)
-
-
-class TestCLIParserCreation(unittest.TestCase):
-    """Test parser creation works without errors."""
-
-    def test_create_parser(self):
-        from utrcalling.runtime import create_parser
-
-        parser = create_parser()
-        self.assertIsNotNone(parser)
-
-    def test_parse_version(self):
-        from utrcalling.runtime import create_parser
-
-        parser = create_parser()
-        with self.assertRaises(SystemExit) as ctx:
-            parser.parse_args(["--version"])
-        self.assertEqual(ctx.exception.code, 0)
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Usage: utrcalling COMMAND", result.stdout)
 
 
 class TestProtocolVersionDefault(unittest.TestCase):
@@ -139,12 +223,9 @@ class TestProtocolVersionDefault(unittest.TestCase):
     """
 
     def test_commands_default_to_version_3(self):
-        from utrcalling.runtime import create_parser
-
-        parser = create_parser()
         commands = {
-            "run": ["run", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv"],
-            "call-peaks": ["call-peaks", "utr_reference.bed", "-c", "mappings.parquet"],
+            "run": RUN,
+            "call-peaks": ["call-peaks", "utr_reference.parquet", "-c", "mappings.parquet"],
             "prepare-reference-and-map-reads": [
                 "prepare-reference-and-map-reads",
                 "annotation.gtf",
@@ -156,7 +237,7 @@ class TestProtocolVersionDefault(unittest.TestCase):
         }
         for name, argv in commands.items():
             with self.subTest(command=name):
-                self.assertEqual(parser.parse_args(argv).protocol_version, 3)
+                self.assertEqual(_parse(*argv)[1]["protocol_version"], 3)
 
     def test_tool_functions_default_to_version_3(self):
         import inspect
@@ -195,13 +276,17 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
     def test_run_forwards_kde_bandwidth(self):
         from utrcalling.tools.run import run
 
-        kwargs = self._protocol_kwargs(run, "annotation.gtf", ["sample.bam"])
+        kwargs = self._protocol_kwargs(
+            run, "annotation.gtf", alignments=["sample.bam"], annotations_file="anno.csv"
+        )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
 
     def test_call_peaks_forwards_kde_bandwidth(self):
         from utrcalling.tools.call_peaks import call_peaks
 
-        kwargs = self._protocol_kwargs(call_peaks, "utr_reference.bed", ["mappings.parquet"])
+        kwargs = self._protocol_kwargs(
+            call_peaks, "utr_reference.parquet", utr_sizes_counts=["mappings.parquet"]
+        )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
 
 
@@ -235,8 +320,8 @@ class TestEstimateBestBandwidthTool(unittest.TestCase):
         self.assertDictEqual(joblib.load(out_path), {7: 0.25, 12: 0.5})
 
 
-class TestCheckDistanceToPasCommand(unittest.TestCase):
-    """`utrcalling check-distance-to-pas`: distance of every molecule to its PAS hexamer."""
+class TestPasDistanceCommand(unittest.TestCase):
+    """`utrcalling qc pas-distance`: distance of every molecule to its PAS hexamer."""
 
     def setUp(self):
         self.tmpdir = Path(tempfile.mkdtemp())
@@ -264,7 +349,7 @@ class TestCheckDistanceToPasCommand(unittest.TestCase):
 
     def _distances(self, chr1):
         (self.tmpdir / "genome.fa").write_text(f">chr1\n{chr1}\n")
-        argv = ["utrcalling", "check-distance-to-pas", str(self.tmpdir / "sites.h5ad")]
+        argv = ["utrcalling", "qc", "pas-distance", str(self.tmpdir / "sites.h5ad")]
         argv += [str(self.tmpdir / "distances.joblib"), str(self.tmpdir / "genome.fa")]
         argv += ["-H", "0", "--cores", "1"]
         from utrcalling import runtime

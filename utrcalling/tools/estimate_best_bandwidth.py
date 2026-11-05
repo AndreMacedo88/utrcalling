@@ -1,16 +1,35 @@
-# import general tools
+"""`utrcalling bandwidth score`: how well each KDE bandwidth places peaks at PAS hexamers."""
+
 from __future__ import annotations
 
-import argparse
+from utrcalling.tools.options import Bandwidths, Cores
 
 
 def estimate_best_bandwidth(
     input_path: str,
     out_path: str,
     genome_path: str,
-    bandwidths: list[int],
-    cores: int | None = None,
+    *,
+    bandwidths: Bandwidths = (1, 7, 12, 15),
+    cores: Cores = None,
 ) -> None:
+    """Score KDE bandwidths by how many peaks they place 10-30 nt after a PAS hexamer.
+
+    Calls peaks from the raw-sizes count matrix of `run -r` with each bandwidth,
+    then scores the bandwidth: per UTR, the fraction of molecules whose peak lies
+    10 to 30 nt after the nearest polyadenylation signal hexamer (AATAAA, or one
+    mismatch from it), averaged over all UTRs. Saves a {bandwidth: score}
+    dictionary with joblib.
+
+    For example:
+
+        utrcalling bandwidth score raw_sizes.h5ad scores.joblib GRCh38.fa -b 1 7 12
+
+    Args:
+        input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.
+        out_path: Where to write the scores (joblib file).
+        genome_path: Genome sequence (FASTA) of the annotation the UTRs come from.
+    """
     import joblib
     import pybedtools
 
@@ -32,51 +51,3 @@ def estimate_best_bandwidth(
     scores = {bandwidth: score for bandwidth, score in zip(bandwidths, fit_score, strict=True)}
 
     joblib.dump(scores, out_path)
-
-
-def create_parser(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-
-    help = "Calculates scores per bandwidth given."
-
-    description = (
-        f"{help} "
-        "The score is the average number of UMIs 10-30 bps "
-        "after the canonical PAS per UTR in the AnnData object."
-    )
-
-    parser = subparsers.add_parser(
-        name="estimate-best-bandwidth",
-        help=help,
-        description=f"DESCRIPTION: {description}",
-        epilog="""
-    Example use:
-    $ utrcalling estimate-best-bandwidth adata.h5ad estimations_scores.joblib
-        Homo_sapiens.GRCh38.dna.primary_assembly.fa -b 1 7 12
-    """,
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-
-    parser.add_argument(
-        "input_path", type=str, help="Path to input AnnData object file (h5ad format)."
-    )
-    parser.add_argument("out_path", type=str, help="Path where output will be stored.")
-    parser.add_argument("genome_path", type=str, help="Path to a genome file (fasta format).")
-    parser.add_argument(
-        "-b",
-        "--bandwidths",
-        nargs="+",
-        type=int,
-        default=[1, 7, 12, 15],
-        help="One or more bandwidths to use in the gaussian kernel",
-    )
-    parser.add_argument(
-        "--cores",
-        type=int,
-        default=None,
-        help=(
-            "Max worker processes for the per-UTR parallel loops. Defaults to "
-            "JOBLIB_DEFAULT_N_JOBS (-2 = all-but-one core) when omitted."
-        ),
-    )
-
-    parser.set_defaults(func=estimate_best_bandwidth)

@@ -37,7 +37,7 @@ single-cell resolution.
 utrcalling supports several sequencing protocols, each with tailored read
 parsing, deduplication, and UTR size estimation logic:
 
-| Platform (`--protocol_platform`) | Read used | UMI | Dedup | Description |
+| Platform (`--protocol-platform`) | Read used | UMI | Dedup | Description |
 | --- | --- | --- | --- | --- |
 | `10x` | Read 1 | Yes | keep first | Modified 10x Chromium (extended Read 1 captures the 3'UTR terminus). |
 | `standard_10x` | Read 2 | Yes | keep max | Standard 3' 10x Chromium. Requires Cell Ranger BAM output with CB/UB tags. Keeps the largest UTR size per (barcode, UMI) pair. |
@@ -49,7 +49,7 @@ parsing, deduplication, and UTR size estimation logic:
 | `truseq` | Any | No | none | Stranded bulk RNA-seq (e.g. TruSeq Stranded mRNA), single- or paired-end. One BAM per sample. Strand-aware via `--strandedness` (default `reverse`, correct for dUTP libraries). Uses the distal read position. |
 | `bulk_pe` | Any | No | fragment | Unstranded paired-end bulk RNA-seq (e.g. TruSeq RNA v2). One BAM per sample. Counts each fragment once (mates collapsed by read name) and uses the fragment's distal base, so it reaches further into the UTR than a single mate. Fragments running past the annotated 3' end are placed at the UTR end rather than dropped. |
 
-Each platform is used with a `--protocol_version`, which defaults to `3`. `10x`
+Each platform is used with a `--protocol-version`, which defaults to `3`. `10x`
 and `standard_10x` also support `2`, and `5prime10x` needs `1`. The bulk
 protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
 
@@ -66,7 +66,7 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
 
 - **Primary output** --- `.h5ad` (AnnData) count matrix with cells/samples as
   observations and UTR peaks as variables.
-- **Raw sizes mode** (`--raw_sizes`) --- produces two files: raw UTR sizes
+- **Raw sizes mode** (`--raw-sizes`) --- produces two files: raw UTR sizes
   and KDE-estimated peaks (`*_kde.h5ad`).
 - **Site names** --- every output names its sites (raw UTR sizes or peaks)
   `<gene>_<n>-<size>`, e.g. `TSPAN6_2-816`: the gene name (the Ensembl ID for
@@ -74,10 +74,11 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
   shortest site of the gene's first UTR) and its UTR size in nt. A site keeps
   its name through the filtering commands. `.var` also holds `utr_name`,
   `utr_size` and `gene_name`.
-- **Intermediate files** (`--store_intermediate`) --- `.bed` UTR reference
-  and `.parquet` read mappings for resumable workflows.
+- **Intermediate files** (`--store-intermediate`) --- the UTR reference and
+  the read mappings, as `.parquet` files in `./intermediate/`, from which
+  `call-peaks` can redo the last steps.
 - **Log files** --- automatically written to the output directory (suppress with
-  `--no_log_file`).
+  `--no-log-file`).
 
 ## Installation
 
@@ -138,8 +139,19 @@ Not yet available on PyPI.
 
 ## Usage
 
-utrcalling provides a command-line interface with multiple subcommands. Run
-`utrcalling --help` for a full list.
+utrcalling has three pipeline commands and three groups of commands for what
+comes after:
+
+| Command | Purpose |
+| --- | --- |
+| `run` | The whole pipeline, from BAM files to a count matrix of UTR sites |
+| `prepare-reference-and-map-reads`, then `call-peaks` | The same, in two steps |
+| `process ...` | Process count matrices: filter sites, keep alternative sites, convert counts |
+| `qc pas-distance` | Quality control: distances of molecules to polyadenylation signals |
+| `bandwidth ...` | Choose the KDE bandwidth: score bandwidths, call peaks with several |
+
+`utrcalling --help` lists them, `utrcalling process --help` lists a group's
+commands, and `utrcalling run --help` describes a command's options.
 
 ### Full pipeline
 
@@ -150,9 +162,9 @@ calling --- in a single command:
 utrcalling run \
     genome_annotations.gtf.gz \
     --alignments sample1.bam sample2.bam \
-    --annotations_file experiment_annotations.csv \
-    --protocol_platform 10x \
-    --protocol_version 3 \
+    --annotations-file experiment_annotations.csv \
+    --protocol-platform 10x \
+    --protocol-version 3 \
     --out results.h5ad
 ```
 
@@ -164,9 +176,9 @@ For standard 10x Chromium data processed through Cell Ranger:
 utrcalling run \
     genome_annotations.gtf.gz \
     --alignments cellranger_output/possorted_genome_bam.bam \
-    --annotations_file annotations.csv \
-    --protocol_platform standard_10x \
-    --protocol_version 3 \
+    --annotations-file annotations.csv \
+    --protocol-platform standard_10x \
+    --protocol-version 3 \
     --out standard_10x_results.h5ad
 ```
 
@@ -178,9 +190,9 @@ For standard SmartSeq3 data with one BAM per cell:
 utrcalling run \
     genome_annotations.gtf.gz \
     --alignments cell1.bam cell2.bam cell3.bam \
-    --annotations_file annotations.csv \
-    --protocol_platform standard_smartseq \
-    --protocol_version 3 \
+    --annotations-file annotations.csv \
+    --protocol-platform standard_smartseq \
+    --protocol-version 3 \
     --out smartseq3_results.h5ad
 ```
 
@@ -195,16 +207,16 @@ unstranded paired-end libraries:
 utrcalling run \
     genome_annotations.gtf.gz \
     --alignments aligned/S1.bam aligned/S2.bam \
-    --annotations_file annotations.csv \
-    --protocol_platform bulk_pe \
-    --protocol_version 1 \
+    --annotations-file annotations.csv \
+    --protocol-platform bulk_pe \
+    --protocol-version 1 \
     --out bulk_results.h5ad
 ```
 
 Random-fragmentation libraries spread reads over a much wider window around
-each polyadenylation site than 3'-end assays do, so a wider `--kde_bandwidth`
+each polyadenylation site than 3'-end assays do, so a wider `--kde-bandwidth`
 than the default of 12 is usually needed. Otherwise the spread is split into
-many closely spaced pseudo-peaks. `utrcalling estimate-best-bandwidth` can help
+many closely spaced pseudo-peaks. `utrcalling bandwidth score` can help
 choose a value.
 
 ### Step-by-step execution
@@ -216,17 +228,17 @@ The pipeline can also be run in two stages for large datasets or debugging:
 utrcalling prepare-reference-and-map-reads \
     genome_annotations.gtf.gz \
     --alignments sample.bam \
-    --annotations_file annotations.csv \
-    --protocol_platform 10x \
-    --protocol_version 3
+    --annotations-file annotations.csv \
+    --protocol-platform 10x \
+    --protocol-version 3
 
-# Stage 3: Call peaks from intermediate files (same annotations and --label_batches)
+# Stage 3: Call peaks from intermediate files (same annotations and --label-batches)
 utrcalling call-peaks \
     intermediate/utr_reference_regions.parquet \
-    --utr_sizes_counts intermediate/UTR_sizes_counts_*.parquet \
-    --annotations_file annotations.csv \
-    --protocol_platform 10x \
-    --protocol_version 3 \
+    --utr-sizes-counts intermediate/UTR_sizes_counts_*.parquet \
+    --annotations-file annotations.csv \
+    --protocol-platform 10x \
+    --protocol-version 3 \
     --out peaks.h5ad
 ```
 
@@ -235,48 +247,76 @@ utrcalling call-peaks \
 | Option | Description |
 | --- | --- |
 | `--feature / -f` | UTR type: `three_prime_utr` (default) or `five_prime_utr`. |
-| `--summarization_level / -s` | `utr` (default), or `gene` to join the UTRs of each gene. |
-| `--raw_sizes / -r` | Output both raw UTR sizes and KDE peaks. |
-| `--kde_bandwidth` | KDE bandwidth for peak calling (default: 12). |
+| `--summarization-level / -s` | `utr` (default), or `gene` to join the UTRs of each gene. |
+| `--raw-sizes / -r` | Output both raw UTR sizes and KDE peaks. |
+| `--kde-bandwidth` | KDE bandwidth for peak calling (default: 12). |
 | `--strandedness` | Library strandedness for `truseq`: `reverse` (default), `forward`, or `unstranded`. |
-| `--batch_merge_method / -m` | How to merge batches: `union` or `intersection`. |
-| `--store_intermediate / -i` | Save intermediate files for resumable workflows. |
-| `--label_batches / -L` | Append batch index to cell barcodes. |
+| `--batch-merge-method / -m` | How to merge batches: `union` or `intersection`. |
+| `--store-intermediate / -i` | Save intermediate files for resumable workflows. |
+| `--label-batches / -L` | `true` to append the batch to cell barcodes or sample IDs. |
+| `--cores` | Maximum number of worker processes (default: all cores but one). |
 
 ### Downstream processing
 
-After running the main pipeline, several utility commands are available for
-further analysis:
+After the pipeline, the `process` commands filter and convert the count
+matrix. A typical sequence, starting from the raw sizes of `run --raw-sizes`:
 
 ```bash
-# Remove low-count peaks
-utrcalling remove-peaks-below-threshold results.h5ad filtered.h5ad \
-    --threshold 0.05 --minimum_counts 10
+# Collapse the raw sizes of `run --raw-sizes` into peaks (writes peaks_bw12.h5ad)
+utrcalling bandwidth call-peaks raw_sizes.h5ad peaks --bandwidths 12
 
-# Keep only genes with multiple UTR isoforms (APA/ATI events)
-utrcalling select-alternative-transcription-events filtered.h5ad apa.h5ad
+# Remove low-count sites
+utrcalling process filter peaks_bw12.h5ad filtered.h5ad \
+    --threshold 0.05 --minimum-counts 10
+
+# Keep only the UTRs with several sites (APA/ATI events)
+utrcalling process select-alternative filtered.h5ad apa.h5ad
 
 # Optional: number each gene's remaining sites 1, 2, ... again after filtering
-utrcalling generate-names apa.h5ad named.h5ad
+utrcalling process rename apa.h5ad named.h5ad
 
-# Compute mean UTR sizes per gene
-utrcalling compute-mean-utr-sizes named.h5ad mean_sizes.h5ad
+# Each site's share of its UTR's counts, per cell
+utrcalling process to-fractions named.h5ad fractions.h5ad
 
-# Convert counts to percentage usage per gene
-utrcalling counts-to-percentages named.h5ad percentages.h5ad
+# Mean UTR size per cell and UTR
+utrcalling process mean-sizes named.h5ad mean_sizes.h5ad
 
-# Concatenate experiments
-utrcalling concatenate-experiments \
+# Join the cells of several experiments
+utrcalling process concatenate \
     -i experiment1.h5ad experiment2.h5ad \
     -o combined.h5ad
+```
 
-# Estimate optimal KDE bandwidth
-utrcalling estimate-best-bandwidth raw_sizes.h5ad bandwidth_scores.joblib genome.fa \
+To choose the KDE bandwidth, and to check sites against polyadenylation
+signals:
+
+```bash
+# Score bandwidths by how many peaks they place 10-30 nt after a PAS hexamer
+utrcalling bandwidth score raw_sizes.h5ad bandwidth_scores.joblib genome.fa \
     --bandwidths 1 7 12 15
 
-# Validate peaks against known polyadenylation signals
-utrcalling check-distance-to-pas results.h5ad distances.joblib genome.fa
+# Distance of each molecule to the nearest PAS hexamer
+utrcalling qc pas-distance results.h5ad distances.joblib genome.fa
 ```
+
+### Command lines from before version 4.0.0
+
+Command lines written for earlier versions, for example in existing
+workflows, still work. Options may be spelled with underscores
+(`--kde_bandwidth`), and the old command names still run their commands,
+although `--help` no longer lists them:
+
+| Before 4.0.0 | Now |
+| --- | --- |
+| `remove-peaks-below-threshold` | `process filter` |
+| `select-alternative-transcription-events` | `process select-alternative` |
+| `generate-names` | `process rename` |
+| `counts-to-percentages` | `process to-fractions` |
+| `compute-mean-utr-sizes` | `process mean-sizes` |
+| `concatenate-experiments` | `process concatenate` |
+| `check-distance-to-pas` | `qc pas-distance` |
+| `estimate-best-bandwidth` | `bandwidth score` |
+| `call-peaks-different-bandwidths` | `bandwidth call-peaks` |
 
 ## Testing
 
@@ -301,7 +341,7 @@ pytest -k kde_bandwidth   # tests whose names match
 ```
 utrcalling/
 ├── utrcalling/
-│   ├── runtime.py              CLI entry point
+│   ├── runtime.py              Command line (built with Cyclopts)
 │   ├── core/
 │   │   ├── core.py             Pipeline orchestrator
 │   │   ├── protocol.py         Sequencing protocol definitions
@@ -312,7 +352,7 @@ utrcalling/
 │   │   ├── process_mapped_reads.py
 │   │   ├── storage.py
 │   │   └── ...
-│   ├── tools/                   CLI subcommand implementations
+│   ├── tools/                   The commands (options.py: options they share)
 │   ├── tests/                   Unit and integration tests
 │   └── notebooks/               Example notebooks
 ├── envs/

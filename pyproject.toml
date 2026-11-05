@@ -41,6 +41,7 @@ dependencies = [
     "coloredlogs",
     "verboselogs",
     "colorama",
+    "cyclopts>=5.3,<6",  # the command line; a major version changes how command lines parse
 ]
 
 [project.urls]

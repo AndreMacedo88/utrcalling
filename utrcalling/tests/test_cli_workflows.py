@@ -2,7 +2,8 @@
 
 Each test runs `utrcalling <command> <flags>` in this process, with the flags the
 Snakemake workflows of Macedo et al. 2026 use (here on the 10x v2 mouse test data,
-at UTR level). These command lines must keep working when the CLI changes.
+at UTR level). These command lines must keep working when the CLI changes, so they
+keep the command names of before version 4.0.0, as the workflows do.
 """
 
 import os
