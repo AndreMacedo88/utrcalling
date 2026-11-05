@@ -1,0 +1,55 @@
+name: Release
+
+# Pushing a version tag (e.g. v4.0.0) publishes the GitHub release, with that
+# version's section of CHANGELOG.md as its notes. Zenodo then archives it.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write  # create the release
+  actions: read    # check the CI run of the tagged commit
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TAG: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check that the tag is the package version
+        run: |
+          version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' utrcalling/_metadata.py)
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::$TAG is not the package version, v$version (utrcalling/_metadata.py)"
+            exit 1
+          fi
+      - name: Check that CI passed on the tagged commit
+        run: |
+          passed=$(gh run list --workflow tests.yml --commit "$(git rev-parse HEAD)" \
+            --status success --json databaseId --jq length)
+          if [ "$passed" -eq 0 ]; then
+            echo "::error::No successful CI run for this commit: wait for CI, then tag again"
+            exit 1
+          fi
+      - name: Take the release notes from CHANGELOG.md
+        run: |
+          awk -v heading="## [${TAG#v}]" '
+            index($0, heading) == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found { print }
+          ' CHANGELOG.md > notes.md
+          if ! grep -q '[^[:space:]]' notes.md; then
+            echo "::error::CHANGELOG.md has no section for ${TAG#v}"
+            exit 1
+          fi
+      # Skipped if the release exists, e.g. because it was made in the browser.
+      - name: Publish the release
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG exists already"
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file notes.md
+          fi
