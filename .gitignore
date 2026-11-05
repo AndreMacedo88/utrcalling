@@ -9,4 +9,5 @@ CLAUDE.md
 RELEASE.md.pytest_cache/
 .coverage
 .coverage.*
+coverage.xml
 htmlcov/

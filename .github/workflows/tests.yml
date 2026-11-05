@@ -56,13 +56,24 @@ jobs:
         if: matrix.environment-file != 'envs/utrcalling-frozen.yml'
         run: conda run --no-capture-output -n utrcalling pytest
       # Coverage only against the frozen versions, like mypy below: the result then
-      # changes only when the code or the tests change. Fails below 100% (fail_under).
+      # changes only when the code or the tests change.
       - name: Run the test suite with branch coverage
         if: matrix.environment-file == 'envs/utrcalling-frozen.yml'
         run: |
           conda run --no-capture-output -n utrcalling coverage run -m pytest
           conda run -n utrcalling coverage combine -q
-          conda run --no-capture-output -n utrcalling coverage report
+          conda run -n utrcalling coverage xml -q --fail-under=0
+      # Before the 100% check below, so Codecov also records a drop.
+      - name: Upload the coverage to Codecov
+        if: matrix.environment-file == 'envs/utrcalling-frozen.yml'
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          disable_search: true
+      - name: Require full branch coverage (fail_under in pyproject.toml)
+        if: matrix.environment-file == 'envs/utrcalling-frozen.yml'
+        run: conda run --no-capture-output -n utrcalling coverage report
       # Only against the frozen versions: numpy and pysam ship the type stubs, so
       # the result then changes only when the code or the pins change.
       - name: Type-check the library with mypy
