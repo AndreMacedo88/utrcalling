@@ -18,8 +18,9 @@ if TYPE_CHECKING:
 # the `--cores` CLI flag, which threads down to every Parallel call site as
 # the `n_jobs` parameter (resolved by `resolve_n_jobs`).
 #
-# Default ``-2`` follows joblib semantics: spawn ``cpu_count() - 1`` workers,
-# leaving one core for the OS and interactive shell. This is system-portable
+# The default ``-2`` means all cores but one, as in joblib, leaving one core
+# for the OS and interactive shell (``resolve_n_jobs`` gives every
+# non-positive value that meaning). This is system-portable
 # (a fixed cap like 12 oversubscribes 4-core boxes and underuses 27-core ones).
 #
 # Multi-job orchestrators (e.g. Snakemake) should pass ``--cores {threads}``
@@ -36,16 +37,18 @@ JOBLIB_DEFAULT_BACKEND = "loky"
 
 
 def resolve_n_jobs(n_jobs: int | None) -> int:
-    """Return the user-requested worker count, or the conservative default.
+    """Return how many worker processes to use.
 
     Args:
         n_jobs: Explicit worker count from a CLI flag or API caller. ``None``
-            means "use the project default".
+            means the project default, ``JOBLIB_DEFAULT_N_JOBS``.
 
     Returns:
-        ``n_jobs`` if it is not None; otherwise ``JOBLIB_DEFAULT_N_JOBS``.
+        ``n_jobs`` if it is positive; otherwise all cores but one, and at least
+        one. joblib refuses 0, so every Parallel call takes this count.
     """
-    return n_jobs if n_jobs is not None else JOBLIB_DEFAULT_N_JOBS
+    n_jobs = n_jobs if n_jobs is not None else JOBLIB_DEFAULT_N_JOBS
+    return n_jobs if n_jobs > 0 else max(1, get_number_cores(left_out=1))
 
 
 def shutdown_joblib_pool() -> None:

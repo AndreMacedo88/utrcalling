@@ -24,19 +24,6 @@ from utrcalling.core import anndata_processing, helpers, module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
 from utrcalling.core.protocols.peak_calling import call_peaks_using_kernel_density_estimator
 
-
-def _resolve_workers(n_jobs: int | None) -> int:
-    """Resolve a positive worker count from an n_jobs argument.
-
-    Mirrors the policy used in count_matrix.py: explicit positive value wins;
-    otherwise fall back to the project default; non-positive results map to
-    ``get_number_cores(left_out=1)``. Returns a strictly positive int suitable
-    for both ``Parallel(n_jobs=...)`` and the batch-count formula.
-    """
-    n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
-    return n_jobs_resolved if n_jobs_resolved > 0 else max(1, helpers.get_number_cores(left_out=1))
-
-
 # ---------------------------------------------------------------------------
 # Shared per-UTR peak calling logic (module-level for joblib picklability)
 # ---------------------------------------------------------------------------
@@ -309,7 +296,7 @@ def peak_call_anndata_parallel(
 
     sparse_adata = scipy.sparse.issparse(adata.X)
 
-    n_workers = _resolve_workers(n_jobs)
+    n_workers = helpers.resolve_n_jobs(n_jobs)
     per_utr_inputs = _extract_per_utr_inputs(adata)
     batches = _build_compact_batches(per_utr_inputs, n_workers)
 
@@ -536,7 +523,7 @@ def pas_distance(
     """
     logger = module_log.module_logger()
 
-    n_workers = _resolve_workers(n_jobs)
+    n_workers = helpers.resolve_n_jobs(n_jobs)
     per_utr_inputs = _extract_per_utr_inputs(adata)
     batches = _build_compact_batches(per_utr_inputs, n_workers)
 
@@ -591,7 +578,7 @@ def _score_peak_assignment(
         ``(score, distances_array)`` tuple.
     """
     logger = module_log.module_logger()
-    n_workers = _resolve_workers(n_jobs)
+    n_workers = helpers.resolve_n_jobs(n_jobs)
     per_utr_inputs = _extract_per_utr_inputs(adata)
     batches = _build_compact_batches(per_utr_inputs, n_workers)
 

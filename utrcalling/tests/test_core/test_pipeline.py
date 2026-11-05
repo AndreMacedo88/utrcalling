@@ -919,7 +919,7 @@ class TestMergeUtrsPerFeature(unittest.TestCase):
 class TestBatchNumbersOfSeveralBams(unittest.TestCase):
     """Each BAM's reads are labelled with a batch number when mapping several BAMs."""
 
-    def _batch_numbers(self, **protocol_attributes):
+    def _batch_numbers(self, n_jobs=None, **protocol_attributes):
         attributes = dict(
             sample_idx=None, label_batches=False, batches_range=None, read_in_pair="first"
         )
@@ -930,7 +930,7 @@ class TestBatchNumbersOfSeveralBams(unittest.TestCase):
             mock.patch.object(core, "JOBLIB_DEFAULT_BACKEND", "sequential"),
             mock.patch.object(core.utr_mapping, "map_reads_to_utr") as map_one_bam,
         ):
-            core._map_multiple_bams(["a.bam", "b.bam"], {}, protocol_)
+            core._map_multiple_bams(["a.bam", "b.bam"], {}, protocol_, n_jobs=n_jobs)
         return [call.kwargs["batch_idx"] for call in map_one_bam.call_args_list]
 
     def test_bams_are_numbered_in_order_by_default(self):
@@ -943,6 +943,10 @@ class TestBatchNumbersOfSeveralBams(unittest.TestCase):
     def test_one_annotated_batch_per_bam_gives_the_annotated_batches(self):
         numbers = self._batch_numbers(label_batches=True, batches_range=["3", "7"])
         self.assertListEqual(numbers, ["3", "7"])
+
+    def test_zero_cores_means_all_cores_but_one(self):
+        # `--cores 0` crashed with several BAMs: joblib refuses n_jobs=0.
+        self.assertListEqual(self._batch_numbers(n_jobs=0), ["1", "2"])
 
 
 class TestResolveBatchIdx(unittest.TestCase):

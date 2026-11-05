@@ -202,10 +202,7 @@ def generate_counts_and_anno(
     if n_utrs > _PARALLEL_UTR_THRESHOLD:
         # Resolve worker count: explicit n_jobs, else JOBLIB_DEFAULT_N_JOBS.
         # Non-positive resolves to all-but-one (cgroup/affinity-aware).
-        n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
-        n_workers = (
-            n_jobs_resolved if n_jobs_resolved > 0 else max(1, helpers.get_number_cores(left_out=1))
-        )
+        n_workers = helpers.resolve_n_jobs(n_jobs)
 
         # Sort UTRs descending by molecule count, then round-robin into
         # n_workers*4 batches. loky doesn't work-steal mid-task, so without

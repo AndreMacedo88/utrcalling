@@ -155,6 +155,23 @@ class TestShutdownJoblibPool(unittest.TestCase):
         self.assertIn("worker already gone", logs.output[0])
 
 
+class TestResolveNJobs(unittest.TestCase):
+    """A positive worker count is used as given; anything else means all cores but one."""
+
+    def test_a_positive_count_is_used_as_given(self):
+        self.assertEqual(helpers.resolve_n_jobs(3), 3)
+
+    def test_the_default_zero_and_negative_counts_use_all_cores_but_one(self):
+        with mock.patch.object(helpers.os, "sched_getaffinity", return_value=set(range(8))):
+            for n_jobs in (None, 0, -1, -2):
+                with self.subTest(n_jobs=n_jobs):
+                    self.assertEqual(helpers.resolve_n_jobs(n_jobs), 7)
+
+    def test_a_single_core_still_gets_one_worker(self):
+        with mock.patch.object(helpers.os, "sched_getaffinity", return_value={0}):
+            self.assertEqual(helpers.resolve_n_jobs(0), 1)
+
+
 class TestEnsureMappedReadsDtypes(unittest.TestCase):
     """Mapped reads get categorical names and int32 sizes, whatever they came with."""
 

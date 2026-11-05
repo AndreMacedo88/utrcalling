@@ -404,10 +404,7 @@ def map_reads_to_utr(
     if parallel and len(interval_items) > 50:
         # Parallel path — split intervals across workers. Resolve n_jobs first
         # so batch sizing matches the worker count actually used.
-        n_jobs_resolved = helpers.resolve_n_jobs(n_jobs)
-        n_workers = (
-            n_jobs_resolved if n_jobs_resolved > 0 else max(1, helpers.get_number_cores(left_out=1))
-        )
+        n_workers = helpers.resolve_n_jobs(n_jobs)
         batch_size = max(1, len(interval_items) // (n_workers * 4))
         batches = [
             interval_items[i : i + batch_size] for i in range(0, len(interval_items), batch_size)
