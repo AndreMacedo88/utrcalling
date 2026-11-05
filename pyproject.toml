@@ -6,13 +6,22 @@ build-backend = "setuptools.build_meta"
 name = "utrcalling"
 dynamic = ["version"]
 description = "Package with tools to calculate molecule UTR sizes from RNA sequencing reads."
-readme = "README.md"
+readme = "README.md"  # also the PyPI page, so link to other files by full URL
 requires-python = ">=3.11"
 license = "BSD-3-Clause"
 authors = [{ name = "André Lopes Martins Macedo", email = "andre.lopes.macedo@gmail.com" }]
+keywords = [
+    "bioinformatics",
+    "RNA-seq",
+    "single-cell RNA-seq",
+    "alternative polyadenylation",
+    "untranslated region",
+]
 classifiers = [
     "Development Status :: 3 - Alpha",
+    "Environment :: Console",
     "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Operating System :: OS Independent",
@@ -44,8 +53,12 @@ dependencies = [
     "cyclopts>=5.3,<6",  # the command line; a major version changes how command lines parse
 ]
 
+# Listed on the PyPI page.
 [project.urls]
 Homepage = "https://github.com/AndreMacedo88/utrcalling"
+Changelog = "https://github.com/AndreMacedo88/utrcalling/blob/main/CHANGELOG.md"
+Issues = "https://github.com/AndreMacedo88/utrcalling/issues"
+DOI = "https://doi.org/10.5281/zenodo.23686176"
 
 [project.scripts]
 utrcalling = "utrcalling.runtime:main"

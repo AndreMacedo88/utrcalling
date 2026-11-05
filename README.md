@@ -318,7 +318,7 @@ although `--help` no longer lists them:
 | `estimate-best-bandwidth` | `bandwidth score` |
 | `call-peaks-different-bandwidths` | `bandwidth call-peaks` |
 
-[CHANGELOG.md](CHANGELOG.md) lists what changed in each version.
+[CHANGELOG.md](https://github.com/AndreMacedo88/utrcalling/blob/main/CHANGELOG.md) lists what changed in each version.
 
 ## Testing
 
@@ -396,7 +396,7 @@ listed on that page. Citation metadata is in `CITATION.cff`, and GitHub's
 
 ## License
 
-BSD-3-Clause. See [LICENSE](LICENSE).
+BSD-3-Clause. See [LICENSE](https://github.com/AndreMacedo88/utrcalling/blob/main/LICENSE).
 
 ## Author
 
