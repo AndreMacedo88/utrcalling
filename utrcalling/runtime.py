@@ -14,7 +14,6 @@ from utrcalling.tools import (
     concatenate_experiments,
     counts_to_percentages,
     estimate_best_bandwidth,
-    generate_utr_names,
     prepare_reference_and_map_reads,
     remove_peaks_below_count_threshold,
     run,
@@ -62,10 +61,9 @@ process.command(
     name="select-alternative",
     sort_key=1,
 )
-process.command(generate_utr_names.generate_names, name="rename", sort_key=2)
-process.command(counts_to_percentages.counts_to_percentages, name="to-fractions", sort_key=3)
-process.command(compute_mean_utr_sizes.compute_mean_utr_sizes, name="mean-sizes", sort_key=4)
-process.command(concatenate_experiments.concatenate_experiments, name="concatenate", sort_key=5)
+process.command(counts_to_percentages.counts_to_percentages, name="to-fractions", sort_key=2)
+process.command(compute_mean_utr_sizes.compute_mean_utr_sizes, name="mean-sizes", sort_key=3)
+process.command(concatenate_experiments.concatenate_experiments, name="concatenate", sort_key=4)
 app.command(process)
 
 qc = App(
@@ -96,7 +94,6 @@ OLD_NAMES: dict[str, Callable[..., None]] = {
     "select-alternative-transcription-events": (
         select_alternative_transcription_events.select_alternative_transcription_events
     ),
-    "generate-names": generate_utr_names.generate_names,
     "counts-to-percentages": counts_to_percentages.counts_to_percentages,
     "compute-mean-utr-sizes": compute_mean_utr_sizes.compute_mean_utr_sizes,
     "concatenate-experiments": concatenate_experiments.concatenate_experiments,

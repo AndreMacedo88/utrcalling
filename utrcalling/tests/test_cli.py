@@ -56,7 +56,6 @@ RUN = ["run", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv"]
 GROUPED_COMMANDS = {
     ("process", "filter"): ["in.h5ad", "out.h5ad"],
     ("process", "select-alternative"): ["in.h5ad", "out.h5ad"],
-    ("process", "rename"): ["in.h5ad", "out.h5ad"],
     ("process", "to-fractions"): ["in.h5ad", "out.h5ad"],
     ("process", "mean-sizes"): ["in.h5ad", "out.h5ad"],
     ("process", "concatenate"): ["-i", "a.h5ad", "b.h5ad", "-o", "out.h5ad"],
@@ -68,7 +67,6 @@ GROUPED_COMMANDS = {
 OLD_NAMES = {
     ("process", "filter"): "remove-peaks-below-threshold",
     ("process", "select-alternative"): "select-alternative-transcription-events",
-    ("process", "rename"): "generate-names",
     ("process", "to-fractions"): "counts-to-percentages",
     ("process", "mean-sizes"): "compute-mean-utr-sizes",
     ("process", "concatenate"): "concatenate-experiments",
@@ -134,6 +132,14 @@ class TestOldCommandNames(unittest.TestCase):
             arguments = GROUPED_COMMANDS[new_name]
             with self.subTest(old_name=old_name):
                 self.assertEqual(_parse(old_name, *arguments), _parse(*new_name, *arguments))
+
+    def test_generate_names_was_removed(self):
+        # Sites keep the names that peak calling gives them, also after filtering.
+        for command in (["generate-names"], ["process", "rename"]):
+            with self.subTest(command=command):
+                result = _run_cli(*command, "in.h5ad", "out.h5ad")
+                self.assertEqual(result.returncode, 2)
+                self.assertIn("Unknown command", result.stdout + result.stderr)
 
 
 class TestOptionSpellings(unittest.TestCase):

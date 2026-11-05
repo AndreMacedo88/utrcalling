@@ -3,6 +3,16 @@
 All notable changes to utrcalling. Versions follow [semantic versioning](https://semver.org):
 a new major version can change results or require changes to your command lines.
 
+## [Unreleased]
+
+### Changed (breaking)
+
+- Removed `process rename` (`generate-names` before 4.0.0), and with it
+  `anndata_processing.generate_utr_site_names_from_gene_name` in Python. Sites
+  keep the name that peak calling gives them in every later step, so the same
+  site has the same name in every file; after filtering, a gene's site numbers
+  can have gaps. Drop the `generate-names` step from your workflows.
+
 ## [4.0.0] - 2026-11-05
 
 Site names and PAS distances change, three commands are gone, and the command

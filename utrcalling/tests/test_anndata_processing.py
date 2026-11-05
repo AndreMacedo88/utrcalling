@@ -185,65 +185,6 @@ class TestSiteNames(unittest.TestCase):
         self.assertListEqual(list(ap.site_names(var)), ["ENSG1_1-5", "ENSG1_2-5"])
 
 
-class TestGenerateUtrSiteNamesFromGeneName(unittest.TestCase):
-    def setUp(self) -> None:
-        adata = ad.read_h5ad("./test_data/anndata_test.h5ad")
-        adata_2 = adata.copy()
-        adata_2.var_names = [
-            "gene3_1-1",
-            "gene3_1-2",
-            "gene3_2-1",
-            "gene4_1-1",
-            "gene4_2-1",
-            "gene4_2-2",
-        ]
-        self.adata = ad.concat([adata, adata_2], axis=1, merge="same")
-        gene_names = [["AA"] * 3, [np.nan] * 3, ["CC"] * 3, [np.nan] * 3]
-        gene_names = [item for gene_name in gene_names for item in gene_name]
-        self.adata.var["utr_name"] = self.adata.var.index.str.split("-").str[0]
-        self.adata.var["gene_name"] = gene_names
-        self.adata_named = ap.generate_utr_site_names_from_gene_name(
-            self.adata, utr_name_column="utr_name", gene_name_column="gene_name"
-        )
-
-    def test_new_names(self):
-        names_new = [
-            "AA_1-300",
-            "AA_2-399",
-            "AA_3-500",
-            "ENSMUSG00000000002_1-100",
-            "ENSMUSG00000000002_2-201",
-            "ENSMUSG00000000002_3-300",
-            "CC_1-300",
-            "CC_2-399",
-            "CC_3-500",
-            "gene4_1-100",
-            "gene4_2-201",
-            "gene4_3-300",
-        ]
-        self.assertListEqual(self.adata_named.var_names.tolist(), names_new)
-
-    def test_data_not_changed(self):
-        np.testing.assert_array_equal(self.adata_named.X, self.adata.X)
-
-    def test_obs_not_changed(self):
-        pd.testing.assert_frame_equal(self.adata_named.obs, self.adata.obs)
-
-    def test_var_not_changed(self):
-        pd.testing.assert_frame_equal(
-            self.adata_named.var[["utr_size", "utr_name", "gene_name"]].reset_index(drop=True),
-            self.adata.var[["utr_size", "utr_name", "gene_name"]].reset_index(drop=True),
-        )
-
-    def test_utr_site_column(self):
-        pd.testing.assert_series_equal(
-            self.adata_named.var.UTR_site,
-            self.adata.var_names.to_series(),
-            check_index=False,
-            check_names=False,
-        )
-
-
 # ---------------------------------------------------------------------------
 # New test classes for previously untested functions
 # ---------------------------------------------------------------------------
