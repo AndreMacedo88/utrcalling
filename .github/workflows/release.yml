@@ -1,31 +1,49 @@
 name: Release
 
-# Pushing a version tag (e.g. v4.0.0) publishes the GitHub release, with that
-# version's section of CHANGELOG.md as its notes. Zenodo then archives it.
+# Pushing a version tag (e.g. v4.0.0) publishes that version on PyPI and as a
+# GitHub release, with its section of CHANGELOG.md as the notes. Zenodo then
+# archives the GitHub release. Run it by hand (Actions > Release > Run workflow)
+# to publish a version tagged earlier, or to finish a release that failed: steps
+# already done are skipped.
 on:
   push:
     tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Version tag to publish, e.g. v4.0.0"
+        required: true
 
-permissions:
-  contents: write  # create the release
-  actions: read    # check the CI run of the tagged commit
+permissions: {}
+
+env:
+  TAG: ${{ inputs.tag || github.ref_name }}
+  GH_REPO: ${{ github.repository }}
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read  # check the CI run of the tagged commit
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     env:
       GH_TOKEN: ${{ github.token }}
-      GH_REPO: ${{ github.repository }}
-      TAG: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ env.TAG }}
+          persist-credentials: false
       - name: Check that the tag is the package version
+        id: version
         run: |
           version=$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' utrcalling/_metadata.py)
           if [ "v$version" != "$TAG" ]; then
             echo "::error::$TAG is not the package version, v$version (utrcalling/_metadata.py)"
             exit 1
           fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
       - name: Check that CI passed on the tagged commit
         run: |
           passed=$(gh run list --workflow tests.yml --commit "$(git rev-parse HEAD)" \
@@ -45,6 +63,57 @@ jobs:
             echo "::error::CHANGELOG.md has no section for ${TAG#v}"
             exit 1
           fi
+      # As in the package job of tests.yml.
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Build the source distribution and the wheel
+        run: |
+          python -m pip install build==1.6.1 twine==7.0.0
+          python -m build
+          python -m twine check --strict dist/*
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        with:
+          name: notes
+          path: notes.md
+          if-no-files-found: error
+
+  # Trusted publishing: PyPI accepts uploads from this workflow and environment
+  # (set up under the project's Publishing settings on pypi.org), without a token.
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/utrcalling/${{ needs.build.outputs.version }}/
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true  # when running a release again
+
+  # After PyPI, so that every GitHub release (and Zenodo version) is installable.
+  github-release:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: notes
       # Skipped if the release exists, e.g. because it was made in the browser.
       - name: Publish the release
         run: |
