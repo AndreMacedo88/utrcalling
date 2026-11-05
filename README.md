@@ -4,7 +4,7 @@
 [![Coverage](https://codecov.io/gh/AndreMacedo88/utrcalling/graph/badge.svg)](https://codecov.io/gh/AndreMacedo88/utrcalling)
 ![Python >= 3.11](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-green)
-![Version 3.1.10](https://img.shields.io/badge/version-3.1.10-orange)
+![Version 4.0.0](https://img.shields.io/badge/version-4.0.0-orange)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23686176.svg)](https://doi.org/10.5281/zenodo.23686176)
 
 A bioinformatics toolkit for calculating molecule UTR (Untranslated Region)

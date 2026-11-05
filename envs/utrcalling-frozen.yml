@@ -1,6 +1,6 @@
 # Frozen utrcalling environment: exact versions, verified by creating this
 # environment from scratch and passing the full test suite on linux-64
-# (2026-11-03, utrcalling 3.1.10). Use it when the regular environment.yml no
+# (2026-11-05, utrcalling 4.0.0). Use it when the regular environment.yml no
 # longer resolves to a working set of packages, e.g. after breaking releases of
 # dependencies years from now. From the repository root:
 #
