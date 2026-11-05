@@ -20,8 +20,7 @@ single-cell resolution.
   10x Chromium and SmartSeq3 sequencing, CapSeq and 5' 10x protocols, and
   stranded or unstranded paired-end bulk RNA-seq.
 - **3'UTR and 5'UTR calling** --- analyse either end of the transcript.
-- **Flexible summarisation** --- aggregate results at UTR, transcript, or gene
-  level.
+- **Flexible summarisation** --- aggregate results at UTR or gene level.
 - **KDE peak calling** --- Gaussian kernel density estimation with configurable
   bandwidth to identify consensus UTR isoform peaks from per-molecule size
   distributions.
