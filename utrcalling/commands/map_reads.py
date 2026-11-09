@@ -36,8 +36,9 @@ def map_reads(
 ) -> None:
     """Build the UTR reference and map the reads to it, for `count` to continue.
 
-    Stores the UTR reference and each BAM's read mappings in ./intermediate/.
-    Give `count` the same annotation file and --label-batches: they decide
+    Stores the UTR reference and each BAM's read mappings in ./intermediate/,
+    with mapping_summary.tsv: the alignments skipped at each check, and the
+    reads and molecules left, per BAM file. Give `count` the same annotation file and --label-batches: they decide
     the observation names stored with the mappings.
 
     For example:
@@ -48,7 +49,7 @@ def map_reads(
         utr_annotation: GTF file with the genome annotation (plain or gzipped).
     """
 
-    from utrcalling.core import core, protocol
+    from utrcalling.core import core, protocol, qc, storage
     from utrcalling.core.module_log import module_logger
 
     # Set up logging
@@ -74,4 +75,10 @@ def map_reads(
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info("Mapping aligned reads to UTR reference")
-    core.map_aligned_reads(alignments, utr_reference_regions, protocol_, store=True)
+    read_mappings = core.map_aligned_reads(alignments, utr_reference_regions, protocol_, store=True)
+    frames = read_mappings if isinstance(read_mappings, list) else [read_mappings]
+    summary = qc.mapping_summary(
+        alignments, [frame.attrs["mapping_summary"] for frame in frames], counting={}
+    )
+    storage.write_table(summary, "./intermediate/mapping_summary.tsv")
+    logger.info("Mapping summary: %s", summary.loc["total"].to_dict())

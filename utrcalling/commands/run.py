@@ -107,6 +107,7 @@ def run(
         read_mappings,
         utr_reference_regions,
         protocol_,
+        inputs=alignments,
         summarization_level=summarization_level,
         raw_sizes=raw_sizes,
         kde_bandwidth=kde_bandwidth,

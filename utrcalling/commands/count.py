@@ -96,6 +96,7 @@ def count(
         read_mappings,
         utr_reference_regions,
         protocol_,
+        inputs=utr_sizes_counts,
         summarization_level=summarization_level,
         raw_sizes=raw_sizes,
         kde_bandwidth=kde_bandwidth,

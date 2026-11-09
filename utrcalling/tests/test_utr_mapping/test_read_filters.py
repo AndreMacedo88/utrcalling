@@ -72,8 +72,8 @@ class TestAnyReadProtocols(_MappingTest):
         ]
         _, sizes, stats = self._map(alignments, self.protocol, self.utr)
         self.assertListEqual(sizes, [self.size])
-        self.assertEqual(stats["PCR duplicates"], 1)
-        self.assertEqual(stats["Alignments not primary alignment"], 1)
+        self.assertEqual(stats["duplicate_flag"], 1)
+        self.assertEqual(stats["secondary"], 1)
 
     def test_a_read_without_a_umi_is_skipped(self):
         alignments = [_alignment("kept", 1100), _alignment("no_umi", 1200, umi=None)]
@@ -100,15 +100,17 @@ class TestFirstReadProtocols(_MappingTest):
             _alignment("not_proper", 1100, flag=paired | first, umi="UMI3"),
             _alignment("duplicate", 1100, flag=paired | proper | first | 0x400, umi="UMI4"),
             _alignment("secondary", 1100, flag=paired | proper | first | 0x100, umi="UMI5"),
+            _alignment("unmapped", 1100, flag=paired | first | 0x4 | 0x8, umi="UMI6"),
         ]
         _, sizes, stats = self._map(
             alignments, protocol_, {"UTR1": _IntervalData("1", 1000, 1500, "+")}
         )
         self.assertEqual(len(sizes), 1)
-        self.assertEqual(stats["Reads not 'first'"], 1)
-        self.assertEqual(stats["Alignments not proper pair"], 1)
-        self.assertEqual(stats["PCR duplicates"], 1)
-        self.assertEqual(stats["Alignments not primary alignment"], 1)
+        self.assertEqual(stats["unmapped"], 1)
+        self.assertEqual(stats["other_mate"], 1)
+        self.assertEqual(stats["not_proper_pair"], 1)
+        self.assertEqual(stats["duplicate_flag"], 1)
+        self.assertEqual(stats["secondary"], 1)
 
 
 class TestFragmentClampingOnTheMinusStrand(_MappingTest):
@@ -125,7 +127,88 @@ class TestFragmentClampingOnTheMinusStrand(_MappingTest):
             [fragment], protocol_, {"UTR1": _IntervalData("1", 1000, 1500, "-")}
         )
         self.assertListEqual(sizes, [500])  # the whole UTR: 1500 - 1000
-        self.assertEqual(stats["Positions clamped to the UTR end"], 1)
+        self.assertEqual(stats["clamped_to_utr_end"], 1)
+
+
+class TestMappingSummary(_MappingTest):
+    """The mapping summary counts each alignment once: where it was skipped, or kept."""
+
+    def test_every_alignment_lands_in_one_step(self):
+        protocol_ = protocol.create("standard_10x", 3, annotations=ANNOTATIONS)
+        no_bases = _alignment("no_bases", 1100, umi="UMI6")
+        no_bases.cigar = None
+        no_barcode = _alignment("no_barcode", 1100, umi="UMI7")
+        no_barcode.tags = [("UB", "UMI7")]
+        alignments = [
+            _alignment("kept", 1100),
+            _alignment("same_molecule", 1100),  # same barcode and UMI as "kept"
+            _alignment("unmapped", 1100, flag=0x4, umi="UMI2"),
+            _alignment("duplicate", 1100, flag=0x400, umi="UMI3"),
+            _alignment("secondary", 1100, flag=0x100, umi="UMI4"),
+            _alignment("antisense", 1100, flag=0x10, umi="UMI5"),  # this protocol reads sense
+            no_bases,
+            no_barcode,
+            _alignment("no_umi", 1100, umi=None),
+            _alignment("past_the_end", 1450, umi="UMI8"),  # ends at 1549, after the UTR
+        ]
+        _, sizes, stats = self._map(
+            alignments, protocol_, {"UTR1": _IntervalData("1", 1000, 1500, "+")}
+        )
+        self.assertListEqual(list(stats), list(utr_mapping.MAPPING_STEPS))
+        expected = {
+            "alignments": 10,
+            "unmapped": 1,
+            "other_mate": 0,
+            "not_proper_pair": 0,
+            "duplicate_flag": 1,
+            "secondary": 1,
+            "wrong_strand": 1,
+            "no_aligned_bases": 1,
+            "outside_utr": 1,
+            "no_barcode": 1,
+            "no_umi": 1,
+            "reads": 2,
+            "clamped_to_utr_end": 0,
+            "molecules": 1,
+        }
+        self.assertDictEqual(stats, expected)
+        self.assertListEqual(sizes, [199])
+
+    def test_minus_strand_utrs_count_reads_outside_them(self):
+        # The UTR on 1001-1500, - strand, ends at 1001: a sense read's position
+        # is its first base. The read starting at 951 lies past the UTR's end.
+        protocol_ = protocol.create("standard_10x", 3, annotations=ANNOTATIONS)
+        alignments = [
+            _alignment("inside", 1100, flag=0x10),
+            _alignment("past_the_end", 950, flag=0x10, umi="UMI2"),
+        ]
+        _, sizes, stats = self._map(
+            alignments, protocol_, {"UTR1": _IntervalData("1", 1000, 1500, "-")}
+        )
+        self.assertEqual(stats["outside_utr"], 1)
+        self.assertEqual(stats["molecules"], 1)
+        self.assertEqual(len(sizes), 1)
+
+    def test_map_reads_to_utr_attaches_the_summary_of_all_workers(self):
+        # More than 50 UTRs map in parallel: the workers' counts add up.
+        protocol_ = protocol.create("standard_10x", 3, annotations=ANNOTATIONS)
+        path = self.tmp / "reads.bam"
+        header = {"HD": {"VN": "1.0", "SO": "coordinate"}, "SQ": [{"SN": "1", "LN": 100_000}]}
+        intervals = {}
+        with pysam.AlignmentFile(str(path), "wb", header=header) as out:
+            for utr in range(60):
+                start = 1000 * (utr + 1)
+                intervals[f"UTR{utr}"] = _IntervalData("1", start, start + 500, "+")
+                out.write(_alignment(f"read{utr}", start + 100, umi=f"UMI{utr}"))
+        pysam.index(str(path))
+        mappings = utr_mapping.map_reads_to_utr(
+            str(path), intervals, protocol_, read=protocol_.read_in_pair, n_jobs=2
+        )
+        summary = mappings.attrs["mapping_summary"]
+        self.assertListEqual(list(summary), list(utr_mapping.MAPPING_STEPS))
+        self.assertEqual(summary["alignments"], 60)
+        self.assertEqual(summary["reads"], 60)
+        self.assertEqual(summary["molecules"], len(mappings))
 
 
 if __name__ == "__main__":

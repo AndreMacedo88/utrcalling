@@ -235,15 +235,23 @@ def merge_samples_utr_sizes(
         store: If True, save the merged Parquet file to ./intermediate/.
 
     Returns:
-        A single merged flat DataFrame.
+        A single merged flat DataFrame. If every sample's ``attrs`` has a
+        ``mapping_summary`` (see utr_mapping.map_reads_to_utr), its
+        ``attrs["mapping_summary"]`` sums them.
     """
-    utr_sizes_counts = process_mapped_reads.merge_samples_utr_sizes(
+    summaries = [frame.attrs.get("mapping_summary") for frame in utr_sizes_counts]
+    merged = process_mapped_reads.merge_samples_utr_sizes(
         utr_sizes_counts,
         method=protocol.merge_method,
     )
+    merged.attrs = {}
+    if all(summaries):
+        merged.attrs["mapping_summary"] = {
+            step: sum(summary[step] for summary in summaries) for step in summaries[0]
+        }
     if store:
-        storage.store_merged_counts(utr_sizes_counts, protocol.merge_method)
-    return utr_sizes_counts
+        storage.store_merged_counts(merged, protocol.merge_method)
+    return merged
 
 
 def merge_utrs_per_feature(
@@ -278,6 +286,7 @@ def filter_mapped_reads(
     utr_sizes_counts: pd.DataFrame,
     utr_reference_regions: pd.DataFrame,
     protocol: Protocol,
+    summary: dict[str, int] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Filter mapped reads and subset the UTR reference before peak calling.
 
@@ -290,6 +299,8 @@ def filter_mapped_reads(
         utr_sizes_counts: Flat DataFrame of (utr_name, observation_id, utr_size) rows.
         utr_reference_regions: Full UTR reference DataFrame.
         protocol: A Protocol instance with filtering config.
+        summary: If given, the molecules left after each filter are added to it,
+            as ``molecules_after_size_filter`` and ``molecules_in_cell_list``.
 
     Returns:
         A (filtered_reads, utr_reference_subset) tuple.
@@ -298,10 +309,14 @@ def filter_mapped_reads(
         utr_sizes_counts, utr_reference_regions
     )
     filtered = protocol.filter_utr_sizes(utr_sizes_counts, threshold=1)
+    after_size_filter = len(filtered)
     if protocol.barcode_whitelist is not None:
         filtered = barcode_filtering.filter_barcodes_memory_aware(
             filtered, protocol.barcode_whitelist
         )
+    if summary is not None:
+        summary["molecules_after_size_filter"] = after_size_filter
+        summary["molecules_in_cell_list"] = len(filtered)
     return filtered, utr_reference_subset
 
 

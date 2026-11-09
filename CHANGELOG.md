@@ -41,6 +41,13 @@ a new major version can change results or require changes to your command lines.
 
 ### Added
 
+- **Mapping summary.** `run` and `count` write `<out>_mapping_summary.tsv`:
+  per BAM file, the alignments in the UTR regions that each check skipped
+  (wrong strand, outside the UTR, no barcode, ...) and the reads and molecules
+  left; in total, the molecules left after merging the samples, the size
+  filter and the cell list, and those counted. `map-reads` writes the BAM rows
+  to `intermediate/mapping_summary.tsv`, and `count` reads them back from the
+  stored read mappings. The log's mapping statistics use the same names.
 - Every count matrix records how it was made, in `.uns["utrcalling"]`: the
   utrcalling version, the commands that made it, what it holds (raw sizes,
   peaks, fractions or mean sizes), the KDE bandwidth, the protocol, the

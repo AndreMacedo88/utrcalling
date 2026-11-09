@@ -343,6 +343,36 @@ class TestCountRecordsTheUtrEnd(unittest.TestCase):
         self.assertListEqual(info["commands"], [" ".join(argv)])
 
 
+class TestConcatenateRecord(unittest.TestCase):
+    """A joined matrix has a mapping summary only if every experiment has one."""
+
+    def test_an_experiment_without_a_summary_leaves_none(self):
+        from utrcalling import runtime
+        from utrcalling.core import provenance, qc
+
+        tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmpdir)
+        var = pd.DataFrame({"utr_name": ["A"], "utr_size": [10]}, index=["A_1-10"])
+        for name in ("with", "without"):
+            adata = ad.AnnData(
+                X=np.ones((2, 1), dtype=np.int32),
+                obs=pd.DataFrame(index=[f"{name}_1", f"{name}_2"]),
+                var=var,
+            )
+            if name == "with":
+                summary = qc.mapping_summary(["a.bam"], [{"molecules": 2}], {})
+                with mock.patch.object(sys, "argv", ["utrcalling", "run"]):
+                    provenance.record(adata, matrix="raw_sizes", mapping_summary=summary)
+            adata.write_h5ad(tmpdir / f"{name}.h5ad")
+        argv = ["utrcalling", "process", "concatenate", "-o", str(tmpdir / "both.h5ad")]
+        argv += ["-i", str(tmpdir / "with.h5ad"), str(tmpdir / "without.h5ad")]
+        with mock.patch.object(sys, "argv", argv):
+            runtime.main()
+        info = provenance.recorded(ad.read_h5ad(tmpdir / "both.h5ad"))
+        self.assertEqual(info["matrix"], "raw_sizes")
+        self.assertNotIn("mapping_summary", info)
+
+
 class TestScoreBandwidthsCommand(unittest.TestCase):
     """`utrcalling qc score-bandwidths` writes the scorer's table, given the genome."""
 

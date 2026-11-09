@@ -140,5 +140,56 @@ class TestFilterMappedReadsNoWhitelist(unittest.TestCase):
         self.assertListEqual(list(ref_subset.index), ["UTR1"])
 
 
+class TestFilterMappedReadsSummary(unittest.TestCase):
+    """The molecules left after each filter, for the mapping summary."""
+
+    def _mapped(self, observations, sizes):
+        return pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["UTR1"] * len(sizes)),
+                "observation_id": pd.Categorical(observations),
+                "utr_size": np.array(sizes, dtype=np.int32),
+            }
+        )
+
+    def _filter(self, mapped, protocol_):
+        regions = pd.DataFrame(
+            {"chrom": ["1"], "start": [100], "end": [200], "strand": ["+"], "name": ["G1"]},
+            index=pd.Index(["UTR1"], name="utr_name"),
+        )
+        summary = {"molecules_after_merge": len(mapped)}
+        filtered, _ = core.filter_mapped_reads(mapped, regions, protocol_, summary=summary)
+        return filtered, summary
+
+    def test_size_filter_then_cell_list(self):
+        # 10x takes its cell list from the annotation file's CellBarcode column.
+        annotations = pd.read_csv("./test_data/vivo_anno.csv")
+        protocol_ = protocol.create(platform="10x", version=2, annotations=annotations)
+        cell = annotations.CellBarcode.iloc[0]
+        observations = [cell, cell, "GGGGGGGGGGGGGGGG-1", cell]
+        filtered, summary = self._filter(self._mapped(observations, [1, 50, 60, 70]), protocol_)
+        self.assertDictEqual(
+            summary,
+            {
+                "molecules_after_merge": 4,
+                "molecules_after_size_filter": 3,  # size 1 is not > 1
+                "molecules_in_cell_list": 2,
+            },
+        )
+        self.assertEqual(len(filtered), 2)
+
+    def test_without_a_cell_list_every_cell_counts(self):
+        protocol_ = protocol.create(
+            platform="smartseq",
+            version=3,
+            label_batches=False,
+            annotations=pd.DataFrame({"Sample_ID": ["S1"]}),
+            alignments=["dummy.bam"],
+        )
+        _, summary = self._filter(self._mapped(["CELL1", "CELL2"], [50, 100]), protocol_)
+        self.assertEqual(summary["molecules_after_size_filter"], 2)
+        self.assertEqual(summary["molecules_in_cell_list"], 2)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2)

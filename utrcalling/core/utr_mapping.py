@@ -34,6 +34,28 @@ if TYPE_CHECKING:
 
 tqdm = partial(std_tqdm, dynamic_ncols=True)
 
+# What happens to the alignments in the UTR regions, in the order of the read
+# loop's checks: the mapping summary of each BAM file. Each of the counts from
+# "unmapped" to "no_umi" is skipped; "reads" are left and assigned to a UTR (of
+# which "clamped_to_utr_end" were placed at its end), and deduplication leaves
+# the "molecules".
+MAPPING_STEPS = (
+    "alignments",
+    "unmapped",
+    "other_mate",
+    "not_proper_pair",
+    "duplicate_flag",
+    "secondary",
+    "wrong_strand",
+    "no_aligned_bases",
+    "outside_utr",
+    "no_barcode",
+    "no_umi",
+    "reads",
+    "clamped_to_utr_end",
+    "molecules",
+)
+
 
 # ---------------------------------------------------------------------------
 # Lightweight adapters so pysam reads satisfy the Protocol interface
@@ -131,7 +153,8 @@ def _process_interval_batch(
         show_progress: Whether to show a tqdm progress bar.
 
     Returns:
-        A tuple of (utr_names, observation_ids, utr_sizes, mapping_stats).
+        A tuple of (utr_names, observation_ids, utr_sizes, mapping_stats), where
+        mapping_stats counts the alignments at each of MAPPING_STEPS.
     """
     # Bitmask flag filtering — varies by read-in-pair mode
     any_read = read == "any"
@@ -141,18 +164,9 @@ def _process_interval_batch(
     else:
         read_flag = 0x40 if read == "first" else 0x80
         required_flags = 0x2 | read_flag  # proper_pair + correct mate
-        excluded_flags = 0x100 | 0x400  # secondary + duplicate
+        excluded_flags = 0x100 | 0x400 | 0x4  # secondary + duplicate + unmapped
 
-    read_strand_string = f"Reads not '{read}'"
-    mapping_stats = {
-        "Reads mapped to the region of interest": 0,
-        read_strand_string: 0,
-        "Alignments not proper pair": 0,
-        "PCR duplicates": 0,
-        "Alignments not primary alignment": 0,
-        "Alignments in interval but wrong strand": 0,
-        "Positions clamped to the UTR end": 0,
-    }
+    mapping_stats = dict.fromkeys(MAPPING_STEPS, 0)
 
     # Cache protocol method lookups as local variables
     check_strand = protocol.check_strand_matches
@@ -195,40 +209,43 @@ def _process_interval_batch(
 
             try:
                 for aln in bam_file.fetch(iv_chrom, iv_start, iv_end):
-                    mapping_stats["Reads mapped to the region of interest"] += 1
+                    mapping_stats["alignments"] += 1
 
                     # Fast-path flag check
                     flag = aln.flag
                     if any_read:
                         if flag & excluded_flags:
                             if flag & 0x4:
-                                continue
+                                mapping_stats["unmapped"] += 1
                             elif flag & 0x400:
-                                mapping_stats["PCR duplicates"] += 1
+                                mapping_stats["duplicate_flag"] += 1
                             else:  # 0x100, the last excluded flag
-                                mapping_stats["Alignments not primary alignment"] += 1
+                                mapping_stats["secondary"] += 1
                             continue
                     else:
                         if (flag & required_flags) != required_flags or (flag & excluded_flags):
-                            if not (flag & read_flag):
-                                mapping_stats[read_strand_string] += 1
+                            if flag & 0x4:  # placed at its mate's position
+                                mapping_stats["unmapped"] += 1
+                            elif not (flag & read_flag):
+                                mapping_stats["other_mate"] += 1
                             elif not (flag & 0x2):
-                                mapping_stats["Alignments not proper pair"] += 1
+                                mapping_stats["not_proper_pair"] += 1
                             elif flag & 0x400:
-                                mapping_stats["PCR duplicates"] += 1
+                                mapping_stats["duplicate_flag"] += 1
                             else:  # 0x100, the last excluded flag
-                                mapping_stats["Alignments not primary alignment"] += 1
+                                mapping_stats["secondary"] += 1
                             continue
 
                     # Strand check (inlined)
                     read_strand = "-" if aln.is_reverse else "+"
                     if not check_strand(read_strand, iv_strand):
-                        mapping_stats["Alignments in interval but wrong strand"] += 1
+                        mapping_stats["wrong_strand"] += 1
                         continue
 
                     # Position extraction (protocol-controlled)
                     ref_end = aln.reference_end
                     if ref_end is None:  # no aligned bases, so no position
+                        mapping_stats["no_aligned_bases"] += 1
                         continue
                     if use_fragment:
                         tlen = aln.template_length
@@ -261,28 +278,34 @@ def _process_interval_batch(
                     # dropping them would bias every distribution proximally.
                     if iv_strand == "+":
                         if read_pos < iv_start_d:
+                            mapping_stats["outside_utr"] += 1
                             continue
                         if read_pos > iv_end_d:
                             if not clamp_bounds:
+                                mapping_stats["outside_utr"] += 1
                                 continue
                             read_pos = iv_end_d
-                            mapping_stats["Positions clamped to the UTR end"] += 1
+                            mapping_stats["clamped_to_utr_end"] += 1
                     else:
                         if read_pos > iv_start_d:
+                            mapping_stats["outside_utr"] += 1
                             continue
                         if read_pos < iv_end_d:
                             if not clamp_bounds:
+                                mapping_stats["outside_utr"] += 1
                                 continue
                             read_pos = iv_end_d
-                            mapping_stats["Positions clamped to the UTR end"] += 1
+                            mapping_stats["clamped_to_utr_end"] += 1
 
                     # Identity extraction via adapter (only for reads that pass all checks)
                     adapter = _PySamAdapter(aln)
                     read_umi, read_barcode = get_identity(alignment=adapter, bam_name=bam_path)
                     if not read_barcode:
+                        mapping_stats["no_barcode"] += 1
                         continue
                     if has_umi:
                         if not read_umi:
+                            mapping_stats["no_umi"] += 1
                             continue
                         read_umis.append(read_umi)
 
@@ -319,6 +342,8 @@ def _process_interval_batch(
 
                 # Extend flat accumulators
                 n_reads = len(mapped_read_information[0])
+                mapping_stats["reads"] += len(read_barcodes)
+                mapping_stats["molecules"] += n_reads
                 all_utr_names.extend([name] * n_reads)
                 all_observation_ids.extend(mapped_read_information[0])
                 all_utr_sizes.extend(mapped_read_information[1])
@@ -382,24 +407,15 @@ def map_reads_to_utr(
 
     Returns:
         A flat DataFrame with columns (utr_name, observation_id, utr_size),
-        using Categorical dtypes for string columns and int32 for sizes.
+        using Categorical dtypes for string columns and int32 for sizes. Its
+        ``attrs["mapping_summary"]`` counts the alignments at each of
+        MAPPING_STEPS.
     """
     logger = module_logger()
     logger.info("Extracting reads from %s and mapping them to the reference UTR", bam)
 
     # _IntervalData is already picklable — no conversion needed
     interval_items = list(intervals.items())
-
-    read_strand_string = f"Reads not '{read}'"
-    stat_keys = [
-        "Reads mapped to the region of interest",
-        read_strand_string,
-        "Alignments not proper pair",
-        "PCR duplicates",
-        "Alignments not primary alignment",
-        "Alignments in interval but wrong strand",
-        "Positions clamped to the UTR end",
-    ]
 
     if parallel and len(interval_items) > 50:
         # Parallel path — split intervals across workers. Resolve n_jobs first
@@ -424,16 +440,13 @@ def map_reads_to_utr(
         all_utr_names: list[str] = []
         all_observation_ids: list[str] = []
         all_utr_sizes: list[int] = []
-        # Seeded from stat_keys so the reporting order is stable, but any key a
-        # worker adds is accumulated too — counters are protocol-dependent.
-        merged_stats = {k: 0 for k in stat_keys}
+        mapping_stats = dict.fromkeys(MAPPING_STEPS, 0)
         for utr_names, obs_ids, utr_sizes, stats in results:
             all_utr_names.extend(utr_names)
             all_observation_ids.extend(obs_ids)
             all_utr_sizes.extend(utr_sizes)
-            for k, v in stats.items():
-                merged_stats[k] = merged_stats.get(k, 0) + v
-        mapping_stats = merged_stats
+            for step, count in stats.items():
+                mapping_stats[step] += count
     else:
         # Sequential path — single batch with progress bar
         all_utr_names, all_observation_ids, all_utr_sizes, mapping_stats = _process_interval_batch(
@@ -448,6 +461,7 @@ def map_reads_to_utr(
         }
     )
     utr_mappings = ensure_mapped_reads_dtypes(utr_mappings)
+    utr_mappings.attrs["mapping_summary"] = mapping_stats
 
     # most performant method to log
     logger.info("Mapping statistics: %s", mapping_stats)

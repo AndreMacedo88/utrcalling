@@ -74,6 +74,10 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
   shortest site of the gene's first UTR) and its UTR size in nt. A site keeps
   its name through the filtering commands. `.var` also holds `utr_name`,
   `utr_size` and `gene_name`.
+- **Mapping summary** --- `<out stem>_mapping_summary.tsv`, also kept in the
+  matrix's `.uns["utrcalling"]["mapping_summary"]`: what happened to the
+  reads, per BAM file and in total, to answer "why so few molecules?" (see
+  [Quality control](#quality-control)).
 - **How each matrix was made** --- every count matrix records in
   `.uns["utrcalling"]` the utrcalling version, the commands that made it (as
   typed, the first one making the matrix), what it holds (`matrix`:
@@ -310,6 +314,27 @@ utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.tsv genome.fa \
 # Distance of each site to the nearest PAS hexamer
 utrcalling qc pas-distance results.h5ad pas_distances.tsv genome.fa
 ```
+
+### Quality control
+
+`run` and `count` write the mapping summary, a table with a row per BAM file
+and a `total` row (`map-reads` writes the BAM rows to
+`intermediate/mapping_summary.tsv`). Each column counts the alignments in the
+UTR regions that one step skipped, or the reads and molecules it kept:
+
+| Column | Counts |
+| --- | --- |
+| `alignments` | Alignments in the UTR regions (one overlapping two UTRs counts twice) |
+| `unmapped`, `other_mate`, `not_proper_pair` | Skipped: unmapped, the mate the protocol does not use, or not in a proper pair |
+| `duplicate_flag`, `secondary` | Skipped: marked as duplicates in the BAM file, or not the primary alignment |
+| `wrong_strand`, `no_aligned_bases`, `outside_utr` | Skipped: on the strand the protocol excludes, without aligned bases, or with their UTR end outside the UTR |
+| `no_barcode`, `no_umi` | Skipped: without a cell barcode or a UMI |
+| `reads` | Kept, each at a UTR size (`clamped_to_utr_end` of them placed at the UTR's end) |
+| `molecules` | Left after removing UMI duplicates (or the second mate of each fragment) |
+| `molecules_after_merge` | After merging the samples (`-m intersection` keeps the UTRs all samples have) |
+| `molecules_after_size_filter` | After removing UTR sizes below 2 (3' protocols) |
+| `molecules_in_cell_list` | In the cells of the annotation file (10x) |
+| `molecules_counted` | In the count matrix |
 
 ### Command lines from earlier versions
 

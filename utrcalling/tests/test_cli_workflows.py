@@ -22,6 +22,7 @@ import scipy.sparse
 
 from utrcalling import runtime
 from utrcalling.core import provenance
+from utrcalling.core.utr_mapping import MAPPING_STEPS
 
 TEST_DATA = Path(__file__).resolve().parent / "test_data"
 GTF = TEST_DATA / "test_mus_musculus_GRCm38_102.gtf.gz"
@@ -83,6 +84,11 @@ def expected_site_names(var):
         numbers[gene] = numbers.get(gene, 0) + 1
         names[row] = f"{gene}_{numbers[gene]}-{size}"
     return names
+
+
+def read_summary(path):
+    """A mapping summary table, as utrcalling writes it."""
+    return pd.read_csv(path, sep="\t", index_col="input").astype("Int64")
 
 
 def commands_run(adata):
@@ -148,6 +154,28 @@ class TestRunCommand(unittest.TestCase):
                 self.assertIn("-L True -r -i -o raw.h5ad", info["commands"][0])
         self.assertEqual(provenance.recorded(self.kde)["bandwidth"], 12)
         self.assertNotIn("bandwidth", provenance.recorded(self.raw))
+
+    def test_the_mapping_summary_follows_every_read(self):
+        summary = read_summary(WORKDIR / "raw_mapping_summary.tsv")
+        bams = [str(bam) for bam in BAMS]
+        self.assertListEqual(list(summary.index), [*bams, "total"])
+        # Every alignment is skipped at one check, or kept as a read.
+        skipped = list(
+            MAPPING_STEPS[MAPPING_STEPS.index("unmapped") : MAPPING_STEPS.index("reads")]
+        )
+        per_bam = summary.loc[bams]
+        pd.testing.assert_series_equal(
+            per_bam.alignments, per_bam[skipped].sum(axis=1) + per_bam.reads, check_names=False
+        )
+        total = summary.loc["total"]
+        self.assertEqual(total.alignments, per_bam.alignments.sum())
+        self.assertGreater(total.reads, total.molecules)  # UMI duplicates
+        self.assertEqual(total.molecules_after_merge, total.molecules)  # -m union
+        self.assertLess(total.molecules_in_cell_list, total.molecules_after_size_filter)
+        for adata in (self.raw, self.kde):
+            self.assertEqual(total.molecules_counted, adata.X.sum())
+            recorded = provenance.recorded(adata)["mapping_summary"]
+            pd.testing.assert_frame_equal(recorded, summary, check_index_type=False)
 
     def test_cells_and_their_columns_come_from_the_annotation_file(self):
         self.assertGreater(self.raw.n_obs, 0)
@@ -405,6 +433,20 @@ class TestPrepareReferenceThenCallPeaks(_InTempDir):
     def test_raw_sizes_match_run(self):
         assert_same_anndata(
             ad.read_h5ad(self.tmp / "halves.h5ad"), ad.read_h5ad(WORKDIR / "raw.h5ad")
+        )
+
+    def test_map_reads_and_count_summarise_the_mapping_as_run_does(self):
+        run_summary = read_summary(WORKDIR / "raw_mapping_summary.tsv")
+        mapped = read_summary(self.tmp / "intermediate" / "mapping_summary.tsv")
+        self.assertListEqual(list(mapped.columns), list(MAPPING_STEPS))
+        pd.testing.assert_frame_equal(mapped, run_summary[list(MAPPING_STEPS)])
+        # count reads the mapping steps stored with the read mappings.
+        counted = read_summary(self.tmp / "halves_mapping_summary.tsv")
+        intermediate = self.tmp / "intermediate"
+        mappings = [str(intermediate / f"UTR_sizes_counts_{n}.parquet") for n in (1, 2)]
+        self.assertListEqual(list(counted.index), [*mappings, "total"])
+        pd.testing.assert_frame_equal(
+            counted.reset_index(drop=True), run_summary.reset_index(drop=True)
         )
 
     def test_outputs_record_the_command_as_typed(self):
@@ -678,8 +720,16 @@ class TestConcatenateExperimentsCommand(_InTempDir):
         cls.expected_cells = list(old.obs_names) + list(young.obs_names)
 
     def test_continues_the_record_of_the_first_experiment(self):
-        self.assertEqual(provenance.recorded(self.combined)["matrix"], "raw_sizes")
+        info = provenance.recorded(self.combined)
+        self.assertEqual(info["matrix"], "raw_sizes")
         self.assertListEqual(commands_run(self.combined), ["run", "concatenate-experiments"])
+        # Both experiments come from the same run here: its BAM files twice.
+        run_summary = read_summary(WORKDIR / "raw_mapping_summary.tsv")
+        bams = list(run_summary.index[:-1])
+        self.assertListEqual(list(info["mapping_summary"].index), [*bams, *bams, "total"])
+        pd.testing.assert_series_equal(
+            info["mapping_summary"].loc["total"], run_summary.loc["total"] * 2
+        )
 
     def test_has_the_cells_of_both_experiments(self):
         self.assertListEqual(list(self.combined.obs_names), self.expected_cells)
