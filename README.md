@@ -4,7 +4,7 @@
 [![Coverage](https://codecov.io/gh/AndreMacedo88/utrcalling/graph/badge.svg)](https://codecov.io/gh/AndreMacedo88/utrcalling)
 ![Python >= 3.11](https://img.shields.io/badge/python-%3E%3D3.11-blue)
 ![License: BSD-3-Clause](https://img.shields.io/badge/license-BSD--3--Clause-green)
-![Version 4.0.0](https://img.shields.io/badge/version-4.0.0-orange)
+[![PyPI](https://img.shields.io/pypi/v/utrcalling)](https://pypi.org/project/utrcalling/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23686176.svg)](https://doi.org/10.5281/zenodo.23686176)
 
 A bioinformatics toolkit for calculating molecule UTR (Untranslated Region)
@@ -88,11 +88,23 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
 - [BEDTools](https://github.com/arq5x/bedtools2) must be installed and
   available on your `PATH`.
 
-### With conda (recommended)
+### With conda and pip (recommended)
+
+Create a conda environment with Python and BEDTools, then install utrcalling
+from PyPI into it:
+
+```bash
+conda create -n utrcalling -c conda-forge -c bioconda python=3.12 bedtools
+conda activate utrcalling
+pip install utrcalling
+```
+
+### From the source code
 
 The provided `environment.yml` creates a dedicated conda environment with
 Python 3.12, BEDTools, and the latest compatible versions of all Python
-dependencies, and installs utrcalling in editable mode:
+dependencies, and installs utrcalling from the cloned repository in editable
+mode, for example to use changes not yet released:
 
 ```bash
 git clone https://github.com/AndreMacedo88/utrcalling.git
@@ -103,8 +115,8 @@ conda activate utrcalling
 
 ### Frozen environment (reproducible)
 
-`envs/utrcalling-frozen.yml` pins every package to the exact versions the
-test suite was validated with. Use it if the recommended install fails or
+`envs/utrcalling-frozen.yml`, in the cloned repository, pins every package to
+the exact versions the test suite was validated with. Use it if the recommended install fails or
 behaves differently, for example after breaking releases of dependencies in
 the future:
 
@@ -122,20 +134,8 @@ active environment. Compatible versions are resolved from the ranges declared
 in `pyproject.toml`, and BEDTools must be available on your `PATH`:
 
 ```bash
-git clone https://github.com/AndreMacedo88/utrcalling.git
-cd utrcalling
-pip install .
+pip install utrcalling
 ```
-
-For development (editable install):
-
-```bash
-pip install -e .
-```
-
-### From PyPI
-
-Not yet available on PyPI.
 
 ## Usage
 
