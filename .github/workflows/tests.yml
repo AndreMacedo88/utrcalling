@@ -44,6 +44,11 @@ jobs:
         run: python -m build
       - name: Check that PyPI can show the README
         run: python -m twine check --strict dist/*
+      # As `pip install utrcalling` does: the wheel's dependencies and command.
+      - name: Install the wheel and run the command
+        run: |
+          python -m pip install dist/*.whl
+          cd "$RUNNER_TEMP" && utrcalling --version
 
   tests:
     name: tests (${{ matrix.environment-file }})
