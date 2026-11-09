@@ -204,6 +204,43 @@ def _pas_table_per_utr_compact(
     return molecules, hexamers, distances[np.arange(len(sizes)), nearest]
 
 
+def _peak_stats_per_utr_compact(
+    X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
+    var_sub: pd.DataFrame,
+    bandwidth: float,
+) -> pd.DataFrame:
+    """The peaks of one UTR's raw sizes, with the spread of the sizes in each peak.
+
+    Returns:
+        A row per peak: ``utr_size`` (the peak), ``molecules``, and the mean,
+        standard deviation, minimum and maximum of its molecules' raw sizes.
+    """
+    counts = np.asarray(X_sub.sum(axis=0)).ravel().astype(np.int64)
+    sizes = var_sub.utr_size.to_numpy(dtype=np.int64)[counts > 0]
+    counts = counts[counts > 0]
+    molecules = np.repeat(sizes, counts)
+    peaks = call_peaks_using_kernel_density_estimator(molecules, bandwidth=bandwidth)
+    # All molecules of a size go to the same peak.
+    first_of_size = np.concatenate([[0], np.cumsum(counts)[:-1]])
+    sizes_in = pd.DataFrame({"peak": peaks[first_of_size], "size": sizes, "count": counts})
+    sizes_in["weighted"] = sizes_in["size"] * sizes_in["count"]
+    by_peak = sizes_in.groupby("peak", sort=True)
+    stats = pd.DataFrame(
+        {
+            "molecules": by_peak["count"].sum(),
+            "size_mean": by_peak["weighted"].sum() / by_peak["count"].sum(),
+            "size_min": by_peak["size"].min(),
+            "size_max": by_peak["size"].max(),
+        }
+    )
+    sizes_in["squares"] = (
+        sizes_in["count"] * (sizes_in["size"] - sizes_in["peak"].map(stats["size_mean"])) ** 2
+    )
+    stats["size_sd"] = np.sqrt(sizes_in.groupby("peak")["squares"].sum() / stats["molecules"])
+    stats.index.name = "utr_size"
+    return stats.reset_index()
+
+
 # ---------------------------------------------------------------------------
 # Batch workers — receive a list of pre-extracted per-UTR slices. The parent
 # materializes the slices once and ships only the slices each batch needs;
@@ -242,6 +279,15 @@ def _pas_table_utr_batch(
         molecules, hexamers, distances = _pas_table_per_utr_compact(X_sub, var_sub, hamming, genome)
         out.append((orig_idx, molecules, hexamers, distances))
     return out
+
+
+def _peak_stats_utr_batch(
+    batch: list[CompactUtrItem], bandwidth: float
+) -> list[tuple[int, pd.DataFrame]]:
+    return [
+        (orig_idx, _peak_stats_per_utr_compact(X_sub, var_sub, bandwidth))
+        for orig_idx, _utr_name, X_sub, var_sub in batch
+    ]
 
 
 def _score_distances_utr_batch(
@@ -650,6 +696,62 @@ def pas_distance_table(
     table["pas_hexamer"] = hexamers.array
     table["pas_distance"] = distances.array  # whole numbers, missing without a hexamer
     table.index.name = "site"
+    return table
+
+
+def peak_table(adata: ad.AnnData, bandwidth: float = 12, n_jobs: int | None = None) -> pd.DataFrame:
+    """The peaks that a bandwidth calls from raw sizes, and how spread out each one is.
+
+    Calls the peaks of each UTR as `call-peaks` does, and describes the raw
+    sizes that each peak collects. A peak whose sizes spread much wider than
+    the bandwidth may join neighbouring sites, or noise.
+
+    Args:
+        adata: Raw-sizes count matrix, with ``utr_name``, ``utr_size`` and
+            optionally ``gene_name`` in ``.var``.
+        bandwidth: KDE bandwidth of the peak calling.
+        n_jobs: Worker process count for the per-UTR loop.
+
+    Returns:
+        A row per peak, indexed by its site name (as `call-peaks` names it),
+        in UTR order, with ``gene_name`` (if ``.var`` has it), ``utr_name``,
+        ``utr_size`` (the peak), ``molecules``, ``utr_share`` (of the UTR's
+        molecules), ``utr_sites`` (peaks in the UTR), and the ``size_mean``,
+        ``size_sd`` (weighted by molecules), ``size_min`` and ``size_max`` of
+        the raw sizes it collects.
+    """
+    n_workers = helpers.resolve_n_jobs(n_jobs)
+    has_molecules = np.asarray(adata.X.sum(axis=0)).ravel() > 0
+    per_utr_inputs = _extract_per_utr_inputs(adata[:, has_molecules])
+    batches = _build_compact_batches(per_utr_inputs, n_workers)
+
+    try:
+        with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
+            batch_results = list(
+                joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                    joblib.delayed(_peak_stats_utr_batch)(batch, bandwidth)
+                    for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
+                )
+            )
+    finally:
+        helpers.shutdown_joblib_pool()
+
+    per_utr = dict(item for result in batch_results for item in result)
+    annotations = [c for c in ("gene_name", "utr_name") if c in adata.var]
+    tables = []
+    for orig_idx, _utr_name, _X_sub, var_sub in per_utr_inputs:
+        stats = per_utr[orig_idx]
+        for column in annotations:
+            stats[column] = var_sub[column].iloc[0]
+        stats["utr_share"] = stats["molecules"] / stats["molecules"].sum()
+        stats["utr_sites"] = len(stats)
+        tables.append(stats)
+    columns = [*annotations, "utr_size", "molecules", "utr_share", "utr_sites"]
+    columns += ["size_mean", "size_sd", "size_min", "size_max"]
+    if not tables:
+        return pd.DataFrame(columns=columns, index=pd.Index([], name="site"))
+    table = pd.concat(tables, ignore_index=True)[columns]
+    table.index = pd.Index(anndata_processing.site_names(table), name="site")
     return table
 
 

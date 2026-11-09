@@ -688,6 +688,62 @@ class TestScoreBandwidths(unittest.TestCase):
         self.assertListEqual(sites, [4, 2])
 
 
+class TestPeakTable(unittest.TestCase):
+    """peak_table: the peaks of a bandwidth, and the spread of the raw sizes in each."""
+
+    def setUp(self):
+        # Two UTRs, each with sizes 40-42 (8, 20 and 8 molecules) and 90-92 (12 each).
+        self.adata = _make_adata(
+            count_matrix=[[2, 5, 2, 3, 3, 3] * 2] * 4,
+            utr_names=["UTR0"] * 6 + ["UTR1"] * 6,
+            utr_sizes=[40, 41, 42, 90, 91, 92] * 2,
+            gene_names=["GeneA"] * 6 + ["GeneB"] * 6,
+            n_obs=4,
+        )
+
+    def test_peaks_and_their_spread(self):
+        table = pca.peak_table(self.adata, bandwidth=1, n_jobs=1)
+        self.assertEqual(table.index.name, "site")
+        utr0 = table[table.utr_name == "UTR0"]
+        self.assertListEqual(utr0.utr_size.tolist(), [41, 91])
+        self.assertListEqual(utr0.molecules.tolist(), [36, 36])
+        self.assertListEqual(utr0.utr_share.tolist(), [0.5, 0.5])
+        self.assertListEqual(utr0.utr_sites.tolist(), [2, 2])
+        self.assertListEqual(utr0.size_mean.tolist(), [41.0, 91.0])
+        # 8 molecules 1 nt below and 8 above the 41-nt peak; 12 and 12 around 91.
+        np.testing.assert_allclose(utr0.size_sd, [np.sqrt(16 / 36), np.sqrt(24 / 36)])
+        self.assertListEqual(utr0.size_min.tolist(), [40, 90])
+        self.assertListEqual(utr0.size_max.tolist(), [42, 92])
+        self.assertListEqual(table.gene_name.unique().tolist(), ["GeneA", "GeneB"])
+
+    def test_the_peaks_are_those_of_call_peaks(self):
+        for bandwidth in (1, 60):
+            peaks = pca.peak_call_anndata_parallel(self.adata, "kde", bandwidth=bandwidth, n_jobs=1)
+            table = pca.peak_table(self.adata, bandwidth=bandwidth, n_jobs=1)
+            with self.subTest(bandwidth=bandwidth):
+                self.assertListEqual(list(table.index), list(peaks.var_names))
+                np.testing.assert_array_equal(
+                    table.molecules.to_numpy(), np.asarray(peaks.X.sum(axis=0)).ravel()
+                )
+
+    def test_a_wide_bandwidth_joins_the_two_groups_of_sizes(self):
+        table = pca.peak_table(self.adata, bandwidth=60, n_jobs=1)
+        self.assertListEqual(table.utr_sites.tolist(), [1, 1])
+        self.assertListEqual(table.size_min.tolist(), [40, 40])
+        self.assertListEqual(table.size_max.tolist(), [92, 92])
+        self.assertGreater(table.size_sd.min(), 20)
+
+    def test_sizes_without_molecules_are_left_out(self):
+        adata = self.adata.copy()
+        adata.X[:, 6:] = 0  # UTR1
+        table = pca.peak_table(adata, bandwidth=1, n_jobs=1)
+        self.assertListEqual(table.utr_name.unique().tolist(), ["UTR0"])
+        adata.X[:] = 0
+        empty = pca.peak_table(adata, bandwidth=1, n_jobs=1)
+        self.assertEqual(len(empty), 0)
+        self.assertListEqual(list(empty.columns), list(table.columns))
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

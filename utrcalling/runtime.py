@@ -8,7 +8,15 @@ from cyclopts import App, Group, Parameter
 from utrcalling._metadata import __version__ as version
 from utrcalling.commands import call_peaks, count, map_reads, run
 from utrcalling.commands.process import concatenate, filter_sites, keep_multi_site, rename_sites
-from utrcalling.commands.qc import pas_distance, score_bandwidths
+from utrcalling.commands.qc import (
+    batches,
+    cells,
+    known_sites,
+    pas_distance,
+    peaks,
+    report,
+    score_bandwidths,
+)
 from utrcalling.commands.tools import mean_sizes, to_fractions
 
 PIPELINE = Group("Pipeline", sort_key=0)
@@ -63,8 +71,15 @@ qc = App(
     group=COMMAND_GROUPS,
     sort_key=2,
 )
-qc.command(pas_distance.pas_distance, name="pas-distance")
-qc.command(score_bandwidths.score_bandwidths, name="score-bandwidths")
+# From the whole picture to the details: the matrices, cells, groups of cells,
+# and sites, then the choice of bandwidth.
+qc.command(report.report, name="report", sort_key=0)
+qc.command(cells.cells, name="cells", sort_key=1)
+qc.command(batches.batches, name="batches", sort_key=2)
+qc.command(known_sites.known_sites, name="known-sites", sort_key=3)
+qc.command(pas_distance.pas_distance, name="pas-distance", sort_key=4)
+qc.command(peaks.peaks, name="peaks", sort_key=5)
+qc.command(score_bandwidths.score_bandwidths, name="score-bandwidths", sort_key=6)
 app.command(qc)
 
 # The commands' names before version 4.0.0, which the paper's workflows use. They

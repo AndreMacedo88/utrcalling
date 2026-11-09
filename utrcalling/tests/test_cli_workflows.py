@@ -746,5 +746,97 @@ class TestConcatenateExperimentsCommand(_InTempDir):
         )
 
 
+class TestQcCommands(_InTempDir):
+    """The qc commands on the outputs of `run`, checked against those outputs."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        cls.kde = ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
+        raw, kde = WORKDIR / "raw.h5ad", WORKDIR / "raw_kde.h5ad"
+        utrcalling("qc", "report", raw, kde, "-o", "report_mqc.tsv", "--multiqc", cwd=cls.tmp)
+        utrcalling("qc", "cells", kde, "cells.tsv", cwd=cls.tmp)
+        utrcalling("qc", "batches", kde, "batches", "-g", "Batch", "-m", "5", cwd=cls.tmp)
+        utrcalling("qc", "peaks", raw, "peaks.tsv", "-b", "12", "--cores", "2", cwd=cls.tmp)
+        # Known sites 5 nt downstream of every other site of run's peaks.
+        var = cls.kde.var
+        plus = var.strand == "+"
+        cls.positions = np.where(plus, var.start + var.utr_size, var.end - var.utr_size)
+        chosen = np.arange(len(var)) % 2 == 0
+        known = pd.DataFrame(
+            {
+                "chrom": "chr" + var.chrom.astype(str),
+                "start": cls.positions + np.where(plus, 5, -5) - 1,
+                "name": "known",
+                "score": 0,
+                "strand": var.strand.astype(str),
+            }
+        )[chosen]
+        known.insert(2, "end", known.start + 1)
+        known.to_csv(cls.tmp / "known.bed", sep="\t", header=False, index=False)
+        cls.known = known
+        utrcalling("qc", "known-sites", kde, "known.bed", "known.tsv", cwd=cls.tmp)
+
+    def _table(self, name, index_col):
+        return pd.read_csv(self.tmp / name, sep="\t", comment="#", index_col=index_col)
+
+    def test_report(self):
+        report = self._table("report_mqc.tsv", "file")
+        self.assertListEqual(list(report.index), ["raw.h5ad", "raw_kde.h5ad"])
+        self.assertListEqual(report.matrix.tolist(), ["raw_sizes", "peaks"])
+        self.assertListEqual(report.sites.tolist(), [self.raw.n_vars, self.kde.n_vars])
+        self.assertListEqual(report.molecules.tolist(), [self.raw.X.sum()] * 2)
+        summary = read_summary(WORKDIR / "raw_mapping_summary.tsv").loc["total"]
+        self.assertListEqual(report.mapping_alignments.tolist(), [summary.alignments] * 2)
+        self.assertEqual(report.loc["raw_kde.h5ad", "bandwidth"], 12)
+        self.assertTrue(pd.isna(report.loc["raw.h5ad", "bandwidth"]))
+
+    def test_cells(self):
+        cells = self._table("cells.tsv", "cell")
+        self.assertListEqual(list(cells.index), list(self.kde.obs_names))
+        np.testing.assert_array_equal(cells.molecules, np.asarray(self.kde.X.sum(axis=1)).ravel())
+        sites = np.asarray((self.kde.X > 0).sum(axis=1)).ravel()
+        np.testing.assert_array_equal(cells.sites, sites)
+
+    def test_batches(self):
+        groups = self._table("batches_groups.tsv", "group")
+        batches = self.kde.obs.Batch.astype(str).value_counts()
+        self.assertListEqual(groups.cells.tolist(), [batches["1"], batches["2"]])
+        self.assertEqual(groups.molecules.sum(), self.kde.X.sum())
+        pairs = self._table("batches_pairs.tsv", ["group_1", "group_2"])
+        self.assertListEqual(list(pairs.index), [(1, 2)])
+        self.assertGreater(pairs.utrs.iloc[0], 0)
+
+    def test_peaks_are_those_of_run(self):
+        peaks = self._table("peaks.tsv", "site")
+        self.assertCountEqual(peaks.index, self.kde.var_names)
+        molecules = pd.Series(np.asarray(self.kde.X.sum(axis=0)).ravel(), self.kde.var_names)
+        pd.testing.assert_series_equal(
+            peaks.molecules, molecules[peaks.index], check_names=False, check_index_type=False
+        )
+        shares = peaks.groupby("utr_name").utr_share.sum()
+        np.testing.assert_allclose(shares, 1.0)
+
+    def test_known_sites(self):
+        known = self._table("known.tsv", "site")
+        self.assertListEqual(list(known.index), list(self.kde.var_names))
+        np.testing.assert_array_equal(known.position, self.positions)
+        # Brute force: each site's distance to the known sites of its chromosome and strand.
+        for site, row in known.iterrows():
+            same = self.known[
+                (self.known.chrom == f"chr{row.chrom}") & (self.known.strand == row.strand)
+            ]
+            with self.subTest(site=site):
+                if same.empty:  # no known site on this chromosome and strand
+                    self.assertTrue(pd.isna(row.known_site_distance))
+                    self.assertFalse(row.near_known_site)
+                    continue
+                distance = np.abs(same.start.to_numpy() - (row.position - 1)).min()
+                self.assertEqual(row.known_site_distance, distance)
+                self.assertEqual(row.near_known_site, distance <= 20)
+        self.assertGreater(known.near_known_site.sum(), len(known) / 2 - 1)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -14,6 +14,8 @@ import anndata as ad
 import numpy as np
 import pandas as pd
 
+from utrcalling.commands.qc.report import MULTIQC_HEADER
+
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
 
@@ -62,7 +64,12 @@ GROUPED_COMMANDS = {
     ("process", "concatenate"): ["-i", "a.h5ad", "b.h5ad", "-o", "out.h5ad"],
     ("tools", "to-fractions"): ["in.h5ad", "out.h5ad"],
     ("tools", "mean-sizes"): ["in.h5ad", "out.h5ad"],
+    ("qc", "report"): ["a.h5ad", "b.h5ad", "-o", "report.tsv"],
+    ("qc", "cells"): ["in.h5ad", "out.tsv"],
+    ("qc", "batches"): ["in.h5ad", "out", "-g", "batch"],
+    ("qc", "known-sites"): ["in.h5ad", "known.bed", "out.tsv"],
     ("qc", "pas-distance"): ["in.h5ad", "out.tsv", "genome.fa"],
+    ("qc", "peaks"): ["in.h5ad", "out.tsv"],
     ("qc", "score-bandwidths"): ["in.h5ad", "out.tsv", "genome.fa"],
 }
 # Every command, with the arguments it needs.
@@ -476,6 +483,89 @@ class TestPasDistanceCommand(unittest.TestCase):
         self.assertTrue(table.pas_distance.isna().all())
         self.assertTrue(table.pas_hexamer.isna().all())
         self.assertListEqual(table.molecules.tolist(), [5, 20, 8])
+
+
+class TestQcCommands(unittest.TestCase):
+    """The qc commands write their tables where they are told, and refuse wrong matrices."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        var = pd.DataFrame(
+            {"utr_name": ["A", "A", "B"], "utr_size": [100, 200, 50], "gene_name": ["G", "G", "H"]},
+            index=["G_1-100", "G_2-200", "H_1-50"],
+        )
+        obs = pd.DataFrame({"batch": ["x", "x", "y"]}, index=["c1", "c2", "c3"])
+        counts = np.array([[4, 1, 3], [2, 2, 0], [1, 5, 6]], dtype=np.int32)
+        ad.AnnData(X=counts, obs=obs, var=var).write_h5ad(self.tmp / "sites.h5ad")
+
+    def _run(self, *args):
+        from utrcalling import runtime
+
+        with mock.patch.object(sys, "argv", ["utrcalling", "qc", *map(str, args)]):
+            runtime.main()
+
+    def test_report_with_and_without_the_multiqc_header(self):
+        self._run("report", self.tmp / "sites.h5ad", "-o", self.tmp / "plain.tsv")
+        self._run("report", self.tmp / "sites.h5ad", "-o", self.tmp / "r_mqc.tsv", "--multiqc")
+        plain = (self.tmp / "plain.tsv").read_text()
+        multiqc = (self.tmp / "r_mqc.tsv").read_text()
+        self.assertTrue(plain.startswith("file\tmatrix"))
+        self.assertTrue(multiqc.startswith("# id: 'utrcalling'\n"))
+        self.assertEqual(multiqc.removeprefix(MULTIQC_HEADER), plain)
+        table = pd.read_csv(self.tmp / "r_mqc.tsv", sep="\t", comment="#", index_col="file")
+        self.assertListEqual(list(table.index), ["sites.h5ad"])
+        self.assertEqual(table.loc["sites.h5ad", "molecules"], 24)
+
+    def test_cells(self):
+        self._run("cells", self.tmp / "sites.h5ad", self.tmp / "cells.tsv", "-m", "3")
+        cells = pd.read_csv(self.tmp / "cells.tsv", sep="\t", index_col="cell")
+        self.assertListEqual(cells.molecules.tolist(), [8, 4, 12])
+        self.assertListEqual(cells.utrs_measured.tolist(), [2, 1, 2])
+
+    def test_batches_writes_two_tables_after_the_prefix(self):
+        self._run("batches", self.tmp / "sites.h5ad", self.tmp / "b.tsv", "-g", "batch", "-m", "1")
+        groups = pd.read_csv(self.tmp / "b_groups.tsv", sep="\t", index_col="group")
+        pairs = pd.read_csv(self.tmp / "b_pairs.tsv", sep="\t", index_col=["group_1", "group_2"])
+        self.assertListEqual(groups.cells.tolist(), [2, 1])
+        self.assertListEqual(list(pairs.index), [("x", "y")])
+        self.assertEqual(pairs.utrs.iloc[0], 1)  # only UTR A has two sites
+
+    def test_known_sites(self):
+        sites = ad.read_h5ad(self.tmp / "sites.h5ad")
+        sites.var["chrom"], sites.var["strand"] = "1", "+"
+        sites.var["start"], sites.var["end"] = 1001, 1500
+        sites.write_h5ad(self.tmp / "placed.h5ad")
+        (self.tmp / "known.bed").write_text("chr1\t1099\t1100\tpA\t0\t+\n")
+        self._run(
+            "known-sites",
+            self.tmp / "placed.h5ad",
+            self.tmp / "known.bed",
+            self.tmp / "known.tsv",
+            "--utr-end",
+            "three_prime",
+            "-w",
+            "60",
+        )
+        known = pd.read_csv(self.tmp / "known.tsv", sep="\t", index_col="site")
+        # The sites lie at 1101, 1201 and 1051: 1, 101 and 49 nt from 1100.
+        self.assertListEqual(known.known_site_distance.tolist(), [1, 101, 49])
+        self.assertListEqual(known.near_known_site.tolist(), [True, False, True])
+
+    def test_peaks_needs_raw_sizes(self):
+        from utrcalling.commands.qc.peaks import peaks
+        from utrcalling.core import provenance
+
+        sites = ad.read_h5ad(self.tmp / "sites.h5ad")
+        with mock.patch.object(sys, "argv", ["utrcalling", "run"]):
+            provenance.record(sites, matrix="peaks")
+        sites.write_h5ad(self.tmp / "peaks.h5ad")
+        with self.assertRaisesRegex(ValueError, "holds peaks: give the raw sizes of run -r"):
+            peaks(str(self.tmp / "peaks.h5ad"), str(self.tmp / "out.tsv"))
+        # Matrices without a record are taken for raw sizes.
+        peaks(str(self.tmp / "sites.h5ad"), str(self.tmp / "out.tsv"), bandwidth=12, cores=1)
+        table = pd.read_csv(self.tmp / "out.tsv", sep="\t", index_col="site")
+        self.assertEqual(table.molecules.sum(), 24)
 
 
 class TestPytestFailsOnUtrcallingDeprecations(unittest.TestCase):

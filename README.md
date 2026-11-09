@@ -303,23 +303,57 @@ utrcalling tools to-fractions named.h5ad fractions.h5ad
 utrcalling tools mean-sizes named.h5ad mean_sizes.h5ad
 ```
 
-To choose the KDE bandwidth, and to check sites against polyadenylation
-signals:
-
-```bash
-# Score bandwidths by how many peaks they place 10-30 nt after a PAS hexamer
-utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.tsv genome.fa \
-    --bandwidths 1 7 12 15
-
-# Distance of each site to the nearest PAS hexamer
-utrcalling qc pas-distance results.h5ad pas_distances.tsv genome.fa
-```
-
 ### Quality control
 
-`run` and `count` write the mapping summary, a table with a row per BAM file
+The `qc` commands describe count matrices from any step, without changing
+them. Each writes a tab-separated table, which pandas, R and MultiQC read:
+
+| Command | One row per | What it tells |
+| --- | --- | --- |
+| `qc report` | count matrix | What each matrix holds and which steps made it; its cells, sites, UTRs and molecules, per-cell medians, multi-site UTRs, depth correlation and mapping summary |
+| `qc cells` | cell (or sample) | Molecules, sites, UTRs measured, multi-site UTRs, and its relative UTR size |
+| `qc batches` | group of cells, and pair of groups | Sites only one group has; how alike the groups' site usage is |
+| `qc known-sites` | site | Distance to the nearest known site of a database |
+| `qc pas-distance` | site | Distance to the nearest polyadenylation signal hexamer |
+| `qc peaks` | peak | Molecules, share of its UTR, and the spread of the raw sizes it collects |
+| `qc score-bandwidths` | KDE bandwidth | How well its peaks fall 10-30 nt after a PAS hexamer, and how many it makes |
+
+```bash
+# A row per matrix, from mapping to analysis; MultiQC shows *_mqc.tsv files
+utrcalling qc report raw_sizes.h5ad peaks_bw12.h5ad filtered.h5ad \
+    -o qc_report_mqc.tsv --multiqc
+
+# Per cell. Its log gives the correlation of the cells' relative UTR size
+# with their molecules: a strong one means UTR sizes follow sequencing depth.
+utrcalling qc cells peaks_bw12.h5ad cells.tsv
+
+# Per batch (or sample, replicate: a column of the cell annotations).
+# Writes batches_groups.tsv and batches_pairs.tsv.
+utrcalling qc batches peaks_bw12.h5ad batches --groupby Batch
+
+# Distance to known polyadenylation sites (e.g. PolyASite 2.0 clusters) or,
+# for 5' data, known transcription start sites (e.g. refTSS)
+utrcalling qc known-sites peaks_bw12.h5ad atlas.clusters.2.0.GRCh38.96.bed.gz known_sites.tsv
+
+# Distance of each site to the nearest PAS hexamer
+utrcalling qc pas-distance peaks_bw12.h5ad pas_distances.tsv genome.fa
+
+# How wide the peaks of a bandwidth are, and how well bandwidths score
+utrcalling qc peaks raw_sizes.h5ad peaks_bw12.tsv --bandwidth 12
+utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.tsv genome.fa \
+    --bandwidths 1 7 12 15
+```
+
+A site far from known sites is not necessarily wrong: it may be new, or an
+artefact. Its distance to a PAS hexamer helps to tell.
+
+#### Mapping summary
+
+`run` and `count` write `<out>_mapping_summary.tsv`, with a row per BAM file
 and a `total` row (`map-reads` writes the BAM rows to
-`intermediate/mapping_summary.tsv`). Each column counts the alignments in the
+`intermediate/mapping_summary.tsv`). Each matrix keeps the summary of the run
+that made it, also after filtering, and `process concatenate` joins those of
+the experiments. Each column counts the alignments in the
 UTR regions that one step skipped, or the reads and molecules it kept:
 
 | Column | Counts |

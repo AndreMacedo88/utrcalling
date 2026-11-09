@@ -41,13 +41,31 @@ a new major version can change results or require changes to your command lines.
 
 ### Added
 
+- **Quality control commands**, which write tables and leave the count
+  matrices unchanged:
+  - `qc report`: a row per count matrix of any step, with what it holds and
+    the steps that made it, its cells, sites, UTRs and molecules, per-cell
+    medians, multi-site UTRs, the depth correlation and the mapping summary.
+    `--multiqc` adds the header that MultiQC reads.
+  - `qc cells`: per cell, its molecules, sites, measured and multi-site UTRs,
+    and its relative UTR size; the log gives the correlation of the relative
+    size with the molecules, which shows whether UTR sizes follow depth.
+  - `qc batches -g COLUMN`: per group of cells (batch, sample), the sites no
+    other group has; per pair of groups, the correlation and difference of
+    their site usage.
+  - `qc known-sites`: each site's distance to the nearest known site of a BED
+    file, such as the PolyASite 2.0 clusters or refTSS.
+  - `qc peaks`: the peaks a bandwidth calls from raw sizes, with their
+    molecules, share of their UTR and the spread of the raw sizes they collect.
 - **Mapping summary.** `run` and `count` write `<out>_mapping_summary.tsv`:
   per BAM file, the alignments in the UTR regions that each check skipped
   (wrong strand, outside the UTR, no barcode, ...) and the reads and molecules
   left; in total, the molecules left after merging the samples, the size
   filter and the cell list, and those counted. `map-reads` writes the BAM rows
   to `intermediate/mapping_summary.tsv`, and `count` reads them back from the
-  stored read mappings. The log's mapping statistics use the same names.
+  stored read mappings. Each matrix keeps the summary (`process concatenate`
+  joins those of the experiments). The log's mapping statistics use the same
+  names.
 - Every count matrix records how it was made, in `.uns["utrcalling"]`: the
   utrcalling version, the commands that made it, what it holds (raw sizes,
   peaks, fractions or mean sizes), the KDE bandwidth, the protocol, the
