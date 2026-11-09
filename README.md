@@ -72,8 +72,8 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
   `<gene>_<n>-<size>`, e.g. `TSPAN6_2-816`: the gene name (the Ensembl ID for
   genes without one), the number of the site within its gene (1 is the
   shortest site of the gene's first UTR) and its UTR size in nt. A site keeps
-  its name in every later step, so after filtering a gene's numbers can have
-  gaps. `.var` also holds `utr_name`, `utr_size` and `gene_name`.
+  its name through the filtering commands. `.var` also holds `utr_name`,
+  `utr_size` and `gene_name`.
 - **Intermediate files** (`--store-intermediate`) --- the UTR reference and
   the read mappings, as `.parquet` files in `./intermediate/`, from which
   `call-peaks` can redo the last steps.
@@ -272,11 +272,14 @@ utrcalling process filter peaks_bw12.h5ad filtered.h5ad \
 # Keep only the UTRs with several sites (APA/ATI events)
 utrcalling process select-alternative filtered.h5ad apa.h5ad
 
+# Optional: number each gene's remaining sites 1, 2, ... again after filtering
+utrcalling process rename apa.h5ad named.h5ad
+
 # Each site's share of its UTR's counts, per cell
-utrcalling process to-fractions apa.h5ad fractions.h5ad
+utrcalling process to-fractions named.h5ad fractions.h5ad
 
 # Mean UTR size per cell and UTR
-utrcalling process mean-sizes apa.h5ad mean_sizes.h5ad
+utrcalling process mean-sizes named.h5ad mean_sizes.h5ad
 
 # Join the cells of several experiments
 utrcalling process concatenate \
@@ -301,14 +304,13 @@ utrcalling qc pas-distance results.h5ad distances.joblib genome.fa
 Command lines written for earlier versions, for example in existing
 workflows, still work. Options may be spelled with underscores
 (`--kde_bandwidth`), and the old command names still run their commands,
-although `--help` no longer lists them. Only `generate-names` was removed, in
-version 5.0.0: sites keep the names they get at peak calling, so drop that
-step.
+although `--help` no longer lists them:
 
 | Before 4.0.0 | Now |
 | --- | --- |
 | `remove-peaks-below-threshold` | `process filter` |
 | `select-alternative-transcription-events` | `process select-alternative` |
+| `generate-names` | `process rename` |
 | `counts-to-percentages` | `process to-fractions` |
 | `compute-mean-utr-sizes` | `process mean-sizes` |
 | `concatenate-experiments` | `process concatenate` |

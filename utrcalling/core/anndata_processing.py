@@ -47,6 +47,32 @@ def site_names(
     return pd.Index(names.to_numpy(), dtype=object)
 
 
+def generate_utr_site_names_from_gene_name(
+    adata: anndata.AnnData,
+    utr_name_column: str = "utr_name",
+    gene_name_column: str = "gene_name",
+) -> anndata.AnnData:
+    """Renumber the sites of *adata* with :func:`site_names`.
+
+    utrcalling already names sites ``<gene>_<n>-<size>`` when it writes them.
+    Renumbering after filtering steps closes the gaps that removed sites leave
+    in *n*. The previous names are kept in ``.var['UTR_site']``.
+
+    Args:
+        adata: The AnnData object whose ``var_names`` will be renamed.
+        utr_name_column: Column in ``.var`` containing UTR identifiers.
+        gene_name_column: Column in ``.var`` containing gene name annotations.
+
+    Returns:
+        A copy of *adata* with renamed ``var_names``.
+    """
+    adata = adata.copy()
+    adata.var["UTR_site"] = adata.var_names
+    adata.var_names = site_names(adata.var, utr_name_column, gene_name_column)
+    adata.var.index.name = None
+    return adata
+
+
 def select_alternative_transcription_events(
     adata: anndata.AnnData,
 ) -> anndata.AnnData:

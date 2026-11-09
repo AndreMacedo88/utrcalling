@@ -3,8 +3,7 @@
 Each test runs `utrcalling <command> <flags>` in this process, with the flags the
 Snakemake workflows of Macedo et al. 2026 use (here on the 10x v2 mouse test data,
 at UTR level). These command lines must keep working when the CLI changes, so they
-keep the command names of before version 4.0.0, as the workflows do. Only their
-`generate-names` step is gone (version 5.0.0): sites keep their names after filtering.
+keep the command names of before version 4.0.0, as the workflows do.
 """
 
 import os
@@ -475,13 +474,15 @@ class TestSiteProcessingCommands(_InTempDir):
                 "2",
             ],
             ["select-alternative-transcription-events", "kept.h5ad", "apa.h5ad"],
-            ["counts-to-percentages", "apa.h5ad", "fractions.h5ad", "-u", "utr_name"],
+            ["generate-names", "apa.h5ad", "named.h5ad", "-u", "utr_name", "-g", "gene_name"],
+            ["counts-to-percentages", "named.h5ad", "fractions.h5ad", "-u", "utr_name"],
         ]
         for command in commands:
             utrcalling(*command, cwd=cls.tmp)
         cls.peaks = ad.read_h5ad(cls.tmp / "peaks_bw12.h5ad")
         cls.kept = ad.read_h5ad(cls.tmp / "kept.h5ad")
         cls.apa = ad.read_h5ad(cls.tmp / "apa.h5ad")
+        cls.named = ad.read_h5ad(cls.tmp / "named.h5ad")
         cls.fractions = ad.read_h5ad(cls.tmp / "fractions.h5ad")
 
     def _kept_by_threshold(self, threshold, minimum_counts):
@@ -510,20 +511,30 @@ class TestSiteProcessingCommands(_InTempDir):
             _dense(self.apa.X), _dense(self.kept[:, self.apa.var_names].X)
         )
 
-    def test_sites_keep_their_names_through_every_step(self):
-        # The names that peak calling gives: filtering leaves gaps in the numbers.
-        peak_names = dict(zip(_site_keys(self.peaks), self.peaks.var_names, strict=True))
-        for adata in (self.kept, self.apa, self.fractions):
-            names = [peak_names[key] for key in _site_keys(adata)]
-            self.assertListEqual(list(adata.var_names), names)
-        # Numbering the remaining sites again would change some names.
-        self.assertNotEqual(list(self.apa.var_names), expected_site_names(self.apa.var))
+    def test_generated_names_number_each_genes_sites_and_add_their_size(self):
+        # <gene>_<k>-<size>, k = 1, 2, ... within each gene, in the order of the sites.
+        var = self.apa.var
+        number = var.groupby("gene_name", observed=True).cumcount() + 1
+        expected = (
+            var.gene_name.astype(str) + "_" + number.astype(str) + "-" + var.utr_size.astype(str)
+        )
+        self.assertListEqual(list(self.named.var_names), expected.tolist())
+        self.assertListEqual(self.named.var.UTR_site.tolist(), list(self.apa.var_names))
+        np.testing.assert_array_equal(_dense(self.named.X), _dense(self.apa.X))
+
+    def test_generate_names_overwrites_its_output(self):
+        # Like every other command. It used to write named_1.h5ad instead,
+        # leaving the old named.h5ad for the next step to read.
+        (self.tmp / "named.h5ad").write_text("stale")
+        utrcalling("generate-names", "apa.h5ad", "named.h5ad", cwd=self.tmp)
+        assert_same_anndata(ad.read_h5ad(self.tmp / "named.h5ad"), self.named)
+        self.assertFalse((self.tmp / "named_1.h5ad").exists())
 
     def test_dense_input_gives_dense_fractions(self):
-        dense = self.apa.copy()
+        dense = self.named.copy()
         dense.X = _dense(dense.X)
-        dense.write_h5ad(self.tmp / "apa_dense.h5ad")
-        utrcalling("counts-to-percentages", "apa_dense.h5ad", "dense.h5ad", cwd=self.tmp)
+        dense.write_h5ad(self.tmp / "named_dense.h5ad")
+        utrcalling("counts-to-percentages", "named_dense.h5ad", "dense.h5ad", cwd=self.tmp)
         fractions = ad.read_h5ad(self.tmp / "dense.h5ad").X
         self.assertFalse(scipy.sparse.issparse(fractions))
         np.testing.assert_allclose(fractions, _dense(self.fractions.X))
@@ -531,9 +542,9 @@ class TestSiteProcessingCommands(_InTempDir):
     def test_fractions_sum_to_one_per_cell_and_utr(self):
         self.assertTrue(scipy.sparse.issparse(self.fractions.X))
         fractions = _dense(self.fractions.X)
-        counts = _dense(self.apa.X)
-        for utr in self.apa.var.utr_name.unique():
-            columns = (self.apa.var.utr_name == utr).to_numpy()
+        counts = _dense(self.named.X)
+        for utr in self.named.var.utr_name.unique():
+            columns = (self.named.var.utr_name == utr).to_numpy()
             has_counts = counts[:, columns].sum(axis=1) > 0
             sums = fractions[:, columns].sum(axis=1)
             np.testing.assert_allclose(sums[has_counts], 1.0)
