@@ -1,11 +1,11 @@
-"""`utrcalling process mean-sizes`: each cell's mean UTR size per UTR."""
+"""`utrcalling tools mean-sizes`: each cell's mean UTR size per UTR."""
 
 from __future__ import annotations
 
-from utrcalling.tools.options import UtrNameColumn
+from utrcalling.commands.options import UtrNameColumn
 
 
-def compute_mean_utr_sizes(
+def mean_sizes(
     input_path: str, out_path: str, *, utr_name_column: UtrNameColumn = "utr_name"
 ) -> None:
     """Compute each cell's (or sample's) mean UTR size per UTR.

@@ -1,11 +1,11 @@
-"""`utrcalling bandwidth score`: how well each KDE bandwidth places peaks at PAS hexamers."""
+"""`utrcalling qc score-bandwidths`: how well each KDE bandwidth places peaks at PAS hexamers."""
 
 from __future__ import annotations
 
-from utrcalling.tools.options import Bandwidths, Cores
+from utrcalling.commands.options import Bandwidths, Cores
 
 
-def estimate_best_bandwidth(
+def score_bandwidths(
     input_path: str,
     out_path: str,
     genome_path: str,
@@ -23,7 +23,7 @@ def estimate_best_bandwidth(
 
     For example:
 
-        utrcalling bandwidth score raw_sizes.h5ad scores.joblib GRCh38.fa -b 1 7 12
+        utrcalling qc score-bandwidths raw_sizes.h5ad scores.joblib GRCh38.fa -b 1 7 12
 
     Args:
         input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.

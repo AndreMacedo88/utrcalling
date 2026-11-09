@@ -6,10 +6,10 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.tools.options import Cores
+from utrcalling.commands.options import Cores
 
 
-def check_distance_to_pas(
+def pas_distance(
     input_path: str,
     out_path: str,
     genome_path: str,

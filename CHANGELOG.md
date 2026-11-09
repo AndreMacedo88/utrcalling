@@ -3,6 +3,34 @@
 All notable changes to utrcalling. Versions follow [semantic versioning](https://semver.org):
 a new major version can change results or require changes to your command lines.
 
+## [Unreleased]
+
+### Changed (breaking)
+
+- **Commands renamed and regrouped**, so that each name says what the command
+  does. The pipeline commands are `run`, `map-reads` and `count` (`run` in two
+  steps) and `call-peaks`. `process` prepares the count matrix and the new
+  `tools` group computes the measures to analyse from it, in the order of an
+  analysis, like scanpy's `pp` and `tl`:
+
+  | 4.0.0 | Now |
+  | --- | --- |
+  | `prepare-reference-and-map-reads` | `map-reads` |
+  | `call-peaks` | `count` |
+  | `bandwidth call-peaks` | `call-peaks` |
+  | `process filter` | `process filter-sites` |
+  | `process select-alternative` | `process keep-multi-site` |
+  | `process rename` | `process rename-sites` |
+  | `process to-fractions` | `tools to-fractions` |
+  | `process mean-sizes` | `tools mean-sizes` |
+  | `bandwidth score` | `qc score-bandwidths` |
+
+  The names of 4.0.0 no longer work. The names from before 4.0.0 still do,
+  as in the paper's workflows: `call-peaks` with read mappings (`-c`) runs
+  `count`.
+- The command modules moved from `utrcalling.tools` to `utrcalling.commands`,
+  with a subpackage per group.
+
 ## [4.0.0] - 2026-11-05
 
 Site names and PAS distances change, three commands are gone, and the command

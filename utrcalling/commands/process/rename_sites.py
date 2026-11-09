@@ -1,4 +1,4 @@
-"""`utrcalling process rename`: number each gene's sites again, after filtering."""
+"""`utrcalling process rename-sites`: number each gene's sites again, after filtering."""
 
 from __future__ import annotations
 
@@ -6,10 +6,10 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.tools.options import UtrNameColumn
+from utrcalling.commands.options import UtrNameColumn
 
 
-def generate_names(
+def rename_sites(
     input_path: str,
     out_path: str,
     *,

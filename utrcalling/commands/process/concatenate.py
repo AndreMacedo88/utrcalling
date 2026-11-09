@@ -7,7 +7,7 @@ from typing import Annotated
 from cyclopts import Parameter
 
 
-def concatenate_experiments(
+def concatenate(
     *,
     input_paths: Annotated[list[str], Parameter(name=("--input-paths", "-i"), consume_multiple=1)],
     out_path: Annotated[str, Parameter(name=("--out-path", "-o"))],

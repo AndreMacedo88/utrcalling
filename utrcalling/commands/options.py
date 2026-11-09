@@ -1,6 +1,6 @@
 """Command-line options shared by the pipeline commands.
 
-`run`, `call-peaks` and `prepare-reference-and-map-reads` take many of the same
+`run`, `map-reads` and `count` take many of the same
 options. Each alias below carries the option's flags, help panel and help text,
 so the three commands describe them the same way.
 """
@@ -179,7 +179,7 @@ StoreIntermediate = Annotated[
         show_default=False,
         help=(
             "Also store the intermediate files (UTR reference, read mappings) in "
-            "./intermediate/, from which call-peaks can redo the last steps quickly."
+            "./intermediate/, from which `count` can redo the last steps quickly."
         ),
     ),
 ]

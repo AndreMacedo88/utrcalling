@@ -52,29 +52,40 @@ def _help(*command):
 
 RUN = ["run", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv"]
 
-# The commands of each group, and the arguments they need.
+COUNT = ["count", "utr_reference.parquet", "-c", "mappings.parquet"]
+MAP_READS = ["map-reads", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv"]
+
+# The commands outside the pipeline, by group, and the arguments they need.
 GROUPED_COMMANDS = {
-    ("process", "filter"): ["in.h5ad", "out.h5ad"],
-    ("process", "select-alternative"): ["in.h5ad", "out.h5ad"],
-    ("process", "rename"): ["in.h5ad", "out.h5ad"],
-    ("process", "to-fractions"): ["in.h5ad", "out.h5ad"],
-    ("process", "mean-sizes"): ["in.h5ad", "out.h5ad"],
+    ("process", "filter-sites"): ["in.h5ad", "out.h5ad"],
+    ("process", "keep-multi-site"): ["in.h5ad", "out.h5ad"],
+    ("process", "rename-sites"): ["in.h5ad", "out.h5ad"],
     ("process", "concatenate"): ["-i", "a.h5ad", "b.h5ad", "-o", "out.h5ad"],
-    ("qc", "pas-distance"): ["in.h5ad", "out.joblib", "genome.fa"],
-    ("bandwidth", "score"): ["in.h5ad", "out.joblib", "genome.fa"],
-    ("bandwidth", "call-peaks"): ["in.h5ad", "out"],
+    ("tools", "to-fractions"): ["in.h5ad", "out.h5ad"],
+    ("tools", "mean-sizes"): ["in.h5ad", "out.h5ad"],
+    ("qc", "pas-distance"): ["in.h5ad", "out.tsv", "genome.fa"],
+    ("qc", "score-bandwidths"): ["in.h5ad", "out.tsv", "genome.fa"],
 }
-# Their names before version 4.0.0.
+# Every command, with the arguments it needs.
+COMMANDS = {
+    ("run",): RUN[1:],
+    ("map-reads",): MAP_READS[1:],
+    ("count",): COUNT[1:],
+    ("call-peaks",): ["in.h5ad", "out"],
+    **GROUPED_COMMANDS,
+}
+# The names before version 4.0.0, which the paper's workflows use.
 OLD_NAMES = {
-    ("process", "filter"): "remove-peaks-below-threshold",
-    ("process", "select-alternative"): "select-alternative-transcription-events",
-    ("process", "rename"): "generate-names",
-    ("process", "to-fractions"): "counts-to-percentages",
-    ("process", "mean-sizes"): "compute-mean-utr-sizes",
+    ("map-reads",): "prepare-reference-and-map-reads",
+    ("call-peaks",): "call-peaks-different-bandwidths",
+    ("process", "filter-sites"): "remove-peaks-below-threshold",
+    ("process", "keep-multi-site"): "select-alternative-transcription-events",
+    ("process", "rename-sites"): "generate-names",
     ("process", "concatenate"): "concatenate-experiments",
+    ("tools", "to-fractions"): "counts-to-percentages",
+    ("tools", "mean-sizes"): "compute-mean-utr-sizes",
     ("qc", "pas-distance"): "check-distance-to-pas",
-    ("bandwidth", "score"): "estimate-best-bandwidth",
-    ("bandwidth", "call-peaks"): "call-peaks-different-bandwidths",
+    ("qc", "score-bandwidths"): "estimate-best-bandwidth",
 }
 
 
@@ -95,9 +106,9 @@ class TestCLIHelp(unittest.TestCase):
         page = _help()
         for panel in ("Pipeline", "Command groups"):
             self.assertIn(panel, page)
-        for command in ("run", "prepare-reference-and-map-reads", "call-peaks"):
+        for command in ("run", "map-reads", "count", "call-peaks"):
             self.assertIn(command, page)
-        for group in ("process", "qc", "bandwidth"):
+        for group in ("process", "tools", "qc"):
             self.assertIn(group, page)
 
     def test_group_help_lists_its_commands(self):
@@ -112,8 +123,7 @@ class TestCLIHelp(unittest.TestCase):
                 self.assertNotIn(old_name, page)
 
     def test_every_command_has_a_help_page(self):
-        commands = [("run",), ("prepare-reference-and-map-reads",), ("call-peaks",)]
-        for command in [*commands, *GROUPED_COMMANDS]:
+        for command in COMMANDS:
             with self.subTest(command=command):
                 self.assertIn(f"Usage: utrcalling {' '.join(command)}", _help(*command))
 
@@ -123,7 +133,7 @@ class TestCLIHelp(unittest.TestCase):
             self.assertIn(panel, page)
 
     def test_bandwidth_defaults_are_shown_as_typed(self):
-        self.assertIn("[default: 1 7 12 15]", _help("bandwidth", "score"))
+        self.assertIn("[default: 1 7 12 15]", _help("qc", "score-bandwidths"))
 
 
 class TestOldCommandNames(unittest.TestCase):
@@ -131,9 +141,25 @@ class TestOldCommandNames(unittest.TestCase):
 
     def test_old_and_new_names_run_the_same_command(self):
         for new_name, old_name in OLD_NAMES.items():
-            arguments = GROUPED_COMMANDS[new_name]
+            arguments = COMMANDS[new_name]
             with self.subTest(old_name=old_name):
                 self.assertEqual(_parse(old_name, *arguments), _parse(*new_name, *arguments))
+
+    def test_call_peaks_with_read_mappings_is_count(self):
+        # Before 5.0.0, call-peaks counted the sites of the read mappings given
+        # with -c; call-peaks now calls the peaks of a raw-sizes count matrix.
+        from utrcalling.runtime import update_old_command_lines
+
+        for flag in (["-c", "mappings.parquet"], ["--utr_sizes_counts", "mappings.parquet"]):
+            old = ["call-peaks", "utr_reference.parquet", *flag, "-r"]
+            with self.subTest(flag=flag[0]):
+                self.assertEqual(_parse(*update_old_command_lines(old)), _parse(*COUNT, "-r"))
+        self.assertListEqual(
+            update_old_command_lines(["call-peaks", "--utr-sizes-counts=m.parquet", "u.parquet"]),
+            ["count", "--utr-sizes-counts=m.parquet", "u.parquet"],
+        )
+        new = ["call-peaks", "raw.h5ad", "peaks", "-b", "12"]
+        self.assertListEqual(update_old_command_lines(new), new)
 
 
 class TestOptionSpellings(unittest.TestCase):
@@ -223,32 +249,19 @@ class TestProtocolVersionDefault(unittest.TestCase):
     """
 
     def test_commands_default_to_version_3(self):
-        commands = {
-            "run": RUN,
-            "call-peaks": ["call-peaks", "utr_reference.parquet", "-c", "mappings.parquet"],
-            "prepare-reference-and-map-reads": [
-                "prepare-reference-and-map-reads",
-                "annotation.gtf",
-                "-a",
-                "sample.bam",
-                "-A",
-                "anno.csv",
-            ],
-        }
-        for name, argv in commands.items():
+        for argv in (RUN, MAP_READS, COUNT):
+            name = argv[0]
             with self.subTest(command=name):
                 self.assertEqual(_parse(*argv)[1]["protocol_version"], 3)
 
     def test_tool_functions_default_to_version_3(self):
         import inspect
 
-        from utrcalling.tools.call_peaks import call_peaks
-        from utrcalling.tools.prepare_reference_and_map_reads import (
-            generate_utr_reference_and_map_reads,
-        )
-        from utrcalling.tools.run import run
+        from utrcalling.commands.count import count
+        from utrcalling.commands.map_reads import map_reads
+        from utrcalling.commands.run import run
 
-        for tool in (run, call_peaks, generate_utr_reference_and_map_reads):
+        for tool in (run, map_reads, count):
             with self.subTest(tool=tool.__name__):
                 default = inspect.signature(tool).parameters["protocol_version"].default
                 self.assertEqual(default, 3)
@@ -274,27 +287,27 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
         return create.call_args.kwargs
 
     def test_run_forwards_kde_bandwidth(self):
-        from utrcalling.tools.run import run
+        from utrcalling.commands.run import run
 
         kwargs = self._protocol_kwargs(
             run, "annotation.gtf", alignments=["sample.bam"], annotations_file="anno.csv"
         )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
 
-    def test_call_peaks_forwards_kde_bandwidth(self):
-        from utrcalling.tools.call_peaks import call_peaks
+    def test_count_forwards_kde_bandwidth(self):
+        from utrcalling.commands.count import count
 
         kwargs = self._protocol_kwargs(
-            call_peaks, "utr_reference.parquet", utr_sizes_counts=["mappings.parquet"]
+            count, "utr_reference.parquet", utr_sizes_counts=["mappings.parquet"]
         )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
 
 
-class TestEstimateBestBandwidthTool(unittest.TestCase):
-    """`utrcalling estimate-best-bandwidth` passes the genome to the scorer."""
+class TestScoreBandwidthsCommand(unittest.TestCase):
+    """`utrcalling qc score-bandwidths` passes the genome to the scorer."""
 
     def test_genome_reaches_the_scorer(self):
-        from utrcalling.tools.estimate_best_bandwidth import estimate_best_bandwidth
+        from utrcalling.commands.qc.score_bandwidths import score_bandwidths
 
         tmpdir = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmpdir)
@@ -309,7 +322,7 @@ class TestEstimateBestBandwidthTool(unittest.TestCase):
                 return_value=[0.25, 0.5],
             ) as scorer,
         ):
-            estimate_best_bandwidth(
+            score_bandwidths(
                 input_path="experiment.h5ad",
                 out_path=str(out_path),
                 genome_path=str(genome_path),

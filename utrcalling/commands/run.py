@@ -7,7 +7,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.tools.options import (
+from utrcalling.commands.options import (
     INPUTS,
     OUTPUT,
     Alignments,

@@ -343,6 +343,7 @@ class TestRunCommandWithOneBam(_InTempDir):
 class TestPrepareReferenceThenCallPeaks(_InTempDir):
     """Running the pipeline in two halves gives the same result as `run`.
 
+    With the names of the paper's workflows: `map-reads` and `count` since 5.0.0.
     prepare-reference-and-map-reads used to crash on every call: the protocol
     needs the annotation file, which the command did not accept.
     """

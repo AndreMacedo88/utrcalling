@@ -6,20 +6,10 @@ from collections.abc import Callable
 from cyclopts import App, Group, Parameter
 
 from utrcalling._metadata import __version__ as version
-from utrcalling.tools import (
-    call_peaks,
-    call_peaks_different_bandwidths,
-    check_distance_to_pas,
-    compute_mean_utr_sizes,
-    concatenate_experiments,
-    counts_to_percentages,
-    estimate_best_bandwidth,
-    generate_utr_names,
-    prepare_reference_and_map_reads,
-    remove_peaks_below_count_threshold,
-    run,
-    select_alternative_transcription_events,
-)
+from utrcalling.commands import call_peaks, count, map_reads, run
+from utrcalling.commands.process import concatenate, filter_sites, keep_multi_site, rename_sites
+from utrcalling.commands.qc import pas_distance, score_bandwidths
+from utrcalling.commands.tools import mean_sizes, to_fractions
 
 PIPELINE = Group("Pipeline", sort_key=0)
 COMMAND_GROUPS = Group("Command groups", sort_key=1)
@@ -37,74 +27,60 @@ app = App(
 app["--help"].group = "Help"
 app["--version"].group = "Help"
 
+# `run` does what `map-reads` and then `count` do; `call-peaks` continues `run -r`.
 app.command(run.run, name="run", group=PIPELINE, sort_key=0)
-app.command(
-    prepare_reference_and_map_reads.generate_utr_reference_and_map_reads,
-    name="prepare-reference-and-map-reads",
-    group=PIPELINE,
-    sort_key=1,
-)
-app.command(call_peaks.call_peaks, name="call-peaks", group=PIPELINE, sort_key=2)
+app.command(map_reads.map_reads, name="map-reads", group=PIPELINE, sort_key=1)
+app.command(count.count, name="count", group=PIPELINE, sort_key=2)
+app.command(call_peaks.call_peaks, name="call-peaks", group=PIPELINE, sort_key=3)
 
+# The groups come in the order of an analysis, like scanpy's pp and tl: process
+# the count matrix, then compute the measures to analyse from it.
 process = App(
     name="process",
-    help="Process count matrices: filter sites, keep alternative sites, convert counts.",
+    help="Prepare the site count matrix: filter sites, keep multi-site UTRs, join experiments.",
     group=COMMAND_GROUPS,
-)
-# In the order of a typical workflow.
-process.command(
-    remove_peaks_below_count_threshold.remove_peaks_below_count_threshold,
-    name="filter",
     sort_key=0,
 )
-process.command(
-    select_alternative_transcription_events.select_alternative_transcription_events,
-    name="select-alternative",
+process.command(filter_sites.filter_sites, name="filter-sites", sort_key=0)
+process.command(keep_multi_site.keep_multi_site, name="keep-multi-site", sort_key=1)
+process.command(rename_sites.rename_sites, name="rename-sites", sort_key=2)
+process.command(concatenate.concatenate, name="concatenate", sort_key=3)
+app.command(process)
+
+tools = App(
+    name="tools",
+    help="Compute the measures to analyse from site counts: site usage, mean UTR sizes.",
+    group=COMMAND_GROUPS,
     sort_key=1,
 )
-process.command(generate_utr_names.generate_names, name="rename", sort_key=2)
-process.command(counts_to_percentages.counts_to_percentages, name="to-fractions", sort_key=3)
-process.command(compute_mean_utr_sizes.compute_mean_utr_sizes, name="mean-sizes", sort_key=4)
-process.command(concatenate_experiments.concatenate_experiments, name="concatenate", sort_key=5)
-app.command(process)
+tools.command(to_fractions.to_fractions, name="to-fractions", sort_key=0)
+tools.command(mean_sizes.mean_sizes, name="mean-sizes", sort_key=1)
+app.command(tools)
 
 qc = App(
     name="qc",
-    help="Quality control: distances of molecules to polyadenylation signals.",
+    help="Quality control: tables that describe sites, cells and samples, at any step.",
     group=COMMAND_GROUPS,
+    sort_key=2,
 )
-qc.command(check_distance_to_pas.check_distance_to_pas, name="pas-distance")
+qc.command(pas_distance.pas_distance, name="pas-distance")
+qc.command(score_bandwidths.score_bandwidths, name="score-bandwidths")
 app.command(qc)
 
-bandwidth = App(
-    name="bandwidth",
-    help="Choose the KDE bandwidth of peak calling: score bandwidths, call peaks with several.",
-    group=COMMAND_GROUPS,
-)
-bandwidth.command(estimate_best_bandwidth.estimate_best_bandwidth, name="score", sort_key=0)
-bandwidth.command(
-    call_peaks_different_bandwidths.call_peaks_different_bandwidths, name="call-peaks", sort_key=1
-)
-app.command(bandwidth)
-
 # The commands' names before version 4.0.0, which the paper's workflows use. They
-# keep working, but the help lists only the names above.
+# keep working, but the help lists only the names above. (`call-peaks` with -c,
+# now `count`, is rewritten by update_old_command_lines.)
 OLD_NAMES: dict[str, Callable[..., None]] = {
-    "remove-peaks-below-threshold": (
-        remove_peaks_below_count_threshold.remove_peaks_below_count_threshold
-    ),
-    "select-alternative-transcription-events": (
-        select_alternative_transcription_events.select_alternative_transcription_events
-    ),
-    "generate-names": generate_utr_names.generate_names,
-    "counts-to-percentages": counts_to_percentages.counts_to_percentages,
-    "compute-mean-utr-sizes": compute_mean_utr_sizes.compute_mean_utr_sizes,
-    "concatenate-experiments": concatenate_experiments.concatenate_experiments,
-    "check-distance-to-pas": check_distance_to_pas.check_distance_to_pas,
-    "estimate-best-bandwidth": estimate_best_bandwidth.estimate_best_bandwidth,
-    "call-peaks-different-bandwidths": (
-        call_peaks_different_bandwidths.call_peaks_different_bandwidths
-    ),
+    "prepare-reference-and-map-reads": map_reads.map_reads,
+    "call-peaks-different-bandwidths": call_peaks.call_peaks,
+    "remove-peaks-below-threshold": filter_sites.filter_sites,
+    "select-alternative-transcription-events": keep_multi_site.keep_multi_site,
+    "generate-names": rename_sites.rename_sites,
+    "concatenate-experiments": concatenate.concatenate,
+    "counts-to-percentages": to_fractions.to_fractions,
+    "compute-mean-utr-sizes": mean_sizes.mean_sizes,
+    "check-distance-to-pas": pas_distance.pas_distance,
+    "estimate-best-bandwidth": score_bandwidths.score_bandwidths,
 }
 for old_name, command in OLD_NAMES.items():
     app.command(command, name=old_name, show=False)
@@ -127,11 +103,27 @@ def hyphenate_long_options(tokens: list[str]) -> list[str]:
     return hyphenated
 
 
+def update_old_command_lines(tokens: list[str]) -> list[str]:
+    """Rewrite a command line written for an earlier version as today's.
+
+    Long options get hyphens (see hyphenate_long_options). Before version 5.0.0,
+    `call-peaks` counted the sites from the read mappings that `-c` gives: that
+    is `count` now, and `call-peaks` takes a raw-sizes count matrix.
+    """
+    tokens = hyphenate_long_options(tokens)
+    old_call_peaks = tokens[:1] == ["call-peaks"] and any(
+        token == "-c" or token.partition("=")[0] == "--utr-sizes-counts" for token in tokens
+    )
+    if old_call_peaks:
+        tokens = ["count", *tokens[1:]]
+    return tokens
+
+
 def main() -> None:
     from utrcalling import show_logo
 
     show_logo()
-    app(hyphenate_long_options(sys.argv[1:]))
+    app(update_old_command_lines(sys.argv[1:]))
 
 
 if __name__ == "__main__":

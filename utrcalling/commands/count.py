@@ -1,4 +1,4 @@
-"""`utrcalling call-peaks`: UTR site counts from the read mappings that run stores."""
+"""`utrcalling count`: the second half of the pipeline, from read mappings to UTR site counts."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.tools.options import (
+from utrcalling.commands.options import (
     INPUTS,
     OUTPUT,
     AnnotationsFile,
@@ -26,7 +26,7 @@ from utrcalling.tools.options import (
 )
 
 
-def call_peaks(
+def count(
     utr_annotation: Annotated[str, Parameter(group=INPUTS)],
     *,
     utr_sizes_counts: Annotated[
@@ -46,21 +46,21 @@ def call_peaks(
     no_log_file: NoLogFile = False,
     cores: Annotated[Cores, Parameter(group=OUTPUT)] = None,
 ) -> None:
-    """Count the molecules at each UTR site from stored read mappings.
+    """Count the molecules at each UTR site from the read mappings that map-reads stores.
 
     Does the last steps of `run` (merging samples, filtering and peak calling)
-    from the files that `run -i` or `prepare-reference-and-map-reads` store in
+    from the files that `run -i` or `map-reads` store in
     ./intermediate/. Give it the same annotation file, protocol and
     --label-batches as the command that stored them.
 
     For example:
 
-        utrcalling call-peaks intermediate/utr_reference_regions.parquet \\
+        utrcalling count intermediate/utr_reference_regions.parquet \\
             -c intermediate/UTR_sizes_counts_*.parquet -A experiment.csv
 
     Args:
         utr_annotation: UTR reference: the utr_reference_regions.parquet that run -i
-            or prepare-reference-and-map-reads stores (or a .pkl from older versions).
+            or map-reads stores (or a .pkl from older versions).
         utr_sizes_counts: Read mappings (.parquet): one file per BAM, or the merged
             file that run -i stores for several BAMs.
     """

@@ -1,4 +1,4 @@
-"""`utrcalling prepare-reference-and-map-reads`: the first half of the pipeline."""
+"""`utrcalling map-reads`: the first half of the pipeline, from aligned reads to read mappings."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.tools.options import (
+from utrcalling.commands.options import (
     INPUTS,
     Alignments,
     AnnotationsFile,
@@ -21,7 +21,7 @@ from utrcalling.tools.options import (
 )
 
 
-def generate_utr_reference_and_map_reads(
+def map_reads(
     utr_annotation: Annotated[str, Parameter(group=INPUTS)],
     *,
     alignments: Alignments,
@@ -34,15 +34,15 @@ def generate_utr_reference_and_map_reads(
     log_level: LogLevel = "info",
     no_log_file: NoLogFile = False,
 ) -> None:
-    """Build the UTR reference and map the reads to it, for call-peaks to continue.
+    """Build the UTR reference and map the reads to it, for `count` to continue.
 
     Stores the UTR reference and each BAM's read mappings in ./intermediate/.
-    Give call-peaks the same annotation file and --label-batches: they decide
+    Give `count` the same annotation file and --label-batches: they decide
     the observation names stored with the mappings.
 
     For example:
 
-        utrcalling prepare-reference-and-map-reads mus_musculus.gtf -a wt.bam ko.bam -A experiment.csv
+        utrcalling map-reads mus_musculus.gtf -a wt.bam ko.bam -A experiment.csv
 
     Args:
         utr_annotation: GTF file with the genome annotation (plain or gzipped).

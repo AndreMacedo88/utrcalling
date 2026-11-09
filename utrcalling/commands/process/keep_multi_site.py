@@ -1,9 +1,9 @@
-"""`utrcalling process select-alternative`: keep the UTRs with alternative sites."""
+"""`utrcalling process keep-multi-site`: keep the UTRs with two or more sites."""
 
 from __future__ import annotations
 
 
-def select_alternative_transcription_events(input_path: str, out_path: str) -> None:
+def keep_multi_site(input_path: str, out_path: str) -> None:
     """Keep only the UTRs with two or more sites.
 
     These are the alternative polyadenylation (APA) events of 3' UTRs, or the

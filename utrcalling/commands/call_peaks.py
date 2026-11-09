@@ -1,18 +1,18 @@
-"""`utrcalling bandwidth call-peaks`: peaks of a raw-sizes count matrix, per bandwidth."""
+"""`utrcalling call-peaks`: the peaks of a raw-sizes count matrix, per KDE bandwidth."""
 
 from __future__ import annotations
 
-from utrcalling.tools.options import Bandwidths, Cores
+from utrcalling.commands.options import Bandwidths, Cores
 
 
-def call_peaks_different_bandwidths(
+def call_peaks(
     input_path: str,
     out_path: str,
     *,
     bandwidths: Bandwidths = (12,),
     cores: Cores = None,
 ) -> None:
-    """Collapse each molecule's UTR size into peaks, with one or more KDE bandwidths.
+    """Call the peaks of a raw-sizes count matrix, with one or more KDE bandwidths.
 
     Takes the raw-sizes count matrix of `run -r` and collapses the sizes of each
     UTR into sites (peaks), as `run` does, once per bandwidth. Writes one file per
@@ -20,7 +20,7 @@ def call_peaks_different_bandwidths(
 
     For example:
 
-        utrcalling bandwidth call-peaks raw_sizes.h5ad peaks -b 7 12 15
+        utrcalling call-peaks raw_sizes.h5ad peaks -b 7 12 15
 
     Args:
         input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.

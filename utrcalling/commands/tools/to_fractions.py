@@ -1,11 +1,11 @@
-"""`utrcalling process to-fractions`: each site's share of its UTR's counts."""
+"""`utrcalling tools to-fractions`: each site's share of its UTR's counts."""
 
 from __future__ import annotations
 
-from utrcalling.tools.options import UtrNameColumn
+from utrcalling.commands.options import UtrNameColumn
 
 
-def counts_to_percentages(
+def to_fractions(
     input_path: str, out_path: str, *, utr_name_column: UtrNameColumn = "utr_name"
 ) -> None:
     """Convert counts into each site's share of its UTR's counts, per cell.

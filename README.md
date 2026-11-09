@@ -76,7 +76,7 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
   `utr_size` and `gene_name`.
 - **Intermediate files** (`--store-intermediate`) --- the UTR reference and
   the read mappings, as `.parquet` files in `./intermediate/`, from which
-  `call-peaks` can redo the last steps.
+  `count` can redo the last steps.
 - **Log files** --- automatically written to the output directory (suppress with
   `--no-log-file`).
 
@@ -139,16 +139,18 @@ pip install utrcalling
 
 ## Usage
 
-utrcalling has three pipeline commands and three groups of commands for what
-comes after:
+utrcalling has four pipeline commands, and three groups of commands for what
+comes after them. Like scanpy's `pp` and `tl`, `process` prepares the count
+matrix and `tools` then computes the measures to analyse from it:
 
 | Command | Purpose |
 | --- | --- |
 | `run` | The whole pipeline, from BAM files to a count matrix of UTR sites |
-| `prepare-reference-and-map-reads`, then `call-peaks` | The same, in two steps |
-| `process ...` | Process count matrices: filter sites, keep alternative sites, convert counts |
-| `qc pas-distance` | Quality control: distances of molecules to polyadenylation signals |
-| `bandwidth ...` | Choose the KDE bandwidth: score bandwidths, call peaks with several |
+| `map-reads`, then `count` | The same, in two steps |
+| `call-peaks` | The peaks of a raw-sizes count matrix (from `run --raw-sizes`), with one or more KDE bandwidths |
+| `process ...` | Prepare the count matrix: filter sites, keep multi-site UTRs, number sites again, join experiments |
+| `tools ...` | Compute the measures to analyse: site usage fractions, mean UTR sizes |
+| `qc ...` | Quality control tables, at any step |
 
 `utrcalling --help` lists them, `utrcalling process --help` lists a group's
 commands, and `utrcalling run --help` describes a command's options.
@@ -216,7 +218,7 @@ utrcalling run \
 Random-fragmentation libraries spread reads over a much wider window around
 each polyadenylation site than 3'-end assays do, so a wider `--kde-bandwidth`
 than the default of 12 is usually needed. Otherwise the spread is split into
-many closely spaced pseudo-peaks. `utrcalling bandwidth score` can help
+many closely spaced pseudo-peaks. `utrcalling qc score-bandwidths` can help
 choose a value.
 
 ### Step-by-step execution
@@ -225,15 +227,15 @@ The pipeline can also be run in two stages for large datasets or debugging:
 
 ```bash
 # Stage 1 & 2: Build UTR reference and map reads (written to ./intermediate/)
-utrcalling prepare-reference-and-map-reads \
+utrcalling map-reads \
     genome_annotations.gtf.gz \
     --alignments sample.bam \
     --annotations-file annotations.csv \
     --protocol-platform 10x \
     --protocol-version 3
 
-# Stage 3: Call peaks from intermediate files (same annotations and --label-batches)
-utrcalling call-peaks \
+# Stage 3: Count the sites from intermediate files (same annotations and --label-batches)
+utrcalling count \
     intermediate/utr_reference_regions.parquet \
     --utr-sizes-counts intermediate/UTR_sizes_counts_*.parquet \
     --annotations-file annotations.csv \
@@ -258,33 +260,36 @@ utrcalling call-peaks \
 
 ### Downstream processing
 
-After the pipeline, the `process` commands filter and convert the count
-matrix. A typical sequence, starting from the raw sizes of `run --raw-sizes`:
+After the pipeline, the `process` commands prepare the count matrix and the
+`tools` commands compute the measures to analyse. A typical sequence,
+starting from the raw sizes of `run --raw-sizes`:
 
 ```bash
-# Collapse the raw sizes of `run --raw-sizes` into peaks (writes peaks_bw12.h5ad)
-utrcalling bandwidth call-peaks raw_sizes.h5ad peaks --bandwidths 12
+# Call the peaks of the raw sizes (writes peaks_bw12.h5ad)
+utrcalling call-peaks raw_sizes.h5ad peaks --bandwidths 12
 
 # Remove low-count sites
-utrcalling process filter peaks_bw12.h5ad filtered.h5ad \
+utrcalling process filter-sites peaks_bw12.h5ad filtered.h5ad \
     --threshold 0.05 --minimum-counts 10
 
-# Keep only the UTRs with several sites (APA/ATI events)
-utrcalling process select-alternative filtered.h5ad apa.h5ad
+# Keep only the UTRs with two or more sites (APA/ATI events)
+utrcalling process keep-multi-site filtered.h5ad apa.h5ad
 
-# Optional: number each gene's remaining sites 1, 2, ... again after filtering
-utrcalling process rename apa.h5ad named.h5ad
-
-# Each site's share of its UTR's counts, per cell
-utrcalling process to-fractions named.h5ad fractions.h5ad
-
-# Mean UTR size per cell and UTR
-utrcalling process mean-sizes named.h5ad mean_sizes.h5ad
+# Optional: number each gene's remaining sites 1, 2, ... again. The sites
+# then have other names than in the files before: compare files by the
+# utr_name and utr_size columns.
+utrcalling process rename-sites apa.h5ad named.h5ad
 
 # Join the cells of several experiments
 utrcalling process concatenate \
     -i experiment1.h5ad experiment2.h5ad \
     -o combined.h5ad
+
+# Each site's share of its UTR's counts, per cell
+utrcalling tools to-fractions named.h5ad fractions.h5ad
+
+# Mean UTR size per cell and UTR
+utrcalling tools mean-sizes named.h5ad mean_sizes.h5ad
 ```
 
 To choose the KDE bandwidth, and to check sites against polyadenylation
@@ -292,31 +297,35 @@ signals:
 
 ```bash
 # Score bandwidths by how many peaks they place 10-30 nt after a PAS hexamer
-utrcalling bandwidth score raw_sizes.h5ad bandwidth_scores.joblib genome.fa \
+utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.joblib genome.fa \
     --bandwidths 1 7 12 15
 
 # Distance of each molecule to the nearest PAS hexamer
 utrcalling qc pas-distance results.h5ad distances.joblib genome.fa
 ```
 
-### Command lines from before version 4.0.0
+### Command lines from earlier versions
 
-Command lines written for earlier versions, for example in existing
+Command lines written before version 4.0.0, for example in existing
 workflows, still work. Options may be spelled with underscores
 (`--kde_bandwidth`), and the old command names still run their commands,
-although `--help` no longer lists them:
+although `--help` no longer lists them. `call-peaks` with read mappings
+(`-c`) runs `count`. The names that version 4.0.0 introduced were replaced in
+5.0.0:
 
-| Before 4.0.0 | Now |
-| --- | --- |
-| `remove-peaks-below-threshold` | `process filter` |
-| `select-alternative-transcription-events` | `process select-alternative` |
-| `generate-names` | `process rename` |
-| `counts-to-percentages` | `process to-fractions` |
-| `compute-mean-utr-sizes` | `process mean-sizes` |
-| `concatenate-experiments` | `process concatenate` |
-| `check-distance-to-pas` | `qc pas-distance` |
-| `estimate-best-bandwidth` | `bandwidth score` |
-| `call-peaks-different-bandwidths` | `bandwidth call-peaks` |
+| Before 4.0.0 | 4.0.0 | Now |
+| --- | --- | --- |
+| `prepare-reference-and-map-reads` | `prepare-reference-and-map-reads` | `map-reads` |
+| `call-peaks` | `call-peaks` | `count` |
+| `call-peaks-different-bandwidths` | `bandwidth call-peaks` | `call-peaks` |
+| `remove-peaks-below-threshold` | `process filter` | `process filter-sites` |
+| `select-alternative-transcription-events` | `process select-alternative` | `process keep-multi-site` |
+| `generate-names` | `process rename` | `process rename-sites` |
+| `concatenate-experiments` | `process concatenate` | `process concatenate` |
+| `counts-to-percentages` | `process to-fractions` | `tools to-fractions` |
+| `compute-mean-utr-sizes` | `process mean-sizes` | `tools mean-sizes` |
+| `check-distance-to-pas` | `qc pas-distance` | `qc pas-distance` |
+| `estimate-best-bandwidth` | `bandwidth score` | `qc score-bandwidths` |
 
 [CHANGELOG.md](https://github.com/AndreMacedo88/utrcalling/blob/main/CHANGELOG.md) lists what changed in each version.
 
@@ -354,9 +363,10 @@ utrcalling/
 │   │   ├── process_mapped_reads.py
 │   │   ├── storage.py
 │   │   └── ...
-│   ├── tools/                   The commands (options.py: options they share)
-│   ├── tests/                   Unit and integration tests
-│   └── notebooks/               Example notebooks
+│   ├── commands/               One module per command, a folder per group
+│   │                           (options.py: the options they share)
+│   └── tests/                  Unit and integration tests
+├── notebooks/                  Exploratory analyses
 ├── envs/
 │   └── utrcalling-frozen.yml   Exact versions validated by the test suite
 ├── pyproject.toml              Package metadata and dependency ranges

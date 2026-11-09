@@ -1,4 +1,4 @@
-"""`utrcalling process filter`: remove the sites with few counts."""
+"""`utrcalling process filter-sites`: remove the sites with few counts."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from typing import Annotated
 from cyclopts import Parameter
 
 
-def remove_peaks_below_count_threshold(
+def filter_sites(
     input_path: str,
     out_path: str,
     *,
@@ -21,7 +21,7 @@ def remove_peaks_below_count_threshold(
 
     For example:
 
-        utrcalling process filter sites.h5ad filtered.h5ad -t 0.05 -m 10
+        utrcalling process filter-sites sites.h5ad filtered.h5ad -t 0.05 -m 10
 
     Args:
         input_path: Count matrix (.h5ad).
