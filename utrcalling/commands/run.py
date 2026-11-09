@@ -63,9 +63,9 @@ def run(
         utr_annotation: GTF file with the genome annotation (plain or gzipped).
     """
 
-    from utrcalling.core import core, helpers, protocol, storage
+    from utrcalling.commands._count_sites import count_sites
+    from utrcalling.core import core, protocol
     from utrcalling.core.module_log import module_logger
-    from utrcalling.core.protocols import peak_calling as pc
 
     # Set up logging
     store_log = not no_log_file
@@ -95,7 +95,7 @@ def run(
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info("Mapping aligned reads to UTR reference")
-    utr_sizes_counts = core.map_aligned_reads(
+    read_mappings = core.map_aligned_reads(
         alignments=alignments,
         utr_regions=utr_reference_regions,
         protocol=protocol_,
@@ -103,70 +103,15 @@ def run(
         n_jobs=cores,
     )
 
-    # A list with one table per BAM, when there are several
-    if isinstance(utr_sizes_counts, list):
-        utr_sizes_counts = core.merge_samples_utr_sizes(
-            utr_sizes_counts=utr_sizes_counts,
-            protocol=protocol_,
-            store=store_intermediate,
-        )
-
-    # Collapse UTR size information to gene-level
-    if summarization_level.lower() != "utr":
-        logger.info(f"Collapsing UTR size information to {summarization_level}-level")
-        utr_reference_regions, utr_sizes_counts = core.merge_utrs_per_feature(
-            utr_regions=utr_reference_regions,
-            read_mappings=utr_sizes_counts,
-            level=summarization_level,
-        )
-
-    # Filter mapped reads before peak calling
-    logger.info("Filtering mapped reads")
-    filtered_reads, utr_reference_subset = core.filter_mapped_reads(
-        utr_sizes_counts=utr_sizes_counts,
-        utr_reference_regions=utr_reference_regions,
-        protocol=protocol_,
+    count_sites(
+        read_mappings,
+        utr_reference_regions,
+        protocol_,
+        summarization_level=summarization_level,
+        raw_sizes=raw_sizes,
+        kde_bandwidth=kde_bandwidth,
+        out=out,
+        store_intermediate=store_intermediate,
+        cores=cores,
+        settings={"protocol_platform": protocol_platform, "protocol_version": protocol_version},
     )
-
-    if raw_sizes:
-        # Pass 1: raw sizes (no transform — use sizes directly)
-        logger.info("Building raw sizes count matrix")
-        raw_anndata = core.build_count_matrix(
-            filtered_reads=filtered_reads,
-            utr_reference_subset=utr_reference_subset,
-            protocol=protocol_,
-            store=store_intermediate,
-            n_jobs=cores,
-        )
-        helpers.log_metrics_anndata(raw_anndata)
-        storage.write_anndata(raw_anndata, out)
-        del raw_anndata  # free memory before KDE pass
-
-        # Pass 2: KDE peaks (transform sizes via KDE)
-        logger.info("Building KDE peaks count matrix")
-        out_stem, _ = os.path.splitext(out)
-        kde_out = f"{out_stem}_kde.h5ad"
-        kde_anndata = core.build_count_matrix(
-            filtered_reads=filtered_reads,
-            utr_reference_subset=utr_reference_subset,
-            protocol=protocol_,
-            size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth),
-            n_jobs=cores,
-        )
-        helpers.log_metrics_anndata(kde_anndata)
-        storage.write_anndata(kde_anndata, kde_out)
-        logger.info(f"Wrote KDE peaks to {kde_out}")
-    else:
-        # Standard: call peaks using protocol's configured KDE
-        logger.info("Calling peaks from filtered data")
-        count_matrix_anndata = core.call_peaks(
-            filtered_reads=filtered_reads,
-            utr_reference_subset=utr_reference_subset,
-            protocol=protocol_,
-            store=store_intermediate,
-            n_jobs=cores,
-        )
-        helpers.log_metrics_anndata(count_matrix_anndata)
-        storage.write_anndata(count_matrix_anndata, out)
-
-    return

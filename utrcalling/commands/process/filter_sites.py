@@ -29,7 +29,7 @@ def filter_sites(
         threshold: Minimum share of its UTR's counts that a site needs (0.05 is 5%).
         minimum_counts: Minimum count that a site needs.
     """
-    from utrcalling.core import helpers
+    from utrcalling.core import helpers, provenance
     from utrcalling.core import peak_calling_anndata as pc
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
@@ -38,4 +38,5 @@ def filter_sites(
         adata=adata, threshold=threshold, minimum_counts=minimum_counts
     )
 
+    provenance.record(adata_new, source=adata)
     adata_new.write_h5ad(out_path)

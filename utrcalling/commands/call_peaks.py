@@ -26,7 +26,7 @@ def call_peaks(
         input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.
         out_path: Start of the output file names (a .h5ad ending is dropped).
     """
-    from utrcalling.core import helpers
+    from utrcalling.core import helpers, provenance
     from utrcalling.core import peak_calling_anndata as pc
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
@@ -36,4 +36,8 @@ def call_peaks(
         adata_peaks = pc.peak_call_anndata_parallel(
             adata, method="kde", bandwidth=bandwidth, n_jobs=cores
         )
+        if adata_peaks is adata:  # bandwidth 0 leaves the sizes as they are
+            adata_peaks = adata.copy()
+        matrix = "peaks" if bandwidth else None
+        provenance.record(adata_peaks, source=adata, matrix=matrix, bandwidth=bandwidth)
         adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")

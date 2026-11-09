@@ -18,8 +18,9 @@ def mean_sizes(
         out_path: Where to write the mean sizes (.h5ad).
     """
     from utrcalling.core import anndata_processing as ap
-    from utrcalling.core import helpers
+    from utrcalling.core import helpers, provenance
 
-    adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    adata = ap.compute_utr_size_means(adata=adata, utr_name_column=utr_name_column)
+    counts = helpers.check_if_path_and_open(input_path, method="h5ad")
+    adata = ap.compute_utr_size_means(adata=counts, utr_name_column=utr_name_column)
+    provenance.record(adata, source=counts, matrix="mean_sizes")
     adata.write_h5ad(out_path)

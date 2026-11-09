@@ -14,8 +14,9 @@ def keep_multi_site(input_path: str, out_path: str) -> None:
         out_path: Where to write the selected UTRs' sites (.h5ad).
     """
     from utrcalling.core import anndata_processing as ap
-    from utrcalling.core import helpers
+    from utrcalling.core import helpers, provenance
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata_new = ap.select_alternative_transcription_events(adata=adata)
+    provenance.record(adata_new, source=adata)
     adata_new.write_h5ad(out_path)

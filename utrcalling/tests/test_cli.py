@@ -302,6 +302,47 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
         self.assertEqual(kwargs["kde_bandwidth"], 150)
 
 
+class TestCountRecordsTheUtrEnd(unittest.TestCase):
+    """5' protocols count UTR sizes from the UTR's 3' end, and their matrices say so."""
+
+    def test_five_prime_capseq_mappings(self):
+        from utrcalling import runtime
+        from utrcalling.core import protocol, provenance, utr_mapping
+
+        test_data = Path(__file__).resolve().parent / "test_data"
+        tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmpdir)
+        reference = pd.read_parquet(test_data / "test_UTR_reference_5prime.parquet")
+        reference.to_parquet(tmpdir / "reference.parquet")
+        bam = str(test_data / "test_CapPhospho_genome_102_coordsort.bam")
+        protocol_ = protocol.create(
+            platform="smart-seq_cap-readname",
+            version=3,
+            alignments=bam,
+            annotations=str(test_data / "smartseq3_anno.csv"),
+        )
+        intervals = utr_mapping.generate_utr_intervals(reference)
+        utr_mapping.map_reads_to_utr(bam, intervals, protocol_).to_parquet(
+            tmpdir / "mappings.parquet"
+        )
+        # CapSeq names each sample after its BAM file, not after a barcode.
+        annotations = pd.read_csv(test_data / "smartseq3_anno.csv")
+        annotations.drop(columns="Sample_Barcode").to_csv(tmpdir / "anno.csv", index=False)
+
+        argv = ["utrcalling", "count", str(tmpdir / "reference.parquet")]
+        argv += ["-c", str(tmpdir / "mappings.parquet"), "-p", "smart-seq_cap-readname"]
+        argv += ["-A", str(tmpdir / "anno.csv"), "-o", str(tmpdir / "sites.h5ad")]
+        argv += ["--no-log-file", "-l", "warning", "--cores", "1"]
+        with mock.patch.object(sys, "argv", argv):
+            runtime.main()
+
+        info = provenance.recorded(ad.read_h5ad(tmpdir / "sites.h5ad"))
+        self.assertEqual(info["utr_end"], "five_prime")
+        self.assertEqual(info["matrix"], "peaks")
+        self.assertEqual(info["protocol_platform"], "smart-seq_cap-readname")
+        self.assertListEqual(info["commands"], [" ".join(argv)])
+
+
 class TestScoreBandwidthsCommand(unittest.TestCase):
     """`utrcalling qc score-bandwidths` writes the scorer's table, given the genome."""
 

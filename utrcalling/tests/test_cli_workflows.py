@@ -21,6 +21,7 @@ import pandas as pd
 import scipy.sparse
 
 from utrcalling import runtime
+from utrcalling.core import provenance
 
 TEST_DATA = Path(__file__).resolve().parent / "test_data"
 GTF = TEST_DATA / "test_mus_musculus_GRCm38_102.gtf.gz"
@@ -84,6 +85,11 @@ def expected_site_names(var):
     return names
 
 
+def commands_run(adata):
+    """The commands that made *adata*, by name: ["run", "call-peaks-...", ...]."""
+    return [command.split()[1] for command in provenance.recorded(adata)["commands"]]
+
+
 def setUpModule():
     global WORKDIR
     WORKDIR = Path(tempfile.mkdtemp())
@@ -128,6 +134,20 @@ class TestRunCommand(unittest.TestCase):
             names = list(adata.var_names)
             self.assertListEqual(names, expected_site_names(adata.var))
             self.assertEqual(len(set(names)), len(names))
+
+    def test_outputs_record_how_they_were_made(self):
+        for adata, matrix in ((self.raw, "raw_sizes"), (self.kde, "peaks")):
+            info = provenance.recorded(adata)
+            with self.subTest(matrix=matrix):
+                self.assertEqual(info["matrix"], matrix)
+                self.assertEqual(info["utr_end"], "three_prime")
+                self.assertEqual(info["summarization_level"], "utr")
+                self.assertEqual(info["protocol_platform"], "10x")
+                self.assertEqual(info["protocol_version"], 2)
+                self.assertListEqual(commands_run(adata), ["run"])
+                self.assertIn("-L True -r -i -o raw.h5ad", info["commands"][0])
+        self.assertEqual(provenance.recorded(self.kde)["bandwidth"], 12)
+        self.assertNotIn("bandwidth", provenance.recorded(self.raw))
 
     def test_cells_and_their_columns_come_from_the_annotation_file(self):
         self.assertGreater(self.raw.n_obs, 0)
@@ -387,6 +407,14 @@ class TestPrepareReferenceThenCallPeaks(_InTempDir):
             ad.read_h5ad(self.tmp / "halves.h5ad"), ad.read_h5ad(WORKDIR / "raw.h5ad")
         )
 
+    def test_outputs_record_the_command_as_typed(self):
+        raw = provenance.recorded(ad.read_h5ad(self.tmp / "halves.h5ad"))
+        kde = provenance.recorded(ad.read_h5ad(self.tmp / "halves_kde.h5ad"))
+        self.assertEqual((raw["matrix"], kde["matrix"]), ("raw_sizes", "peaks"))
+        for info in (raw, kde):
+            self.assertEqual(len(info["commands"]), 1)
+            self.assertTrue(info["commands"][0].startswith("utrcalling call-peaks "))
+
     def test_peaks_match_run(self):
         assert_same_anndata(
             ad.read_h5ad(self.tmp / "halves_kde.h5ad"), ad.read_h5ad(WORKDIR / "raw_kde.h5ad")
@@ -443,6 +471,22 @@ class TestCallPeaksDifferentBandwidthsCommand(_InTempDir):
 
     def test_a_wider_bandwidth_merges_peaks(self):
         self.assertLess(self.bw60.n_vars, self.bw12.n_vars)
+
+    def test_each_file_records_its_bandwidth(self):
+        for adata, bandwidth in ((self.bw12, 12), (self.bw60, 60)):
+            info = provenance.recorded(adata)
+            self.assertEqual(info["matrix"], "peaks")
+            self.assertEqual(info["bandwidth"], bandwidth)
+            self.assertListEqual(commands_run(adata), ["run", "call-peaks-different-bandwidths"])
+
+    def test_bandwidth_0_keeps_the_raw_sizes(self):
+        utrcalling("call-peaks", WORKDIR / "raw.h5ad", "same", "-b", "0", cwd=self.tmp)
+        same = ad.read_h5ad(self.tmp / "same_bw0.h5ad")
+        raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        assert_same_anndata(same, raw[:, same.var_names].copy())
+        self.assertEqual(provenance.recorded(same)["matrix"], "raw_sizes")
+        self.assertEqual(provenance.recorded(same)["bandwidth"], 0)
+        self.assertListEqual(commands_run(same), ["run", "call-peaks"])
 
 
 class TestSiteProcessingCommands(_InTempDir):
@@ -531,6 +575,16 @@ class TestSiteProcessingCommands(_InTempDir):
         assert_same_anndata(ad.read_h5ad(self.tmp / "named.h5ad"), self.named)
         self.assertFalse((self.tmp / "named_1.h5ad").exists())
 
+    def test_each_step_adds_its_command_to_the_record(self):
+        steps = ["run", "call-peaks-different-bandwidths", "remove-peaks-below-threshold"]
+        steps += ["select-alternative-transcription-events", "generate-names"]
+        self.assertListEqual(commands_run(self.named), steps)
+        self.assertEqual(provenance.recorded(self.named)["matrix"], "peaks")
+        fractions = provenance.recorded(self.fractions)
+        self.assertListEqual(commands_run(self.fractions), [*steps, "counts-to-percentages"])
+        self.assertEqual(fractions["matrix"], "fractions")
+        self.assertEqual(fractions["bandwidth"], 12)
+
     def test_dense_input_gives_dense_fractions(self):
         dense = self.named.copy()
         dense.X = _dense(dense.X)
@@ -568,6 +622,10 @@ class TestComputeMeanUtrSizesCommand(_InTempDir):
         )
         cls.raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
         cls.means = ad.read_h5ad(cls.tmp / "means.h5ad")
+
+    def test_records_its_mean_sizes(self):
+        self.assertEqual(provenance.recorded(self.means)["matrix"], "mean_sizes")
+        self.assertListEqual(commands_run(self.means), ["run", "compute-mean-utr-sizes"])
 
     def test_one_column_per_utr_and_the_same_cells(self):
         self.assertListEqual(sorted(self.means.var_names), sorted(self.raw.var.utr_name.unique()))
@@ -618,6 +676,10 @@ class TestConcatenateExperimentsCommand(_InTempDir):
         cls.raw = raw
         cls.combined = ad.read_h5ad(cls.tmp / "all.h5ad")
         cls.expected_cells = list(old.obs_names) + list(young.obs_names)
+
+    def test_continues_the_record_of_the_first_experiment(self):
+        self.assertEqual(provenance.recorded(self.combined)["matrix"], "raw_sizes")
+        self.assertListEqual(commands_run(self.combined), ["run", "concatenate-experiments"])
 
     def test_has_the_cells_of_both_experiments(self):
         self.assertListEqual(list(self.combined.obs_names), self.expected_cells)

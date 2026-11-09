@@ -30,11 +30,12 @@ def rename_sites(
             names. Genes without a name use the Ensembl ID that starts their UTR name.
     """
     from utrcalling.core import anndata_processing as ap
-    from utrcalling.core import helpers
+    from utrcalling.core import helpers, provenance
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata = ap.generate_utr_site_names_from_gene_name(
         adata=adata, utr_name_column=utr_name_column, gene_name_column=gene_name_column
     )
 
+    provenance.record(adata)
     adata.write_h5ad(out_path)

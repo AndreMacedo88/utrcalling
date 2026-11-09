@@ -74,6 +74,13 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
   shortest site of the gene's first UTR) and its UTR size in nt. A site keeps
   its name through the filtering commands. `.var` also holds `utr_name`,
   `utr_size` and `gene_name`.
+- **How each matrix was made** --- every count matrix records in
+  `.uns["utrcalling"]` the utrcalling version, the commands that made it (as
+  typed, the first one making the matrix), what it holds (`matrix`:
+  `raw_sizes`, `peaks`, `fractions` or `mean_sizes`), and the settings needed
+  to read it: the KDE `bandwidth`, the protocol, the `summarization_level`,
+  and `utr_end`, the end of the UTR its sizes count from (`three_prime`
+  protocols count from the UTR's start, `five_prime` ones from its end).
 - **Intermediate files** (`--store-intermediate`) --- the UTR reference and
   the read mappings, as `.parquet` files in `./intermediate/`, from which
   `count` can redo the last steps.

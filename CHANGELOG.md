@@ -39,6 +39,14 @@ a new major version can change results or require changes to your command lines.
   `peak_calling_anndata.pas_distance_table()` and `score_bandwidths()` return
   these tables.
 
+### Added
+
+- Every count matrix records how it was made, in `.uns["utrcalling"]`: the
+  utrcalling version, the commands that made it, what it holds (raw sizes,
+  peaks, fractions or mean sizes), the KDE bandwidth, the protocol, the
+  summarization level and the end of the UTR its sizes count from. The QC
+  commands read it.
+
 ## [4.0.0] - 2026-11-05
 
 Site names and PAS distances change, three commands are gone, and the command
