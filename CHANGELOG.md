@@ -72,6 +72,12 @@ a new major version can change results or require changes to your command lines.
   summarization level and the end of the UTR its sizes count from. The QC
   commands read it.
 
+### Fixed
+
+- `call-peaks` (`call-peaks-different-bandwidths` before) and the bandwidth
+  scores crashed on a matrix with a UTR without molecules, for example after
+  keeping only some of the cells. Such a UTR now has no sites.
+
 ## [4.0.0] - 2026-11-05
 
 Site names and PAS distances change, three commands are gone, and the command

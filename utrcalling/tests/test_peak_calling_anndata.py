@@ -688,6 +688,28 @@ class TestScoreBandwidths(unittest.TestCase):
         self.assertListEqual(sites, [4, 2])
 
 
+class TestUtrWithoutMolecules(unittest.TestCase):
+    """A UTR without molecules, as in a subset of the cells, has no peaks.
+
+    Peak calling used to crash on it: the median of no sizes is not a number.
+    """
+
+    def setUp(self):
+        self.adata = _make_adata(
+            count_matrix=[[2, 5, 0, 0], [1, 6, 0, 0]],
+            utr_names=["UTR0", "UTR0", "UTR1", "UTR1"],
+            utr_sizes=[40, 41, 90, 91],
+            n_obs=2,
+        )
+
+    def test_both_callers_leave_it_out(self):
+        parallel = pca.peak_call_anndata_parallel(self.adata, "kde", bandwidth=12, n_jobs=1)
+        sequential = pca.peak_call_anndata(self.adata, "kde", bandwidth=12)
+        for peaks in (parallel, sequential):
+            self.assertListEqual(peaks.var.utr_name.tolist(), ["UTR0"])
+            self.assertEqual(peaks.X.sum(), 14)
+
+
 class TestPeakTable(unittest.TestCase):
     """peak_table: the peaks of a bandwidth, and the spread of the raw sizes in each."""
 

@@ -21,6 +21,11 @@ class TestGetCaller(unittest.TestCase):
 
 
 class TestCallPeaksUsingKDE(unittest.TestCase):
+    def test_no_molecules_give_no_peaks(self):
+        peaks = pc.call_peaks_using_kernel_density_estimator(np.array([], dtype=np.int32))
+        self.assertEqual(peaks.dtype, np.int32)
+        self.assertEqual(len(peaks), 0)
+
     def test_few_umis_returns_median(self):
         """<=3 UMIs should return median for all."""
         sizes = np.array([100, 200, 150])

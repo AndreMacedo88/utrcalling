@@ -52,6 +52,8 @@ def call_peaks_using_kernel_density_estimator(
     """
     sizes = np.asarray(utr_sizes_vector).ravel()
 
+    if len(sizes) == 0:  # a UTR without molecules, e.g. in a subset of the cells
+        return np.zeros(0, dtype=np.int32)
     if len(sizes) <= 3:
         return np.full(len(sizes), round(np.median(sizes)), dtype=np.int32)
 
