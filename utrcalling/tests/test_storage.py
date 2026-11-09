@@ -156,5 +156,24 @@ class TestWriteAnndata(TestStorageBase):
             storage.write_anndata(adata, path)
 
 
+class TestWriteTable(TestStorageBase):
+    """Tables are tab-separated, with the index first and missing values empty."""
+
+    def test_round_trip(self):
+        table = pd.DataFrame(
+            {"molecules": [5, 3], "pas_distance": pd.array([14, None], dtype="Int64")},
+            index=pd.Index(["A_1-40", "B_1-50"], name="site"),
+        )
+        path = os.path.join(self.tmpdir, "table.tsv")
+        storage.write_table(table, path)
+        with open(path) as written:
+            self.assertListEqual(
+                written.read().splitlines(),
+                ["site\tmolecules\tpas_distance", "A_1-40\t5\t14", "B_1-50\t3\t"],
+            )
+        read = pd.read_csv(path, sep="\t", index_col="site", dtype={"pas_distance": "Int64"})
+        pd.testing.assert_frame_equal(read, table)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2)

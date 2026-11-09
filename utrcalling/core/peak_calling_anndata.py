@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 import anndata as ad
 import joblib
@@ -180,6 +180,30 @@ def _get_score_distances_per_utr_compact(
     return [in_range_of_pas.sum() / total_umis, distances_]
 
 
+def _pas_table_per_utr_compact(
+    X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
+    var_sub: pd.DataFrame,
+    hamming: int,
+    genome: str | pybedtools.BedTool,
+) -> tuple[npt.NDArray[np.int64], list[str] | None, npt.NDArray[np.int64] | None]:
+    """Each site's molecules, nearest PAS hexamer and distance to it, for one UTR.
+
+    Returns:
+        ``(molecules, hexamers, distances)``, one value per row of *var_sub*;
+        hexamers and distances are None when the UTR has no hexamer.
+    """
+    molecules = np.asarray(X_sub.sum(axis=0)).ravel().astype(np.int64)
+    pas_end, pas_seq, _ = _find_pas(var_sub, hamming=hamming, genome=genome)
+    if not pas_end:
+        return molecules, None, None
+
+    sizes = var_sub.utr_size.to_numpy(dtype=np.int64)
+    distances = sizes[:, np.newaxis] - np.asarray(pas_end)[np.newaxis, :]
+    nearest = np.abs(distances).argmin(axis=1)
+    hexamers = [pas_seq[hexamer] for hexamer in nearest]
+    return molecules, hexamers, distances[np.arange(len(sizes)), nearest]
+
+
 # ---------------------------------------------------------------------------
 # Batch workers — receive a list of pre-extracted per-UTR slices. The parent
 # materializes the slices once and ships only the slices each batch needs;
@@ -207,6 +231,16 @@ def _pas_distance_utr_batch(
     for orig_idx, _utr_name, X_sub, var_sub in batch:
         result = _get_distances_per_utr_compact(X_sub, var_sub, hamming, genome)
         out.append((orig_idx, result))
+    return out
+
+
+def _pas_table_utr_batch(
+    batch: list[CompactUtrItem], hamming: int, genome: str | pybedtools.BedTool
+) -> list[tuple[int, npt.NDArray[np.int64], list[str] | None, npt.NDArray[np.int64] | None]]:
+    out = []
+    for orig_idx, _utr_name, X_sub, var_sub in batch:
+        molecules, hexamers, distances = _pas_table_per_utr_compact(X_sub, var_sub, hamming, genome)
+        out.append((orig_idx, molecules, hexamers, distances))
     return out
 
 
@@ -553,6 +587,111 @@ def pas_distance(
     distances_array = np.concatenate(distances_list)
 
     return distances_array
+
+
+def pas_distance_table(
+    adata: ad.AnnData,
+    genome: str | pybedtools.BedTool,
+    hamming: int = 0,
+    n_jobs: int | None = None,
+) -> pd.DataFrame:
+    """Each site's distance to the nearest polyadenylation signal (PAS) of its UTR.
+
+    The distance is defined as in :func:`pas_distance`: the site's UTR size
+    minus the end of the nearest PAS hexamer (AATAAA with up to *hamming*
+    mismatches), so sites 10-30 nt after a hexamer give 10 to 30. All the
+    molecules of a site share its distance: weight the distances by the
+    ``molecules`` column for their distribution over molecules.
+
+    Args:
+        adata: Count matrix with ``utr_name``, ``utr_size``, ``chrom``,
+            ``start``, ``end`` and ``strand`` in ``.var``.
+        genome: Genome FASTA (path or pybedtools BedTool) of the annotation.
+        hamming: Maximum number of mismatches to AATAAA.
+        n_jobs: Worker process count for the per-UTR parallel loop.
+
+    Returns:
+        One row per site, indexed by the site names in the order of
+        ``adata.var``, with the columns ``gene_name`` (if ``.var`` has it),
+        ``utr_name``, ``utr_size``, ``molecules`` (summed over all cells),
+        ``pas_hexamer`` (the sequence of the nearest hexamer) and
+        ``pas_distance``. The last two are missing for UTRs without a hexamer.
+    """
+    n_workers = helpers.resolve_n_jobs(n_jobs)
+    per_utr_inputs = _extract_per_utr_inputs(adata)
+    batches = _build_compact_batches(per_utr_inputs, n_workers)
+    columns = adata.var.groupby("utr_name", observed=True).indices
+
+    try:
+        with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
+            batch_results = list(
+                joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                    joblib.delayed(_pas_table_utr_batch)(batch, hamming, genome)
+                    for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
+                )
+            )
+    finally:
+        helpers.shutdown_joblib_pool()
+
+    utr_names = [utr for _idx, utr, _X, _var in per_utr_inputs]
+    molecules = np.zeros(adata.n_vars, dtype=np.int64)
+    hexamers = pd.Series(pd.NA, index=range(adata.n_vars), dtype="string")
+    distances = pd.Series(pd.NA, index=range(adata.n_vars), dtype="Int64")
+    for result in batch_results:
+        for orig_idx, utr_molecules, utr_hexamers, utr_distances in result:
+            positions = columns[utr_names[orig_idx]]
+            molecules[positions] = utr_molecules
+            if utr_distances is not None:
+                hexamers.iloc[positions] = utr_hexamers
+                distances.iloc[positions] = utr_distances
+
+    table = adata.var[[c for c in ("gene_name", "utr_name", "utr_size") if c in adata.var]].copy()
+    table["molecules"] = molecules
+    table["pas_hexamer"] = hexamers.array
+    table["pas_distance"] = distances.array  # whole numbers, missing without a hexamer
+    table.index.name = "site"
+    return table
+
+
+def score_bandwidths(
+    adata: ad.AnnData,
+    genome: str | pybedtools.BedTool,
+    bandwidths: Sequence[float],
+    hamming: int = 1,
+    n_jobs: int | None = None,
+) -> pd.DataFrame:
+    """Score KDE bandwidths by how well their peaks fall 10-30 nt after a PAS hexamer.
+
+    Calls the peaks of a raw-sizes count matrix with each bandwidth, as
+    :func:`estimate_best_bandwidth` does, and gives its score with the number
+    of peaks it makes.
+
+    Args:
+        adata: Raw-sizes count matrix, with UTR metadata in ``.var``.
+        genome: Genome FASTA (path or pybedtools BedTool) of the annotation.
+        bandwidths: The KDE bandwidths to score.
+        hamming: Maximum number of mismatches to AATAAA.
+        n_jobs: Worker process count for the per-UTR loops.
+
+    Returns:
+        One row per bandwidth, indexed by ``bandwidth``, with the columns
+        ``score`` (per UTR, the share of molecules at frequent peaks 10-30 nt
+        after the nearest hexamer, averaged over all UTRs), ``sites`` (the
+        number of peaks) and ``sites_per_utr``.
+    """
+    rows = []
+    for bandwidth in bandwidths:
+        peaks = peak_call_anndata_parallel(adata, method="kde", bandwidth=bandwidth, n_jobs=n_jobs)
+        score = _score_peak_assignment(peaks, genome=genome, hamming=hamming, n_jobs=n_jobs)
+        rows.append(
+            {
+                "bandwidth": bandwidth,
+                "score": cast(float, score),
+                "sites": peaks.n_vars,
+                "sites_per_utr": peaks.n_vars / peaks.var.utr_name.nunique(),
+            }
+        )
+    return pd.DataFrame(rows).set_index("bandwidth")
 
 
 def _score_peak_assignment(

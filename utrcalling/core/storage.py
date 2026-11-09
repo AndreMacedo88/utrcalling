@@ -159,3 +159,15 @@ def write_anndata(adata: anndata.AnnData, filename: str) -> None:
                     )
                     frame[column] = values.astype(str)
         adata.write_h5ad(filename)
+
+
+def write_table(table: pd.DataFrame, filename: str) -> None:
+    """Write a table as tab-separated text, with its index as the first column.
+
+    Missing values are written as empty fields, which pandas and R read as missing.
+
+    Args:
+        table: The table to write.
+        filename: Path of the text file.
+    """
+    table.to_csv(filename, sep="\t")

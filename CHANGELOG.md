@@ -30,6 +30,14 @@ a new major version can change results or require changes to your command lines.
   `count`.
 - The command modules moved from `utrcalling.tools` to `utrcalling.commands`,
   with a subpackage per group.
+- `qc pas-distance` and `qc score-bandwidths` write tab-separated tables
+  instead of joblib files, which only Python could open. `pas-distance` has a
+  row per site: its molecules, nearest hexamer and distance (weight the
+  distances by the molecules for their distribution over molecules).
+  `score-bandwidths` has a row per bandwidth: its score, sites and sites per
+  UTR, and takes `-H/--hamming` (1 by default, as before). In Python,
+  `peak_calling_anndata.pas_distance_table()` and `score_bandwidths()` return
+  these tables.
 
 ## [4.0.0] - 2026-11-05
 

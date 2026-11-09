@@ -11,7 +11,6 @@ from pathlib import Path
 from unittest import mock
 
 import anndata as ad
-import joblib
 import numpy as np
 import pandas as pd
 
@@ -304,37 +303,43 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
 
 
 class TestScoreBandwidthsCommand(unittest.TestCase):
-    """`utrcalling qc score-bandwidths` passes the genome to the scorer."""
+    """`utrcalling qc score-bandwidths` writes the scorer's table, given the genome."""
 
-    def test_genome_reaches_the_scorer(self):
+    def test_genome_reaches_the_scorer_and_the_table_is_written(self):
         from utrcalling.commands.qc.score_bandwidths import score_bandwidths
 
         tmpdir = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmpdir)
         genome_path = tmpdir / "genome.fa"
         genome_path.write_text(">chr1\nACGT\n")
-        out_path = tmpdir / "scores.joblib"
+        out_path = tmpdir / "scores.tsv"
+        scores = pd.DataFrame(
+            {"score": [0.25, 0.5], "sites": [9, 4], "sites_per_utr": [3.0, 4 / 3]},
+            index=pd.Index([7, 12], name="bandwidth"),
+        )
 
         with (
             mock.patch("utrcalling.core.helpers.check_if_path_and_open"),
             mock.patch(
-                "utrcalling.core.peak_calling_anndata.estimate_best_bandwidth",
-                return_value=[0.25, 0.5],
+                "utrcalling.core.peak_calling_anndata.score_bandwidths", return_value=scores
             ) as scorer,
         ):
             score_bandwidths(
                 input_path="experiment.h5ad",
                 out_path=str(out_path),
                 genome_path=str(genome_path),
-                bandwidths=[7, 12],
+                bandwidths=(7, 12),
+                hamming=0,
             )
 
         self.assertEqual(scorer.call_args.kwargs["genome"].fn, str(genome_path))
-        self.assertDictEqual(joblib.load(out_path), {7: 0.25, 12: 0.5})
+        self.assertEqual(scorer.call_args.kwargs["bandwidths"], (7, 12))
+        self.assertEqual(scorer.call_args.kwargs["hamming"], 0)
+        pd.testing.assert_frame_equal(pd.read_csv(out_path, sep="\t", index_col=0), scores)
 
 
 class TestPasDistanceCommand(unittest.TestCase):
-    """`utrcalling qc pas-distance`: distance of every molecule to its PAS hexamer."""
+    """`utrcalling qc pas-distance`: each site's distance to the nearest PAS hexamer."""
 
     def setUp(self):
         self.tmpdir = Path(tempfile.mkdtemp())
@@ -354,42 +359,52 @@ class TestPasDistanceCommand(unittest.TestCase):
                 "end": [200] * 3,
                 "strand": [strand] * 3,
             },
-            index=["UTR0-40", "UTR0-41", "UTR0-42"],
+            index=["Gene0_1-40", "Gene0_2-41", "Gene0_3-42"],
         )
         counts = np.array([[2, 5, 2], [1, 6, 1], [2, 4, 3], [0, 5, 2]], dtype=np.int32)
         obs = pd.DataFrame(index=[f"cell_{i}" for i in range(4)])
         ad.AnnData(X=counts, obs=obs, var=var).write_h5ad(self.tmpdir / "sites.h5ad")
 
-    def _distances(self, chr1):
+    def _table(self, chr1):
         (self.tmpdir / "genome.fa").write_text(f">chr1\n{chr1}\n")
         argv = ["utrcalling", "qc", "pas-distance", str(self.tmpdir / "sites.h5ad")]
-        argv += [str(self.tmpdir / "distances.joblib"), str(self.tmpdir / "genome.fa")]
+        argv += [str(self.tmpdir / "distances.tsv"), str(self.tmpdir / "genome.fa")]
         argv += ["-H", "0", "--cores", "1"]
         from utrcalling import runtime
 
         with mock.patch.object(sys, "argv", argv):
             runtime.main()
-        return joblib.load(self.tmpdir / "distances.joblib")
+        return pd.read_csv(self.tmpdir / "distances.tsv", sep="\t", index_col="site")
 
     def test_distance_is_counted_from_the_end_of_the_hexamer(self):
         # The UTR sequence starts at 0-based genome position 99, so an AATAAA at
-        # 119 ends 26 nt into the UTR: molecules at 40, 41 and 42 are 14, 15 and
-        # 16 nt downstream of it.
-        distances = self._distances("C" * 119 + "AATAAA" + "C" * 175)
-        self.assertListEqual(sorted(distances.tolist()), [14] * 5 + [15] * 20 + [16] * 8)
+        # 119 ends 26 nt into the UTR: sites 40, 41 and 42 are 14, 15 and 16 nt
+        # downstream of it.
+        table = self._table("C" * 119 + "AATAAA" + "C" * 175)
+        self.assertListEqual(list(table.index), ["Gene0_1-40", "Gene0_2-41", "Gene0_3-42"])
+        self.assertListEqual(table.pas_distance.tolist(), [14, 15, 16])
+        self.assertListEqual(table.molecules.tolist(), [5, 20, 8])
+        self.assertListEqual(table.pas_hexamer.tolist(), ["AATAAA"] * 3)
+        # Distances are whole numbers in the file too.
+        first_row = (self.tmpdir / "distances.tsv").read_text().splitlines()[1]
+        self.assertEqual(first_row, "Gene0_1-40\tGene0\tUTR0\t40\t5\tAATAAA\t14")
+        self.assertListEqual(table.utr_size.tolist(), [40, 41, 42])
+        self.assertListEqual(table.gene_name.tolist(), ["Gene0"] * 3)
 
     def test_minus_strand_utrs_give_the_same_distances(self):
         # UTR sizes count from the UTR's 5' end in transcript orientation, which
         # on the - strand is genome position 200. TTTATT at 0-based 174-179 is
         # an AATAAA ending 26 nt into the UTR on that strand, as above.
         self._write_sites("-")
-        distances = self._distances("C" * 174 + "TTTATT" + "C" * 120)
-        self.assertListEqual(sorted(distances.tolist()), [14] * 5 + [15] * 20 + [16] * 8)
+        table = self._table("C" * 174 + "TTTATT" + "C" * 120)
+        self.assertListEqual(table.pas_distance.tolist(), [14, 15, 16])
 
-    def test_no_hexamer_gives_no_distances(self):
+    def test_utrs_without_a_hexamer_have_no_distance(self):
         # Used to crash: numpy cannot concatenate an empty list of arrays.
-        distances = self._distances("C" * 300)
-        self.assertEqual(distances.size, 0)
+        table = self._table("C" * 300)
+        self.assertTrue(table.pas_distance.isna().all())
+        self.assertTrue(table.pas_hexamer.isna().all())
+        self.assertListEqual(table.molecules.tolist(), [5, 20, 8])
 
 
 class TestPytestFailsOnUtrcallingDeprecations(unittest.TestCase):

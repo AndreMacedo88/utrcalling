@@ -591,6 +591,103 @@ class TestPasDistanceHamming(unittest.TestCase):
             pca._find_pas(self.adata.var, genome=str(self.genome), hamming=-1)
 
 
+class TestPasDistanceTable(unittest.TestCase):
+    """pas_distance_table: each site's molecules and distance to its nearest hexamer."""
+
+    def setUp(self):
+        self.tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmpdir)
+        # Sites of UTR0 (chr1:100-200, + strand) at UTR sizes 40 and 80, and of
+        # UTR1 (chr1:300-400) at 50, with UTR1 in between in .var.
+        self.adata = _make_adata(
+            count_matrix=[[2, 1, 0], [3, 0, 4], [0, 2, 1]],
+            utr_names=["UTR0", "UTR1", "UTR0"],
+            utr_sizes=[40, 50, 80],
+            n_obs=3,
+        )
+        self.adata.var.loc["peak_1", ["start", "end"]] = [300, 400]
+
+    def _table(self, chr1, hamming=0, adata=None):
+        genome = self.tmpdir / "genome.fa"
+        genome.write_text(f">chr1\n{chr1}\n")
+        adata = self.adata if adata is None else adata
+        return pca.pas_distance_table(adata, genome=str(genome), hamming=hamming, n_jobs=1)
+
+    def _assert_values(self, column, expected, dtype):
+        pd.testing.assert_extension_array_equal(
+            pd.array(column, dtype=dtype), pd.array(expected, dtype=dtype)
+        )
+
+    def test_rows_follow_var_and_utrs_without_a_hexamer_have_no_distance(self):
+        # AATAAA ending 26 nt into UTR0 (see TestPasDistanceHamming); none in UTR1.
+        table = self._table("C" * 119 + "AATAAA" + "C" * 375)
+        self.assertListEqual(list(table.index), ["peak_0", "peak_1", "peak_2"])
+        self.assertEqual(table.index.name, "site")
+        self.assertListEqual(table.utr_name.tolist(), ["UTR0", "UTR1", "UTR0"])
+        self.assertListEqual(table.molecules.tolist(), [5, 3, 5])
+        self._assert_values(table.pas_distance, [14, None, 54], "Int64")
+        self._assert_values(table.pas_hexamer, ["AATAAA", None, "AATAAA"], "string")
+        self.assertEqual(table.pas_distance.dtype, "Int64")
+        self.assertEqual(table.pas_hexamer.dtype, "string")
+
+    def test_each_site_takes_its_nearest_hexamer(self):
+        # A second hexamer, one mismatch from AATAAA, ends 66 nt into UTR0: 14 nt
+        # before the site at 80, which is 54 nt after the first hexamer.
+        chr1 = "C" * 119 + "AATAAA" + "C" * 34 + "ATTAAA" + "C" * 335
+        table = self._table(chr1, hamming=1)
+        self._assert_values(table.pas_distance, [14, None, 14], "Int64")
+        self._assert_values(table.pas_hexamer, ["AATAAA", None, "ATTAAA"], "string")
+
+    def test_sparse_counts_give_the_same_table(self):
+        sparse = self.adata.copy()
+        sparse.X = scipy.sparse.csr_matrix(sparse.X)
+        chr1 = "C" * 119 + "AATAAA" + "C" * 375
+        pd.testing.assert_frame_equal(self._table(chr1, adata=sparse), self._table(chr1))
+
+    def test_without_gene_names_the_table_has_no_gene_column(self):
+        adata = self.adata.copy()
+        del adata.var["gene_name"]
+        table = self._table("C" * 500, adata=adata)
+        self.assertListEqual(
+            list(table.columns),
+            ["utr_name", "utr_size", "molecules", "pas_hexamer", "pas_distance"],
+        )
+
+
+class TestScoreBandwidths(unittest.TestCase):
+    """score_bandwidths: estimate_best_bandwidth's scores, with the sites each bandwidth makes."""
+
+    def test_scores_and_sites_per_bandwidth(self):
+        tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmpdir)
+        genome = tmpdir / "genome.fa"
+        genome.write_text(">chr1\n" + "C" * 119 + "AATAAA" + "C" * 175 + "\n")
+        # Two UTRs, each with sizes 40-42 and 90-92, on the same coordinates.
+        adata = _make_adata(
+            count_matrix=[[2, 5, 2, 3, 3, 3] * 2] * 4,
+            utr_names=["UTR0"] * 6 + ["UTR1"] * 6,
+            utr_sizes=[40, 41, 42, 90, 91, 92] * 2,
+            n_obs=4,
+        )
+        bandwidths = [1, 60]
+        table = pca.score_bandwidths(adata, genome=str(genome), bandwidths=bandwidths, n_jobs=1)
+
+        self.assertEqual(table.index.name, "bandwidth")
+        self.assertListEqual(table.index.tolist(), bandwidths)
+        expected = pca.estimate_best_bandwidth(
+            adata, genome=str(genome), hamming=1, bandwidths=bandwidths, n_jobs=1
+        )
+        np.testing.assert_allclose(table.score.to_numpy(), expected)
+        sites = [
+            pca.peak_call_anndata_parallel(adata, "kde", bandwidth=bw, n_jobs=1).n_vars
+            for bw in bandwidths
+        ]
+        self.assertListEqual(table.sites.tolist(), sites)
+        self.assertListEqual(table.sites_per_utr.tolist(), [s / 2 for s in sites])
+        # A narrow bandwidth keeps the two groups of sizes of each UTR apart.
+        self.assertListEqual(sites, [4, 2])
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

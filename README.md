@@ -297,11 +297,11 @@ signals:
 
 ```bash
 # Score bandwidths by how many peaks they place 10-30 nt after a PAS hexamer
-utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.joblib genome.fa \
+utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.tsv genome.fa \
     --bandwidths 1 7 12 15
 
-# Distance of each molecule to the nearest PAS hexamer
-utrcalling qc pas-distance results.h5ad distances.joblib genome.fa
+# Distance of each site to the nearest PAS hexamer
+utrcalling qc pas-distance results.h5ad pas_distances.tsv genome.fa
 ```
 
 ### Command lines from earlier versions

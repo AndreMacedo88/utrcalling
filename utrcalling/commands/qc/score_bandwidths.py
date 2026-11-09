@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+from typing import Annotated
+
+from cyclopts import Parameter
+
 from utrcalling.commands.options import Bandwidths, Cores
 
 
@@ -11,43 +15,36 @@ def score_bandwidths(
     genome_path: str,
     *,
     bandwidths: Bandwidths = (1, 7, 12, 15),
+    hamming: Annotated[int, Parameter(name=("--hamming", "-H"))] = 1,
     cores: Cores = None,
 ) -> None:
     """Score KDE bandwidths by how many peaks they place 10-30 nt after a PAS hexamer.
 
     Calls peaks from the raw-sizes count matrix of `run -r` with each bandwidth,
     then scores the bandwidth: per UTR, the fraction of molecules whose peak lies
-    10 to 30 nt after the nearest polyadenylation signal hexamer (AATAAA, or one
-    mismatch from it), averaged over all UTRs. Saves a {bandwidth: score}
-    dictionary with joblib.
+    10 to 30 nt after the nearest polyadenylation signal hexamer (AATAAA, with
+    up to --hamming mismatches), averaged over all UTRs. Writes a tab-separated table with
+    a row per bandwidth: its score, its number of sites (peaks) and the sites per
+    UTR. Higher scores are better; a bandwidth that splits peaks gives many sites.
 
     For example:
 
-        utrcalling qc score-bandwidths raw_sizes.h5ad scores.joblib GRCh38.fa -b 1 7 12
+        utrcalling qc score-bandwidths raw_sizes.h5ad scores.tsv GRCh38.fa -b 1 7 12
 
     Args:
         input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.
-        out_path: Where to write the scores (joblib file).
+        out_path: Where to write the table (.tsv).
         genome_path: Genome sequence (FASTA) of the annotation the UTRs come from.
+        hamming: How many mismatches to AATAAA a hexamer may have.
     """
-    import joblib
     import pybedtools
 
-    from utrcalling.core import helpers
+    from utrcalling.core import helpers, storage
     from utrcalling.core import peak_calling_anndata as pc
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     genome = pybedtools.BedTool(genome_path)
-
-    fit_score = pc.estimate_best_bandwidth(
-        adata=adata,
-        genome=genome,
-        hamming=1,
-        bandwidths=bandwidths,
-        return_distances_to_hex=False,
-        n_jobs=cores,
+    table = pc.score_bandwidths(
+        adata=adata, genome=genome, bandwidths=bandwidths, hamming=hamming, n_jobs=cores
     )
-
-    scores = {bandwidth: score for bandwidth, score in zip(bandwidths, fit_score, strict=True)}
-
-    joblib.dump(scores, out_path)
+    storage.write_table(table, out_path)
