@@ -392,6 +392,210 @@ class TestKnownSiteDistances(unittest.TestCase):
             qc.known_site_distances(self.adata, known)
 
 
+def _codes(*sequences):
+    """Equally long sequences as rows of ASCII codes, as _edit_distances takes them."""
+    return np.frombuffer("".join(sequences).encode(), dtype=np.uint8).reshape(len(sequences), -1)
+
+
+def _write_genome(path, chromosomes):
+    with open(path, "w") as fasta:
+        for name, sequence in chromosomes.items():
+            fasta.write(f">{name}\n{sequence}\n")
+
+
+def _plant(genome, start, sequence):
+    """Write *sequence* into the list *genome* from 0-based *start*."""
+    genome[start : start + len(sequence)] = sequence
+
+
+class TestEditDistances(unittest.TestCase):
+    def test_substitutions_insertions_and_deletions_count_one(self):
+        distances = qc._edit_distances(
+            _codes("TTATATGGG", "TTATACGGG", "TATATGGGA", "CCCCCCGGG"), "TTATATGGG"
+        )
+        # Identical; one substitution; shifted by one: a deletion and an insertion.
+        self.assertListEqual(distances.tolist(), [0, 1, 2, 6])
+
+    def test_sequences_and_patterns_of_different_lengths(self):
+        self.assertListEqual(qc._edit_distances(_codes("TTATAGGG"), "TTATATGGG").tolist(), [1])
+        self.assertListEqual(qc._edit_distances(_codes("TTATATGGGG"), "TTATATGGG").tolist(), [1])
+
+    def test_n_in_the_pattern_matches_any_base_but_n_in_the_genome_matches_none(self):
+        distances = qc._edit_distances(_codes("ACGTACGGG", "ACGTACCCC"), "NNNNNNGGG")
+        self.assertListEqual(distances.tolist(), [0, 3])
+        self.assertListEqual(qc._edit_distances(_codes("NNNNNNGGG"), "TTATATGGG").tolist(), [6])
+
+
+class TestInternalPriming(unittest.TestCase):
+    """3' sites with A's in the genome after them, on chromosome 1 of 1000 nt."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        genome = list("C" * 1000)
+        # + strand sites at 100, 200, 300 and 400 (1-based): the nt after them
+        # start at the same 0-based positions.
+        _plant(genome, 100, "aaaaaa")  # 6 A's in a row; soft-masked
+        _plant(genome, 110, "R")  # not A, C, G or T
+        _plant(genome, 200, "AAGAAGAAAC")  # 7 A's in 10 nt
+        _plant(genome, 300, "AAAAACACCC")  # 5 in a row, 6 in 10 nt
+        _plant(genome, 420, "AAAAAAA")  # 20 nt after the site
+        # The - strand site at 600 reads the genome before it, reverse complemented.
+        _plant(genome, 590, "TTTTTTTT")
+        _write_genome(self.tmp / "genome.fa", {"chr1": "".join(genome)})
+        self.adata = _matrix(
+            [[1, 2, 3, 4, 5, 6, 7]],
+            utr_names=["P", "P", "P", "P", "M", "E", "X"],
+            sizes=[99, 199, 299, 399, 400, 989, 10],
+            gene_names=["GP", "GP", "GP", "GP", "GM", "GE", "GX"],
+            chrom=["1", "1", "1", "1", "1", "1", "2"],
+            start=[1] * 7,
+            end=[1000] * 7,
+            strand=["+", "+", "+", "+", "-", "+", "+"],
+        )
+        _record(self.adata, utr_end="three_prime", summarization_level="utr")
+
+    def test_a_rich_genome_after_the_site(self):
+        table = qc.priming_artefacts(self.adata, self.tmp / "genome.fa")
+        self.assertListEqual(table.position.tolist(), [100, 200, 300, 400, 600, 990, 11])
+        self.assertListEqual(table.molecules.tolist(), [1, 2, 3, 4, 5, 6, 7])
+        self.assertListEqual(
+            table.downstream.tolist()[:6],
+            [
+                "AAAAAACCCCNCCCCCCCCC",
+                "AAGAAGAAACCCCCCCCCCC",
+                "AAAAACACCCCCCCCCCCCC",
+                "C" * 20,
+                "G" + "A" * 8 + "G" * 11,
+                "C" * 10 + "N" * 10,  # past the chromosome's end
+            ],
+        )
+        pd.testing.assert_extension_array_equal(
+            table.longest_a_run.array, pd.array([6, 3, 5, 0, 8, 0, None], dtype="Int64")
+        )
+        pd.testing.assert_extension_array_equal(
+            table.most_a_in_10_nt.array, pd.array([6, 7, 6, 0, 8, 0, None], dtype="Int64")
+        )
+        pd.testing.assert_extension_array_equal(
+            table.internal_priming.array,
+            pd.array([True, True, False, False, True, False, None], dtype="boolean"),
+        )
+        # Chromosome 2 is not in the genome.
+        self.assertTrue(pd.isna(table.downstream.iloc[6]))
+
+    def test_window(self):
+        flags = qc.priming_artefacts(self.adata, self.tmp / "genome.fa", window=30).internal_priming
+        self.assertTrue(flags.iloc[3])  # the A's 20 nt after the site
+        short = qc.priming_artefacts(self.adata, self.tmp / "genome.fa", window=5)
+        self.assertListEqual(short.downstream.tolist()[:3], ["AAAAA", "AAGAA", "AAAAA"])
+        self.assertListEqual(short.most_a_in_10_nt.tolist()[:3], [5, 4, 5])
+        with self.assertRaisesRegex(ValueError, "window 0"):
+            qc.priming_artefacts(self.adata, self.tmp / "genome.fa", window=0)
+
+    def test_chromosome_names_with_or_without_chr(self):
+        expected = qc.priming_artefacts(self.adata, self.tmp / "genome.fa")
+        fasta = (self.tmp / "genome.fa").read_text().replace(">chr1", ">1")
+        (self.tmp / "unprefixed.fa").write_text(fasta)
+        self.adata.var["chrom"] = ["chr1"] * 6 + ["chr2"]
+        table = qc.priming_artefacts(self.adata, self.tmp / "unprefixed.fa")
+        pd.testing.assert_frame_equal(table.drop(columns="chrom"), expected.drop(columns="chrom"))
+
+    def test_a_genome_without_the_matrix_chromosomes_is_refused(self):
+        _write_genome(self.tmp / "other.fa", {"NC_000001.11": "ACGT" * 10})
+        with self.assertRaisesRegex(ValueError, "same genome assembly"):
+            qc.priming_artefacts(self.adata, self.tmp / "other.fa")
+
+    def test_gene_level_matrices_are_refused(self):
+        _record(self.adata, summarization_level="gene")
+        with self.assertRaisesRegex(ValueError, "Gene-level sites have no genome positions"):
+            qc.priming_artefacts(self.adata, self.tmp / "genome.fa")
+
+
+class TestStrandInvasion(unittest.TestCase):
+    """5' sites with the genome before them like the TSO's 3' end, on chromosome 1."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        genome = list("A" * 600)
+        # + strand sites at 101, 201, 301 and 451 (1-based): the 9 nt before them
+        # end at the 0-based position before.
+        _plant(genome, 91, "TTATATGGG")  # the 3' end of 5' 10x's TSO
+        _plant(genome, 191, "TTATACGGG")  # 1 substitution
+        _plant(genome, 291, "CCCCCCGGG")  # 6 substitutions
+        _plant(genome, 441, "TTATATGCC")  # 2 substitutions, 1 G before the site
+        # The - strand site at 400 reads the genome after it, reverse complemented.
+        _plant(genome, 400, "CCCATATAA")
+        _write_genome(self.tmp / "genome.fa", {"chr1": "".join(genome)})
+        self.adata = _matrix(
+            [[1, 2, 3, 4, 5]],
+            utr_names=["P", "P", "P", "P", "M"],
+            sizes=[400, 300, 200, 50, 400],
+            chrom=["1"] * 5,
+            start=[1] * 5,
+            end=[500] * 5,
+            strand=["+", "+", "+", "+", "-"],
+        )
+        _record(
+            self.adata,
+            utr_end="five_prime",
+            summarization_level="utr",
+            protocol_platform="5prime10x",
+            protocol_version=1,
+        )
+
+    def _table(self, **settings):
+        return qc.priming_artefacts(self.adata, self.tmp / "genome.fa", **settings)
+
+    def test_genome_before_the_site_like_the_tso_of_the_recorded_protocol(self):
+        table = self._table()
+        self.assertListEqual(table.position.tolist(), [101, 201, 301, 451, 400])
+        self.assertListEqual(
+            table.upstream.tolist(),
+            ["TTATATGGG", "TTATACGGG", "CCCCCCGGG", "TTATATGCC", "TTATATGGG"],
+        )
+        self.assertListEqual(table.tso_edit_distance.tolist(), [0, 1, 6, 2, 0])
+        self.assertListEqual(table.g_before_site.tolist(), [3, 3, 3, 1, 3])
+        self.assertListEqual(table.strand_invasion.tolist(), [True, True, False, False, True])
+        self.assertNotIn("internal_priming", table)
+
+    def test_max_edit_distance(self):
+        flags = self._table(max_edit_distance=0).strand_invasion
+        self.assertListEqual(flags.tolist(), [True, False, False, False, True])
+
+    def test_smart_seq3_matches_any_umi(self):
+        _record(self.adata, protocol_platform="smartseq_cap", protocol_version=3)
+        table = self._table()
+        self.assertListEqual(table.tso_edit_distance.tolist(), [0, 0, 0, 2, 0])
+        self.assertListEqual(table.strand_invasion.tolist(), [True, True, True, False, True])
+
+    def test_a_tso_given_replaces_the_recorded_one(self):
+        table = self._table(tso="aaaaaaaccccccggg")
+        self.assertListEqual(table.tso_edit_distance.tolist(), [6, 5, 0, 8, 6])
+
+    def test_a_tso_shorter_than_9_nt(self):
+        table = self._table(tso="GGG")
+        self.assertListEqual(table.tso_edit_distance.tolist(), [0, 0, 0, 2, 0])
+        # Only the last 3 nt before the site count.
+        self.assertEqual(table.upstream.iloc[0], "TTATATGGG")
+
+    def test_no_tso(self):
+        # A protocol without template switching, or no protocol recorded.
+        _record(self.adata, protocol_platform="10x", protocol_version=3)
+        with self.assertRaisesRegex(ValueError, "needs the template-switching oligo"):
+            self._table()
+        del self.adata.uns["utrcalling"]
+        with self.assertRaisesRegex(ValueError, "needs the template-switching oligo"):
+            self._table(utr_end="five_prime")
+        flags = self._table(utr_end="five_prime", tso="GGG").strand_invasion
+        self.assertListEqual(flags.tolist(), [True, True, True, False, True])
+
+    def test_a_tso_that_is_not_dna_is_refused(self):
+        for tso in ("TTXGGG", ""):
+            with self.subTest(tso=tso), self.assertRaisesRegex(ValueError, "A, C, G, T and N"):
+                self._table(tso=tso)
+
+
 class TestMatrixReport(unittest.TestCase):
     def setUp(self):
         self.adata = _matrix(

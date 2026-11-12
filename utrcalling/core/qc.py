@@ -9,16 +9,18 @@ from __future__ import annotations
 import gzip
 import io
 import itertools
+import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
+import pysam
 import scipy.sparse
 import scipy.stats
 
-from utrcalling.core import provenance
+from utrcalling.core import protocol, provenance
 from utrcalling.core.utr_mapping import MAPPING_STEPS
 
 if TYPE_CHECKING:
@@ -442,20 +444,8 @@ def known_site_distances(
             count from, if the matrix is at gene level, or if no chromosome of
             the matrix is among the known sites'.
     """
-    record = provenance.recorded(adata)
-    utr_end = utr_end or record.get("utr_end")
-    if utr_end is None:
-        raise ValueError(
-            "The matrix does not record which end of the UTR its sizes count from "
-            "(it predates utrcalling 5.0.0): give it, three_prime or five_prime."
-        )
-    if record.get("summarization_level") == "gene":
-        raise ValueError(
-            "Gene-level sites have no genome positions: their sizes are positions "
-            "along the gene's joined UTRs. Use a UTR-level matrix (-s utr)."
-        )
     var = adata.var
-    positions = site_positions(var, utr_end)
+    positions = site_positions(var, _positioned_utr_end(adata, utr_end))
     chroms = var["chrom"].map(_chromosome).astype(str).to_numpy()
     strands = var["strand"].astype(str).to_numpy()
     known_chroms = known_sites["chrom"].map(_chromosome).astype(str).to_numpy()
@@ -475,18 +465,260 @@ def known_site_distances(
                 known_sites["end"].to_numpy()[on_strand],
             )
 
-    table = var[[c for c in ("gene_name", "utr_name", "utr_size") if c in var]].copy()
-    table["chrom"] = var["chrom"].astype(str).to_numpy()
-    table["position"] = positions
-    table["strand"] = strands
-    table["molecules"] = np.asarray(adata.X.sum(axis=0)).ravel()
+    table = _site_table(adata, positions)
     found = np.isfinite(distance)
     known_distance = pd.array(np.where(found, distance, 0).astype(np.int64), dtype="Int64")
     known_distance[~found] = pd.NA
     table["known_site_distance"] = known_distance
     table["near_known_site"] = found & (distance <= window)
+    return table
+
+
+def _positioned_utr_end(adata: anndata.AnnData, utr_end: str | None) -> str:
+    """Which end of the UTR the sizes count from: *utr_end*, or what the matrix records.
+
+    Raises:
+        ValueError: If neither tells, or if the matrix is at gene level.
+    """
+    record = provenance.recorded(adata)
+    utr_end = utr_end or record.get("utr_end")
+    if utr_end is None:
+        raise ValueError(
+            "The matrix does not record which end of the UTR its sizes count from "
+            "(it predates utrcalling 5.0.0): give it, three_prime or five_prime."
+        )
+    if record.get("summarization_level") == "gene":
+        raise ValueError(
+            "Gene-level sites have no genome positions: their sizes are positions "
+            "along the gene's joined UTRs. Use a UTR-level matrix (-s utr)."
+        )
+    return utr_end
+
+
+def _site_table(adata: anndata.AnnData, positions: npt.NDArray[np.int64]) -> pd.DataFrame:
+    """A row per site, indexed by ``site``: where it lies and its molecules in all cells."""
+    var = adata.var
+    table = var[[c for c in ("gene_name", "utr_name", "utr_size") if c in var]].copy()
+    table["chrom"] = var["chrom"].astype(str).to_numpy()
+    table["position"] = positions
+    table["strand"] = var["strand"].astype(str).to_numpy()
+    table["molecules"] = np.asarray(adata.X.sum(axis=0)).ravel()
     table.index.name = "site"
     return table
+
+
+# ---------------------------------------------------------------------------
+# Priming artefacts
+# ---------------------------------------------------------------------------
+
+# Internal priming (3' protocols): the oligo-dT primer binds A's that the genome
+# encodes right after the site, not the poly(A) tail. The rule for ESTs of
+# Gautheret et al. 1998 (Genome Res 8:524): 6 A's in a row, or 7 A's in 10 nt.
+A_RUN = 6
+A_IN_10_NT = 7
+# Strand invasion (5' protocols): the template-switching oligo (TSO) binds inside
+# the RNA, where it resembles the TSO's 3' end, not at the cap. The rule of Tang
+# et al. 2013 (Nucleic Acids Res 41:e44): the 9 nt before the site within an
+# edit distance of the TSO's last 9 nt, and 2 of the 3 nt before the site G's.
+TSO_END = 9
+G_BEFORE_SITE = 2
+
+
+def priming_artefacts(
+    adata: anndata.AnnData,
+    genome: str | Path,
+    utr_end: str | None = None,
+    *,
+    window: int = 20,
+    tso: str | None = None,
+    max_edit_distance: int = 4,
+) -> pd.DataFrame:
+    """Flag the sites that the genome around them explains as priming artefacts.
+
+    For 3' protocols, internal priming: a site is flagged when the genome's
+    *window* nt after it hold A_RUN A's in a row, or A_IN_10_NT A's in 10 nt.
+    For 5' protocols, strand invasion: a site is flagged when the TSO_END nt
+    before it are within *max_edit_distance* (substitutions, insertions and
+    deletions) of the TSO's last TSO_END nt, and G_BEFORE_SITE of the 3 nt
+    before it are G's. Sequences are read on the site's strand.
+
+    A flag says that the genome could explain the site as an artefact, not
+    that it is one. It needs sites at the molecules' ends, which the standard
+    and bulk protocols do not give: their reads stop short of the ends.
+
+    Args:
+        adata: Count matrix at UTR level, with ``utr_name``, ``utr_size``,
+            ``chrom``, ``start``, ``end`` and ``strand`` in ``.var``.
+        genome: Genome FASTA (plain or bgzip-compressed; indexed if it has no
+            ``.fai``) of the annotation. Chromosomes match with or without "chr".
+        utr_end: Where the UTR sizes count from (see :func:`site_positions`).
+            By default, what the matrix records.
+        window: How many nt after a 3' site to look for A's.
+        tso: The TSO, or its 3' end, for 5' protocols: random bases (such as a
+            UMI) as N, which match any base, and riboguanosines as G. By
+            default, the TSO of the protocol that the matrix records.
+        max_edit_distance: The edit distance up to which the genome before a
+            5' site resembles the TSO.
+
+    Returns:
+        The columns of :func:`known_site_distances` up to ``molecules``, then,
+        for 3' protocols, ``downstream`` (the genome after the site),
+        ``longest_a_run``, ``most_a_in_10_nt`` and ``internal_priming``; for
+        5' protocols, ``upstream`` (the genome before the site),
+        ``tso_edit_distance``, ``g_before_site`` (G's among its last 3 nt) and
+        ``strand_invasion``. These are missing for sites on chromosomes that
+        the genome lacks.
+
+    Raises:
+        ValueError: If neither *utr_end* nor the matrix tells where the sizes
+            count from, if the matrix is at gene level, if no chromosome of the
+            matrix is in the genome, if *window* is below 1, or if a 5'
+            matrix has no TSO (given or recorded) or the TSO is not DNA.
+    """
+    utr_end = _positioned_utr_end(adata, utr_end)
+    if utr_end == "three_prime" and window < 1:
+        raise ValueError(f"window {window}: look at 1 nt after each site or more")
+    tso_end = _tso_end(adata, tso) if utr_end == "five_prime" else ""
+    positions = site_positions(adata.var, utr_end)
+    table = _site_table(adata, positions)
+    length = window if utr_end == "three_prime" else TSO_END
+    sequences, found = _flanking_sequences(
+        genome, table, after=utr_end == "three_prime", length=length
+    )
+    codes = np.frombuffer("".join(sequences).encode(), dtype=np.uint8).reshape(len(table), length)
+
+    if utr_end == "three_prime":
+        is_a = codes == ord("A")
+        run = np.zeros(len(table), dtype=np.int64)
+        longest = np.zeros(len(table), dtype=np.int64)
+        for column in is_a.T:
+            run = (run + 1) * column
+            longest = np.maximum(longest, run)
+        span = min(10, length)
+        so_far = np.concatenate([np.zeros((len(table), 1), dtype=np.int64), is_a.cumsum(axis=1)], 1)
+        most = (so_far[:, span:] - so_far[:, :-span]).max(axis=1)
+        columns = {
+            "downstream": sequences,
+            "longest_a_run": longest,
+            "most_a_in_10_nt": most,
+            "internal_priming": (longest >= A_RUN) | (most >= A_IN_10_NT),
+        }
+    else:
+        distance = _edit_distances(codes[:, length - len(tso_end) :], tso_end)
+        g_before = (codes[:, -3:] == ord("G")).sum(axis=1)
+        columns = {
+            "upstream": sequences,
+            "tso_edit_distance": distance,
+            "g_before_site": g_before,
+            "strand_invasion": (distance <= max_edit_distance) & (g_before >= G_BEFORE_SITE),
+        }
+    for name, values in columns.items():
+        dtype = {"U": "string", "b": "boolean"}.get(np.asarray(values).dtype.kind, "Int64")
+        column = pd.array(values, dtype=dtype)
+        column[~found] = pd.NA
+        table[name] = column
+    return table
+
+
+def _tso_end(adata: anndata.AnnData, tso: str | None) -> str:
+    """The last TSO_END nt of *tso*, or of the TSO of the matrix's protocol.
+
+    Raises:
+        ValueError: If there is no TSO, or it holds other letters than A, C, G, T and N.
+    """
+    if tso is None:
+        record = provenance.recorded(adata)
+        if "protocol_platform" in record and "protocol_version" in record:
+            protocol_ = protocol.protocol_class(
+                str(record["protocol_platform"]), int(record["protocol_version"])
+            )
+            tso = protocol_.template_switching_oligo
+    if tso is None:
+        raise ValueError(
+            "Strand invasion needs the template-switching oligo (TSO): the matrix "
+            "records no protocol that has one. Give it (or its 3' end)."
+        )
+    tso = tso.upper()
+    if not tso or set(tso) - set("ACGTN"):
+        raise ValueError(f"TSO {tso!r}: write it with A, C, G, T and N (random bases)")
+    return tso[-TSO_END:]
+
+
+def _flanking_sequences(
+    genome: str | Path, sites: pd.DataFrame, *, after: bool, length: int
+) -> tuple[npt.NDArray[np.str_], npt.NDArray[np.bool_]]:
+    """The genome's *length* nt after (or before) each site, on the site's strand.
+
+    Args:
+        genome: Genome FASTA.
+        sites: Table with ``chrom``, ``position`` (1-based) and ``strand``.
+        after: Whether to read the nt after the site in transcript orientation
+            (or those before it).
+        length: How many nt to read.
+
+    Returns:
+        The sequences in upper case, with N for other letters and beyond the
+        chromosome's ends (all N on chromosomes that the genome lacks), and
+        whether the genome has each site's chromosome.
+
+    Raises:
+        ValueError: If the genome has no chromosome of the sites.
+    """
+    complement = str.maketrans("ACGT", "TGCA")
+    with pysam.FastaFile(str(genome)) as fasta:
+        names = {
+            chrom: next(
+                (name for name in (chrom, f"chr{chrom}", _chromosome(chrom)) if name in fasta),
+                None,
+            )
+            for chrom in sites["chrom"].unique()
+        }
+        if all(name is None for name in names.values()):
+            raise ValueError(
+                "No chromosome of the matrix is in the genome: check that both come "
+                "from the same genome assembly."
+            )
+        sequences = []
+        for chrom, position, strand in sites[["chrom", "position", "strand"]].itertuples(
+            index=False
+        ):
+            name = names[chrom]
+            if name is None:
+                sequences.append("N" * length)
+                continue
+            # 0-based: the nt after a + strand site start at its 1-based position.
+            reads_forward = (strand == "-") != after
+            start = position if reads_forward else position - length - 1
+            end = start + length
+            size = fasta.get_reference_length(name)
+            sequence = fasta.fetch(name, max(start, 0), min(end, size)).upper()
+            sequence = "N" * max(-start, 0) + sequence + "N" * max(end - size, 0)
+            sequence = re.sub("[^ACGT]", "N", sequence)
+            if strand == "-":
+                sequence = sequence.translate(complement)[::-1]
+            sequences.append(sequence)
+    found = sites["chrom"].map(names).notna().to_numpy()
+    return np.array(sequences, dtype=f"<U{length}"), found
+
+
+def _edit_distances(sequences: npt.NDArray[np.uint8], pattern: str) -> npt.NDArray[np.int64]:
+    """The edit distance of each row of *sequences* (ASCII codes) to *pattern*.
+
+    The Levenshtein distance: substitutions, insertions and deletions count 1
+    each. N in *pattern* matches any base.
+    """
+    n_rows, n_columns = sequences.shape
+    previous = np.tile(np.arange(len(pattern) + 1), (n_rows, 1))
+    for i in range(n_columns):
+        current = np.empty_like(previous)
+        current[:, 0] = i + 1
+        for j, base in enumerate(pattern, start=1):
+            mismatch = (sequences[:, i] != ord(base)) & (base != "N")
+            current[:, j] = np.minimum(
+                np.minimum(previous[:, j], current[:, j - 1]) + 1, previous[:, j - 1] + mismatch
+            )
+        previous = current
+    return previous[:, -1]
 
 
 # ---------------------------------------------------------------------------

@@ -559,6 +559,39 @@ class TestReadIdentityWithoutTagsOrUmi(unittest.TestCase):
         )
 
 
+class TestProtocolClass(unittest.TestCase):
+    """protocol_class names the class that create makes, without making one."""
+
+    def test_the_class_of_each_platform(self):
+        annotations = pd.DataFrame({"sample_id": ["S1"]})
+        for platform, version in [
+            ("10x", 2),
+            ("smartseq", 3),
+            ("smart-seq_cap-readname", 3),
+            ("5prime10x", 1),
+            ("standard_smartseq", 3),
+            ("bulk_pe", 1),
+        ]:
+            with self.subTest(platform=platform):
+                made = protocol.create(platform, version, annotations=annotations)
+                self.assertIs(type(made), protocol.protocol_class(platform, version))
+
+    def test_unsupported_versions(self):
+        with self.assertRaisesRegex(NotImplementedError, "5prime10x version 2"):
+            protocol.protocol_class("5prime10x", 2)
+
+    def test_template_switching_oligos_of_the_five_prime_protocols(self):
+        self.assertEqual(
+            protocol.protocol_class("5prime10x", 1).template_switching_oligo, "TTTCTTATATGGG"
+        )
+        smart_seq3 = "AGAGACAGATTGCGCAATGNNNNNNNNGGG"
+        for platform in ("smart-seq_cap", "smart-seq_cap-readname"):
+            with self.subTest(platform=platform):
+                tso = protocol.protocol_class(platform, 3).template_switching_oligo
+                self.assertEqual(tso, smart_seq3)
+        self.assertIsNone(protocol.protocol_class("10x", 3).template_switching_oligo)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

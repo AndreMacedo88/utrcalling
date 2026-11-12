@@ -55,6 +55,12 @@ a new major version can change results or require changes to your command lines.
     their site usage.
   - `qc known-sites`: each site's distance to the nearest known site of a BED
     file, such as the PolyASite 2.0 clusters or refTSS.
+  - `qc priming`: flags the sites that the genome around them could explain
+    as priming artefacts. For 3' data, internal priming: 6 A's in a row, or 7
+    in 10 nt, in the genome after the site. For 5' data, strand invasion: the
+    genome before the site like the template-switching oligo's 3' end (the
+    rule of Tang et al. 2013), with the oligo of the matrix's protocol or
+    `--tso`.
   - `qc peaks`: the peaks a bandwidth calls from raw sizes, with their
     molecules, share of their UTR and the spread of the raw sizes they collect.
 - **Mapping summary.** `run` and `count` write `<out>_mapping_summary.tsv`:

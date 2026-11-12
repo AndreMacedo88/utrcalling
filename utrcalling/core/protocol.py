@@ -135,6 +135,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     # Default label_batches value — subclasses override this class attribute
     _default_label_batches: bool | None = None
+    # The template-switching oligo (TSO) of 5' protocols, or its 3' end: random
+    # bases (a UMI) as N, riboguanosines as G. qc.priming_artefacts uses it.
+    template_switching_oligo: str | None = None
 
     def __init__(
         self,
@@ -889,6 +892,8 @@ class ProtocolBulkPe(ProtocolTruseq):
 
 class ProtocolCapseq(ProtocolFivePrime):
     _default_label_batches = False
+    # Smart-seq3's TSO: a tag, an 8 nt UMI and three riboguanosines.
+    template_switching_oligo = "AGAGACAGATTGCGCAATGNNNNNNNNGGG"
 
     def __init__(
         self,
@@ -960,6 +965,8 @@ class ProtocolCapseqSmartseq3ReadName(ProtocolCapseq):
 
 class ProtocolFiveTenx(ProtocolFivePrime):
     _default_label_batches = True
+    # The 3' end of the gel bead oligo: what read 1 holds between the UMI and the cDNA.
+    template_switching_oligo = "TTTCTTATATGGG"
 
     @property
     def _reads_have_batch_suffix(self) -> bool:
@@ -1084,44 +1091,53 @@ def create(platform: str, version: int, **kwargs: Any) -> Protocol:
     Raises:
         NotImplementedError: If the platform/version combination is not supported.
     """
+    return protocol_class(platform, version)(**kwargs)
+
+
+def protocol_class(platform: str, version: int) -> type[Protocol]:
+    """The Protocol subclass for a sequencing platform and version (see :func:`create`).
+
+    Raises:
+        NotImplementedError: If the platform/version combination is not supported.
+    """
     error_message = f"Protocol for {platform} version {version} not implemented."
 
     if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
         if version == 2:
-            return ProtocolTenx2(**kwargs)
+            return ProtocolTenx2
         if version == 3:
-            return ProtocolTenx3(**kwargs)
+            return ProtocolTenx3
         raise NotImplementedError(error_message)
     if platform.lower() in ("smart-seq", "smartseq"):
         if version == 3:
-            return ProtocolSmartseq3(**kwargs)
+            return ProtocolSmartseq3
         raise NotImplementedError(error_message)
     if platform.lower() in ("smart-seq_cap", "smartseq_cap"):
         if version == 3:
-            return ProtocolCapseqSmartseq3(**kwargs)
+            return ProtocolCapseqSmartseq3
         raise NotImplementedError(error_message)
     if platform.lower() in ("smart-seq_cap-readname", "smartseq_cap-readname"):
         if version == 3:
-            return ProtocolCapseqSmartseq3ReadName(**kwargs)
+            return ProtocolCapseqSmartseq3ReadName
         raise NotImplementedError(error_message)
     if platform.lower() in ("5'10x", "5'10_x", "5'tenx", "5prime10x"):
         if version == 1:
-            return ProtocolFiveTenx(**kwargs)
+            return ProtocolFiveTenx
         raise NotImplementedError(error_message)
     if platform.lower() in ("standard_10x", "standard_10_x", "standard_tenx"):
         if version == 2:
-            return ProtocolStandardTenx2(**kwargs)
+            return ProtocolStandardTenx2
         if version == 3:
-            return ProtocolStandardTenx3(**kwargs)
+            return ProtocolStandardTenx3
         raise NotImplementedError(error_message)
     if platform.lower() in ("standard_smartseq", "standard_smart-seq"):
         if version == 3:
-            return ProtocolStandardSmartseq3(**kwargs)
+            return ProtocolStandardSmartseq3
         raise NotImplementedError(error_message)
     if platform.lower() in ("truseq", "truseq_stranded", "standard_truseq", "standard_bulk"):
         # Bulk RNA-seq has no protocol "version" — accept any.
-        return ProtocolTruseq(**kwargs)
+        return ProtocolTruseq
     if platform.lower() in ("bulk_pe", "bulk-pe", "standard_bulk_pe", "unstranded_bulk_pe"):
         # Bulk RNA-seq has no protocol "version" — accept any.
-        return ProtocolBulkPe(**kwargs)
+        return ProtocolBulkPe
     raise NotImplementedError(error_message)

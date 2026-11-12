@@ -14,6 +14,7 @@ from utrcalling.commands.qc import (
     known_sites,
     pas_distance,
     peaks,
+    priming,
     report,
     score_bandwidths,
 )
@@ -78,8 +79,9 @@ qc.command(cells.cells, name="cells", sort_key=1)
 qc.command(batches.batches, name="batches", sort_key=2)
 qc.command(known_sites.known_sites, name="known-sites", sort_key=3)
 qc.command(pas_distance.pas_distance, name="pas-distance", sort_key=4)
-qc.command(peaks.peaks, name="peaks", sort_key=5)
-qc.command(score_bandwidths.score_bandwidths, name="score-bandwidths", sort_key=6)
+qc.command(priming.priming, name="priming", sort_key=5)
+qc.command(peaks.peaks, name="peaks", sort_key=6)
+qc.command(score_bandwidths.score_bandwidths, name="score-bandwidths", sort_key=7)
 app.command(qc)
 
 # The commands' names before version 4.0.0, which the paper's workflows use. They

@@ -777,6 +777,35 @@ class TestQcCommands(_InTempDir):
         known.to_csv(cls.tmp / "known.bed", sep="\t", header=False, index=False)
         cls.known = known
         utrcalling("qc", "known-sites", kde, "known.bed", "known.tsv", cwd=cls.tmp)
+        cls._run_priming()
+
+    @classmethod
+    def _run_priming(cls):
+        """qc priming on run's peaks, with their UTRs moved onto a small random genome.
+
+        The real genome is too big for a test. Each UTR keeps its length and
+        strand; every third site gets 7 A's in the genome after it.
+        """
+        placed = cls.kde.copy()
+        var = placed.var
+        utr, _ = pd.factorize(var.utr_name.astype(str))
+        length = var.end - var.start
+        spacing = int(length.max()) + 100
+        var["chrom"] = "chr1"
+        var["start"] = utr * spacing + 51
+        var["end"] = var.start + length
+        placed.write_h5ad(cls.tmp / "placed.h5ad")
+        plus = (var.strand == "+").to_numpy()
+        positions = np.where(plus, var.start + var.utr_size, var.end - var.utr_size)
+        rng = np.random.default_rng(0)
+        genome = list("".join(rng.choice(list("ACGT"), size=(utr.max() + 1) * spacing)))
+        for position, on_plus in zip(positions[::3], plus[::3], strict=True):
+            start = position if on_plus else position - 8  # 0-based, after the site
+            genome[start : start + 7] = "AAAAAAA" if on_plus else "TTTTTTT"
+        cls.genome = "".join(genome)
+        cls.placed_positions = positions
+        (cls.tmp / "genome.fa").write_text(f">1\n{cls.genome}\n")
+        utrcalling("qc", "priming", "placed.h5ad", "genome.fa", "priming.tsv", cwd=cls.tmp)
 
     def _table(self, name, index_col):
         return pd.read_csv(self.tmp / name, sep="\t", comment="#", index_col=index_col)
@@ -836,6 +865,27 @@ class TestQcCommands(_InTempDir):
                 self.assertEqual(row.known_site_distance, distance)
                 self.assertEqual(row.near_known_site, distance <= 20)
         self.assertGreater(known.near_known_site.sum(), len(known) / 2 - 1)
+
+    def test_priming(self):
+        priming = self._table("priming.tsv", "site")
+        self.assertListEqual(list(priming.index), list(self.kde.var_names))
+        np.testing.assert_array_equal(priming.position, self.placed_positions)
+        complement = str.maketrans("ACGT", "TGCA")
+        # Brute force: the 20 nt after each site, read on its strand.
+        for site, row in priming.iterrows():
+            if row.strand == "+":
+                downstream = self.genome[row.position : row.position + 20]
+            else:
+                downstream = self.genome[row.position - 21 : row.position - 1]
+                downstream = downstream.translate(complement)[::-1]
+            longest = max(map(len, re.findall("A+", downstream)), default=0)
+            most = max(downstream[i : i + 10].count("A") for i in range(11))
+            with self.subTest(site=site):
+                self.assertEqual(row.downstream, downstream)
+                self.assertEqual(row.longest_a_run, longest)
+                self.assertEqual(row.most_a_in_10_nt, most)
+                self.assertEqual(row.internal_priming, longest >= 6 or most >= 7)
+        self.assertTrue(priming.internal_priming.iloc[::3].all())  # the planted A's
 
 
 if __name__ == "__main__":

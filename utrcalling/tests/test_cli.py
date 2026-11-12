@@ -69,6 +69,7 @@ GROUPED_COMMANDS = {
     ("qc", "batches"): ["in.h5ad", "out", "-g", "batch"],
     ("qc", "known-sites"): ["in.h5ad", "known.bed", "out.tsv"],
     ("qc", "pas-distance"): ["in.h5ad", "out.tsv", "genome.fa"],
+    ("qc", "priming"): ["in.h5ad", "genome.fa", "out.tsv"],
     ("qc", "peaks"): ["in.h5ad", "out.tsv"],
     ("qc", "score-bandwidths"): ["in.h5ad", "out.tsv", "genome.fa"],
 }
@@ -551,6 +552,49 @@ class TestQcCommands(unittest.TestCase):
         # The sites lie at 1101, 1201 and 1051: 1, 101 and 49 nt from 1100.
         self.assertListEqual(known.known_site_distance.tolist(), [1, 101, 49])
         self.assertListEqual(known.near_known_site.tolist(), [True, False, True])
+
+    def _place(self, chrom="1"):
+        """The sites on chromosome *chrom* at 1101, 1201 and 1051 (3') or 1401, 1301 and 1451 (5')."""
+        sites = ad.read_h5ad(self.tmp / "sites.h5ad")
+        sites.var["chrom"], sites.var["strand"] = chrom, "+"
+        sites.var["start"], sites.var["end"] = 1001, 1500
+        sites.write_h5ad(self.tmp / "placed.h5ad")
+
+    def test_priming_three_prime(self):
+        self._place()
+        genome = list("C" * 1600)
+        genome[1101:1107] = "AAAAAA"  # after the site at 1101
+        genome[1061:1068] = "AAAAAAA"  # 10 nt after the site at 1051
+        (self.tmp / "genome.fa").write_text(f">chr1\n{''.join(genome)}\n")
+        args = [self.tmp / "placed.h5ad", self.tmp / "genome.fa", self.tmp / "priming.tsv"]
+        with self.assertLogs("utrcalling", level="INFO") as logs:
+            self._run("priming", *args, "--utr-end", "three_prime", "-w", "10")
+        table = pd.read_csv(self.tmp / "priming.tsv", sep="\t", index_col="site")
+        self.assertListEqual(table.internal_priming.tolist(), [True, False, False])
+        self.assertListEqual(table.downstream.tolist(), ["AAAAAACCCC", "C" * 10, "C" * 10])
+        # 1 of the 3 sites, 7 of the 24 molecules.
+        self.assertIn("Flagged for internal priming: 33.3% of the sites, 29.2% of", logs.output[-1])
+
+    def test_priming_five_prime_with_a_tso_and_sites_off_the_genome(self):
+        self._place(chrom="2")
+        sites = ad.read_h5ad(self.tmp / "placed.h5ad")
+        sites.var["chrom"] = ["1", "1", "2"]
+        sites.write_h5ad(self.tmp / "placed.h5ad")
+        genome = list("A" * 1600)
+        genome[1391:1400] = "TTATATGGG"  # before the site at 1401
+        genome[1291:1300] = "TTATACGGG"  # 1 substitution, before the site at 1301
+        (self.tmp / "genome.fa").write_text(f">1\n{''.join(genome)}\n")
+        args = [self.tmp / "placed.h5ad", self.tmp / "genome.fa", self.tmp / "priming.tsv"]
+        options = ["--utr-end", "five_prime", "--tso", "TTTCTTATATGGG", "-e", "0"]
+        with self.assertLogs("utrcalling", level="INFO") as logs:
+            self._run("priming", *args, *options)
+        table = pd.read_csv(self.tmp / "priming.tsv", sep="\t", index_col="site")
+        self.assertListEqual(table.tso_edit_distance.tolist()[:2], [0, 1])
+        self.assertListEqual(table.strand_invasion.tolist()[:2], [True, False])
+        self.assertTrue(pd.isna(table.strand_invasion.iloc[2]))  # chromosome 2: not checked
+        # 1 of the 2 sites checked, 7 of their 15 molecules.
+        self.assertIn("Flagged for strand invasion: 50.0% of the sites, 46.7% of", logs.output[-2])
+        self.assertIn("Not checked: 1 sites on chromosomes that the genome lacks", logs.output[-1])
 
     def test_peaks_needs_raw_sizes(self):
         from utrcalling.commands.qc.peaks import peaks
