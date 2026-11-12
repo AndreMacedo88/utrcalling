@@ -367,8 +367,10 @@ together:
 ```python
 import pandas as pd
 
+
 def read(path):
     return pd.read_csv(path, sep="\t", index_col="site")
+
 
 sites = read("known_sites.tsv").join(read("priming.tsv")[["internal_priming"]])
 sites = sites.join(read("pas_distances.tsv")[["pas_distance"]])
