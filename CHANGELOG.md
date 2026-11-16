@@ -80,6 +80,17 @@ a new major version can change results or require changes to your command lines.
 
 ### Fixed
 
+- **Peak calling on densities with flat stretches.** Each peak took the
+  molecules below the next local minimum in order, which assumes that maxima
+  and minima alternate. Where the density was flat (a flat top, or a step on a
+  slope), they did not: molecules went to the wrong peak, some to none, and
+  peaks fell at sizes without molecules. Peaks are now the local maxima (a flat
+  top once, at its middle; a step is not a peak), and two neighbouring peaks
+  split at the lowest point between them. The Gaussian density of earlier
+  versions practically never has flat stretches: its peaks are unchanged
+  (identical on every UTR of the 3' and 5' data sets we checked). The new
+  kernels have many, as Eugenia Guerrero Aruffo found in her master's thesis
+  (2026).
 - `call-peaks` (`call-peaks-different-bandwidths` before) and the bandwidth
   scores crashed on a matrix with a UTR without molecules, for example after
   keeping only some of the cells. Such a UTR now has no sites.

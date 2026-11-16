@@ -1,10 +1,10 @@
+import itertools
 from collections.abc import Callable
 from functools import partial
 from typing import Any
 
 import numpy as np
 import numpy.typing as npt
-from scipy.signal import argrelextrema
 from sklearn.neighbors import KernelDensity
 
 # Maps one UTR's molecule sizes to their consensus peak sizes.
@@ -37,8 +37,8 @@ def call_peaks_using_kernel_density_estimator(
 ) -> npt.NDArray[np.int32]:
     """Assign each molecule to a consensus peak of its UTR, with a Gaussian KDE.
 
-    The density of the UTR sizes has a peak (local maximum) per polyadenylation
-    site; the local minima between peaks split the molecules among them. Each
+    The density of the UTR sizes has a peak (local maximum) per site; the
+    lowest point between two neighbouring peaks splits their molecules. Each
     molecule gets the position of its peak. With 3 molecules or fewer, all get
     their median.
 
@@ -59,27 +59,56 @@ def call_peaks_using_kernel_density_estimator(
 
     kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(sizes.reshape(-1, 1))
 
-    # Evaluate the density on a window padded beyond the sizes, so that it rises
-    # to the first peak and falls after the last one.
+    # Evaluate the density at each size of a window padded beyond the sizes, so
+    # that it rises to the first peak and falls after the last one.
     minimum_size, maximum_size = sizes.min(), sizes.max()
     padding = max((maximum_size - minimum_size) * 0.1, 10)
     window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
-    evaluation = kde.score_samples(window.reshape(-1, 1))
-    # [1:]: the window's first point always counts as a minimum.
-    minima = argrelextrema(evaluation, np.less_equal, order=1)[0][1:]
-    maxima = argrelextrema(evaluation, np.greater_equal, order=1)[0]
-    # A flat extremum spans several points: keep its first one.
-    minima = [minimum for minimum in minima if minimum - 1 not in minima]
-    maxima = [maximum for maximum in maxima if maximum - 1 not in maxima]
+    return _assign_to_peaks(sizes, window, kde.score_samples(window.reshape(-1, 1)))
 
-    # Molecules below the first minimum belong to the first peak, those between
-    # the first and second minima to the second peak, and so on. The window's
-    # last point is a minimum above every size, so every molecule gets a peak.
-    # (A mask, not peaks == 0, tracks this: a peak can lie at UTR size 0.)
-    peaks = np.zeros(len(sizes), dtype=np.int32)
-    assigned = np.zeros(len(sizes), dtype=bool)
-    for peak, boundary in zip(window[maxima], window[minima], strict=False):
-        in_peak = (sizes < boundary) & ~assigned
-        peaks[in_peak] = round(peak)
-        assigned |= in_peak
-    return peaks
+
+def _assign_to_peaks(
+    sizes: npt.NDArray[np.integer[Any]],
+    window: npt.NDArray[np.integer[Any]],
+    density: npt.NDArray[np.floating[Any]],
+) -> npt.NDArray[np.int32]:
+    """Each molecule's peak: the local maximum of the density on its side of the valleys.
+
+    The density may have flat stretches of equal values. A flat stretch higher
+    than both its sides is one peak, at its middle (the lower of the two
+    middle sizes); one on a slope (a step) is not a peak. Two neighbouring
+    peaks split at the lowest point between them (the middle of a flat
+    valley): the molecules below it go to the peak before, the others to the
+    peak after. Beyond the ends of *window*, the density counts as lower than
+    at the ends.
+
+    Args:
+        sizes: The molecules' UTR sizes.
+        window: Consecutive sizes covering *sizes*, where the density was
+            evaluated.
+        density: The density at each size of *window*, or any increasing
+            function of it, such as its log (minus infinity where it is 0).
+
+    Returns:
+        The peak position of each molecule, in the order of *sizes*.
+    """
+    starts, ends, levels = _flat_stretches(density)
+    middles = (starts + ends) // 2
+    higher_than_before = levels > np.r_[-np.inf, levels[:-1]]
+    higher_than_after = levels > np.r_[levels[1:], -np.inf]
+    peaks = np.flatnonzero(higher_than_before & higher_than_after)
+    splits = [
+        middles[before + 1 + int(np.argmin(levels[before + 1 : after]))]
+        for before, after in itertools.pairwise(peaks)
+    ]
+    peak_sizes = window[middles[peaks]]
+    return peak_sizes[np.searchsorted(window[splits], sizes, side="right")].astype(np.int32)
+
+
+def _flat_stretches(
+    density: npt.NDArray[np.floating[Any]],
+) -> tuple[npt.NDArray[np.intp], npt.NDArray[np.intp], npt.NDArray[np.floating[Any]]]:
+    """The runs of equal neighbouring values: their first and last index, and their value."""
+    starts = np.flatnonzero(np.r_[True, density[1:] != density[:-1]])
+    ends = np.r_[starts[1:] - 1, len(density) - 1]
+    return starts, ends, density[starts]
