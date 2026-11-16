@@ -7,8 +7,10 @@ peak consolidation, PAS distance scoring, and bandwidth estimation.
 from __future__ import annotations
 
 import math
-from collections.abc import Sequence
-from typing import Any, cast
+from collections.abc import Callable, Mapping, Sequence
+from functools import partial
+from pathlib import Path
+from typing import Any
 
 import anndata as ad
 import joblib
@@ -20,13 +22,26 @@ import regex
 import scipy.sparse
 from tqdm import tqdm
 
-from utrcalling.core import anndata_processing, helpers, module_log
+from utrcalling.core import anndata_processing, helpers, module_log, provenance
+from utrcalling.core import genome as genome_
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
-from utrcalling.core.protocols.kde_options import Bandwidth, check_kernel, parse_bandwidth
+from utrcalling.core.protocols.kde_options import (
+    CANDIDATE_BANDWIDTHS,
+    Bandwidth,
+    check_kernel,
+    parse_bandwidth,
+)
 from utrcalling.core.protocols.peak_calling import (
     call_peaks_using_kernel_density_estimator,
     utr_bandwidth,
 )
+
+# The bandwidth scores count only the sites with more than this share of their
+# UTR's molecules, as estimate_best_bandwidth always has.
+FREQUENT_SITE_SHARE = 0.01
+# The initiator of RNA polymerase II: a pyrimidine at -1 and a purine at +1.
+PYRIMIDINES = "CT"
+PURINES = "AG"
 
 # ---------------------------------------------------------------------------
 # Shared per-UTR peak calling logic (module-level for joblib picklability)
@@ -187,7 +202,7 @@ def _get_score_distances_per_utr_compact(
     distances_ = distances.to_numpy().flatten()
 
     total_umis = len(distances)
-    threshold = math.ceil(total_umis * 0.01)
+    threshold = math.ceil(total_umis * FREQUENT_SITE_SHARE)
     distances_bigger_ten = distances[distances.groupby(level=0).count() > threshold]
     in_range_of_pas = distances_bigger_ten.between(10, 30)
 
@@ -798,47 +813,183 @@ def peak_table(
 
 def score_bandwidths(
     adata: ad.AnnData,
-    genome: str | pybedtools.BedTool,
-    bandwidths: Sequence[Bandwidth],
+    genome: str | Path | pybedtools.BedTool,
+    bandwidths: Sequence[Bandwidth] | None = None,
     hamming: int = 1,
     n_jobs: int | None = None,
     kernel: str = "gaussian",
+    utr_end: str | None = None,
 ) -> pd.DataFrame:
-    """Score KDE bandwidths by how well their peaks fall 10-30 nt after a PAS hexamer.
+    """Score KDE bandwidths by how well their peaks fall where the genome expects sites.
 
-    Calls the peaks of a raw-sizes count matrix with each bandwidth, as
-    :func:`estimate_best_bandwidth` does, and gives its score with the number
-    of peaks it makes.
+    Calls the peaks of a raw-sizes count matrix with each bandwidth and scores
+    them by a sequence that true sites have, in the genome around them. Only
+    the sites with more than 1% of their UTR's molecules count.
+
+    - 3' data, the polyadenylation signal: per UTR, the share of molecules at
+      peaks 10-30 nt after the nearest PAS hexamer (AATAAA with up to
+      *hamming* mismatches), as :func:`estimate_best_bandwidth` scores them.
+    - 5' data, the initiator: per UTR, the share of molecules at peaks whose
+      genome reads a pyrimidine (C or T) at -1 and a purine (A or G) at +1, the
+      site. RNA polymerase II starts most transcripts at such a YR dinucleotide,
+      mostly CA (Carninci et al. 2006, Nat Genet 38:626; Vo ngoc et al. 2017,
+      Genes Dev 31:6); a smoothed peak away from the start site loses it. On
+      5' Cap-seq data (Eugenia Guerrero Aruffo's master's thesis, 2026), 42% of
+      the raw molecules start at a YR, 22% of the Gaussian peaks of 12 nt, and
+      60% of the linear peaks of about 2 nt.
+
+    The score averages the UTRs' shares: higher is better. A bandwidth that
+    splits sites gives many sites; for 3' data the scores change little
+    between bandwidths of 6 and 20 nt.
 
     Args:
         adata: Raw-sizes count matrix, with UTR metadata in ``.var``.
         genome: Genome FASTA (path or pybedtools BedTool) of the annotation.
-        bandwidths: The KDE bandwidths to score.
-        hamming: Maximum number of mismatches to AATAAA.
+        bandwidths: The KDE bandwidths to score: numbers of nt, or rules (see
+            peak_calling.utr_bandwidth). By default, those of
+            kde_options.CANDIDATE_BANDWIDTHS for the matrix's UTR end.
+        hamming: Maximum number of mismatches to AATAAA (3' data).
         n_jobs: Worker process count for the per-UTR loops.
         kernel: The KDE's kernel, one of kde_options.KERNELS.
+        utr_end: Which end of the UTR the sizes count from: ``three_prime`` or
+            ``five_prime``. By default, what the matrix records, or
+            ``three_prime`` for matrices without a record.
 
     Returns:
         One row per bandwidth, indexed by ``bandwidth``, with the columns
-        ``score`` (per UTR, the share of molecules at frequent peaks 10-30 nt
-        after the nearest hexamer, averaged over all UTRs), ``sites`` (the
-        number of peaks) and ``sites_per_utr``.
+        ``kernel``, ``score``, ``sites`` (the number of peaks) and
+        ``sites_per_utr``.
+
+    Raises:
+        ValueError: If *utr_end* is neither UTR end, a bandwidth or the kernel
+            is not one, or a 5' matrix is at gene level or on another assembly.
     """
+    utr_end = utr_end or provenance.recorded(adata).get("utr_end", "three_prime")
+    if utr_end not in genome_.UTR_ENDS:
+        raise ValueError(f"utr_end {utr_end!r}: expected three_prime or five_prime")
+    check_kernel(kernel)
+    if bandwidths is None:
+        bandwidths = CANDIDATE_BANDWIDTHS[utr_end]
+    bandwidths = [parse_bandwidth(bandwidth, allow_zero=True) for bandwidth in bandwidths]
+
+    score: Callable[[ad.AnnData], float]
+    if utr_end == "three_prime":
+        pas_ends = _pas_ends_per_utr(adata, genome=genome, hamming=hamming, n_jobs=n_jobs)
+        score = partial(_pas_score, pas_ends=pas_ends)
+    else:
+        genome_.positioned_utr_end(adata, utr_end)  # refuses gene-level matrices
+        score = partial(_initiator_score, genome=getattr(genome, "fn", genome))
     rows = []
     for bandwidth in bandwidths:
         peaks = peak_call_anndata_parallel(
             adata, method="kde", bandwidth=bandwidth, n_jobs=n_jobs, kernel=kernel
         )
-        score = _score_peak_assignment(peaks, genome=genome, hamming=hamming, n_jobs=n_jobs)
         rows.append(
             {
                 "bandwidth": bandwidth,
-                "score": cast(float, score),
+                "kernel": kernel,
+                "score": score(peaks),
                 "sites": peaks.n_vars,
                 "sites_per_utr": peaks.n_vars / peaks.var.utr_name.nunique(),
             }
         )
     return pd.DataFrame(rows).set_index("bandwidth")
+
+
+def _pas_ends_per_utr(
+    adata: ad.AnnData,
+    genome: str | Path | pybedtools.BedTool,
+    hamming: int,
+    n_jobs: int | None,
+) -> dict[str, npt.NDArray[np.int64]]:
+    """The end of each PAS hexamer of each UTR (see :func:`_find_pas`), found once."""
+    n_workers = helpers.resolve_n_jobs(n_jobs)
+    per_utr_inputs = _extract_per_utr_inputs(adata)
+    batches = _build_compact_batches(per_utr_inputs, n_workers)
+    try:
+        with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
+            batch_results = list(
+                joblib.Parallel(n_jobs=n_workers, return_as="generator")(
+                    joblib.delayed(_pas_ends_utr_batch)(batch, hamming, genome)
+                    for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
+                )
+            )
+    finally:
+        helpers.shutdown_joblib_pool()
+    return dict(item for result in batch_results for item in result)
+
+
+def _pas_ends_utr_batch(
+    batch: list[CompactUtrItem], hamming: int, genome: str | Path | pybedtools.BedTool
+) -> list[tuple[str, npt.NDArray[np.int64]]]:
+    return [
+        (
+            utr_name,
+            np.asarray(_find_pas(var_sub, hamming=hamming, genome=genome)[0], dtype=np.int64),
+        )
+        for _orig_idx, utr_name, _X_sub, var_sub in batch
+    ]
+
+
+def _pas_score(peaks: ad.AnnData, pas_ends: Mapping[str, npt.NDArray[np.int64]]) -> float:
+    """The PAS score of peaks, as :func:`_score_peak_assignment` gives it, from known hexamers.
+
+    Per UTR with a hexamer, the share of its molecules at sites with more than
+    1% of them that lie 10-30 nt after their nearest hexamer; summed in UTR
+    order and divided by the number of UTRs (those without a hexamer score 0).
+    """
+    molecules = np.asarray(peaks.X.sum(axis=0)).ravel().astype(np.int64)
+    sizes = peaks.var["utr_size"].to_numpy(dtype=np.int64)
+    columns = peaks.var.groupby("utr_name", observed=True).indices
+    utrs = peaks.var["utr_name"].unique()
+    scores = []
+    for utr in utrs:
+        ends = pas_ends.get(str(utr), np.empty(0, dtype=np.int64))
+        if len(ends) == 0:
+            continue
+        sites = columns[utr]
+        utr_molecules = molecules[sites]
+        total = utr_molecules.sum()
+        distances = sizes[sites, np.newaxis] - ends[np.newaxis, :]
+        nearest = distances[np.arange(len(sites)), np.abs(distances).argmin(axis=1)]
+        frequent = utr_molecules > math.ceil(total * FREQUENT_SITE_SHARE)
+        after_hexamer = (nearest >= 10) & (nearest <= 30)
+        scores.append(utr_molecules[frequent & after_hexamer].sum() / total)
+    return float(sum(scores) / len(utrs))
+
+
+def _initiator_score(peaks: ad.AnnData, genome: str | Path) -> float:
+    """The initiator score of 5' peaks: see :func:`score_bandwidths`.
+
+    UTRs on chromosomes that the genome lacks do not count.
+    """
+    var = peaks.var
+    table = pd.DataFrame(
+        {
+            "chrom": var["chrom"].astype(str).to_numpy(),
+            "position": genome_.site_positions(var, "five_prime"),
+            "strand": var["strand"].astype(str).to_numpy(),
+        }
+    )
+    dinucleotides, found = genome_.read_sequences(genome, table, -1, 1)
+    initiator = np.array(
+        [pair[0] in PYRIMIDINES and pair[1] in PURINES for pair in dinucleotides], dtype=bool
+    )
+    sites = pd.DataFrame(
+        {
+            "utr": var["utr_name"].astype(str).to_numpy(),
+            "molecules": np.asarray(peaks.X.sum(axis=0)).ravel().astype(np.int64),
+            "initiator": initiator,
+        }
+    )[found]
+    total = sites.groupby("utr", sort=False)["molecules"].transform("sum")
+    frequent = sites["molecules"] > np.ceil(total * FREQUENT_SITE_SHARE)
+    hits = sites["molecules"].where(frequent & sites["initiator"], 0)
+    shares = (
+        hits.groupby(sites["utr"], sort=False).sum()
+        / sites.groupby("utr", sort=False)["molecules"].sum()
+    )
+    return float(shares.mean())
 
 
 def _score_peak_assignment(

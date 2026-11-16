@@ -34,8 +34,10 @@ a new major version can change results or require changes to your command lines.
   instead of joblib files, which only Python could open. `pas-distance` has a
   row per site: its molecules, nearest hexamer and distance (weight the
   distances by the molecules for their distribution over molecules).
-  `score-bandwidths` has a row per bandwidth: its score, sites and sites per
-  UTR, and takes `-H/--hamming` (1 by default, as before). In Python,
+  `score-bandwidths` has a row per bandwidth: its kernel, score, sites and
+  sites per UTR, and takes `-H/--hamming` (1 by default, as before). By
+  default it scores 4, 6, 8, 10, 12, 15 and 20 nt for 3' data (before: 1, 7,
+  12 and 15). In Python,
   `peak_calling_anndata.pas_distance_table()` and `score_bandwidths()` return
   these tables.
 
@@ -62,6 +64,18 @@ a new major version can change results or require changes to your command lines.
   bandwidths that are not whole numbers (`-b 7.5`). For 5' Cap-seq data of
   neural stem cells treated with interferon, Eugenia Guerrero Aruffo found
   `scott:0.5` with the linear kernel best.
+- **A bandwidth score for 5' data.** `qc score-bandwidths` scores the
+  peaks of 5' data by the initiator: per UTR, the share of molecules at
+  frequent peaks with a pyrimidine at -1 and a purine at +1 (the start site),
+  where RNA polymerase II starts most transcripts. Smoothing that moves a peak
+  off the start site loses it: on 5' Cap-seq data, 42% of the raw molecules
+  start at such a pair, 22% of the Gaussian peaks of 12 nt, and 60% of the
+  linear peaks of about 2 nt. Eugenia Guerrero Aruffo proposed this measure
+  in her master's thesis (2026). The command picks the score by the matrix's
+  UTR end (`--utr-end` for matrices before 5.0.0, which count as 3'), scores
+  1 2 3 5 8 12 nt and Scott's and Silverman's rules by default for 5' data,
+  and takes `--kde-kernel`. For 3' data it now searches the PAS hexamers of
+  each UTR once, not once per bandwidth.
 - **`tools site-sequences`** writes the genome sequence around each site,
   as FASTA for motif tools (for a `.fa`, `.fasta` or `.fna` output) or as a
   table, for `--upstream` and `--downstream` nt (50 each by default).

@@ -324,7 +324,7 @@ them. Each writes a tab-separated table, which pandas, R and MultiQC read:
 | `qc pas-distance` | site | Distance to the nearest polyadenylation signal hexamer |
 | `qc priming` | site | Whether the genome around it could explain it as a priming artefact: A's after a 3' site (internal priming), or a sequence like the template-switching oligo before a 5' site (strand invasion) |
 | `qc peaks` | peak | Molecules, share of its UTR, and the spread of the raw sizes it collects |
-| `qc score-bandwidths` | KDE bandwidth | How well its peaks fall 10-30 nt after a PAS hexamer, and how many it makes |
+| `qc score-bandwidths` | KDE bandwidth | How well its peaks fall where the genome expects sites: 10-30 nt after a PAS hexamer (3' data), or on a pyrimidine-purine initiator (5' data); and how many it makes |
 
 ```bash
 # A row per matrix, from mapping to analysis; MultiQC shows *_mqc.tsv files
@@ -354,7 +354,7 @@ utrcalling qc priming peaks_bw12.h5ad genome.fa priming.tsv
 # How wide the peaks of a bandwidth are, and how well bandwidths score
 utrcalling qc peaks raw_sizes.h5ad peaks_bw12.tsv --bandwidth 12
 utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.tsv genome.fa \
-    --bandwidths 1 7 12 15
+    --bandwidths 4 8 12 16
 ```
 
 The site tables answer different questions. `known-sites` asks whether a

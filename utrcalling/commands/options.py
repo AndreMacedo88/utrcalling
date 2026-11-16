@@ -10,7 +10,12 @@ from typing import Annotated, Literal, get_args
 
 from cyclopts import Group, Parameter, Token
 
-from utrcalling.core.protocols.kde_options import Bandwidth, Kernel, parse_bandwidth
+from utrcalling.core.protocols.kde_options import (
+    CANDIDATE_BANDWIDTHS,
+    Bandwidth,
+    Kernel,
+    parse_bandwidth,
+)
 
 # Help panels of the pipeline commands, in this order.
 INPUTS = Group("Inputs", sort_key=0)
@@ -248,6 +253,21 @@ UtrNameColumn = Annotated[
     Parameter(
         name=("--utr-name-column", "-u"),
         help="Column of the count matrix's .var table with the UTR names.",
+    ),
+]
+CandidateBandwidths = Annotated[
+    tuple[Bandwidth, ...] | None,
+    Parameter(
+        consume_multiple=1,
+        converter=bandwidths,
+        metavar="NT|RULE",
+        show_default=False,
+        help=(
+            "The bandwidths to score: numbers of nt, or rules. By default, for 3' data "
+            f"{' '.join(map(str, CANDIDATE_BANDWIDTHS['three_prime']))}; for 5' data "
+            f"{' '.join(map(str, CANDIDATE_BANDWIDTHS['five_prime']))}. In bash, "
+            "{2..20..2} gives 2 4 ... 20."
+        ),
     ),
 ]
 Bandwidths = Annotated[

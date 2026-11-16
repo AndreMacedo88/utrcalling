@@ -4,18 +4,21 @@ from __future__ import annotations
 
 import os
 import shutil
+import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 import anndata as ad
 import numpy as np
 import pandas as pd
 import scipy.sparse
 
-from utrcalling.core import module_log
+from utrcalling.core import module_log, provenance
 from utrcalling.core import peak_calling_anndata as pca
 from utrcalling.core.protocols import peak_calling as pc
+from utrcalling.core.protocols.kde_options import CANDIDATE_BANDWIDTHS
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
@@ -671,10 +674,14 @@ class TestScoreBandwidths(unittest.TestCase):
             n_obs=4,
         )
         bandwidths = [1, 60]
-        table = pca.score_bandwidths(adata, genome=str(genome), bandwidths=bandwidths, n_jobs=1)
+        with mock.patch.object(pca, "_find_pas", wraps=pca._find_pas) as find_pas:
+            table = pca.score_bandwidths(adata, genome=str(genome), bandwidths=bandwidths, n_jobs=1)
+        # The hexamers of each UTR are found once, whatever the bandwidths.
+        self.assertEqual(find_pas.call_count, 2)
 
         self.assertEqual(table.index.name, "bandwidth")
         self.assertListEqual(table.index.tolist(), bandwidths)
+        self.assertListEqual(table.kernel.tolist(), ["gaussian"] * 2)
         expected = pca.estimate_best_bandwidth(
             adata, genome=str(genome), hamming=1, bandwidths=bandwidths, n_jobs=1
         )
@@ -687,6 +694,96 @@ class TestScoreBandwidths(unittest.TestCase):
         self.assertListEqual(table.sites_per_utr.tolist(), [s / 2 for s in sites])
         # A narrow bandwidth keeps the two groups of sizes of each UTR apart.
         self.assertListEqual(sites, [4, 2])
+
+    def test_utrs_without_a_hexamer_score_0_but_count(self):
+        tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmpdir)
+        genome = tmpdir / "genome.fa"
+        genome.write_text(">chr1\n" + "C" * 119 + "AATAAA" + "C" * 375 + "\n")
+        # UTR0 on 100-200 has the hexamer; UTR1 on 300-400 has none.
+        adata = _make_adata(
+            count_matrix=[[2, 5, 2, 3, 3, 3] * 2] * 4,
+            utr_names=["UTR0"] * 6 + ["UTR1"] * 6,
+            utr_sizes=[40, 41, 42, 90, 91, 92] * 2,
+            n_obs=4,
+        )
+        adata.var.loc[adata.var.utr_name == "UTR1", ["start", "end"]] = [300, 400]
+        table = pca.score_bandwidths(adata, genome=str(genome), bandwidths=[1], n_jobs=1)
+        expected = pca.estimate_best_bandwidth(adata, genome=str(genome), bandwidths=[1], n_jobs=1)
+        self.assertEqual(table.score.iloc[0], expected[0])
+        self.assertGreater(expected[0], 0)
+
+
+class TestInitiatorScore(unittest.TestCase):
+    """For 5' data, bandwidths score by the initiator (a pyrimidine-purine pair) at their peaks."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        sequence = list("G" * 300)
+        sequence[99:101] = "CA"  # -1 and +1 of a + strand start site at 101
+        sequence[249:251] = "TG"  # read leftwards, CA: a - strand start site at 250
+        self.genome = self.tmp / "genome.fa"
+        self.genome.write_text(">chr1\n" + "".join(sequence) + "\n")
+        # UTR P (+ strand, 1-200): 30 molecules start at 101 (CA), 10 at 151 (GG),
+        # 1 at 51. UTR M (- strand, 201-300): 20 at 250 (CA). UTR X: chromosome 2.
+        var = pd.DataFrame(
+            {
+                "utr_name": ["P", "P", "P", "M", "X"],
+                "utr_size": [150, 100, 50, 50, 10],
+                "chrom": ["1", "1", "1", "1", "2"],
+                "start": [1, 1, 1, 201, 1],
+                "end": [200, 200, 200, 300, 100],
+                "strand": ["+", "+", "+", "-", "+"],
+            },
+            index=[f"site{i}" for i in range(5)],
+        )
+        # Sizes 150, 100 and 50 of P start at 51, 101 and 151 (end - size + 1).
+        counts = np.array([[1, 30, 10, 20, 9]], dtype=np.int32)
+        self.adata = ad.AnnData(X=scipy.sparse.csr_matrix(counts), var=var)
+
+    def _scores(self, bandwidths, kernel="linear", **kwargs):
+        table = pca.score_bandwidths(
+            self.adata,
+            genome=self.genome,
+            bandwidths=bandwidths,
+            kernel=kernel,
+            utr_end="five_prime",
+            n_jobs=1,
+            **kwargs,
+        )
+        return table.score.tolist()
+
+    def test_the_share_of_molecules_at_initiators(self):
+        # P: 30 of 41 molecules (the site at 51 has 1, not more than 1%); M: all.
+        self.assertAlmostEqual(self._scores([1])[0], (30 / 41 + 1) / 2)
+
+    def test_smoothing_off_the_start_sites_scores_lower(self):
+        # A wide Gaussian joins P's sites between 101 and 151: no initiator there.
+        narrow, wide = self._scores([1, 60], kernel="gaussian")
+        self.assertGreater(narrow, wide)
+        self.assertAlmostEqual(wide, (0 + 1) / 2)
+
+    def test_the_utr_end_comes_from_the_record(self):
+        with mock.patch.object(sys, "argv", ["utrcalling", "run"]):
+            provenance.record(self.adata, utr_end="five_prime", summarization_level="utr")
+        table = pca.score_bandwidths(
+            self.adata, genome=str(self.genome), bandwidths=["1"], n_jobs=1
+        )
+        self.assertListEqual(table.index.tolist(), [1])
+        self.assertAlmostEqual(table.score.iloc[0], (30 / 41 + 1) / 2)
+
+    def test_default_candidates_per_utr_end(self):
+        table = pca.score_bandwidths(self.adata, genome=self.genome, utr_end="five_prime", n_jobs=1)
+        self.assertListEqual(table.index.tolist(), list(CANDIDATE_BANDWIDTHS["five_prime"]))
+
+    def test_refusals(self):
+        with self.assertRaisesRegex(ValueError, "utr_end 'middle'"):
+            pca.score_bandwidths(self.adata, genome=self.genome, bandwidths=[1], utr_end="middle")
+        with mock.patch.object(sys, "argv", ["utrcalling", "run"]):
+            provenance.record(self.adata, summarization_level="gene")
+        with self.assertRaisesRegex(ValueError, "Gene-level sites"):
+            self._scores([1])
 
 
 class TestUtrWithoutMolecules(unittest.TestCase):

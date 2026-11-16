@@ -94,3 +94,20 @@ def _number(text: str, message: str) -> float:
 
 def _compact(number: float) -> str:
     return str(int(number)) if number.is_integer() else repr(number)
+
+
+# The bandwidths that `qc score-bandwidths` scores, and `-b optimize` chooses
+# from, by default: for 3' data with the PAS score, for 5' data with the
+# initiator score (see peak_calling_anndata.score_bandwidths). On the 3' data of
+# mouse neural stem cells (Kalamakis et al. 2019) the PAS score barely changes
+# between 6 and 20 nt, the paper's 12 included; rules score lower there. On 5'
+# Cap-seq data (Eugenia Guerrero Aruffo's thesis, 2026), the initiator score is
+# highest with the linear kernel from 1 to 3 nt, or scott:0.25 to 0.5, and falls
+# with the Gaussian kernel as the bandwidth grows.
+CANDIDATE_BANDWIDTHS: dict[str, tuple[Bandwidth, ...]] = {
+    "three_prime": (4, 6, 8, 10, 12, 15, 20),
+    "five_prime": (
+        *(1, 2, 3, 5, 8, 12),
+        *("scott:0.25", "scott:0.5", "scott", "silverman:0.5", "silverman"),
+    ),
+}

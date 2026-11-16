@@ -141,7 +141,11 @@ class TestCLIHelp(unittest.TestCase):
             self.assertIn(panel, page)
 
     def test_bandwidth_defaults_are_shown_as_typed(self):
-        self.assertIn("[default: 1 7 12 15]", _help("qc", "score-bandwidths"))
+        self.assertIn("[default: 12]", _help("call-peaks"))
+        # The help's words, without the line breaks and borders of its box.
+        page = " ".join(_help("qc", "score-bandwidths").replace("│", " ").split())
+        self.assertIn("for 3' data 4 6 8 10 12 15 20;", page)
+        self.assertIn("for 5' data 1 2 3 5 8 12 scott:0.25 scott:0.5 scott silverman:0.5", page)
 
 
 class TestOldCommandNames(unittest.TestCase):
@@ -457,11 +461,15 @@ class TestScoreBandwidthsCommand(unittest.TestCase):
                 genome_path=str(genome_path),
                 bandwidths=(7, 12),
                 hamming=0,
+                kde_kernel="linear",
+                utr_end="five_prime",
             )
 
         self.assertEqual(scorer.call_args.kwargs["genome"].fn, str(genome_path))
         self.assertEqual(scorer.call_args.kwargs["bandwidths"], (7, 12))
         self.assertEqual(scorer.call_args.kwargs["hamming"], 0)
+        self.assertEqual(scorer.call_args.kwargs["kernel"], "linear")
+        self.assertEqual(scorer.call_args.kwargs["utr_end"], "five_prime")
         pd.testing.assert_frame_equal(pd.read_csv(out_path, sep="\t", index_col=0), scores)
 
 
