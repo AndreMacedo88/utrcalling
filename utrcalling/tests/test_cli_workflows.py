@@ -87,6 +87,27 @@ def expected_site_names(var):
     return names
 
 
+def place_utrs(adata):
+    """*adata* with its UTRs moved onto chromosome 1 of a small genome, and its size.
+
+    The real genome is too big for a test. Each UTR keeps its length and strand.
+    """
+    placed = adata.copy()
+    var = placed.var
+    utr, _ = pd.factorize(var.utr_name.astype(str))
+    length = var.end - var.start
+    spacing = int(length.max()) + 100
+    var["chrom"] = "chr1"
+    var["start"] = utr * spacing + 51
+    var["end"] = var.start + length
+    return placed, (utr.max() + 1) * spacing
+
+
+def random_genome(size, seed):
+    """A random sequence of *size* nt."""
+    return "".join(np.random.default_rng(seed).choice(list("ACGT"), size=size))
+
+
 def read_summary(path):
     """A mapping summary table, as utrcalling writes it."""
     return pd.read_csv(path, sep="\t", index_col="input").astype("Int64")
@@ -642,6 +663,109 @@ class TestBandwidthRule(_InTempDir):
         self.assertEqual(report.loc["count_kde.h5ad", "bandwidth"], "scott:0.5")
 
 
+class TestOptimize(_InTempDir):
+    """`-b optimize` scores the candidate bandwidths and calls the peaks with the best."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        # call-peaks, scored for real: run's raw sizes on a small random genome.
+        placed, genome_size = place_utrs(ad.read_h5ad(WORKDIR / "raw.h5ad"))
+        placed.write_h5ad(cls.tmp / "placed.h5ad")
+        (cls.tmp / "genome.fa").write_text(f">1\n{random_genome(genome_size, seed=1)}\n")
+        candidates = ["--candidates", "4", "12", "60"]
+        utrcalling(
+            "call-peaks",
+            "placed.h5ad",
+            "opt",
+            "-b",
+            "optimize",
+            *candidates,
+            "--genome",
+            "genome.fa",
+            "--cores",
+            "2",
+            cwd=cls.tmp,
+        )
+        cls.scores = pd.read_csv(cls.tmp / "opt_bandwidth_scores.tsv", sep="\t", index_col=0)
+        cls.chosen = int(cls.scores.score.idxmax())
+        utrcalling("call-peaks", "placed.h5ad", "direct", "-b", cls.chosen, cwd=cls.tmp)
+
+        # count, with the scores given: the real genome is too big for a test.
+        cls.mocked_scores = pd.DataFrame(
+            {
+                "kernel": "gaussian",
+                "score": [0.1, 0.3],
+                "sites": [9, 4],
+                "sites_per_utr": [2.0, 1.0],
+            },
+            index=pd.Index([12, 60], name="bandwidth"),
+        )
+        intermediate = WORKDIR / "intermediate"
+        count = [
+            "count",
+            intermediate / "utr_reference_regions.parquet",
+            "-c",
+            intermediate / "UTR_sizes_counts_1.parquet",
+            intermediate / "UTR_sizes_counts_2.parquet",
+            *PIPELINE_FLAGS,
+            "-b",
+            "optimize",
+            "--candidates",
+            "12",
+            "60",
+            "--genome",
+            cls.tmp / "genome.fa",
+        ]
+        with mock.patch(
+            "utrcalling.core.peak_calling_anndata.score_bandwidths",
+            side_effect=lambda *args, **kwargs: cls.mocked_scores.copy(),
+        ) as scorer:
+            utrcalling(*count, "-r", "-o", "count.h5ad", cwd=cls.tmp)
+            utrcalling(*count, "-o", "peaks.h5ad", cwd=cls.tmp)
+        cls.scorer_calls = scorer.call_args_list
+        utrcalling("call-peaks", WORKDIR / "raw.h5ad", "fixed", "-b", "60", cwd=cls.tmp)
+
+    def test_call_peaks_chooses_the_best_score(self):
+        self.assertListEqual(self.scores.index.tolist(), [4, 12, 60])
+        self.assertListEqual(self.scores.kernel.tolist(), ["gaussian"] * 3)
+        self.assertEqual(self.scores.sites.is_monotonic_decreasing, True)
+        optimized = ad.read_h5ad(self.tmp / f"opt_bw{self.chosen}.h5ad")
+        assert_same_anndata(optimized, ad.read_h5ad(self.tmp / f"direct_bw{self.chosen}.h5ad"))
+        info = provenance.recorded(optimized)
+        self.assertEqual(info["bandwidth"], self.chosen)
+        np.testing.assert_allclose(info["bandwidth_scores"].score, self.scores.score)
+
+    def test_count_calls_the_peaks_of_the_best_bandwidth(self):
+        fixed = ad.read_h5ad(self.tmp / "fixed_bw60.h5ad")
+        for name in ("count_kde.h5ad", "peaks.h5ad"):
+            optimized = ad.read_h5ad(self.tmp / name)
+            with self.subTest(output=name):
+                assert_same_anndata(fixed[optimized.obs_names], optimized)
+                info = provenance.recorded(optimized)
+                self.assertEqual((info["bandwidth"], info["kernel"]), (60, "gaussian"))
+                self.assertListEqual(info["bandwidth_scores"].index.tolist(), ["12", "60"])
+        # With -r, the raw sizes too; both runs summarise the mapping.
+        assert_same_anndata(
+            ad.read_h5ad(self.tmp / "count.h5ad"), ad.read_h5ad(WORKDIR / "raw.h5ad")
+        )
+        for stem in ("count", "peaks"):
+            summary = read_summary(self.tmp / f"{stem}_mapping_summary.tsv").loc["total"]
+            self.assertEqual(summary.molecules_counted, fixed.X.sum())
+
+    def test_count_scores_the_raw_sizes_of_its_utr_end(self):
+        for call in self.scorer_calls:
+            raw_sizes, genome, candidates = call.args
+            self.assertEqual(raw_sizes.X.sum(), ad.read_h5ad(WORKDIR / "raw.h5ad").X.sum())
+            self.assertEqual(genome, str(self.tmp / "genome.fa"))
+            self.assertEqual(candidates, (12, 60))
+            self.assertEqual(
+                (call.kwargs["kernel"], call.kwargs["utr_end"]), ("gaussian", "three_prime")
+            )
+        written = pd.read_csv(self.tmp / "count_bandwidth_scores.tsv", sep="\t", index_col=0)
+        pd.testing.assert_frame_equal(written, self.mocked_scores)
+
+
 class TestSiteProcessingCommands(_InTempDir):
     """The paper's steps after peak calling, each on the output of the previous one."""
 
@@ -894,22 +1018,14 @@ class TestQcCommands(_InTempDir):
     def _run_priming(cls):
         """qc priming on run's peaks, with their UTRs moved onto a small random genome.
 
-        The real genome is too big for a test. Each UTR keeps its length and
-        strand; every third site gets 7 A's in the genome after it.
+        Every third site gets 7 A's in the genome after it.
         """
-        placed = cls.kde.copy()
-        var = placed.var
-        utr, _ = pd.factorize(var.utr_name.astype(str))
-        length = var.end - var.start
-        spacing = int(length.max()) + 100
-        var["chrom"] = "chr1"
-        var["start"] = utr * spacing + 51
-        var["end"] = var.start + length
+        placed, genome_size = place_utrs(cls.kde)
         placed.write_h5ad(cls.tmp / "placed.h5ad")
+        var = placed.var
         plus = (var.strand == "+").to_numpy()
         positions = np.where(plus, var.start + var.utr_size, var.end - var.utr_size)
-        rng = np.random.default_rng(0)
-        genome = list("".join(rng.choice(list("ACGT"), size=(utr.max() + 1) * spacing)))
+        genome = list(random_genome(genome_size, seed=0))
         for position, on_plus in zip(positions[::3], plus[::3], strict=True):
             start = position if on_plus else position - 8  # 0-based, after the site
             genome[start : start + 7] = "AAAAAAA" if on_plus else "TTTTTTT"

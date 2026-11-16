@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
     import anndata
@@ -24,6 +24,8 @@ def count_sites(
     raw_sizes: bool,
     kde_bandwidth: Bandwidth,
     kde_kernel: str,
+    candidates: Sequence[Bandwidth] | None = None,
+    genome: str | None = None,
     out: str,
     store_intermediate: bool,
     cores: int | None,
@@ -46,8 +48,13 @@ def count_sites(
         raw_sizes: Whether to write the raw sizes too.
         kde_bandwidth: Bandwidth of the KDE that calls the peaks: a number of
             nt, or a rule, whose value for each UTR goes to the sites'
-            ``bandwidth`` column.
+            ``bandwidth`` column; or ``optimize``, to choose the best of
+            *candidates* by their scores against *genome* (see
+            commands._optimize), written to ``<out stem>_bandwidth_scores.tsv``.
         kde_kernel: Kernel of the KDE that calls the peaks.
+        candidates: The bandwidths that ``optimize`` chooses from; by default
+            those of the UTR end (kde_options.CANDIDATE_BANDWIDTHS).
+        genome: Genome FASTA, for ``optimize``.
         out: Path of the count matrix (.h5ad).
         store_intermediate: Whether to store intermediate files in ./intermediate/.
         cores: Maximum number of worker processes.
@@ -55,10 +62,12 @@ def count_sites(
     """
     import numpy as np
 
+    from utrcalling.commands import _optimize
     from utrcalling.core import core, count_matrix, qc, storage
     from utrcalling.core.module_log import module_logger
     from utrcalling.core.protocol import ProtocolFivePrime
     from utrcalling.core.protocols import peak_calling as pc
+    from utrcalling.core.protocols.kde_options import OPTIMIZE
 
     logger = module_logger()
     frames = read_mappings if isinstance(read_mappings, list) else [read_mappings]
@@ -102,52 +111,52 @@ def count_sites(
         logger.info("Mapping summary: %s", summary.loc["total"].to_dict())
         settings["mapping_summary"] = summary
 
-    kde = {"bandwidth": kde_bandwidth, "kernel": kde_kernel}
-
-    def add_utr_bandwidths(peaks: anndata.AnnData) -> None:
-        """Give the sites their UTR's bandwidth, if a rule set one per UTR."""
-        if isinstance(kde_bandwidth, str):
-            per_utr = count_matrix.utr_bandwidths(filtered_reads, kde_bandwidth)
-            peaks.var["bandwidth"] = peaks.var["utr_name"].map(per_utr).to_numpy(np.float64)
-
-    if raw_sizes:
+    raw_anndata = None
+    if raw_sizes or kde_bandwidth == OPTIMIZE:
         logger.info("Building raw sizes count matrix")
         raw_anndata = core.build_count_matrix(
             filtered_reads=filtered_reads,
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
-            store=store_intermediate,
+            store=store_intermediate and raw_sizes,
             n_jobs=cores,
         )
         add_mapping_summary(raw_anndata)
-        _write(raw_anndata, out, matrix="raw_sizes", **settings)
-        del raw_anndata  # free memory before the KDE pass
 
-        logger.info("Building KDE peaks count matrix")
-        kde_out = f"{out_stem}_kde.h5ad"
-        kde_anndata = core.build_count_matrix(
-            filtered_reads=filtered_reads,
-            utr_reference_subset=utr_reference_subset,
-            protocol=protocol_,
-            size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth, kernel=kde_kernel),
-            n_jobs=cores,
+    kde: dict[str, Any] = {"kernel": kde_kernel}
+    if kde_bandwidth == OPTIMIZE:
+        # run and count check the genome first; the raw sizes are built above.
+        kde_bandwidth, kde["bandwidth_scores"] = _optimize.choose(
+            cast("anndata.AnnData", raw_anndata),
+            cast(str, genome),
+            candidates,
+            kde_kernel,
+            settings["utr_end"],
+            cores,
+            scores_path=f"{out_stem}_bandwidth_scores.tsv",
         )
-        add_utr_bandwidths(kde_anndata)
-        _write(kde_anndata, kde_out, matrix="peaks", **kde, **settings)
-        logger.info(f"Wrote KDE peaks to {kde_out}")
-    else:
-        # The protocol's peak caller, which uses kde_bandwidth and kde_kernel
-        logger.info("Calling peaks from filtered data")
-        count_matrix_anndata = core.call_peaks(
-            filtered_reads=filtered_reads,
-            utr_reference_subset=utr_reference_subset,
-            protocol=protocol_,
-            store=store_intermediate,
-            n_jobs=cores,
-        )
-        add_mapping_summary(count_matrix_anndata)
-        add_utr_bandwidths(count_matrix_anndata)
-        _write(count_matrix_anndata, out, matrix="peaks", **kde, **settings)
+    kde["bandwidth"] = kde_bandwidth
+    if raw_anndata is not None and raw_sizes:
+        _write(raw_anndata, out, matrix="raw_sizes", **settings)
+    del raw_anndata  # free memory before the KDE pass
+
+    logger.info("Calling peaks from filtered data")
+    peaks = core.build_count_matrix(
+        filtered_reads=filtered_reads,
+        utr_reference_subset=utr_reference_subset,
+        protocol=protocol_,
+        store=store_intermediate and not raw_sizes,
+        size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth, kernel=kde_kernel),
+        n_jobs=cores,
+    )
+    if "molecules_counted" not in counting:  # no raw sizes counted them
+        add_mapping_summary(peaks)
+    if isinstance(kde_bandwidth, str):  # a rule: each site gets its UTR's bandwidth
+        per_utr = count_matrix.utr_bandwidths(filtered_reads, kde_bandwidth)
+        peaks.var["bandwidth"] = peaks.var["utr_name"].map(per_utr).to_numpy(np.float64)
+    peaks_out = f"{out_stem}_kde.h5ad" if raw_sizes else out
+    _write(peaks, peaks_out, matrix="peaks", **kde, **settings)
+    logger.info(f"Wrote KDE peaks to {peaks_out}")
 
 
 def _write(adata: anndata.AnnData, path: str, **record: Any) -> None:

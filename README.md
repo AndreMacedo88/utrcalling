@@ -264,6 +264,7 @@ utrcalling count \
 | `--raw-sizes / -r` | Output both raw UTR sizes and KDE peaks. |
 | `--kde-bandwidth / -b` | KDE bandwidth for peak calling: a number of nt (default: 12), or a rule that sets one per UTR from the spread of its sizes, `scott` or `silverman`, optionally scaled (`scott:0.5`). |
 | `--kde-kernel` | KDE kernel: `gaussian` (default), `linear`, `epanechnikov`, `exponential`, `tophat` or `cosine`. |
+| `-b optimize`, `--candidates`, `--genome` | Choose the bandwidth: score the candidates against the genome (see `qc score-bandwidths`) and use the best. |
 | `--strandedness` | Library strandedness for `truseq`: `reverse` (default), `forward`, or `unstranded`. |
 | `--batch-merge-method / -m` | How to merge batches: `union` or `intersection`. |
 | `--store-intermediate / -i` | Save intermediate files for resumable workflows. |

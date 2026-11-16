@@ -12,6 +12,7 @@ from cyclopts import Group, Parameter, Token
 
 from utrcalling.core.protocols.kde_options import (
     CANDIDATE_BANDWIDTHS,
+    OPTIMIZE,
     Bandwidth,
     Kernel,
     parse_bandwidth,
@@ -42,6 +43,21 @@ def bandwidth(type_: object, tokens: Sequence[Token]) -> Bandwidth:
 def bandwidths(type_: object, tokens: Sequence[Token]) -> tuple[Bandwidth, ...]:
     """Read one or more KDE bandwidths, where 0 keeps the raw sizes."""
     return tuple(parse_bandwidth(token.value, allow_zero=True) for token in tokens)
+
+
+def bandwidth_or_optimize(type_: object, tokens: Sequence[Token]) -> Bandwidth:
+    """Read a KDE bandwidth, or optimize."""
+    text = tokens[0].value
+    return OPTIMIZE if text.strip().lower() == OPTIMIZE else parse_bandwidth(text)
+
+
+def bandwidths_or_optimize(type_: object, tokens: Sequence[Token]) -> tuple[Bandwidth, ...]:
+    """Read one or more KDE bandwidths (0 keeps the raw sizes), or optimize alone."""
+    if any(token.value.strip().lower() == OPTIMIZE for token in tokens):
+        if len(tokens) > 1:
+            raise ValueError("optimize chooses among the --candidates: give it alone")
+        return (OPTIMIZE,)
+    return bandwidths(type_, tokens)
 
 
 def lowercase_choice(type_: object, tokens: Sequence[Token]) -> str:
@@ -174,19 +190,26 @@ BANDWIDTH_RULES_HELP = (
     "IQR/1.34) x n^-1/5, which several sites in a UTR inflate less), scaled as in "
     "scott:0.5."
 )
+# The help of the options that -b optimize needs.
+OPTIMIZE_HELP = (
+    "Or optimize: score the --candidates against the --genome, by a sequence that true "
+    "sites have (the polyadenylation signal 10-30 nt before 3' sites, the initiator at "
+    "5' sites; see qc score-bandwidths), and call the peaks with the best. Their scores "
+    "go to <out>_bandwidth_scores.tsv."
+)
 KdeBandwidth = Annotated[
     Bandwidth,
     Parameter(
         name=("--kde-bandwidth", "-b"),
-        converter=bandwidth,
-        metavar="NT|RULE",
+        converter=bandwidth_or_optimize,
+        metavar="NT|RULE|optimize",
         group=PEAK_CALLING,
         help=(
             "Bandwidth of the KDE that collapses UTR sizes into peaks: a number of nt, "
             "or a rule. 12 suits 3'-end-enriched assays, where reads pile up within a "
             "few bp of the polyadenylation site. Randomly fragmented libraries spread "
             "more per site and need a wider kernel, or the spread splits into many close "
-            f"pseudo-peaks. {BANDWIDTH_RULES_HELP}"
+            f"pseudo-peaks. {BANDWIDTH_RULES_HELP} {OPTIMIZE_HELP}"
         ),
     ),
 ]
@@ -263,7 +286,8 @@ CandidateBandwidths = Annotated[
         metavar="NT|RULE",
         show_default=False,
         help=(
-            "The bandwidths to score: numbers of nt, or rules. By default, for 3' data "
+            "The bandwidths to score (and, with -b optimize, to choose from): numbers of "
+            "nt, or rules. By default, for 3' data "
             f"{' '.join(map(str, CANDIDATE_BANDWIDTHS['three_prime']))}; for 5' data "
             f"{' '.join(map(str, CANDIDATE_BANDWIDTHS['five_prime']))}. In bash, "
             "{2..20..2} gives 2 4 ... 20."
@@ -275,9 +299,22 @@ Bandwidths = Annotated[
     Parameter(
         name=("--bandwidths", "-b"),
         consume_multiple=1,
-        converter=bandwidths,
-        metavar="NT|RULE",
+        converter=bandwidths_or_optimize,
+        metavar="NT|RULE|optimize",
         show_default=lambda bandwidths: " ".join(map(str, bandwidths)),
-        help=f"One or more bandwidths of the KDE: numbers of nt, or rules. {BANDWIDTH_RULES_HELP}",
+        help=(
+            "One or more bandwidths of the KDE: numbers of nt, or rules. "
+            f"{BANDWIDTH_RULES_HELP} {OPTIMIZE_HELP}"
+        ),
+    ),
+]
+# No help panel: the pipeline commands add theirs.
+Genome = Annotated[
+    str | None,
+    Parameter(
+        help=(
+            "Genome sequence (FASTA) of the annotation, for -b optimize; chromosomes "
+            "match with or without chr."
+        ),
     ),
 ]

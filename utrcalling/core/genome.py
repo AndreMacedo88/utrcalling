@@ -9,6 +9,7 @@ is the site (the first transcribed base for 5' sites, the last for 3' sites),
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -100,6 +101,35 @@ def chromosome_name(name: object) -> str:
     return text[3:] if text.lower().startswith("chr") else text
 
 
+def chromosome_names(genome: str | Path, chroms: Iterable[str]) -> dict[str, str | None]:
+    """The genome's name for each chromosome: the same, or with or without "chr".
+
+    Args:
+        genome: Genome FASTA.
+        chroms: The chromosomes, as the count matrix names them.
+
+    Returns:
+        The genome's name of each chromosome, or None if the genome lacks it.
+
+    Raises:
+        ValueError: If the genome has none of them.
+    """
+    with pysam.FastaFile(str(genome)) as fasta:
+        names = {
+            chrom: next(
+                (name for name in (chrom, f"chr{chrom}", chromosome_name(chrom)) if name in fasta),
+                None,
+            )
+            for chrom in chroms
+        }
+    if all(name is None for name in names.values()):
+        raise ValueError(
+            "No chromosome of the matrix is in the genome: check that both come "
+            "from the same genome assembly."
+        )
+    return names
+
+
 def read_sequences(
     genome: str | Path, sites: pd.DataFrame, start: int, stop: int
 ) -> tuple[npt.NDArray[np.str_], npt.NDArray[np.bool_]]:
@@ -129,19 +159,8 @@ def read_sequences(
         raise ValueError(f"offsets {start} to {stop}: read at least 1 nt")
     length = stop - start
     complement = str.maketrans("ACGT", "TGCA")
+    names = chromosome_names(genome, sites["chrom"].unique())
     with pysam.FastaFile(str(genome)) as fasta:
-        names = {
-            chrom: next(
-                (name for name in (chrom, f"chr{chrom}", chromosome_name(chrom)) if name in fasta),
-                None,
-            )
-            for chrom in sites["chrom"].unique()
-        }
-        if all(name is None for name in names.values()):
-            raise ValueError(
-                "No chromosome of the matrix is in the genome: check that both come "
-                "from the same genome assembly."
-            )
         sequences = []
         for chrom, position, strand in sites[["chrom", "position", "strand"]].itertuples(
             index=False

@@ -254,6 +254,20 @@ class TestCLIInvalidArgs(unittest.TestCase):
         _, arguments = _parse("qc", "score-bandwidths", "in.h5ad", "o.tsv", "g.fa", "-b", "scott")
         self.assertEqual(arguments["bandwidths"], ("scott",))
 
+    def test_optimize(self):
+        for command in (RUN, COUNT):
+            with self.subTest(command=command[0]):
+                _, arguments = _parse(*command, "-b", "Optimize", "--candidates", "2", "scott:0.5")
+                self.assertEqual(arguments["kde_bandwidth"], "optimize")
+                self.assertEqual(arguments["candidates"], (2, "scott:0.5"))
+                self.assertIsNone(_parse(*command)[1]["genome"])
+        _, arguments = _parse("call-peaks", "in.h5ad", "out", "-b", "optimize", "--genome", "g.fa")
+        self.assertEqual((arguments["bandwidths"], arguments["genome"]), (("optimize",), "g.fa"))
+        self.assertRefused(
+            "call-peaks", "in.h5ad", "out", "-b", "optimize", "12", message="give it alone"
+        )
+        self.assertRefused(*RUN, "--candidates", "optimize", message="expected a number of nt")
+
     def test_bandwidths_are_checked(self):
         self.assertRefused(
             *RUN, "-b", "wide", message="expected a number of nt, scott or silverman"
@@ -360,6 +374,44 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
         )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
         self.assertEqual(kwargs["kde_kernel"], "linear")
+
+
+class TestOptimizeNeedsTheGenome(unittest.TestCase):
+    """`-b optimize` refuses to start without what it needs, before mapping any read."""
+
+    def _refused(self, tool, *args, message, **kwargs):
+        with (
+            mock.patch("utrcalling.core.protocol.create") as create,
+            self.assertRaisesRegex((ValueError, FileNotFoundError), message),
+        ):
+            tool(*args, kde_bandwidth="optimize", log_level="error", no_log_file=True, **kwargs)
+        create.assert_not_called()
+
+    def test_run_and_count(self):
+        from utrcalling.commands.count import count
+        from utrcalling.commands.run import run
+
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+        (tmp / "genome.fa").write_text(">1\nACGT\n")
+        tools = {
+            "run": (run, ["g.gtf"], {"alignments": ["x.bam"], "annotations_file": "a.csv"}),
+            "count": (count, ["ref.parquet"], {"utr_sizes_counts": ["m.parquet"]}),
+        }
+        for name, (tool, args, kwargs) in tools.items():
+            with self.subTest(tool=name):
+                self._refused(
+                    tool, *args, **kwargs, message="give the genome .FASTA. with --genome"
+                )
+                self._refused(tool, *args, **kwargs, genome="missing.fa", message="no such file")
+                self._refused(
+                    tool,
+                    *args,
+                    **kwargs,
+                    genome=str(tmp / "genome.fa"),
+                    summarization_level="gene",
+                    message="use -s utr",
+                )
 
 
 class TestCountRecordsTheUtrEnd(unittest.TestCase):

@@ -75,7 +75,15 @@ a new major version can change results or require changes to your command lines.
   UTR end (`--utr-end` for matrices before 5.0.0, which count as 3'), scores
   1 2 3 5 8 12 nt and Scott's and Silverman's rules by default for 5' data,
   and takes `--kde-kernel`. For 3' data it now searches the PAS hexamers of
-  each UTR once, not once per bandwidth.
+  each UTR once, not once per bandwidth, and matches chromosomes with or
+  without "chr", as the 5' score does; UTRs on chromosomes that the genome
+  lacks no longer crash it, but are left out.
+- **`-b optimize`** in `run`, `count` and `call-peaks` chooses the bandwidth
+  for the data: it scores the `--candidates` (by default those of
+  `qc score-bandwidths` for the data's UTR end) against the `--genome`, calls
+  the peaks with the best, and writes the scores to
+  `<out>_bandwidth_scores.tsv`; the matrix records them. `run` checks the
+  genome before mapping any read. The default bandwidth stays 12 nt.
 - **`tools site-sequences`** writes the genome sequence around each site,
   as FASTA for motif tools (for a `.fa`, `.fasta` or `.fna` output) or as a
   table, for `--upstream` and `--downstream` nt (50 each by default).

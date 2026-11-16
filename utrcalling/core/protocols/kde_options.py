@@ -96,6 +96,10 @@ def _compact(number: float) -> str:
     return str(int(number)) if number.is_integer() else repr(number)
 
 
+# The bandwidth that `run`, `count` and `call-peaks` take to choose one: they
+# score the candidates (below) against the genome and call peaks with the best.
+OPTIMIZE = "optimize"
+
 # The bandwidths that `qc score-bandwidths` scores, and `-b optimize` chooses
 # from, by default: for 3' data with the PAS score, for 5' data with the
 # initiator score (see peak_calling_anndata.score_bandwidths). On the 3' data of

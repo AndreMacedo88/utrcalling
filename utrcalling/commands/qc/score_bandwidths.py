@@ -38,7 +38,8 @@ def score_bandwidths(
 
     Writes a tab-separated table with a row per bandwidth: the kernel, the
     score, the number of sites (peaks) and the sites per UTR. A bandwidth that
-    splits sites gives many sites.
+    splits sites gives many sites. `run`, `count` and `call-peaks` choose the
+    best of these bandwidths themselves with `-b optimize`.
 
     For example:
 

@@ -14,8 +14,10 @@ from utrcalling.commands.options import (
     Alignments,
     AnnotationsFile,
     BatchMergeMethod,
+    CandidateBandwidths,
     Cores,
     Feature,
+    Genome,
     KdeBandwidth,
     KdeKernel,
     LabelBatches,
@@ -46,6 +48,8 @@ def run(
     raw_sizes: RawSizes = False,
     kde_bandwidth: KdeBandwidth = 12,
     kde_kernel: Annotated[KdeKernel, Parameter(group=PEAK_CALLING)] = "gaussian",
+    candidates: Annotated[CandidateBandwidths, Parameter(group=PEAK_CALLING)] = None,
+    genome: Annotated[Genome, Parameter(group=PEAK_CALLING)] = None,
     out: Out = "UTR_results.h5ad",
     store_intermediate: StoreIntermediate = False,
     log_level: LogLevel = "info",
@@ -66,9 +70,15 @@ def run(
         utr_annotation: GTF file with the genome annotation (plain or gzipped).
     """
 
+    from utrcalling.commands import _optimize
     from utrcalling.commands._count_sites import count_sites
     from utrcalling.core import core, protocol
     from utrcalling.core.module_log import module_logger
+    from utrcalling.core.protocols.kde_options import OPTIMIZE
+
+    optimize = kde_bandwidth == OPTIMIZE
+    if optimize:  # before the hours of mapping
+        _optimize.check(genome, summarization_level)
 
     # Set up logging
     store_log = not no_log_file
@@ -82,7 +92,7 @@ def run(
         protocol_platform,
         int(protocol_version),
         merge_method=batch_merge_method,
-        call_peaks=not raw_sizes,
+        call_peaks=not (raw_sizes or optimize),  # optimize calls them itself
         label_batches=label_batches,
         alignments=alignments,
         annotations=annotations_file,
@@ -116,6 +126,8 @@ def run(
         raw_sizes=raw_sizes,
         kde_bandwidth=kde_bandwidth,
         kde_kernel=kde_kernel,
+        candidates=candidates,
+        genome=genome,
         out=out,
         store_intermediate=store_intermediate,
         cores=cores,

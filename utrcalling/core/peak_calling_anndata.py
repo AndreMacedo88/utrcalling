@@ -10,7 +10,7 @@ import math
 from collections.abc import Callable, Mapping, Sequence
 from functools import partial
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import anndata as ad
 import joblib
@@ -896,15 +896,45 @@ def score_bandwidths(
     return pd.DataFrame(rows).set_index("bandwidth")
 
 
+def best_bandwidth(scores: pd.DataFrame) -> Bandwidth:
+    """The bandwidth of the highest score in a table of :func:`score_bandwidths`.
+
+    Of equal scores, the first bandwidth of the table wins. It comes as
+    kde_options.parse_bandwidth writes it, also from a table read from text.
+    """
+    return parse_bandwidth(cast(Bandwidth, scores["score"].idxmax()), allow_zero=True)
+
+
 def _pas_ends_per_utr(
     adata: ad.AnnData,
     genome: str | Path | pybedtools.BedTool,
     hamming: int,
     n_jobs: int | None,
 ) -> dict[str, npt.NDArray[np.int64]]:
-    """The end of each PAS hexamer of each UTR (see :func:`_find_pas`), found once."""
+    """The end of each PAS hexamer of each UTR (see :func:`_find_pas`), found once.
+
+    Chromosomes match the genome's with or without "chr". UTRs on chromosomes
+    that the genome lacks have no entry, with a warning.
+
+    Raises:
+        ValueError: If the genome has no chromosome of the matrix.
+    """
+    names = genome_.chromosome_names(
+        getattr(genome, "fn", genome), adata.var["chrom"].astype(str).unique()
+    )
+    per_utr_inputs = []
+    lacking = 0
+    for orig_idx, utr_name, X_sub, var_sub in _extract_per_utr_inputs(adata):
+        name = names[str(var_sub["chrom"].iloc[0])]
+        if name is None:
+            lacking += 1
+            continue
+        per_utr_inputs.append((orig_idx, utr_name, X_sub, var_sub.assign(chrom=name)))
+    if lacking:
+        module_log.module_logger().warning(
+            f"The PAS score leaves out {lacking} UTRs on chromosomes that the genome lacks"
+        )
     n_workers = helpers.resolve_n_jobs(n_jobs)
-    per_utr_inputs = _extract_per_utr_inputs(adata)
     batches = _build_compact_batches(per_utr_inputs, n_workers)
     try:
         with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
@@ -937,14 +967,16 @@ def _pas_score(peaks: ad.AnnData, pas_ends: Mapping[str, npt.NDArray[np.int64]])
     Per UTR with a hexamer, the share of its molecules at sites with more than
     1% of them that lie 10-30 nt after their nearest hexamer; summed in UTR
     order and divided by the number of UTRs (those without a hexamer score 0).
+    UTRs without an entry in *pas_ends*, on chromosomes that the genome lacks,
+    do not count.
     """
     molecules = np.asarray(peaks.X.sum(axis=0)).ravel().astype(np.int64)
     sizes = peaks.var["utr_size"].to_numpy(dtype=np.int64)
     columns = peaks.var.groupby("utr_name", observed=True).indices
-    utrs = peaks.var["utr_name"].unique()
+    utrs = [utr for utr in peaks.var["utr_name"].unique() if str(utr) in pas_ends]
     scores = []
     for utr in utrs:
-        ends = pas_ends.get(str(utr), np.empty(0, dtype=np.int64))
+        ends = pas_ends[str(utr)]
         if len(ends) == 0:
             continue
         sites = columns[utr]

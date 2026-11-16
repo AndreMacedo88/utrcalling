@@ -695,6 +695,33 @@ class TestScoreBandwidths(unittest.TestCase):
         # A narrow bandwidth keeps the two groups of sizes of each UTR apart.
         self.assertListEqual(sites, [4, 2])
 
+    def test_chromosomes_match_with_or_without_chr(self):
+        tmpdir = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmpdir)
+        sequence = "C" * 119 + "AATAAA" + "C" * 175
+        (tmpdir / "chr.fa").write_text(f">chr1\n{sequence}\n")
+        (tmpdir / "plain.fa").write_text(f">1\n{sequence}\n>3\nACGT\n")
+        adata = _make_adata(
+            count_matrix=[[2, 5, 2, 3, 3, 3, 4] * 1] * 4,
+            utr_names=["UTR0"] * 6 + ["UTR1"],
+            utr_sizes=[40, 41, 42, 90, 91, 92, 10],
+            n_obs=4,
+        )
+        adata.var["chrom"] = ["chr1"] * 6 + ["chr2"]  # the genomes lack chromosome 2
+        scores = {
+            name: pca.score_bandwidths(adata, genome=str(tmpdir / name), bandwidths=[1], n_jobs=1)
+            for name in ("chr.fa", "plain.fa")
+        }
+        self.assertEqual(scores["chr.fa"].score.iloc[0], scores["plain.fa"].score.iloc[0])
+        # Only UTR0 counts: as if UTR1 were not in the matrix.
+        expected = pca.estimate_best_bandwidth(
+            adata[:, :6].copy(), genome=str(tmpdir / "chr.fa"), bandwidths=[1], n_jobs=1
+        )
+        self.assertEqual(scores["chr.fa"].score.iloc[0], expected[0])
+        (tmpdir / "other.fa").write_text(">NC_000067.7\nACGT\n")
+        with self.assertRaisesRegex(ValueError, "same genome assembly"):
+            pca.score_bandwidths(adata, genome=str(tmpdir / "other.fa"), bandwidths=[1])
+
     def test_utrs_without_a_hexamer_score_0_but_count(self):
         tmpdir = Path(tempfile.mkdtemp())
         self.addCleanup(shutil.rmtree, tmpdir)
@@ -712,6 +739,19 @@ class TestScoreBandwidths(unittest.TestCase):
         expected = pca.estimate_best_bandwidth(adata, genome=str(genome), bandwidths=[1], n_jobs=1)
         self.assertEqual(table.score.iloc[0], expected[0])
         self.assertGreater(expected[0], 0)
+
+
+class TestBestBandwidth(unittest.TestCase):
+    def test_the_highest_score_and_the_first_of_equal_ones(self):
+        scores = pd.DataFrame(
+            {"score": [0.2, 0.5, 0.5, 0.1]},
+            index=pd.Index([4, "scott:0.5", 12, 20], name="bandwidth"),
+        )
+        self.assertEqual(pca.best_bandwidth(scores), "scott:0.5")
+        self.assertEqual(pca.best_bandwidth(scores.iloc[2:]), 12)
+        # Bandwidths of a table read from text come back as numbers.
+        self.assertEqual(pca.best_bandwidth(scores.set_axis(scores.index.map(str))), "scott:0.5")
+        self.assertIs(pca.best_bandwidth(scores.iloc[2:].set_axis(["12", "20"])), 12)
 
 
 class TestInitiatorScore(unittest.TestCase):
