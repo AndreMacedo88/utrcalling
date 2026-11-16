@@ -84,6 +84,12 @@ a new major version can change results or require changes to your command lines.
   the peaks with the best, and writes the scores to
   `<out>_bandwidth_scores.tsv`; the matrix records them. `run` checks the
   genome before mapping any read. The default bandwidth stays 12 nt.
+- **`process filter-sites -g COLUMN`** counts per group of cells (a column
+  of the annotations, such as a treatment) and keeps a site that passes the
+  threshold in at least one group: a site that a condition raises stays,
+  though it is a small share of all counts. Eugenia Guerrero Aruffo filtered
+  5' sites so, by IFN treatment, with `-t 0.1 -m 10`. Without `-g`, nothing
+  changes.
 - **`tools site-sequences`** writes the genome sequence around each site,
   as FASTA for motif tools (for a `.fa`, `.fasta` or `.fna` output) or as a
   table, for `--upstream` and `--downstream` nt (50 each by default).

@@ -268,6 +268,14 @@ class TestCLIInvalidArgs(unittest.TestCase):
         )
         self.assertRefused(*RUN, "--candidates", "optimize", message="expected a number of nt")
 
+    def test_filter_sites_groups(self):
+        _, arguments = _parse("process", "filter-sites", "in.h5ad", "out.h5ad", "-g", "Treatment")
+        self.assertEqual(arguments["groupby"], "Treatment")
+        old = ["remove-peaks-below-threshold", "in.h5ad", "out.h5ad", "-t", "0.05", "-m", "10"]
+        _, arguments = _parse(*old)
+        self.assertEqual((arguments["threshold"], arguments["minimum_counts"]), (0.05, 10))
+        self.assertIsNone(arguments["groupby"])
+
     def test_bandwidths_are_checked(self):
         self.assertRefused(
             *RUN, "-b", "wide", message="expected a number of nt, scott or silverman"

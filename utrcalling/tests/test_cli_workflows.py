@@ -801,6 +801,19 @@ class TestSiteProcessingCommands(_InTempDir):
         ]
         for command in commands:
             utrcalling(*command, cwd=cls.tmp)
+        utrcalling(
+            "process",
+            "filter-sites",
+            "peaks_bw12.h5ad",
+            "by_batch.h5ad",
+            "-t",
+            "0.3",
+            "-m",
+            "3",
+            "-g",
+            "Batch",
+            cwd=cls.tmp,
+        )
         cls.peaks = ad.read_h5ad(cls.tmp / "peaks_bw12.h5ad")
         cls.kept = ad.read_h5ad(cls.tmp / "kept.h5ad")
         cls.apa = ad.read_h5ad(cls.tmp / "apa.h5ad")
@@ -823,6 +836,22 @@ class TestSiteProcessingCommands(_InTempDir):
             list(self.kept.var_names), list(self._kept_by_threshold(0.05, 2)[lambda s: s].index)
         )
         np.testing.assert_array_equal(_dense(paper.X), _dense(self.peaks[:, paper.var_names].X))
+
+    def test_grouped_thresholds_keep_the_sites_one_batch_uses(self):
+        by_batch = ad.read_h5ad(self.tmp / "by_batch.h5ad")
+        counts = _dense(self.peaks.X)
+        utrs = self.peaks.var.utr_name.astype(str).values
+        keep = np.zeros(self.peaks.n_vars, dtype=bool)
+        for batch in self.peaks.obs.Batch.unique():
+            sites = pd.Series(counts[(self.peaks.obs.Batch == batch).to_numpy()].sum(axis=0))
+            utr_counts = sites.groupby(utrs).transform("sum")
+            keep |= (sites >= np.maximum(utr_counts * 0.3, 3)).to_numpy()
+        self.assertListEqual(list(by_batch.var_names), list(self.peaks.var_names[keep]))
+        # Not a superset of the sites that all cells together keep: the minimum
+        # count holds in each batch, whose counts are fewer.
+        together = self._kept_by_threshold(0.3, 3)
+        self.assertTrue((keep & ~together.to_numpy()).any())
+        self.assertTrue((together.to_numpy() & ~keep).any())
 
     def test_apa_selection_keeps_exactly_the_utrs_with_two_or_more_sites(self):
         sites_per_utr = self.kept.var.groupby("utr_name", observed=True).size()

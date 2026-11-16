@@ -537,33 +537,64 @@ def remove_peaks_below_count(
     adata: ad.AnnData,
     threshold: float = 0.1,
     minimum_counts: int = 10,
+    group_by: str | None = None,
 ) -> ad.AnnData:
-    """Remove UTR peaks whose total counts fall below a threshold.
+    """Remove UTR peaks whose counts fall below a threshold.
 
     For each UTR the threshold is ``max(total_utr_counts * threshold,
     minimum_counts)``.  Peaks below this are dropped.
+
+    With *group_by*, the counts are those of each group of cells (such as a
+    treatment), and a peak stays if it reaches its group's threshold in at
+    least one group. A site that only some conditions use, such as one that a
+    treatment raises, then stays, though it is a small share of all counts
+    (the filter of Eugenia Guerrero Aruffo's master's thesis, 2026, by IFN
+    treatment). The minimum count holds in each group, so a site spread
+    thinly over the groups can go, though all cells together would keep it.
+    Cells without a group count in none.
 
     Args:
         adata: The AnnData object to filter.
         threshold: Fractional threshold applied to each UTR's total count
             (e.g. ``0.1`` means 10%).
         minimum_counts: Absolute minimum count a peak must reach.
+        group_by: A column of ``.obs`` that groups the cells, or None for all
+            cells together.
 
     Returns:
         A filtered AnnData with low-count peaks removed.
+
+    Raises:
+        ValueError: If *group_by* is not a column of ``.obs``.
     """
     utr_names = adata.var.loc[:, "utr_name"].values
-
-    # Sparse-safe: sum columns directly instead of materializing dense matrix
-    col_sums = np.asarray(adata.X.sum(axis=0)).ravel()
-    utr_total_counts = pd.Series(col_sums).groupby(utr_names, observed=True).sum()
-    utrs_thresholds = utr_total_counts.apply(lambda x: max(x * threshold, minimum_counts))
-
-    thresholds = adata.var.join(utrs_thresholds.to_frame("thresh"), on="utr_name")[
-        "thresh"
-    ].to_numpy()
-
-    bigger_than_threshold = col_sums >= thresholds
+    if group_by is None:
+        # Sparse-safe: sum columns directly instead of materializing dense matrix
+        site_counts = np.asarray(adata.X.sum(axis=0)).ravel()[np.newaxis, :]
+    elif group_by in adata.obs:
+        # A row per group: which cells it has (code -1: no group).
+        codes = pd.Categorical(adata.obs[group_by]).codes
+        in_a_group = np.flatnonzero(codes >= 0)
+        membership = scipy.sparse.csr_matrix(
+            (np.ones(len(in_a_group)), (codes[in_a_group], in_a_group)),
+            shape=(codes.max() + 1, adata.n_obs),
+        )
+        group_counts = membership @ adata.X
+        site_counts = (
+            group_counts.toarray()
+            if scipy.sparse.issparse(group_counts)
+            else np.asarray(group_counts)
+        )
+    else:
+        raise ValueError(
+            f"No column {group_by!r} in the cell annotations (.obs): "
+            f"{', '.join(map(str, adata.obs.columns))}"
+        )
+    # Each group's (row's) counts per UTR, and the share of them a site needs.
+    utr_totals = pd.DataFrame(site_counts.T).groupby(utr_names, observed=True, sort=False).sum()
+    utr_thresholds = np.maximum(utr_totals.to_numpy() * threshold, minimum_counts)
+    site_thresholds = utr_thresholds[utr_totals.index.get_indexer(utr_names)].T
+    bigger_than_threshold = (site_counts >= site_thresholds).any(axis=0)
 
     x_ = adata.X[:, bigger_than_threshold]
     var_ = adata.var[bigger_than_threshold]

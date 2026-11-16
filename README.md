@@ -285,6 +285,11 @@ utrcalling call-peaks raw_sizes.h5ad peaks --bandwidths 12
 utrcalling process filter-sites peaks_bw12.h5ad filtered.h5ad \
     --threshold 0.05 --minimum-counts 10
 
+# ... or count per group of cells (a column of the annotations), keeping the
+# sites that pass in at least one group, such as those a treatment raises
+utrcalling process filter-sites peaks_bw12.h5ad filtered.h5ad \
+    --threshold 0.1 --minimum-counts 10 --groupby Treatment
+
 # Keep only the UTRs with two or more sites (APA/ATI events)
 utrcalling process keep-multi-site filtered.h5ad apa.h5ad
 

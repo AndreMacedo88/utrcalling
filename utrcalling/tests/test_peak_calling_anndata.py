@@ -142,6 +142,92 @@ class TestRemovePeaksBelowCount(unittest.TestCase):
             pca.remove_peaks_below_count(self.adata, threshold=0.1, minimum_counts=10)
 
 
+def _eugenias_filter(adata, threshold, minimum_counts, group_by):
+    """The grouped filter of Eugenia Guerrero Aruffo's thesis code, as she wrote it.
+
+    Her remove_peaks_below_count (projects/tss_anno/scripts/functions), for var
+    sorted by UTR name, as her call-peaks script sorted it.
+    """
+    utr_names = adata.var.loc[:, "utr_name"].values
+    group_names = adata.obs[group_by].values
+    counts = adata.to_df()
+    utrs_thresholds = counts.groupby(group_names, observed=False).sum().T.groupby(utr_names).sum()
+    utrs_thresholds = utrs_thresholds.apply(
+        lambda x: x.apply(lambda y: max(y * threshold, minimum_counts))
+    )
+    utr_site_counts = counts.groupby(group_names, observed=False).sum()
+    nsites_per_utr = adata.var["utr_name"].groupby(adata.var["utr_name"], observed=False).count()
+    new_cols = np.repeat(nsites_per_utr.index.to_numpy(), nsites_per_utr.values)
+    mask_group = utrs_thresholds.T.loc[:, new_cols]
+    mask_group.columns = utr_site_counts.columns
+    return (
+        np.greater_equal(utr_site_counts.to_numpy(), mask_group).sum(axis=0).astype(bool).to_numpy()
+    )
+
+
+class TestRemovePeaksBelowCountByGroup(unittest.TestCase):
+    """With group_by, a site stays if it passes the threshold in one group of cells."""
+
+    def setUp(self):
+        # One UTR, two sites, two treatments. Site B is 2.9% of all molecules
+        # (30 of 1020), but 18% of the IFN-treated cells' (20 of 110).
+        self.adata = _make_adata(
+            count_matrix=[[450, 5], [450, 5], [45, 10], [45, 10]],
+            utr_names=["U", "U"],
+            utr_sizes=[60, 96],
+            n_obs=4,
+        )
+        self.adata.obs["Treatment"] = ["ctrl", "ctrl", "IFN", "IFN"]
+
+    def _kept(self, adata=None, **settings):
+        adata = self.adata if adata is None else adata
+        return pca.remove_peaks_below_count(adata, **settings).var.utr_size.tolist()
+
+    def test_a_site_a_treatment_raises_stays(self):
+        self.assertListEqual(self._kept(threshold=0.1, minimum_counts=10), [60])
+        self.assertListEqual(
+            self._kept(threshold=0.1, minimum_counts=10, group_by="Treatment"), [60, 96]
+        )
+
+    def test_the_minimum_count_holds_in_each_group(self):
+        # 20 molecules in the IFN cells, but at least 25 needed.
+        self.assertListEqual(
+            self._kept(threshold=0.1, minimum_counts=25, group_by="Treatment"), [60]
+        )
+
+    def test_sparse_counts_give_the_same(self):
+        adata = self.adata.copy()
+        adata.X = scipy.sparse.csr_matrix(adata.X)
+        self.assertListEqual(self._kept(adata, threshold=0.1, group_by="Treatment"), [60, 96])
+
+    def test_cells_without_a_group_count_in_none(self):
+        adata = self.adata.copy()
+        adata.obs["Treatment"] = ["ctrl", "ctrl", None, None]
+        self.assertListEqual(self._kept(adata, threshold=0.1, group_by="Treatment"), [60])
+        adata.obs["Treatment"] = None
+        self.assertListEqual(self._kept(adata, threshold=0.1, group_by="Treatment"), [])
+
+    def test_an_unknown_column_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "No column 'Genotype' in the cell annotations"):
+            pca.remove_peaks_below_count(self.adata, group_by="Genotype")
+
+    def test_the_filter_of_eugenias_thesis(self):
+        rng = np.random.default_rng(7)
+        counts = rng.poisson(rng.gamma(0.5, 8, size=40), size=(12, 40))
+        adata = _make_adata(
+            count_matrix=counts,
+            utr_names=sorted([f"UTR{i}" for i in range(8)] * 5),
+            utr_sizes=list(range(40)),
+            n_obs=12,
+        )
+        adata.obs["Treatment"] = ["ctrl", "30 mins", "2 hours", "16 hours"] * 3
+        for threshold, minimum in ((0.1, 10), (0.05, 5), (0.2, 1)):
+            kept = pca.remove_peaks_below_count(adata, threshold, minimum, group_by="Treatment")
+            expected = _eugenias_filter(adata, threshold, minimum, "Treatment")
+            with self.subTest(threshold=threshold, minimum=minimum):
+                self.assertListEqual(list(kept.var_names), list(adata.var_names[expected]))
+
+
 # ---------------------------------------------------------------------------
 # peak_call_anndata
 # ---------------------------------------------------------------------------
