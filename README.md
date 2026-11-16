@@ -159,7 +159,7 @@ matrix and `tools` then computes the measures to analyse from it:
 | `run` | The whole pipeline, from BAM files to a count matrix of UTR sites |
 | `map-reads`, then `count` | The same, in two steps |
 | `call-peaks` | The peaks of a raw-sizes count matrix (from `run --raw-sizes`), with one or more KDE bandwidths |
-| `process ...` | Prepare the count matrix: filter sites, keep multi-site UTRs, number sites again, join experiments |
+| `process ...` | Prepare the count matrix: filter sites and UTRs, keep multi-site UTRs, number sites again, join experiments |
 | `tools ...` | Compute the measures to analyse: site usage fractions, mean UTR sizes, the sequences around sites |
 | `qc ...` | Quality control tables, at any step |
 
@@ -289,6 +289,9 @@ utrcalling process filter-sites peaks_bw12.h5ad filtered.h5ad \
 # sites that pass in at least one group, such as those a treatment raises
 utrcalling process filter-sites peaks_bw12.h5ad filtered.h5ad \
     --threshold 0.1 --minimum-counts 10 --groupby Treatment
+
+# Remove the UTRs with few molecules over all cells, whose sites are unsure
+utrcalling process filter-utrs filtered.h5ad deep.h5ad --minimum-molecules 500
 
 # Keep only the UTRs with two or more sites (APA/ATI events)
 utrcalling process keep-multi-site filtered.h5ad apa.h5ad

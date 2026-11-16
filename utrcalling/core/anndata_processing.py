@@ -93,6 +93,26 @@ def select_alternative_transcription_events(
     return adata[:, adata.var.utr_name.isin(unique_df[unique_df.utr_size > 1].index)].copy()
 
 
+def select_utrs_with_molecules(adata: anndata.AnnData, minimum_molecules: int) -> anndata.AnnData:
+    """Keep the UTRs with at least *minimum_molecules* molecules over all cells.
+
+    Peak calling keeps every molecule of a UTR, so a raw-sizes matrix and its
+    peaks keep the same UTRs. Few molecules make sites unsure: Eugenia
+    Guerrero Aruffo kept the 5' UTRs with 500 molecules or more of her bulk
+    Cap-seq data (master's thesis, 2026).
+
+    Args:
+        adata: A count matrix: raw sizes or sites.
+        minimum_molecules: The molecules a UTR needs, over all its sites and cells.
+
+    Returns:
+        A copy of *adata* with the sites of those UTRs.
+    """
+    molecules = pd.Series(np.asarray(adata.X.sum(axis=0)).ravel())
+    per_utr = molecules.groupby(adata.var["utr_name"].to_numpy(), observed=True).transform("sum")
+    return adata[:, (per_utr >= minimum_molecules).to_numpy()].copy()
+
+
 def counts_to_percentages(adata: anndata.AnnData, utr_name_column: str) -> anndata.AnnData:
     """Convert raw UMI counts to within-UTR percentages.
 

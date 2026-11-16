@@ -801,6 +801,18 @@ class TestSiteProcessingCommands(_InTempDir):
         ]
         for command in commands:
             utrcalling(*command, cwd=cls.tmp)
+        # The UTRs with more molecules than the median: before and after peak calling.
+        raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        cls.utr_molecules = (
+            pd.Series(_dense(raw.X).sum(axis=0))
+            .groupby(raw.var.utr_name.astype(str).to_numpy())
+            .sum()
+        )
+        cls.minimum = int(cls.utr_molecules.median())
+        deep = ["process", "filter-utrs", "-m", cls.minimum]
+        utrcalling(*deep, WORKDIR / "raw.h5ad", "deep_raw.h5ad", cwd=cls.tmp)
+        utrcalling("call-peaks", "deep_raw.h5ad", "deep", "-b", "12", cwd=cls.tmp)
+        utrcalling(*deep, "peaks_bw12.h5ad", "deep_peaks.h5ad", cwd=cls.tmp)
         utrcalling(
             "process",
             "filter-sites",
@@ -836,6 +848,16 @@ class TestSiteProcessingCommands(_InTempDir):
             list(self.kept.var_names), list(self._kept_by_threshold(0.05, 2)[lambda s: s].index)
         )
         np.testing.assert_array_equal(_dense(paper.X), _dense(self.peaks[:, paper.var_names].X))
+
+    def test_filter_utrs_keeps_the_same_utrs_before_and_after_peak_calling(self):
+        deep = set(self.utr_molecules[self.utr_molecules >= self.minimum].index)
+        before = ad.read_h5ad(self.tmp / "deep_bw12.h5ad")
+        after = ad.read_h5ad(self.tmp / "deep_peaks.h5ad")
+        self.assertSetEqual(set(after.var.utr_name.astype(str)), deep)
+        self.assertLess(len(deep), len(self.utr_molecules))
+        # The same sites and counts; names number each gene's sites anew.
+        self.assertListEqual(_site_keys(before), _site_keys(after))
+        np.testing.assert_array_equal(_dense(before.X), _dense(after.X))
 
     def test_grouped_thresholds_keep_the_sites_one_batch_uses(self):
         by_batch = ad.read_h5ad(self.tmp / "by_batch.h5ad")

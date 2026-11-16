@@ -90,6 +90,10 @@ a new major version can change results or require changes to your command lines.
   though it is a small share of all counts. Eugenia Guerrero Aruffo filtered
   5' sites so, by IFN treatment, with `-t 0.1 -m 10`. Without `-g`, nothing
   changes.
+- **`process filter-utrs -m N`** keeps the UTRs with at least N molecules
+  over all cells, whose sites are surer. Peak calling keeps every molecule of
+  a UTR, so it keeps the same UTRs before and after `call-peaks`. Eugenia
+  Guerrero Aruffo kept the 5' UTRs with 500 molecules or more.
 - **`tools site-sequences`** writes the genome sequence around each site,
   as FASTA for motif tools (for a `.fa`, `.fasta` or `.fna` output) or as a
   table, for `--upstream` and `--downstream` nt (50 each by default).

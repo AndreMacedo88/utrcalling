@@ -7,7 +7,13 @@ from cyclopts import App, Group, Parameter
 
 from utrcalling._metadata import __version__ as version
 from utrcalling.commands import call_peaks, count, map_reads, run
-from utrcalling.commands.process import concatenate, filter_sites, keep_multi_site, rename_sites
+from utrcalling.commands.process import (
+    concatenate,
+    filter_sites,
+    filter_utrs,
+    keep_multi_site,
+    rename_sites,
+)
 from utrcalling.commands.qc import (
     batches,
     cells,
@@ -46,14 +52,18 @@ app.command(call_peaks.call_peaks, name="call-peaks", group=PIPELINE, sort_key=3
 # the count matrix, then compute the measures to analyse from it.
 process = App(
     name="process",
-    help="Prepare the site count matrix: filter sites, keep multi-site UTRs, join experiments.",
+    help=(
+        "Prepare the site count matrix: filter sites and UTRs, keep multi-site UTRs, "
+        "join experiments."
+    ),
     group=COMMAND_GROUPS,
     sort_key=0,
 )
 process.command(filter_sites.filter_sites, name="filter-sites", sort_key=0)
-process.command(keep_multi_site.keep_multi_site, name="keep-multi-site", sort_key=1)
-process.command(rename_sites.rename_sites, name="rename-sites", sort_key=2)
-process.command(concatenate.concatenate, name="concatenate", sort_key=3)
+process.command(filter_utrs.filter_utrs, name="filter-utrs", sort_key=1)
+process.command(keep_multi_site.keep_multi_site, name="keep-multi-site", sort_key=2)
+process.command(rename_sites.rename_sites, name="rename-sites", sort_key=3)
+process.command(concatenate.concatenate, name="concatenate", sort_key=4)
 app.command(process)
 
 tools = App(

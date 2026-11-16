@@ -297,6 +297,31 @@ class TestSelectAlternativeTranscriptionEvents(unittest.TestCase):
             ap.select_alternative_transcription_events(adata)
 
 
+class TestSelectUtrsWithMolecules(unittest.TestCase):
+    def setUp(self):
+        # UTR A: 3 + 6 = 9 molecules; UTR B: 10; UTR C: 2.
+        var = pd.DataFrame(
+            {"utr_name": ["A", "A", "B", "C"], "utr_size": [10, 20, 30, 40]},
+            index=["A_1-10", "A_2-20", "B_1-30", "C_1-40"],
+        )
+        counts = np.array([[1, 4, 10, 0], [2, 2, 0, 2]], dtype=np.int32)
+        self.adata = ad.AnnData(X=counts, var=var)
+
+    def test_utrs_with_enough_molecules_over_all_cells(self):
+        for minimum, utrs in ((10, ["B"]), (9, ["A", "A", "B"]), (0, ["A", "A", "B", "C"])):
+            with self.subTest(minimum=minimum):
+                kept = ap.select_utrs_with_molecules(self.adata, minimum)
+                self.assertListEqual(kept.var.utr_name.tolist(), utrs)
+                self.assertFalse(kept.is_view)
+        self.assertEqual(ap.select_utrs_with_molecules(self.adata, 11).n_vars, 0)
+
+    def test_sparse_counts(self):
+        self.adata.X = scipy.sparse.csr_matrix(self.adata.X)
+        kept = ap.select_utrs_with_molecules(self.adata, 9)
+        self.assertTrue(scipy.sparse.issparse(kept.X))
+        self.assertListEqual(list(kept.var_names), ["A_1-10", "A_2-20", "B_1-30"])
+
+
 class TestCountsToPercentages(unittest.TestCase):
     def test_fractions_sum_to_one(self):
         adata = _make_multi_site_adata()

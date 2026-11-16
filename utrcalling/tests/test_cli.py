@@ -59,6 +59,7 @@ MAP_READS = ["map-reads", "annotation.gtf", "-a", "sample.bam", "-A", "anno.csv"
 # The commands outside the pipeline, by group, and the arguments they need.
 GROUPED_COMMANDS = {
     ("process", "filter-sites"): ["in.h5ad", "out.h5ad"],
+    ("process", "filter-utrs"): ["in.h5ad", "out.h5ad", "-m", "500"],
     ("process", "keep-multi-site"): ["in.h5ad", "out.h5ad"],
     ("process", "rename-sites"): ["in.h5ad", "out.h5ad"],
     ("process", "concatenate"): ["-i", "a.h5ad", "b.h5ad", "-o", "out.h5ad"],
@@ -275,6 +276,11 @@ class TestCLIInvalidArgs(unittest.TestCase):
         _, arguments = _parse(*old)
         self.assertEqual((arguments["threshold"], arguments["minimum_counts"]), (0.05, 10))
         self.assertIsNone(arguments["groupby"])
+
+    def test_filter_utrs_needs_its_minimum(self):
+        _, arguments = _parse("process", "filter-utrs", "in.h5ad", "out.h5ad", "-m", "500")
+        self.assertEqual(arguments["minimum_molecules"], 500)
+        self.assertRefused("process", "filter-utrs", "in.h5ad", "out.h5ad", message="requires")
 
     def test_bandwidths_are_checked(self):
         self.assertRefused(
@@ -786,6 +792,22 @@ class TestSiteSequencesCommand(unittest.TestCase):
             ">G_1-100 1:1401(+) upstream=2 downstream=2\nGCAA\n"
             ">G_2-200 1:1301(+) upstream=2 downstream=2\nTTTG\n",
         )
+
+
+class TestFilterUtrsCommand(unittest.TestCase):
+    def test_refuses_matrices_without_counts(self):
+        from utrcalling.commands.process.filter_utrs import filter_utrs
+        from utrcalling.core import provenance
+
+        tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, tmp)
+        var = pd.DataFrame({"utr_name": ["A"], "utr_size": [10]}, index=["A_1-10"])
+        fractions = ad.AnnData(X=np.ones((2, 1)), var=var)
+        with mock.patch.object(sys, "argv", ["utrcalling", "tools"]):
+            provenance.record(fractions, matrix="fractions")
+        fractions.write_h5ad(tmp / "fractions.h5ad")
+        with self.assertRaisesRegex(ValueError, "holds fractions"):
+            filter_utrs(str(tmp / "fractions.h5ad"), str(tmp / "out.h5ad"), minimum_molecules=1)
 
 
 class TestPytestFailsOnUtrcallingDeprecations(unittest.TestCase):
