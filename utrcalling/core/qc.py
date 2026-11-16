@@ -9,18 +9,23 @@ from __future__ import annotations
 import gzip
 import io
 import itertools
-import re
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import pandas as pd
-import pysam
 import scipy.sparse
 import scipy.stats
 
 from utrcalling.core import protocol, provenance
+from utrcalling.core.genome import (
+    chromosome_name,
+    positioned_utr_end,
+    read_sequences,
+    site_positions,
+    site_table,
+)
 from utrcalling.core.utr_mapping import MAPPING_STEPS
 
 if TYPE_CHECKING:
@@ -325,42 +330,6 @@ def batch_consistency(
 # ---------------------------------------------------------------------------
 
 
-def site_positions(var: pd.DataFrame, utr_end: str) -> npt.NDArray[np.int64]:
-    """The genome position (1-based) of each site.
-
-    UTR sizes count from the UTR's start in transcript orientation for 3'
-    protocols (``utr_end`` ``three_prime``) and from its end for 5' protocols
-    (``five_prime``), as utr_mapping measures them.
-
-    Args:
-        var: Site annotations with ``utr_size`` and the UTR's ``start``,
-            ``end`` (1-based, inclusive) and ``strand``.
-        utr_end: ``three_prime`` or ``five_prime``.
-
-    Returns:
-        The positions, in the order of *var*.
-
-    Raises:
-        ValueError: If *utr_end* is neither, or the UTR coordinates are not
-            numbers, as in gene-level matrices.
-    """
-    if utr_end not in ("three_prime", "five_prime"):
-        raise ValueError(f"utr_end {utr_end!r}: expected three_prime or five_prime")
-    for column in ("start", "end"):
-        if not pd.api.types.is_integer_dtype(var[column]):
-            raise ValueError(
-                "The sites have no genome positions: their UTR coordinates are not "
-                "numbers (gene-level matrices join the coordinates of a gene's UTRs)."
-            )
-    size = var["utr_size"].to_numpy(dtype=np.int64)
-    start = var["start"].to_numpy(dtype=np.int64)
-    end = var["end"].to_numpy(dtype=np.int64)
-    plus = (var["strand"].astype(str) == "+").to_numpy()
-    if utr_end == "three_prime":
-        return np.where(plus, start + size, end - size)
-    return np.where(plus, end - size + 1, start + size - 1)
-
-
 def read_known_sites(path: str | Path) -> pd.DataFrame:
     """Known polyadenylation or transcription start sites, from a BED file.
 
@@ -387,12 +356,6 @@ def read_known_sites(path: str | Path) -> pd.DataFrame:
         }
     )
     return known
-
-
-def _chromosome(name: object) -> str:
-    """Chromosome names compared without a leading "chr" (chr1 and 1 match)."""
-    text = str(name)
-    return text[3:] if text.lower().startswith("chr") else text
 
 
 def _distance_to_nearest(
@@ -445,10 +408,10 @@ def known_site_distances(
             the matrix is among the known sites'.
     """
     var = adata.var
-    positions = site_positions(var, _positioned_utr_end(adata, utr_end))
-    chroms = var["chrom"].map(_chromosome).astype(str).to_numpy()
+    positions = site_positions(var, positioned_utr_end(adata, utr_end))
+    chroms = var["chrom"].map(chromosome_name).astype(str).to_numpy()
     strands = var["strand"].astype(str).to_numpy()
-    known_chroms = known_sites["chrom"].map(_chromosome).astype(str).to_numpy()
+    known_chroms = known_sites["chrom"].map(chromosome_name).astype(str).to_numpy()
     if not set(chroms) & set(known_chroms):
         raise ValueError(
             "No chromosome of the matrix is among the known sites': check that both "
@@ -465,45 +428,12 @@ def known_site_distances(
                 known_sites["end"].to_numpy()[on_strand],
             )
 
-    table = _site_table(adata, positions)
+    table = site_table(adata, positions)
     found = np.isfinite(distance)
     known_distance = pd.array(np.where(found, distance, 0).astype(np.int64), dtype="Int64")
     known_distance[~found] = pd.NA
     table["known_site_distance"] = known_distance
     table["near_known_site"] = found & (distance <= window)
-    return table
-
-
-def _positioned_utr_end(adata: anndata.AnnData, utr_end: str | None) -> str:
-    """Which end of the UTR the sizes count from: *utr_end*, or what the matrix records.
-
-    Raises:
-        ValueError: If neither tells, or if the matrix is at gene level.
-    """
-    record = provenance.recorded(adata)
-    utr_end = utr_end or record.get("utr_end")
-    if utr_end is None:
-        raise ValueError(
-            "The matrix does not record which end of the UTR its sizes count from "
-            "(it predates utrcalling 5.0.0): give it, three_prime or five_prime."
-        )
-    if record.get("summarization_level") == "gene":
-        raise ValueError(
-            "Gene-level sites have no genome positions: their sizes are positions "
-            "along the gene's joined UTRs. Use a UTR-level matrix (-s utr)."
-        )
-    return utr_end
-
-
-def _site_table(adata: anndata.AnnData, positions: npt.NDArray[np.int64]) -> pd.DataFrame:
-    """A row per site, indexed by ``site``: where it lies and its molecules in all cells."""
-    var = adata.var
-    table = var[[c for c in ("gene_name", "utr_name", "utr_size") if c in var]].copy()
-    table["chrom"] = var["chrom"].astype(str).to_numpy()
-    table["position"] = positions
-    table["strand"] = var["strand"].astype(str).to_numpy()
-    table["molecules"] = np.asarray(adata.X.sum(axis=0)).ravel()
-    table.index.name = "site"
     return table
 
 
@@ -575,16 +505,16 @@ def priming_artefacts(
             matrix is in the genome, if *window* is below 1, or if a 5'
             matrix has no TSO (given or recorded) or the TSO is not DNA.
     """
-    utr_end = _positioned_utr_end(adata, utr_end)
+    utr_end = positioned_utr_end(adata, utr_end)
     if utr_end == "three_prime" and window < 1:
         raise ValueError(f"window {window}: look at 1 nt after each site or more")
     tso_end = _tso_end(adata, tso) if utr_end == "five_prime" else ""
     positions = site_positions(adata.var, utr_end)
-    table = _site_table(adata, positions)
+    table = site_table(adata, positions)
     length = window if utr_end == "three_prime" else TSO_END
-    sequences, found = _flanking_sequences(
-        genome, table, after=utr_end == "three_prime", length=length
-    )
+    # The genome after a 3' site, or before a 5' site.
+    start = 1 if utr_end == "three_prime" else -length
+    sequences, found = read_sequences(genome, table, start, start + length)
     codes = np.frombuffer("".join(sequences).encode(), dtype=np.uint8).reshape(len(table), length)
 
     if utr_end == "three_prime":
@@ -642,63 +572,6 @@ def _tso_end(adata: anndata.AnnData, tso: str | None) -> str:
     if not tso or set(tso) - set("ACGTN"):
         raise ValueError(f"TSO {tso!r}: write it with A, C, G, T and N (random bases)")
     return tso[-TSO_END:]
-
-
-def _flanking_sequences(
-    genome: str | Path, sites: pd.DataFrame, *, after: bool, length: int
-) -> tuple[npt.NDArray[np.str_], npt.NDArray[np.bool_]]:
-    """The genome's *length* nt after (or before) each site, on the site's strand.
-
-    Args:
-        genome: Genome FASTA.
-        sites: Table with ``chrom``, ``position`` (1-based) and ``strand``.
-        after: Whether to read the nt after the site in transcript orientation
-            (or those before it).
-        length: How many nt to read.
-
-    Returns:
-        The sequences in upper case, with N for other letters and beyond the
-        chromosome's ends (all N on chromosomes that the genome lacks), and
-        whether the genome has each site's chromosome.
-
-    Raises:
-        ValueError: If the genome has no chromosome of the sites.
-    """
-    complement = str.maketrans("ACGT", "TGCA")
-    with pysam.FastaFile(str(genome)) as fasta:
-        names = {
-            chrom: next(
-                (name for name in (chrom, f"chr{chrom}", _chromosome(chrom)) if name in fasta),
-                None,
-            )
-            for chrom in sites["chrom"].unique()
-        }
-        if all(name is None for name in names.values()):
-            raise ValueError(
-                "No chromosome of the matrix is in the genome: check that both come "
-                "from the same genome assembly."
-            )
-        sequences = []
-        for chrom, position, strand in sites[["chrom", "position", "strand"]].itertuples(
-            index=False
-        ):
-            name = names[chrom]
-            if name is None:
-                sequences.append("N" * length)
-                continue
-            # 0-based: the nt after a + strand site start at its 1-based position.
-            reads_forward = (strand == "-") != after
-            start = position if reads_forward else position - length - 1
-            end = start + length
-            size = fasta.get_reference_length(name)
-            sequence = fasta.fetch(name, max(start, 0), min(end, size)).upper()
-            sequence = "N" * max(-start, 0) + sequence + "N" * max(end - size, 0)
-            sequence = re.sub("[^ACGT]", "N", sequence)
-            if strand == "-":
-                sequence = sequence.translate(complement)[::-1]
-            sequences.append(sequence)
-    found = sites["chrom"].map(names).notna().to_numpy()
-    return np.array(sequences, dtype=f"<U{length}"), found
 
 
 def _edit_distances(sequences: npt.NDArray[np.uint8], pattern: str) -> npt.NDArray[np.int64]:

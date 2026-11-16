@@ -255,44 +255,6 @@ class TestBatchConsistency(unittest.TestCase):
             qc.batch_consistency(self.adata, "sample")
 
 
-class TestSitePositions(_MappingTest):
-    """site_positions undoes how the read loop measures UTR sizes."""
-
-    def _position(self, platform, version, strand, flag):
-        # A UTR on 1001-1500 (1-based); a read on 1101-1200.
-        protocol_ = protocol.create(platform, version, annotations=ANNOTATIONS)
-        interval = _IntervalData("1", 1000, 1500, strand)
-        _, sizes, _ = self._map(
-            [_alignment("read", 1100, flag=flag)], protocol_, {"UTR1": interval}
-        )
-        var = pd.DataFrame({"utr_size": sizes, "start": [1001], "end": [1500], "strand": [strand]})
-        utr_end = (
-            "five_prime" if isinstance(protocol_, protocol.ProtocolFivePrime) else "three_prime"
-        )
-        return qc.site_positions(var, utr_end)[0]
-
-    def test_three_prime_protocols_measure_from_the_read_end_toward_the_polya(self):
-        # Cell Ranger reads are sense: their 3' end is the site.
-        self.assertEqual(self._position("standard_10x", 3, "+", 0), 1200)
-        self.assertEqual(self._position("standard_10x", 3, "-", 0x10), 1101)
-
-    def test_five_prime_protocols_measure_from_the_read_start(self):
-        first_of_proper_pair = 0x1 | 0x2 | 0x40
-        self.assertEqual(self._position("5prime10x", 1, "+", first_of_proper_pair), 1101)
-        self.assertEqual(self._position("5prime10x", 1, "-", first_of_proper_pair | 0x10), 1200)
-
-    def test_gene_level_coordinates_are_refused(self):
-        var = pd.DataFrame(
-            {"utr_size": [10], "start": ["101,301"], "end": ["200,400"], "strand": ["+"]}
-        )
-        with self.assertRaisesRegex(ValueError, "no genome positions"):
-            qc.site_positions(var, "three_prime")
-
-    def test_an_unknown_utr_end_is_refused(self):
-        with self.assertRaisesRegex(ValueError, "expected three_prime or five_prime"):
-            qc.site_positions(pd.DataFrame(), "middle")
-
-
 class TestReadKnownSites(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
