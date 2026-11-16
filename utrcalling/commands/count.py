@@ -10,10 +10,12 @@ from cyclopts import Parameter
 from utrcalling.commands.options import (
     INPUTS,
     OUTPUT,
+    PEAK_CALLING,
     AnnotationsFile,
     BatchMergeMethod,
     Cores,
     KdeBandwidth,
+    KdeKernel,
     LabelBatches,
     LogLevel,
     NoLogFile,
@@ -40,6 +42,7 @@ def count(
     summarization_level: SummarizationLevel = "utr",
     raw_sizes: RawSizes = False,
     kde_bandwidth: KdeBandwidth = 12,
+    kde_kernel: Annotated[KdeKernel, Parameter(group=PEAK_CALLING)] = "gaussian",
     out: Out = "UTR_counts.h5ad",
     store_intermediate: StoreIntermediate = False,
     log_level: LogLevel = "info",
@@ -85,6 +88,7 @@ def count(
         call_peaks=not raw_sizes,
         annotations=annotations_file,
         kde_bandwidth=kde_bandwidth,
+        kde_kernel=kde_kernel,
     )
 
     utr_reference_regions = helpers.load_annotations(utr_annotation)
@@ -100,6 +104,7 @@ def count(
         summarization_level=summarization_level,
         raw_sizes=raw_sizes,
         kde_bandwidth=kde_bandwidth,
+        kde_kernel=kde_kernel,
         out=out,
         store_intermediate=store_intermediate,
         cores=cores,

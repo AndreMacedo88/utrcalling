@@ -10,6 +10,8 @@ from typing import Annotated, Literal, get_args
 
 from cyclopts import Group, Parameter, Token
 
+from utrcalling.core.protocols.kde_options import Kernel
+
 # Help panels of the pipeline commands, in this order.
 INPUTS = Group("Inputs", sort_key=0)
 PROTOCOL = Group("Protocol and samples", sort_key=1)
@@ -155,10 +157,23 @@ KdeBandwidth = Annotated[
     Parameter(
         group=PEAK_CALLING,
         help=(
-            "Bandwidth of the Gaussian KDE that collapses UTR sizes into peaks. 12 suits "
+            "Bandwidth of the KDE that collapses UTR sizes into peaks. 12 suits "
             "3'-end-enriched assays, where reads pile up within a few bp of the "
             "polyadenylation site. Randomly fragmented libraries spread more per site "
             "and need a wider kernel, or the spread splits into many close pseudo-peaks."
+        ),
+    ),
+]
+# No help panel: the pipeline commands add theirs.
+KdeKernel = Annotated[
+    Kernel,
+    Parameter(
+        converter=lowercase_choice,
+        help=(
+            "Kernel of the KDE. The Gaussian smooths the most and suits 3' data. The "
+            "linear kernel keeps the peaks on the sizes where the molecules are, as "
+            "transcription start sites need (5' data). For all kernels but the "
+            "Gaussian and the exponential, the bandwidth is the kernel's half-width."
         ),
     ),
 ]
@@ -220,6 +235,6 @@ Bandwidths = Annotated[
         name=("--bandwidths", "-b"),
         consume_multiple=1,
         show_default=lambda bandwidths: " ".join(map(str, bandwidths)),
-        help="One or more bandwidths of the Gaussian KDE.",
+        help="One or more bandwidths of the KDE.",
     ),
 ]

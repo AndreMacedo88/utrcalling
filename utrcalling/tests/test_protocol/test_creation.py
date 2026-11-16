@@ -559,6 +559,31 @@ class TestReadIdentityWithoutTagsOrUmi(unittest.TestCase):
         )
 
 
+class TestPeakCallingSettings(unittest.TestCase):
+    """The protocol's peak caller, which `run` uses, takes the KDE bandwidth and kernel."""
+
+    def _create(self, platform, **kwargs):
+        annotations = pd.DataFrame({"sample_id": ["test"]})
+        return protocol.create(platform, 3, annotations=annotations, **kwargs)
+
+    def test_the_kernel_reaches_the_peak_caller(self):
+        # Smart-seq and CapSeq protocols pass the settings on to the base class.
+        for platform in ("standard_10x", "smartseq", "smart-seq_cap"):
+            with self.subTest(platform=platform):
+                protocol_ = self._create(platform, kde_bandwidth=3, kde_kernel="linear")
+                self.assertEqual(protocol_.kde_kernel, "linear")
+                self.assertEqual(
+                    protocol_.peak_calling.keywords, {"bandwidth": 3, "kernel": "linear"}
+                )
+
+    def test_the_gaussian_kernel_is_the_default(self):
+        self.assertEqual(self._create("standard_10x").peak_calling.keywords["kernel"], "gaussian")
+
+    def test_an_unknown_kernel_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "Unknown kernel 'box'"):
+            self._create("standard_10x", kde_kernel="box")
+
+
 class TestProtocolClass(unittest.TestCase):
     """protocol_class names the class that create makes, without making one."""
 

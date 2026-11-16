@@ -6,7 +6,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.commands.options import Cores
+from utrcalling.commands.options import Cores, KdeKernel
 
 
 def peaks(
@@ -14,6 +14,7 @@ def peaks(
     out_path: str,
     *,
     bandwidth: Annotated[int, Parameter(name=("--bandwidth", "-b"))] = 12,
+    kde_kernel: KdeKernel = "gaussian",
     cores: Cores = None,
 ) -> None:
     """Describe the peaks that a KDE bandwidth calls from raw UTR sizes.
@@ -43,5 +44,5 @@ def peaks(
         raise ValueError(
             f"This matrix holds {matrix.replace('_', ' ')}: give the raw sizes of run -r."
         )
-    table = pc.peak_table(adata, bandwidth=bandwidth, n_jobs=cores)
+    table = pc.peak_table(adata, bandwidth=bandwidth, n_jobs=cores, kernel=kde_kernel)
     storage.write_table(table, out_path)

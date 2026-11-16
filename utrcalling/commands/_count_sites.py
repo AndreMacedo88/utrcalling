@@ -22,6 +22,7 @@ def count_sites(
     summarization_level: str,
     raw_sizes: bool,
     kde_bandwidth: int,
+    kde_kernel: str,
     out: str,
     store_intermediate: bool,
     cores: int | None,
@@ -43,6 +44,7 @@ def count_sites(
         summarization_level: ``utr``, or ``gene`` to join the UTRs of each gene.
         raw_sizes: Whether to write the raw sizes too.
         kde_bandwidth: Bandwidth of the KDE that calls the peaks.
+        kde_kernel: Kernel of the KDE that calls the peaks.
         out: Path of the count matrix (.h5ad).
         store_intermediate: Whether to store intermediate files in ./intermediate/.
         cores: Maximum number of worker processes.
@@ -95,6 +97,7 @@ def count_sites(
         logger.info("Mapping summary: %s", summary.loc["total"].to_dict())
         settings["mapping_summary"] = summary
 
+    kde = {"bandwidth": kde_bandwidth, "kernel": kde_kernel}
     if raw_sizes:
         logger.info("Building raw sizes count matrix")
         raw_anndata = core.build_count_matrix(
@@ -114,13 +117,13 @@ def count_sites(
             filtered_reads=filtered_reads,
             utr_reference_subset=utr_reference_subset,
             protocol=protocol_,
-            size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth),
+            size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth, kernel=kde_kernel),
             n_jobs=cores,
         )
-        _write(kde_anndata, kde_out, matrix="peaks", bandwidth=kde_bandwidth, **settings)
+        _write(kde_anndata, kde_out, matrix="peaks", **kde, **settings)
         logger.info(f"Wrote KDE peaks to {kde_out}")
     else:
-        # The protocol's peak caller, which uses kde_bandwidth
+        # The protocol's peak caller, which uses kde_bandwidth and kde_kernel
         logger.info("Calling peaks from filtered data")
         count_matrix_anndata = core.call_peaks(
             filtered_reads=filtered_reads,
@@ -130,7 +133,7 @@ def count_sites(
             n_jobs=cores,
         )
         add_mapping_summary(count_matrix_anndata)
-        _write(count_matrix_anndata, out, matrix="peaks", bandwidth=kde_bandwidth, **settings)
+        _write(count_matrix_anndata, out, matrix="peaks", **kde, **settings)
 
 
 def _write(adata: anndata.AnnData, path: str, **record: Any) -> None:

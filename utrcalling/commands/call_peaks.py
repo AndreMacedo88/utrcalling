@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from utrcalling.commands.options import Bandwidths, Cores
+from utrcalling.commands.options import Bandwidths, Cores, KdeKernel
 
 
 def call_peaks(
@@ -10,6 +10,7 @@ def call_peaks(
     out_path: str,
     *,
     bandwidths: Bandwidths = (12,),
+    kde_kernel: KdeKernel = "gaussian",
     cores: Cores = None,
 ) -> None:
     """Call the peaks of a raw-sizes count matrix, with one or more KDE bandwidths.
@@ -34,10 +35,10 @@ def call_peaks(
     out_path = out_path.split(".h5ad")[0]
     for bandwidth in bandwidths:
         adata_peaks = pc.peak_call_anndata_parallel(
-            adata, method="kde", bandwidth=bandwidth, n_jobs=cores
+            adata, method="kde", bandwidth=bandwidth, n_jobs=cores, kernel=kde_kernel
         )
         if adata_peaks is adata:  # bandwidth 0 leaves the sizes as they are
             adata_peaks = adata.copy()
-        matrix = "peaks" if bandwidth else None
-        provenance.record(adata_peaks, source=adata, matrix=matrix, bandwidth=bandwidth)
+        kde = {"matrix": "peaks", "kernel": kde_kernel} if bandwidth else {}
+        provenance.record(adata_peaks, source=adata, bandwidth=bandwidth, **kde)
         adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")

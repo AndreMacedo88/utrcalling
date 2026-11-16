@@ -41,6 +41,15 @@ a new major version can change results or require changes to your command lines.
 
 ### Added
 
+- **Kernels for peak calling.** `--kde-kernel` chooses the kernel of the KDE
+  that calls the peaks, in `run`, `count`, `call-peaks`, `qc peaks` and
+  `qc score-bandwidths`: `gaussian` (the default, as before), `linear`,
+  `epanechnikov`, `exponential`, `tophat` or `cosine`, as scikit-learn defines
+  them. The linear kernel keeps the peaks on the sizes where the molecules
+  are, as transcription start sites need: Eugenia Guerrero Aruffo chose it for
+  5' Cap-seq data in her master's thesis (2026). For all kernels but the
+  Gaussian and the exponential, the bandwidth is the kernel's half-width. The
+  count matrices record the kernel, and `qc report` shows it.
 - **Quality control commands**, which write tables and leave the count
   matrices unchanged:
   - `qc report`: a row per count matrix of any step, with what it holds and

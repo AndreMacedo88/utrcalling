@@ -746,6 +746,7 @@ REPORT_COLUMNS = (
     "version",
     "steps",
     "bandwidth",
+    "kernel",
     "cells",
     "sites",
     "utrs",
@@ -796,8 +797,9 @@ def matrix_report(adata: anndata.AnnData, min_molecules: int = 5) -> dict[str, A
             there (see :func:`cell_metrics`).
 
     Returns:
-        What the matrix holds and the version and steps that made it; its
-        cells, sites, UTRs and genes. For counts: the molecules, the median
+        What the matrix holds and the version and steps that made it, with
+        the bandwidth and kernel of its KDE peaks; its cells, sites, UTRs and
+        genes. For counts: the molecules, the median
         molecules, sites and measured UTRs per cell, the multi-site UTRs and
         the share of molecules in them, and the depth correlation (see
         :func:`depth_correlation`). For fractions and mean sizes: the median
@@ -822,8 +824,9 @@ def matrix_report(adata: anndata.AnnData, min_molecules: int = 5) -> dict[str, A
         report["utrs"] = int(var["utr_name"].nunique())
     if "gene_name" in var:
         report["genes"] = int(var["gene_name"].nunique())
-    if "bandwidth" in record:
-        report["bandwidth"] = record["bandwidth"]
+    for setting in ("bandwidth", "kernel"):
+        if setting in record:
+            report[setting] = record[setting]
 
     if matrix in ("fractions", "mean_sizes"):
         # A mean size is missing where the cell has no molecules; a fraction is 0.

@@ -22,6 +22,7 @@ from tqdm import tqdm
 
 from utrcalling.core import anndata_processing, helpers, module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
+from utrcalling.core.protocols.kde_options import check_kernel
 from utrcalling.core.protocols.peak_calling import call_peaks_using_kernel_density_estimator
 
 # ---------------------------------------------------------------------------
@@ -30,16 +31,17 @@ from utrcalling.core.protocols.peak_calling import call_peaks_using_kernel_densi
 
 
 def _peak_call_single_utr(
-    adata_utr: ad.AnnData, bandwidth: float
+    adata_utr: ad.AnnData, bandwidth: float, kernel: str = "gaussian"
 ) -> tuple[npt.NDArray[Any], pd.DataFrame]:
     """Run KDE peak calling on a single UTR slice of an AnnData.
 
-    Builds a size vector from read counts, calls peaks with a Gaussian KDE, and
+    Builds a size vector from read counts, calls peaks with a KDE, and
     regroups the count matrix according to the new peak assignments.
 
     Args:
         adata_utr: AnnData subset for one UTR (all peaks within that UTR).
         bandwidth: KDE bandwidth parameter.
+        kernel: The KDE's kernel.
 
     Returns:
         A tuple of ``(count_matrix, var_df)`` where *count_matrix* is a 2-D
@@ -53,7 +55,9 @@ def _peak_call_single_utr(
         adata_utr.X, adata_utr.var.utr_size.astype(int)
     )
 
-    peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
+    peaks = call_peaks_using_kernel_density_estimator(
+        umi_utr_sizes.values, bandwidth=bandwidth, kernel=kernel
+    )
     peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
     peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
 
@@ -85,6 +89,7 @@ def _peak_call_single_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
     bandwidth: float,
+    kernel: str = "gaussian",
 ) -> tuple[npt.NDArray[Any] | scipy.sparse.spmatrix, pd.DataFrame]:
     """Per-UTR peak-calling on raw ``(X, var)`` slices.
 
@@ -104,7 +109,9 @@ def _peak_call_single_utr_compact(
 
     umi_utr_sizes = _utr_sizes_vector_from_read_counts(X_sub, var_sub.utr_size.astype(int))
 
-    peaks = call_peaks_using_kernel_density_estimator(umi_utr_sizes.values, bandwidth=bandwidth)
+    peaks = call_peaks_using_kernel_density_estimator(
+        umi_utr_sizes.values, bandwidth=bandwidth, kernel=kernel
+    )
     peak_sizes = pd.Series(data=peaks, index=umi_utr_sizes.index)
     peak_sizes = peak_sizes[~peak_sizes.index.duplicated()]
 
@@ -208,6 +215,7 @@ def _peak_stats_per_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
     bandwidth: float,
+    kernel: str = "gaussian",
 ) -> pd.DataFrame:
     """The peaks of one UTR's raw sizes, with the spread of the sizes in each peak.
 
@@ -219,7 +227,7 @@ def _peak_stats_per_utr_compact(
     sizes = var_sub.utr_size.to_numpy(dtype=np.int64)[counts > 0]
     counts = counts[counts > 0]
     molecules = np.repeat(sizes, counts)
-    peaks = call_peaks_using_kernel_density_estimator(molecules, bandwidth=bandwidth)
+    peaks = call_peaks_using_kernel_density_estimator(molecules, bandwidth=bandwidth, kernel=kernel)
     # All molecules of a size go to the same peak.
     first_of_size = np.concatenate([[0], np.cumsum(counts)[:-1]])
     sizes_in = pd.DataFrame({"peak": peaks[first_of_size], "size": sizes, "count": counts})
@@ -252,11 +260,11 @@ CompactUtrItem = tuple[int, str, Any, pd.DataFrame]
 
 
 def _peak_call_utr_batch(
-    batch: list[CompactUtrItem], bandwidth: float
+    batch: list[CompactUtrItem], bandwidth: float, kernel: str = "gaussian"
 ) -> list[tuple[int, npt.NDArray[Any], pd.DataFrame]]:
     out = []
     for orig_idx, _utr_name, X_sub, var_sub in batch:
-        mtx, var_df = _peak_call_single_utr_compact(X_sub, var_sub, bandwidth)
+        mtx, var_df = _peak_call_single_utr_compact(X_sub, var_sub, bandwidth, kernel)
         out.append((orig_idx, mtx, var_df))
     return out
 
@@ -282,10 +290,10 @@ def _pas_table_utr_batch(
 
 
 def _peak_stats_utr_batch(
-    batch: list[CompactUtrItem], bandwidth: float
+    batch: list[CompactUtrItem], bandwidth: float, kernel: str = "gaussian"
 ) -> list[tuple[int, pd.DataFrame]]:
     return [
-        (orig_idx, _peak_stats_per_utr_compact(X_sub, var_sub, bandwidth))
+        (orig_idx, _peak_stats_per_utr_compact(X_sub, var_sub, bandwidth, kernel))
         for orig_idx, _utr_name, X_sub, var_sub in batch
     ]
 
@@ -347,6 +355,7 @@ def peak_call_anndata_parallel(
     method: str,
     bandwidth: float = 1,
     n_jobs: int | None = None,
+    kernel: str = "gaussian",
 ) -> ad.AnnData:
     """Call peaks on an AnnData using joblib parallelism across UTRs.
 
@@ -362,6 +371,7 @@ def peak_call_anndata_parallel(
         bandwidth: KDE bandwidth. ``0`` means no peak calling is performed.
         n_jobs: Worker process count. ``None`` falls back to
             JOBLIB_DEFAULT_N_JOBS; non-positive resolves to all-but-one core.
+        kernel: The KDE's kernel, one of kde_options.KERNELS.
 
     Returns:
         A new AnnData with peaks consolidated.
@@ -370,6 +380,7 @@ def peak_call_anndata_parallel(
 
     if method.lower() != "kde":
         raise NotImplementedError(f"Peak calling method {method!r} is not implemented: use 'kde'.")
+    check_kernel(kernel)
     if bandwidth == 0:
         logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
@@ -391,7 +402,7 @@ def peak_call_anndata_parallel(
         with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                    joblib.delayed(_peak_call_utr_batch)(batch, bandwidth)
+                    joblib.delayed(_peak_call_utr_batch)(batch, bandwidth, kernel)
                     for batch in tqdm(batches, colour="#ffb700", ascii=" ■")
                 )
             )
@@ -426,6 +437,7 @@ def peak_call_anndata(
     method: str,
     bandwidth: float = 1,
     min_umis: int | None = None,
+    kernel: str = "gaussian",
 ) -> ad.AnnData:
     """Call peaks on an AnnData, processing UTRs sequentially.
 
@@ -440,6 +452,7 @@ def peak_call_anndata(
         method: Peak calling method (currently only ``"kde"``).
         bandwidth: KDE bandwidth. ``0`` means no peak calling is performed.
         min_umis: If set, UTRs with fewer total UMIs are skipped.
+        kernel: The KDE's kernel, one of kde_options.KERNELS.
 
     Returns:
         A new AnnData with peaks consolidated.
@@ -448,6 +461,7 @@ def peak_call_anndata(
 
     if method.lower() != "kde":
         raise NotImplementedError(f"Peak calling method {method!r} is not implemented: use 'kde'.")
+    check_kernel(kernel)
     if bandwidth == 0:
         logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
@@ -471,7 +485,7 @@ def peak_call_anndata(
                 logger.info(f"Skipping UTR {utr} with only {total_umis} UMIs (< {min_umis})")
                 continue
 
-        mtx, var = _peak_call_single_utr(adata_utr, bandwidth=bandwidth)
+        mtx, var = _peak_call_single_utr(adata_utr, bandwidth=bandwidth, kernel=kernel)
         mtx_list.append(mtx)
         var_list.append(var)
 
@@ -699,7 +713,9 @@ def pas_distance_table(
     return table
 
 
-def peak_table(adata: ad.AnnData, bandwidth: float = 12, n_jobs: int | None = None) -> pd.DataFrame:
+def peak_table(
+    adata: ad.AnnData, bandwidth: float = 12, n_jobs: int | None = None, kernel: str = "gaussian"
+) -> pd.DataFrame:
     """The peaks that a bandwidth calls from raw sizes, and how spread out each one is.
 
     Calls the peaks of each UTR as `call-peaks` does, and describes the raw
@@ -711,6 +727,7 @@ def peak_table(adata: ad.AnnData, bandwidth: float = 12, n_jobs: int | None = No
             optionally ``gene_name`` in ``.var``.
         bandwidth: KDE bandwidth of the peak calling.
         n_jobs: Worker process count for the per-UTR loop.
+        kernel: The KDE's kernel, one of kde_options.KERNELS.
 
     Returns:
         A row per peak, indexed by its site name (as `call-peaks` names it),
@@ -720,6 +737,7 @@ def peak_table(adata: ad.AnnData, bandwidth: float = 12, n_jobs: int | None = No
         ``size_sd`` (weighted by molecules), ``size_min`` and ``size_max`` of
         the raw sizes it collects.
     """
+    check_kernel(kernel)
     n_workers = helpers.resolve_n_jobs(n_jobs)
     has_molecules = np.asarray(adata.X.sum(axis=0)).ravel() > 0
     per_utr_inputs = _extract_per_utr_inputs(adata[:, has_molecules])
@@ -729,7 +747,7 @@ def peak_table(adata: ad.AnnData, bandwidth: float = 12, n_jobs: int | None = No
         with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                    joblib.delayed(_peak_stats_utr_batch)(batch, bandwidth)
+                    joblib.delayed(_peak_stats_utr_batch)(batch, bandwidth, kernel)
                     for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
                 )
             )
@@ -761,6 +779,7 @@ def score_bandwidths(
     bandwidths: Sequence[float],
     hamming: int = 1,
     n_jobs: int | None = None,
+    kernel: str = "gaussian",
 ) -> pd.DataFrame:
     """Score KDE bandwidths by how well their peaks fall 10-30 nt after a PAS hexamer.
 
@@ -774,6 +793,7 @@ def score_bandwidths(
         bandwidths: The KDE bandwidths to score.
         hamming: Maximum number of mismatches to AATAAA.
         n_jobs: Worker process count for the per-UTR loops.
+        kernel: The KDE's kernel, one of kde_options.KERNELS.
 
     Returns:
         One row per bandwidth, indexed by ``bandwidth``, with the columns
@@ -783,7 +803,9 @@ def score_bandwidths(
     """
     rows = []
     for bandwidth in bandwidths:
-        peaks = peak_call_anndata_parallel(adata, method="kde", bandwidth=bandwidth, n_jobs=n_jobs)
+        peaks = peak_call_anndata_parallel(
+            adata, method="kde", bandwidth=bandwidth, n_jobs=n_jobs, kernel=kernel
+        )
         score = _score_peak_assignment(peaks, genome=genome, hamming=hamming, n_jobs=n_jobs)
         rows.append(
             {

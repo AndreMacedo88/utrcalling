@@ -3,8 +3,10 @@
 import unittest
 
 import numpy as np
+from sklearn.neighbors import KernelDensity
 
 from utrcalling.core.protocols import peak_calling as pc
+from utrcalling.core.protocols.kde_options import KERNELS
 
 
 class TestGetCaller(unittest.TestCase):
@@ -148,6 +150,114 @@ class TestAssignToPeaks(unittest.TestCase):
         rising = pc._assign_to_peaks(sizes, np.arange(3), np.array([1.0, 2, 3]))
         self.assertListEqual(falling.tolist(), [0, 0, 0])
         self.assertListEqual(rising.tolist(), [2, 2, 2])
+
+
+# The kernels of scikit-learn's KernelDensity, unnormalised, by distance in bandwidths.
+KERNEL_SHAPES = {
+    "tophat": lambda u: (u < 1).astype(float),
+    "linear": lambda u: np.where(u < 1, 1 - u, 0),
+    "epanechnikov": lambda u: np.where(u < 1, 1 - u**2, 0),
+    "cosine": lambda u: np.where(u < 1, np.cos(np.pi * u / 2), 0),
+    "exponential": lambda u: np.exp(-u),
+}
+
+
+class TestKernels(unittest.TestCase):
+    """Every kernel of scikit-learn's KernelDensity calls peaks, each its own way."""
+
+    def test_every_kernel_gives_each_molecule_a_peak_among_its_utrs_sizes(self):
+        # A 5' UTR: start sites at 30, 34 and 80, and molecules scattered over it.
+        rng = np.random.default_rng(1)
+        sizes = np.concatenate(
+            [np.full(60, 30), np.full(40, 34), np.full(50, 80), rng.integers(0, 120, 30)]
+        )
+        order = np.argsort(sizes, kind="stable")
+        for kernel in KERNELS:
+            for bandwidth in (0.5, 2, 8):
+                with self.subTest(kernel=kernel, bandwidth=bandwidth):
+                    peaks = pc.call_peaks_using_kernel_density_estimator(sizes, bandwidth, kernel)
+                    self.assertEqual(len(peaks), len(sizes))
+                    self.assertTrue(np.all((peaks >= sizes.min()) & (peaks <= sizes.max())))
+                    # A longer UTR never goes to the peak of a shorter one.
+                    self.assertTrue(np.all(np.diff(peaks[order]) >= 0))
+                    # The site at 80 stays within a bandwidth of where it is.
+                    self.assertLessEqual(abs(peaks[100] - 80), bandwidth)
+
+    def test_the_linear_kernel_keeps_two_close_start_sites_apart(self):
+        # Two start sites 4 nt apart. A Gaussian of bandwidth 3 joins them at
+        # 102, where no molecule starts; a linear kernel of the same bandwidth
+        # (a triangle 3 nt wide on each side) keeps them where they are.
+        sizes = np.array([100] * 20 + [104] * 20)
+        gaussian = pc.get_caller("kde", bandwidth=3)(sizes)
+        linear = pc.get_caller("kde", bandwidth=3, kernel="linear")(sizes)
+        self.assertEqual(set(gaussian.tolist()), {102})
+        self.assertListEqual(linear.tolist(), [100] * 20 + [104] * 20)
+
+    def test_a_flat_top_keeps_all_its_molecules_together(self):
+        # Molecules spread evenly over 10-30: the linear-kernel density is flat
+        # from 11 to 29, up to rounding. Before 5.0.0 the flat top made four
+        # peaks, one of them at 33, beyond every molecule.
+        sizes = np.repeat(np.arange(10, 31), 5)
+        peaks = pc.call_peaks_using_kernel_density_estimator(sizes, 2, "linear")
+        self.assertEqual(set(peaks.tolist()), {20})
+
+    def test_an_unknown_kernel_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "Unknown kernel 'box': expected one of gaussian"):
+            pc.get_caller("kde", bandwidth=12, kernel="box")
+        with self.assertRaisesRegex(ValueError, "Unknown kernel 'box'"):
+            pc.call_peaks_using_kernel_density_estimator(np.arange(10), 2, "box")
+
+    def test_densities_are_the_kde_up_to_a_constant(self):
+        # Summed here so that flat stretches come out exactly flat, but the KDE
+        # all the same: the sum of each molecule's kernel, as scikit-learn
+        # defines the kernels.
+        rng = np.random.default_rng(3)
+        sizes = np.concatenate([rng.integers(20, 60, 200), np.full(80, 45), np.full(30, 120)])
+        window = np.arange(5, 140)
+        for kernel in KERNELS:
+            for bandwidth in (0.6, 1, 2.5, 7):
+                with self.subTest(kernel=kernel, bandwidth=bandwidth):
+                    density = pc._density(sizes, window, bandwidth, kernel)
+                    kde = KernelDensity(kernel=kernel, bandwidth=bandwidth).fit(
+                        sizes.reshape(-1, 1)
+                    )
+                    log_kde = kde.score_samples(window.reshape(-1, 1))
+                    if kernel == "gaussian":  # scikit-learn's own, as before
+                        np.testing.assert_array_equal(density, log_kde)
+                        continue
+                    distance = np.abs(window[:, None] - sizes[None, :]) / bandwidth
+                    expected = KERNEL_SHAPES[kernel](distance).sum(axis=1)
+                    # The exponential sum stops at 40 bandwidths (a weight of e^-40),
+                    # which only the deepest valleys, without molecules, notice.
+                    checked = expected > np.exp(-15) * expected.max()
+                    ratio = density[checked] / expected[checked]
+                    np.testing.assert_allclose(ratio, ratio[0], rtol=1e-9)
+                    np.testing.assert_array_equal(density[expected == 0], 0)
+                    if kernel != "exponential":  # scikit-learn's tree sums approximate tails
+                        ratio = density[expected > 0] / np.exp(log_kde[expected > 0])
+                        np.testing.assert_allclose(ratio, ratio[0], rtol=1e-9)
+
+    def test_flat_stretches_come_out_exactly_flat(self):
+        # Equal counts at sizes 40-49 between two sites: the linear density is
+        # flat in the middle of them. scikit-learn's sums differ there in the
+        # last digits, and its peaks then split the stretch.
+        sizes = np.concatenate([np.full(30, 20), np.repeat(np.arange(40, 50), 4), np.full(30, 70)])
+        window = np.arange(10, 80)
+        for kernel in ("linear", "tophat", "epanechnikov"):
+            density = pc._density(sizes, window, 2, kernel)
+            with self.subTest(kernel=kernel):
+                self.assertEqual(len(set(density[(window >= 41) & (window <= 48)])), 1)
+
+    def test_mirrored_densities_come_out_equal(self):
+        # Two sites of 10 molecules 6 nt apart: the density between them
+        # mirrors itself, so its middle is one flat top or valley, not a peak
+        # made by rounding.
+        sizes = np.array([100] * 10 + [106] * 10)
+        window = np.arange(90, 117)
+        for kernel in ("cosine", "exponential"):
+            density = pc._density(sizes, window, 4, kernel)
+            with self.subTest(kernel=kernel):
+                np.testing.assert_array_equal(density, density[::-1])
 
 
 if __name__ == "__main__":

@@ -1,4 +1,13 @@
+"""KDE peak calling: collapsing the molecules' UTR sizes into consensus sites.
+
+A kernel density estimate (KDE) of a UTR's sizes has a peak per site. The
+kernel's shape and its bandwidth set how much the sizes are smoothed: too
+little splits a site into several, too much joins neighbouring sites and moves
+the peak off the sizes where the molecules are.
+"""
+
 import itertools
+import math
 from collections.abc import Callable
 from functools import partial
 from typing import Any
@@ -7,25 +16,36 @@ import numpy as np
 import numpy.typing as npt
 from sklearn.neighbors import KernelDensity
 
+from utrcalling.core.protocols.kde_options import check_kernel
+
 # Maps one UTR's molecule sizes to their consensus peak sizes.
 SizeTransform = Callable[[npt.ArrayLike], npt.NDArray[np.integer[Any]]]
+
+# The exponential kernel has no end: beyond 40 bandwidths its weight is below
+# e^-40 (4e-18) of a molecule's own, too little to change a double.
+EXPONENTIAL_REACH = 40
 
 # Methods to aggregate individual molecules' UTR sizes to consensus peaks:
 
 
-def get_caller(method: str, bandwidth: int = 12) -> SizeTransform:
+def get_caller(method: str, bandwidth: int = 12, kernel: str = "gaussian") -> SizeTransform:
     """Return a size transform callable for the given peak calling method.
 
     Args:
         method: Peak calling algorithm name (currently only 'kde').
         bandwidth: Bandwidth parameter for KDE-based peak calling.
+        kernel: The KDE's kernel, one of kde_options.KERNELS.
 
     Returns:
         A callable that takes an array of UTR sizes and returns transformed sizes.
     """
     method = method.lower()
     if method == "kde":
-        return partial(call_peaks_using_kernel_density_estimator, bandwidth=bandwidth)
+        return partial(
+            call_peaks_using_kernel_density_estimator,
+            bandwidth=bandwidth,
+            kernel=check_kernel(kernel),
+        )
     else:
         raise NotImplementedError(
             f"Method {method} for calling consensus peaks is not implemented."
@@ -33,9 +53,9 @@ def get_caller(method: str, bandwidth: int = 12) -> SizeTransform:
 
 
 def call_peaks_using_kernel_density_estimator(
-    utr_sizes_vector: npt.ArrayLike, bandwidth: float = 12
+    utr_sizes_vector: npt.ArrayLike, bandwidth: float = 12, kernel: str = "gaussian"
 ) -> npt.NDArray[np.int32]:
-    """Assign each molecule to a consensus peak of its UTR, with a Gaussian KDE.
+    """Assign each molecule to a consensus peak of its UTR, with a KDE.
 
     The density of the UTR sizes has a peak (local maximum) per site; the
     lowest point between two neighbouring peaks splits their molecules. Each
@@ -45,26 +65,86 @@ def call_peaks_using_kernel_density_estimator(
     Args:
         utr_sizes_vector: The UTR sizes of the molecules, as a vector or a
             column (n x 1) array.
-        bandwidth: Bandwidth of the Gaussian kernel.
+        bandwidth: Bandwidth of the kernel.
+        kernel: The kernel, one of kde_options.KERNELS.
 
     Returns:
         The peak position of each molecule, in input order.
     """
     sizes = np.asarray(utr_sizes_vector).ravel()
+    check_kernel(kernel)
 
     if len(sizes) == 0:  # a UTR without molecules, e.g. in a subset of the cells
         return np.zeros(0, dtype=np.int32)
     if len(sizes) <= 3:
         return np.full(len(sizes), round(np.median(sizes)), dtype=np.int32)
 
-    kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(sizes.reshape(-1, 1))
-
     # Evaluate the density at each size of a window padded beyond the sizes, so
     # that it rises to the first peak and falls after the last one.
     minimum_size, maximum_size = sizes.min(), sizes.max()
     padding = max((maximum_size - minimum_size) * 0.1, 10)
     window = np.arange(round(minimum_size - padding), round(maximum_size + padding) + 1)
-    return _assign_to_peaks(sizes, window, kde.score_samples(window.reshape(-1, 1)))
+    return _assign_to_peaks(sizes, window, _density(sizes, window, bandwidth, kernel))
+
+
+def _density(
+    sizes: npt.NDArray[np.integer[Any]],
+    window: npt.NDArray[np.integer[Any]],
+    bandwidth: float,
+    kernel: str,
+) -> npt.NDArray[np.floating[Any]]:
+    """The KDE of *sizes* at each size of *window*, up to a constant factor.
+
+    Where the density is flat, its peaks depend on equal values coming out
+    equal. The Gaussian density is scikit-learn's log density, as in earlier
+    versions, so its peaks stay the same. For the other kernels, scikit-learn's
+    sums differ by rounding where they should be equal, which made peaks out of
+    flat stretches in one 5' UTR in ten. They are summed here over the
+    molecules per size instead: the linear, tophat and Epanechnikov densities
+    from whole-number sums, which are exact; the cosine and exponential ones
+    adding the sizes k nt before and after each size together, so densities
+    that mirror each other come out equal.
+
+    Args:
+        sizes: The molecules' UTR sizes, all within *window*.
+        window: Consecutive sizes.
+        bandwidth: Bandwidth of the kernel.
+        kernel: The kernel, one of kde_options.KERNELS.
+
+    Returns:
+        The density, or its log for the Gaussian kernel.
+    """
+    if kernel == "gaussian":
+        kde = KernelDensity(kernel="gaussian", bandwidth=bandwidth).fit(sizes.reshape(-1, 1))
+        return kde.score_samples(window.reshape(-1, 1))
+
+    counts = np.bincount(sizes - window[0], minlength=len(window))
+    if kernel == "exponential":
+        reach = min(math.ceil(EXPONENTIAL_REACH * bandwidth), len(window))
+    else:  # zero from the bandwidth on
+        reach = math.ceil(bandwidth) - 1
+    offsets = np.arange(-reach, reach + 1)
+    if kernel in ("tophat", "linear", "epanechnikov"):
+        # Molecules within reach, and their summed distances and squared distances.
+        within = np.convolve(counts, np.ones(len(offsets), dtype=np.int64), mode="same")
+        if kernel == "tophat":
+            return within.astype(np.float64)
+        if kernel == "linear":  # sum of (h - |k|) c(x + k)
+            return bandwidth * within - np.convolve(counts, np.abs(offsets), mode="same")
+        return bandwidth**2 * within - np.convolve(counts, offsets**2, mode="same")
+
+    distances = np.arange(1, reach + 1)
+    if kernel == "cosine":
+        weights = np.cos(np.pi * distances / (2 * bandwidth))
+    else:
+        weights = np.exp(-distances / bandwidth)
+    density = counts.astype(np.float64)  # the weight at distance 0 is 1
+    for distance, weight in zip(distances, weights, strict=True):
+        mirrored = np.zeros(len(window), dtype=np.int64)
+        mirrored[distance:] += counts[:-distance]
+        mirrored[:-distance] += counts[distance:]
+        density += weight * mirrored
+    return density
 
 
 def _assign_to_peaks(

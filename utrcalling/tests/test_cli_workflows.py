@@ -519,6 +519,7 @@ class TestCallPeaksDifferentBandwidthsCommand(_InTempDir):
             info = provenance.recorded(adata)
             self.assertEqual(info["matrix"], "peaks")
             self.assertEqual(info["bandwidth"], bandwidth)
+            self.assertEqual(info["kernel"], "gaussian")
             self.assertListEqual(commands_run(adata), ["run", "call-peaks-different-bandwidths"])
 
     def test_bandwidth_0_keeps_the_raw_sizes(self):
@@ -528,7 +529,65 @@ class TestCallPeaksDifferentBandwidthsCommand(_InTempDir):
         assert_same_anndata(same, raw[:, same.var_names].copy())
         self.assertEqual(provenance.recorded(same)["matrix"], "raw_sizes")
         self.assertEqual(provenance.recorded(same)["bandwidth"], 0)
+        self.assertNotIn("kernel", provenance.recorded(same))
         self.assertListEqual(commands_run(same), ["run", "call-peaks"])
+
+
+class TestKdeKernel(_InTempDir):
+    """`--kde-kernel` calls the peaks of `count` and of `call-peaks` alike."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        intermediate = WORKDIR / "intermediate"
+        utrcalling(
+            "count",
+            intermediate / "utr_reference_regions.parquet",
+            "-c",
+            intermediate / "UTR_sizes_counts_1.parquet",
+            intermediate / "UTR_sizes_counts_2.parquet",
+            *PIPELINE_FLAGS,
+            "--kde-bandwidth",
+            "3",
+            "--kde-kernel",
+            "linear",
+            "-o",
+            "linear.h5ad",
+            cwd=cls.tmp,
+        )
+        utrcalling(
+            "call-peaks",
+            WORKDIR / "raw.h5ad",
+            "peaks",
+            "-b",
+            "3",
+            "--kde-kernel",
+            "linear",
+            cwd=cls.tmp,
+        )
+        cls.count = ad.read_h5ad(cls.tmp / "linear.h5ad")
+        cls.call_peaks = ad.read_h5ad(cls.tmp / "peaks_bw3.h5ad")
+
+    def test_count_and_call_peaks_give_the_same_sites(self):
+        assert_same_anndata(self.call_peaks[self.count.obs_names], self.count)
+
+    def test_the_linear_kernel_gives_other_sites_than_the_gaussian(self):
+        gaussian = pd.Index(_site_keys(ad.read_h5ad(WORKDIR / "raw_kde.h5ad")))
+        self.assertFalse(pd.Index(_site_keys(self.count)).equals(gaussian))
+
+    def test_every_molecule_is_kept_at_a_size_of_its_utr(self):
+        raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        np.testing.assert_array_equal(
+            _dense(self.count.X).sum(axis=1), _dense(raw[self.count.obs_names].X).sum(axis=1)
+        )
+        sizes = raw.var.groupby("utr_name", observed=True).utr_size.agg(["min", "max"])
+        site = self.count.var.join(sizes, on="utr_name")
+        self.assertTrue(((site.utr_size >= site["min"]) & (site.utr_size <= site["max"])).all())
+
+    def test_both_record_the_kernel(self):
+        for adata in (self.count, self.call_peaks):
+            info = provenance.recorded(adata)
+            self.assertEqual((info["bandwidth"], info["kernel"]), (3, "linear"))
 
 
 class TestSiteProcessingCommands(_InTempDir):
@@ -819,7 +878,9 @@ class TestQcCommands(_InTempDir):
         summary = read_summary(WORKDIR / "raw_mapping_summary.tsv").loc["total"]
         self.assertListEqual(report.mapping_alignments.tolist(), [summary.alignments] * 2)
         self.assertEqual(report.loc["raw_kde.h5ad", "bandwidth"], 12)
+        self.assertEqual(report.loc["raw_kde.h5ad", "kernel"], "gaussian")
         self.assertTrue(pd.isna(report.loc["raw.h5ad", "bandwidth"]))
+        self.assertTrue(pd.isna(report.loc["raw.h5ad", "kernel"]))
 
     def test_cells(self):
         cells = self._table("cells.tsv", "cell")

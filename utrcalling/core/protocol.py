@@ -27,6 +27,7 @@ from bidict import bidict
 
 # internal packages
 from utrcalling.core import helpers, module_log
+from utrcalling.core.protocols import kde_options
 from utrcalling.core.protocols import peak_calling as pc
 
 if TYPE_CHECKING:
@@ -149,6 +150,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         alignments: str | list[str] | None = None,
         strandedness: str | None = None,
         kde_bandwidth: int = 12,
+        kde_kernel: str = "gaussian",
     ) -> None:
         """Initialize the protocol with pipeline configuration.
 
@@ -164,12 +166,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
             strandedness: Library strandedness ('reverse', 'forward', or
                 'unstranded'). Only used by stranded bulk protocols (e.g. TruSeq);
                 ignored by protocols that fix their own strand convention.
-            kde_bandwidth: Bandwidth of the Gaussian KDE used to collapse UTR
-                sizes into consensus peaks. The default of 12 is tuned for
-                3'-end-enriched assays, where reads pile within a few bp of a
-                true polyadenylation site. Random-fragmentation libraries have a
-                far broader per-site spread and need a wider kernel, otherwise
-                the smear is carved into many closely-spaced pseudo-peaks.
+            kde_bandwidth: Bandwidth of the KDE used to collapse UTR sizes into
+                consensus peaks. The default of 12 is tuned for 3'-end-enriched
+                assays, where reads pile within a few bp of a true
+                polyadenylation site. Random-fragmentation libraries have a far
+                broader per-site spread and need a wider kernel, otherwise the
+                smear is carved into many closely-spaced pseudo-peaks.
+            kde_kernel: The KDE's kernel, one of kde_options.KERNELS.
         """
         self.logger = module_log.module_logger()
 
@@ -196,9 +199,12 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.call_peaks = call_peaks
 
         self.kde_bandwidth = kde_bandwidth
+        self.kde_kernel = kde_options.check_kernel(kde_kernel)
         self.peak_calling: pc.SizeTransform | None
         if self.call_peaks:
-            self.peak_calling = pc.get_caller(call_peaks_method, bandwidth=kde_bandwidth)
+            self.peak_calling = pc.get_caller(
+                call_peaks_method, bandwidth=kde_bandwidth, kernel=kde_kernel
+            )
         else:
             self.peak_calling = None
 
@@ -663,6 +669,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
         annotations: str | pd.DataFrame | None = None,
         strandedness: str | None = None,
         kde_bandwidth: int = 12,
+        kde_kernel: str = "gaussian",
     ) -> None:
 
         super().__init__(
@@ -674,6 +681,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
             annotations=annotations,
             strandedness=strandedness,
             kde_bandwidth=kde_bandwidth,
+            kde_kernel=kde_kernel,
         )
 
         if alignments is not None:
@@ -905,6 +913,7 @@ class ProtocolCapseq(ProtocolFivePrime):
         annotations: str | pd.DataFrame | None = None,
         strandedness: str | None = None,
         kde_bandwidth: int = 12,
+        kde_kernel: str = "gaussian",
     ) -> None:
 
         super().__init__(
@@ -916,6 +925,7 @@ class ProtocolCapseq(ProtocolFivePrime):
             annotations=annotations,
             strandedness=strandedness,
             kde_bandwidth=kde_bandwidth,
+            kde_kernel=kde_kernel,
         )
 
         if alignments is not None:

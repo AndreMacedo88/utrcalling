@@ -766,6 +766,50 @@ class TestPeakTable(unittest.TestCase):
         self.assertListEqual(list(empty.columns), list(table.columns))
 
 
+class TestKernelReachesEveryCaller(unittest.TestCase):
+    """Each way of calling peaks uses the kernel it is given.
+
+    Two start sites 4 nt apart: a Gaussian of bandwidth 3 joins them at 102, a
+    linear kernel of bandwidth 3 keeps them apart.
+    """
+
+    def setUp(self):
+        self.adata = _make_adata(
+            count_matrix=[[5, 5, 3]] * 4,
+            utr_names=["UTR0"] * 3,
+            utr_sizes=[100, 104, 300],
+            gene_names=["GeneA"] * 3,
+            n_obs=4,
+        )
+
+    def test_peak_calling(self):
+        for call_peaks in (pca.peak_call_anndata, pca.peak_call_anndata_parallel):
+            with self.subTest(caller=call_peaks.__name__):
+                gaussian = call_peaks(self.adata, "kde", bandwidth=3)
+                linear = call_peaks(self.adata, "kde", bandwidth=3, kernel="linear")
+                self.assertListEqual(gaussian.var.utr_size.tolist(), [102, 300])
+                self.assertListEqual(linear.var.utr_size.tolist(), [100, 104, 300])
+                np.testing.assert_array_equal(linear.X, self.adata.X)
+
+    def test_peak_table(self):
+        table = pca.peak_table(self.adata, bandwidth=3, n_jobs=1, kernel="linear")
+        self.assertListEqual(table.utr_size.tolist(), [100, 104, 300])
+        self.assertListEqual(table.size_sd.tolist(), [0.0, 0.0, 0.0])
+
+    def test_an_unknown_kernel_is_refused_before_any_work(self):
+        callers = {
+            "peak_call_anndata": lambda: pca.peak_call_anndata(self.adata, "kde", 3, kernel="box"),
+            "parallel": lambda: pca.peak_call_anndata_parallel(self.adata, "kde", 3, kernel="box"),
+            "peak_table": lambda: pca.peak_table(self.adata, 3, kernel="box"),
+            "score_bandwidths": lambda: pca.score_bandwidths(
+                self.adata, genome="missing.fa", bandwidths=[3], kernel="box"
+            ),
+        }
+        for name, call in callers.items():
+            with self.subTest(caller=name), self.assertRaisesRegex(ValueError, "'box'"):
+                call()
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

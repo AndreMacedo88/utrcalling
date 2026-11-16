@@ -6,7 +6,7 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.commands.options import Bandwidths, Cores
+from utrcalling.commands.options import Bandwidths, Cores, KdeKernel
 
 
 def score_bandwidths(
@@ -16,6 +16,7 @@ def score_bandwidths(
     *,
     bandwidths: Bandwidths = (1, 7, 12, 15),
     hamming: Annotated[int, Parameter(name=("--hamming", "-H"))] = 1,
+    kde_kernel: KdeKernel = "gaussian",
     cores: Cores = None,
 ) -> None:
     """Score KDE bandwidths by how many peaks they place 10-30 nt after a PAS hexamer.
@@ -45,6 +46,11 @@ def score_bandwidths(
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     genome = pybedtools.BedTool(genome_path)
     table = pc.score_bandwidths(
-        adata=adata, genome=genome, bandwidths=bandwidths, hamming=hamming, n_jobs=cores
+        adata=adata,
+        genome=genome,
+        bandwidths=bandwidths,
+        hamming=hamming,
+        n_jobs=cores,
+        kernel=kde_kernel,
     )
     storage.write_table(table, out_path)

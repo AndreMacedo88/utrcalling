@@ -234,6 +234,20 @@ class TestCLIInvalidArgs(unittest.TestCase):
         self.assertRefused(*RUN, "--strandedness", "sideways", message="sideways")
         self.assertRefused(*RUN, "-m", "both", message="both")
 
+    def test_the_kde_kernel_is_one_of_scikit_learns_in_any_case(self):
+        commands = [RUN, COUNT, ["call-peaks", "in.h5ad", "out"]]
+        for key in (("qc", "peaks"), ("qc", "score-bandwidths")):
+            commands.append([*key, *GROUPED_COMMANDS[key]])
+        for command in commands:
+            with self.subTest(command=command[:2]):
+                self.assertEqual(_parse(*command)[1]["kde_kernel"], "gaussian")
+                self.assertEqual(
+                    _parse(*command, "--kde-kernel", "Linear")[1]["kde_kernel"], "linear"
+                )
+                self.assertRefused(
+                    *command, "--kde-kernel", "box", message="expected one of gaussian"
+                )
+
     def test_a_flag_without_its_values_is_refused(self):
         self.assertRefused("run", "g.gtf", "-a", "-A", "a.csv", message="at least 1")
 
@@ -279,7 +293,7 @@ class _StopAfterProtocol(Exception):
 
 
 class TestToolsForwardKdeBandwidth(unittest.TestCase):
-    """`--kde_bandwidth` must reach the protocol, which builds the standard-path peak caller.
+    """`--kde_bandwidth` and `--kde-kernel` must reach the protocol, which builds the peak caller.
 
     Without it, the standard (non --raw_sizes) path silently uses the default
     bandwidth of 12 whatever the user passes.
@@ -290,7 +304,14 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
             mock.patch("utrcalling.core.protocol.create", side_effect=_StopAfterProtocol) as create,
             self.assertRaises(_StopAfterProtocol),
         ):
-            tool(*args, kde_bandwidth=150, log_level="error", no_log_file=True, **kwargs)
+            tool(
+                *args,
+                kde_bandwidth=150,
+                kde_kernel="linear",
+                log_level="error",
+                no_log_file=True,
+                **kwargs,
+            )
         return create.call_args.kwargs
 
     def test_run_forwards_kde_bandwidth(self):
@@ -300,6 +321,7 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
             run, "annotation.gtf", alignments=["sample.bam"], annotations_file="anno.csv"
         )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
+        self.assertEqual(kwargs["kde_kernel"], "linear")
 
     def test_count_forwards_kde_bandwidth(self):
         from utrcalling.commands.count import count
@@ -308,6 +330,7 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
             count, "utr_reference.parquet", utr_sizes_counts=["mappings.parquet"]
         )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
+        self.assertEqual(kwargs["kde_kernel"], "linear")
 
 
 class TestCountRecordsTheUtrEnd(unittest.TestCase):

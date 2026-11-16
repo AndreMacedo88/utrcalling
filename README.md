@@ -21,8 +21,8 @@ single-cell resolution.
   stranded or unstranded paired-end bulk RNA-seq.
 - **3'UTR and 5'UTR calling** --- analyse either end of the transcript.
 - **Flexible summarisation** --- aggregate results at UTR or gene level.
-- **KDE peak calling** --- Gaussian kernel density estimation with configurable
-  bandwidth to identify consensus UTR isoform peaks from per-molecule size
+- **KDE peak calling** --- kernel density estimation, with a choice of kernel
+  and bandwidth, to identify consensus UTR isoform peaks from per-molecule size
   distributions.
 - **Batch-aware processing** --- union or intersection merge strategies for
   multi-sample experiments.
@@ -263,6 +263,7 @@ utrcalling count \
 | `--summarization-level / -s` | `utr` (default), or `gene` to join the UTRs of each gene. |
 | `--raw-sizes / -r` | Output both raw UTR sizes and KDE peaks. |
 | `--kde-bandwidth` | KDE bandwidth for peak calling (default: 12). |
+| `--kde-kernel` | KDE kernel: `gaussian` (default), `linear`, `epanechnikov`, `exponential`, `tophat` or `cosine`. |
 | `--strandedness` | Library strandedness for `truseq`: `reverse` (default), `forward`, or `unstranded`. |
 | `--batch-merge-method / -m` | How to merge batches: `union` or `intersection`. |
 | `--store-intermediate / -i` | Save intermediate files for resumable workflows. |
