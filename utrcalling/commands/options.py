@@ -209,7 +209,8 @@ KdeBandwidth = Annotated[
             "or a rule. 12 suits 3'-end-enriched assays, where reads pile up within a "
             "few bp of the polyadenylation site. Randomly fragmented libraries spread "
             "more per site and need a wider kernel, or the spread splits into many close "
-            f"pseudo-peaks. {BANDWIDTH_RULES_HELP} {OPTIMIZE_HELP}"
+            "pseudo-peaks. For 5' data, 12 joins start sites a few nt apart: try "
+            f"--kde-kernel linear with -b optimize. {BANDWIDTH_RULES_HELP} {OPTIMIZE_HELP}"
         ),
     ),
 ]

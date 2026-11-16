@@ -43,6 +43,14 @@ a new major version can change results or require changes to your command lines.
 
 ### Added
 
+- **Peak calling for 5' data.** Transcription start sites are exact to the
+  nucleotide, and conditions can shift them by a few nt, which the 3' default
+  (a Gaussian of 12 nt) joins. The README describes how to choose the peak
+  calling of 5' data by the initiator at its peaks, and the settings that
+  Eugenia Guerrero Aruffo found best for interferon-treated neural stem cells
+  in her master's thesis (2026): the linear kernel, half of Scott's bandwidth
+  per UTR, UTRs with 500 molecules or more, and sites filtered per treatment.
+  The pieces follow.
 - **Kernels for peak calling.** `--kde-kernel` chooses the kernel of the KDE
   that calls the peaks, in `run`, `count`, `call-peaks`, `qc peaks` and
   `qc score-bandwidths`: `gaussian` (the default, as before), `linear`,

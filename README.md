@@ -22,8 +22,8 @@ single-cell resolution.
 - **3'UTR and 5'UTR calling** --- analyse either end of the transcript.
 - **Flexible summarisation** --- aggregate results at UTR or gene level.
 - **KDE peak calling** --- kernel density estimation, with a choice of kernel
-  and bandwidth, to identify consensus UTR isoform peaks from per-molecule size
-  distributions.
+  and bandwidth (fixed, set per UTR, or chosen for the data by the genome), to
+  identify consensus UTR isoform peaks from per-molecule size distributions.
 - **Batch-aware processing** --- union or intersection merge strategies for
   multi-sample experiments.
 - **Sparse output** --- count matrices are stored as sparse arrays in AnnData
@@ -319,6 +319,69 @@ utrcalling tools site-sequences named.h5ad genome.fa sites.fa \
     --upstream 50 --downstream 50
 ```
 
+### Peak calling for 5' data
+
+The default KDE, Gaussian with a bandwidth of 12 nt, suits 3' data, where the
+molecules of a polyadenylation site spread over a few nt. Transcription start
+sites are exact to the nucleotide, and promoters often use several within a few
+nt of each other; conditions that change which start sites cells use can shift
+them by little. In mouse neural stem cells treated with interferon, the 5' UTRs
+that shortened lost a median of 36 nt, less than 30 nt in 39% of them (Guerrero
+Aruffo, 2026). A 12-nt Gaussian joins such sites and moves its peaks off the
+start sites: on that Cap-seq data, its initiator score (see below) is 0.22,
+while 42% of the molecules themselves start at a pyrimidine-purine initiator.
+
+When the start sites in your 5' data may move by a few nt, choose the peak
+calling for the data. `qc score-bandwidths` scores 5' peaks by the initiator:
+the share of molecules at peaks with a pyrimidine (C or T) at -1 and a purine
+(A or G) at +1, where RNA polymerase II starts most transcripts. Peaks moved off
+the start sites lose it:
+
+```bash
+# Score bandwidths, one kernel at a time, on the raw sizes of run -f five_prime_utr -r
+utrcalling qc score-bandwidths raw_sizes.h5ad scores_linear.tsv genome.fa --kde-kernel linear
+utrcalling qc score-bandwidths raw_sizes.h5ad scores_gaussian.tsv genome.fa
+
+# Or let run, count or call-peaks choose the bandwidth with the best score
+utrcalling call-peaks raw_sizes.h5ad peaks -b optimize --kde-kernel linear --genome genome.fa
+```
+
+The default stays as it is for other analyses.
+
+#### Interferon-treated neural stem cells (bulk Cap-seq)
+
+For 5' Cap-seq data of adult neural stem cells treated with interferon, Eugenia
+Guerrero Aruffo found these settings best in her master's thesis (2026); these
+commands give her sites in 99% of the UTRs:
+
+```bash
+utrcalling run Mus_musculus.GRCm39.108.gtf.gz -a sample_*.bam -A samples.csv \
+    -f five_prime_utr -p <your 5' protocol> -r -o capseq.h5ad
+utrcalling call-peaks capseq.h5ad capseq -b scott:0.5 --kde-kernel linear
+utrcalling process filter-utrs capseq_bwscott0.5.h5ad deep.h5ad --minimum-molecules 500
+utrcalling process filter-sites deep.h5ad sites.h5ad \
+    --threshold 0.1 --minimum-counts 10 --groupby Treatment
+```
+
+- `--kde-kernel linear`: a triangle, sharp at its centre and zero beyond the
+  bandwidth, keeps the peaks on the start sites.
+- `-b scott:0.5`: per UTR, half of Scott's bandwidth (SD x n^-1/5), finer where
+  the molecules are many: 2 nt in the median UTR of that data. Each site keeps
+  its UTR's bandwidth in `.var["bandwidth"]`.
+- `filter-utrs`: UTRs with fewer molecules gave unsure sites.
+- `filter-sites --groupby Treatment`: thresholds per treatment, so start sites
+  that interferon raises stay, though they are a small share of all molecules.
+
+The bandwidths and the filters count the molecules of all the samples in the
+matrix: subset it to the samples you study first (she called the sites of the
+wild-type Cap-seq libraries).
+
+On her UTRs with 500 molecules or more, `-b optimize --kde-kernel linear`
+chooses 2 nt (an initiator score of 0.60, against 0.59 for `scott:0.5`). From
+the sites, `tools site-sequences sites.h5ad genome.fa tss.fa` writes the
+sequences around the start sites for motif analyses, and `qc priming` flags
+those that strand invasion could explain.
+
 ### Quality control
 
 The `qc` commands describe count matrices from any step, without changing
@@ -478,6 +541,8 @@ utrcalling/
 │   │   ├── utr_mapping.py      Read-to-UTR mapping (pysam)
 │   │   ├── utr_reference.py    GTF parsing, UTR extraction
 │   │   ├── count_matrix.py     Sparse count matrix assembly
+│   │   ├── protocols/          KDE peak calling (peak_calling.py) and its settings
+│   │   ├── genome.py           Where sites lie, and the genome around them
 │   │   ├── barcode_filtering.py
 │   │   ├── process_mapped_reads.py
 │   │   ├── storage.py
@@ -522,6 +587,16 @@ on Zenodo under the DOI
 always resolves to the latest version; each version also has its own DOI,
 listed on that page. Citation metadata is in `CITATION.cff`, and GitHub's
 "Cite this repository" button formats it as APA or BibTeX.
+
+## Acknowledgements
+
+Peak calling for 5' data builds on the master's thesis of Eugenia Guerrero
+Aruffo: *Interferon regulates transcription and translation in neural stem
+cells by targeting regulatory elements on the 5' UTR* (Heidelberg University,
+carried out at the German Cancer Research Center, 2026). She chose the linear
+kernel, half of Scott's bandwidth per UTR, the filters per treatment and by
+molecules; found and fixed peak calling on flat densities; and proposed the
+initiator as a measure of how well peaks find start sites.
 
 ## License
 
