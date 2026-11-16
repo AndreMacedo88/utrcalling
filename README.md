@@ -262,7 +262,7 @@ utrcalling count \
 | `--feature / -f` | UTR type: `three_prime_utr` (default) or `five_prime_utr`. |
 | `--summarization-level / -s` | `utr` (default), or `gene` to join the UTRs of each gene. |
 | `--raw-sizes / -r` | Output both raw UTR sizes and KDE peaks. |
-| `--kde-bandwidth` | KDE bandwidth for peak calling (default: 12). |
+| `--kde-bandwidth / -b` | KDE bandwidth for peak calling: a number of nt (default: 12), or a rule that sets one per UTR from the spread of its sizes, `scott` or `silverman`, optionally scaled (`scott:0.5`). |
 | `--kde-kernel` | KDE kernel: `gaussian` (default), `linear`, `epanechnikov`, `exponential`, `tophat` or `cosine`. |
 | `--strandedness` | Library strandedness for `truseq`: `reverse` (default), `forward`, or `unstranded`. |
 | `--batch-merge-method / -m` | How to merge batches: `union` or `intersection`. |

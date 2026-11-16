@@ -17,7 +17,9 @@ def call_peaks(
 
     Takes the raw-sizes count matrix of `run -r` and collapses the sizes of each
     UTR into sites (peaks), as `run` does, once per bandwidth. Writes one file per
-    bandwidth: `<out_path>_bw<bandwidth>.h5ad`.
+    bandwidth: `<out_path>_bw<bandwidth>.h5ad`, such as peaks_bw12.h5ad, or
+    peaks_bwscott0.5.h5ad for scott:0.5. With a rule, each site's .var has the
+    bandwidth of its UTR.
 
     For example:
 
@@ -29,6 +31,7 @@ def call_peaks(
     """
     from utrcalling.core import helpers, provenance
     from utrcalling.core import peak_calling_anndata as pc
+    from utrcalling.core.protocols.kde_options import bandwidth_label
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
     adata = adata[:, adata.var.sort_values(by=["utr_name", "utr_size"], ascending=True).index]
@@ -41,4 +44,4 @@ def call_peaks(
             adata_peaks = adata.copy()
         kde = {"matrix": "peaks", "kernel": kde_kernel} if bandwidth else {}
         provenance.record(adata_peaks, source=adata, bandwidth=bandwidth, **kde)
-        adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth}.h5ad")
+        adata_peaks.write_h5ad(f"{out_path}_bw{bandwidth_label(bandwidth)}.h5ad")

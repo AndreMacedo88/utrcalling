@@ -22,6 +22,7 @@ import scipy.sparse
 
 from utrcalling import runtime
 from utrcalling.core import provenance
+from utrcalling.core.protocols.peak_calling import utr_bandwidth
 from utrcalling.core.utr_mapping import MAPPING_STEPS
 
 TEST_DATA = Path(__file__).resolve().parent / "test_data"
@@ -588,6 +589,57 @@ class TestKdeKernel(_InTempDir):
         for adata in (self.count, self.call_peaks):
             info = provenance.recorded(adata)
             self.assertEqual((info["bandwidth"], info["kernel"]), (3, "linear"))
+
+
+class TestBandwidthRule(_InTempDir):
+    """A rule sets each UTR's bandwidth, in `count` and `call-peaks` alike.
+
+    With the settings Eugenia Guerrero Aruffo chose for 5' Cap-seq data: half
+    of Scott's bandwidth, with the linear kernel.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        intermediate = WORKDIR / "intermediate"
+        rule = ["-b", "scott:0.5", "--kde-kernel", "linear"]
+        utrcalling(
+            "count",
+            intermediate / "utr_reference_regions.parquet",
+            "-c",
+            intermediate / "UTR_sizes_counts_1.parquet",
+            intermediate / "UTR_sizes_counts_2.parquet",
+            *PIPELINE_FLAGS,
+            *rule,
+            "-r",
+            "-o",
+            "count.h5ad",
+            cwd=cls.tmp,
+        )
+        utrcalling("call-peaks", WORKDIR / "raw.h5ad", "peaks", *rule, cwd=cls.tmp)
+        utrcalling("qc", "report", "count_kde.h5ad", "-o", "report.tsv", cwd=cls.tmp)
+        cls.count = ad.read_h5ad(cls.tmp / "count_kde.h5ad")
+        cls.call_peaks = ad.read_h5ad(cls.tmp / "peaks_bwscott0.5.h5ad")
+
+    def test_count_and_call_peaks_give_the_same_sites_and_bandwidths(self):
+        assert_same_anndata(self.call_peaks[self.count.obs_names], self.count)
+
+    def test_each_site_has_the_bandwidth_of_its_utr(self):
+        raw = ad.read_h5ad(WORKDIR / "raw.h5ad")
+        molecules = np.asarray(raw.X.sum(axis=0)).ravel().astype(int)
+        for utr, columns in raw.var.groupby("utr_name", observed=True).indices.items():
+            sizes = np.sort(np.repeat(raw.var.utr_size.to_numpy()[columns], molecules[columns]))
+            expected = utr_bandwidth(sizes, "scott:0.5")
+            recorded = self.count.var.bandwidth[self.count.var.utr_name == utr].unique()
+            with self.subTest(utr=utr):
+                np.testing.assert_array_equal(recorded, [expected])
+
+    def test_the_record_and_the_report_name_the_rule(self):
+        for adata in (self.count, self.call_peaks):
+            info = provenance.recorded(adata)
+            self.assertEqual((info["bandwidth"], info["kernel"]), ("scott:0.5", "linear"))
+        report = pd.read_csv(self.tmp / "report.tsv", sep="\t", index_col="file")
+        self.assertEqual(report.loc["count_kde.h5ad", "bandwidth"], "scott:0.5")
 
 
 class TestSiteProcessingCommands(_InTempDir):

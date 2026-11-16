@@ -419,6 +419,31 @@ class TestParallelDeterminism(unittest.TestCase):
             pd.testing.assert_frame_equal(obs1, obs4)
 
 
+class TestUtrBandwidths(unittest.TestCase):
+    """utr_bandwidths: each UTR's bandwidth under a rule, from the flat read mappings."""
+
+    def test_each_utr_gets_the_rules_bandwidth_of_its_sorted_sizes(self):
+        from utrcalling.core.protocols.peak_calling import utr_bandwidth
+
+        reads = pd.DataFrame(
+            {
+                "utr_name": pd.Categorical(["B", "A", "B", "A", "A", "B", "A", "C", None, "B"]),
+                "observation_id": pd.Categorical(["c1"] * 10),
+                "utr_size": np.array([30, 5, 31, 9, 5, 45, 7, 3, 99, 30], dtype=np.int32),
+            }
+        )
+        result = count_matrix.utr_bandwidths(reads, "silverman:2")
+        self.assertEqual(result.index.name, "utr_name")
+        self.assertListEqual(list(result.index), ["A", "B", "C"])  # no row for the unnamed read
+        self.assertEqual(result["A"], utr_bandwidth(np.array([5, 5, 7, 9]), "silverman:2"))
+        self.assertEqual(result["B"], utr_bandwidth(np.array([30, 30, 31, 45]), "silverman:2"))
+        self.assertTrue(np.isnan(result["C"]))  # one molecule: its median, no KDE
+
+    def test_utr_names_need_not_be_categorical(self):
+        reads = pd.DataFrame({"utr_name": ["A"] * 5, "utr_size": [1, 2, 2, 3, 9]})
+        self.assertGreater(count_matrix.utr_bandwidths(reads, "scott")["A"], 0)
+
+
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")

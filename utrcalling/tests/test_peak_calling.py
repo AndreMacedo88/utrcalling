@@ -260,5 +260,82 @@ class TestKernels(unittest.TestCase):
                 np.testing.assert_array_equal(density, density[::-1])
 
 
+class TestUtrBandwidth(unittest.TestCase):
+    """Rules set each UTR's bandwidth from the spread of its molecules' sizes."""
+
+    def setUp(self):
+        # A 5' UTR with a main start site and a second one 150 nt away.
+        rng = np.random.default_rng(0)
+        self.sizes = np.concatenate(
+            [rng.normal(50, 3, 300).astype(int), rng.normal(200, 3, 100).astype(int)]
+        )
+
+    def test_scott_is_scipys_bandwidth(self):
+        from scipy.stats import gaussian_kde
+
+        scipy_bandwidth = np.sqrt(gaussian_kde(self.sizes).covariance[0, 0])
+        self.assertAlmostEqual(pc.utr_bandwidth(self.sizes, "scott"), scipy_bandwidth, places=12)
+        self.assertAlmostEqual(
+            pc.utr_bandwidth(self.sizes, "scott:0.5"), scipy_bandwidth / 2, places=12
+        )
+
+    def test_silverman_is_rs_bw_nrd0(self):
+        # bw.nrd0 of R 4, for three sets of sizes; in the second, more than
+        # half the molecules share a size, so the IQR is 0 and the SD counts.
+        cases = {
+            (1, 2, 2, 3, 3, 3, 4, 10, 11, 12): 2.371006401380210,
+            (5, 5, 5, 5, 5, 6, 9): 0.227555903753893,
+            (*[40] * 30, *[44] * 20, 90, 120): 1.218981272992831,
+        }
+        for sizes, expected in cases.items():
+            with self.subTest(sizes=sizes):
+                self.assertAlmostEqual(pc.utr_bandwidth(np.array(sizes), "silverman"), expected, 14)
+
+    def test_silverman_is_less_swayed_by_a_second_site(self):
+        # The distant site inflates the SD (Scott) more than the IQR.
+        self.assertLess(
+            pc.utr_bandwidth(self.sizes, "silverman"), pc.utr_bandwidth(self.sizes, "scott")
+        )
+
+    def test_rules_narrow_with_more_molecules(self):
+        deeper = np.repeat(self.sizes, 32)  # the same spread, 32 times the molecules
+        for rule in ("scott", "silverman"):
+            with self.subTest(rule=rule):
+                ratio = pc.utr_bandwidth(deeper, rule) / pc.utr_bandwidth(self.sizes, rule)
+                self.assertAlmostEqual(ratio, 0.5, places=2)  # 32^-1/5, with ddof=1
+
+    def test_numbers_are_every_utrs_bandwidth(self):
+        self.assertEqual(pc.utr_bandwidth(self.sizes, 7), 7.0)
+
+    def test_3_molecules_or_fewer_have_no_kde(self):
+        for bandwidth in (7, "scott"):
+            self.assertTrue(np.isnan(pc.utr_bandwidth(np.array([1, 2, 3]), bandwidth)))
+
+    def test_molecules_all_of_one_size_are_one_site(self):
+        sizes = np.full(20, 61)
+        self.assertEqual(pc.utr_bandwidth(sizes, "silverman"), 0)
+        for kernel in ("gaussian", "linear"):
+            peaks = pc.call_peaks_using_kernel_density_estimator(sizes, "scott", kernel)
+            self.assertListEqual(peaks.tolist(), [61] * 20)
+
+    def test_peaks_with_a_rule(self):
+        peaks = pc.get_caller("kde", bandwidth="Scott:0.5", kernel="linear")(self.sizes)
+        self.assertEqual(len(peaks), len(self.sizes))
+        main = np.bincount(peaks).argmax()
+        self.assertLessEqual(abs(main - 50), 3)
+
+    def test_get_caller_spells_the_rule_as_the_record_does(self):
+        self.assertEqual(
+            pc.get_caller("kde", bandwidth="Scott:0.50").keywords["bandwidth"], "scott:0.5"
+        )
+
+    def test_an_invalid_bandwidth_is_refused(self):
+        for bandwidth in (0, -2, "wide"):
+            with self.subTest(bandwidth=bandwidth), self.assertRaises(ValueError):
+                pc.call_peaks_using_kernel_density_estimator(self.sizes, bandwidth)
+        with self.assertRaisesRegex(ValueError, "'wide'"):
+            pc.get_caller("kde", bandwidth="wide")
+
+
 if __name__ == "__main__":
     unittest.main()

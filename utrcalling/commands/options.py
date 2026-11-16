@@ -10,7 +10,7 @@ from typing import Annotated, Literal, get_args
 
 from cyclopts import Group, Parameter, Token
 
-from utrcalling.core.protocols.kde_options import Kernel
+from utrcalling.core.protocols.kde_options import Bandwidth, Kernel, parse_bandwidth
 
 # Help panels of the pipeline commands, in this order.
 INPUTS = Group("Inputs", sort_key=0)
@@ -27,6 +27,16 @@ def truth_value(type_: object, tokens: Sequence[Token]) -> bool:
     if text.lower() in ("false", "no", "0"):
         return False
     raise ValueError(f"expected true or false, got {text!r}")
+
+
+def bandwidth(type_: object, tokens: Sequence[Token]) -> Bandwidth:
+    """Read a KDE bandwidth: a number of nt, or a rule such as scott:0.5."""
+    return parse_bandwidth(tokens[0].value)
+
+
+def bandwidths(type_: object, tokens: Sequence[Token]) -> tuple[Bandwidth, ...]:
+    """Read one or more KDE bandwidths, where 0 keeps the raw sizes."""
+    return tuple(parse_bandwidth(token.value, allow_zero=True) for token in tokens)
 
 
 def lowercase_choice(type_: object, tokens: Sequence[Token]) -> str:
@@ -152,15 +162,26 @@ RawSizes = Annotated[
         ),
     ),
 ]
+# The help of the bandwidth options: what a rule is.
+BANDWIDTH_RULES_HELP = (
+    "A rule sets a bandwidth per UTR from the spread of its sizes, narrower as its "
+    "molecules grow in number: scott (SD x n^-1/5) or silverman (0.9 x min(SD, "
+    "IQR/1.34) x n^-1/5, which several sites in a UTR inflate less), scaled as in "
+    "scott:0.5."
+)
 KdeBandwidth = Annotated[
-    int,
+    Bandwidth,
     Parameter(
+        name=("--kde-bandwidth", "-b"),
+        converter=bandwidth,
+        metavar="NT|RULE",
         group=PEAK_CALLING,
         help=(
-            "Bandwidth of the KDE that collapses UTR sizes into peaks. 12 suits "
-            "3'-end-enriched assays, where reads pile up within a few bp of the "
-            "polyadenylation site. Randomly fragmented libraries spread more per site "
-            "and need a wider kernel, or the spread splits into many close pseudo-peaks."
+            "Bandwidth of the KDE that collapses UTR sizes into peaks: a number of nt, "
+            "or a rule. 12 suits 3'-end-enriched assays, where reads pile up within a "
+            "few bp of the polyadenylation site. Randomly fragmented libraries spread "
+            "more per site and need a wider kernel, or the spread splits into many close "
+            f"pseudo-peaks. {BANDWIDTH_RULES_HELP}"
         ),
     ),
 ]
@@ -230,11 +251,13 @@ UtrNameColumn = Annotated[
     ),
 ]
 Bandwidths = Annotated[
-    tuple[int, ...],
+    tuple[Bandwidth, ...],
     Parameter(
         name=("--bandwidths", "-b"),
         consume_multiple=1,
+        converter=bandwidths,
+        metavar="NT|RULE",
         show_default=lambda bandwidths: " ".join(map(str, bandwidths)),
-        help="One or more bandwidths of the KDE.",
+        help=f"One or more bandwidths of the KDE: numbers of nt, or rules. {BANDWIDTH_RULES_HELP}",
     ),
 ]

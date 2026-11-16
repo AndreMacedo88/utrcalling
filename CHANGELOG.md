@@ -50,6 +50,18 @@ a new major version can change results or require changes to your command lines.
   5' Cap-seq data in her master's thesis (2026). For all kernels but the
   Gaussian and the exponential, the bandwidth is the kernel's half-width. The
   count matrices record the kernel, and `qc report` shows it.
+- **Bandwidth rules.** Besides a number of nt, the bandwidth of `run` and
+  `count` (`--kde-bandwidth`, now also `-b`) and of `call-peaks`, `qc peaks`
+  and `qc score-bandwidths` (`-b`) can be a rule that sets each UTR's from the
+  spread of its molecules' sizes, narrower as they grow in number: `scott`
+  (SD x n^-1/5, the default of SciPy's gaussian_kde) or `silverman` (0.9 x
+  min(SD, IQR/1.34) x n^-1/5, as R's `bw.nrd0`, which several sites in a UTR
+  inflate less), optionally scaled, as in `scott:0.5`. The sites keep their
+  UTR's bandwidth in `.var["bandwidth"]`, and `qc peaks` shows it. `call-peaks`
+  names its files after the rule (`peaks_bwscott0.5.h5ad`), and takes
+  bandwidths that are not whole numbers (`-b 7.5`). For 5' Cap-seq data of
+  neural stem cells treated with interferon, Eugenia Guerrero Aruffo found
+  `scott:0.5` with the linear kernel best.
 - **Quality control commands**, which write tables and leave the count
   matrices unchanged:
   - `qc report`: a row per count matrix of any step, with what it holds and

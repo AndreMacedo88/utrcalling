@@ -684,8 +684,22 @@ class TestReportTable(unittest.TestCase):
         )
         self.assertEqual(table.index.name, "file")
         self.assertListEqual(list(table.columns), ["matrix", "steps", "bandwidth", "cells"])
-        self.assertEqual(table.bandwidth.dtype, "Int64")
+        self.assertEqual(table.cells.dtype, "Int64")
         self.assertTrue(pd.isna(table.loc["fractions.h5ad", "bandwidth"]))
+
+    def test_bandwidths_are_numbers_of_nt_or_rules(self):
+        table = qc.report_table(
+            {
+                "bw12.h5ad": {"matrix": "peaks", "bandwidth": 12, "kernel": "gaussian"},
+                "bw7.5.h5ad": {"matrix": "peaks", "bandwidth": 7.5, "kernel": "gaussian"},
+                "scott.h5ad": {"matrix": "peaks", "bandwidth": "scott:0.5", "kernel": "linear"},
+                "raw.h5ad": {"matrix": "raw_sizes"},
+            }
+        )
+        self.assertEqual(table.bandwidth.dtype, "string")
+        self.assertListEqual(table.bandwidth.tolist()[:3], ["12", "7.5", "scott:0.5"])
+        self.assertTrue(pd.isna(table.loc["raw.h5ad", "bandwidth"]))
+        self.assertListEqual(table.kernel.tolist()[:3], ["gaussian", "gaussian", "linear"])
 
 
 if __name__ == "__main__":

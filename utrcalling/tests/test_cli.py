@@ -234,6 +234,30 @@ class TestCLIInvalidArgs(unittest.TestCase):
         self.assertRefused(*RUN, "--strandedness", "sideways", message="sideways")
         self.assertRefused(*RUN, "-m", "both", message="both")
 
+    def test_bandwidths_are_numbers_of_nt_or_rules(self):
+        for option in ("-b", "--kde-bandwidth", "--kde_bandwidth"):
+            for command in (RUN, COUNT):
+                with self.subTest(option=option, command=command[0]):
+                    self.assertEqual(_parse(*command)[1]["kde_bandwidth"], 12)
+                    self.assertEqual(_parse(*command, option, "7.5")[1]["kde_bandwidth"], 7.5)
+                    arguments = _parse(*command, option, "Scott:0.50")[1]
+                    self.assertEqual(arguments["kde_bandwidth"], "scott:0.5")
+        _, arguments = _parse("call-peaks", "in.h5ad", "out", "-b", "12", "silverman", "0")
+        self.assertEqual(arguments["bandwidths"], (12, "silverman", 0))
+        _, arguments = _parse("qc", "peaks", "in.h5ad", "out.tsv", "-b", "scott:0.5")
+        self.assertEqual(arguments["bandwidth"], "scott:0.5")
+        _, arguments = _parse("qc", "score-bandwidths", "in.h5ad", "o.tsv", "g.fa", "-b", "scott")
+        self.assertEqual(arguments["bandwidths"], ("scott",))
+
+    def test_bandwidths_are_checked(self):
+        self.assertRefused(
+            *RUN, "-b", "wide", message="expected a number of nt, scott or silverman"
+        )
+        self.assertRefused(*RUN, "-b", "0", message="must be above 0")
+        self.assertRefused(*COUNT, "-b", "scott:-1", message="factor of scott must be above 0")
+        self.assertRefused("qc", "peaks", "in.h5ad", "out.tsv", "-b", "0", message="above 0")
+        self.assertRefused("call-peaks", "in.h5ad", "out", "-b", "12", "-3", message="above 0")
+
     def test_the_kde_kernel_is_one_of_scikit_learns_in_any_case(self):
         commands = [RUN, COUNT, ["call-peaks", "in.h5ad", "out"]]
         for key in (("qc", "peaks"), ("qc", "score-bandwidths")):

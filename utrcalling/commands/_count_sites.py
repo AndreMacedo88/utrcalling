@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     import pandas as pd
 
     from utrcalling.core.protocol import Protocol
+    from utrcalling.core.protocols.kde_options import Bandwidth
 
 
 def count_sites(
@@ -21,7 +22,7 @@ def count_sites(
     inputs: Sequence[str],
     summarization_level: str,
     raw_sizes: bool,
-    kde_bandwidth: int,
+    kde_bandwidth: Bandwidth,
     kde_kernel: str,
     out: str,
     store_intermediate: bool,
@@ -43,14 +44,18 @@ def count_sites(
         inputs: The input files of the read mappings, for the mapping summary.
         summarization_level: ``utr``, or ``gene`` to join the UTRs of each gene.
         raw_sizes: Whether to write the raw sizes too.
-        kde_bandwidth: Bandwidth of the KDE that calls the peaks.
+        kde_bandwidth: Bandwidth of the KDE that calls the peaks: a number of
+            nt, or a rule, whose value for each UTR goes to the sites'
+            ``bandwidth`` column.
         kde_kernel: Kernel of the KDE that calls the peaks.
         out: Path of the count matrix (.h5ad).
         store_intermediate: Whether to store intermediate files in ./intermediate/.
         cores: Maximum number of worker processes.
         settings: The command's settings to record, such as its protocol.
     """
-    from utrcalling.core import core, qc, storage
+    import numpy as np
+
+    from utrcalling.core import core, count_matrix, qc, storage
     from utrcalling.core.module_log import module_logger
     from utrcalling.core.protocol import ProtocolFivePrime
     from utrcalling.core.protocols import peak_calling as pc
@@ -98,6 +103,13 @@ def count_sites(
         settings["mapping_summary"] = summary
 
     kde = {"bandwidth": kde_bandwidth, "kernel": kde_kernel}
+
+    def add_utr_bandwidths(peaks: anndata.AnnData) -> None:
+        """Give the sites their UTR's bandwidth, if a rule set one per UTR."""
+        if isinstance(kde_bandwidth, str):
+            per_utr = count_matrix.utr_bandwidths(filtered_reads, kde_bandwidth)
+            peaks.var["bandwidth"] = peaks.var["utr_name"].map(per_utr).to_numpy(np.float64)
+
     if raw_sizes:
         logger.info("Building raw sizes count matrix")
         raw_anndata = core.build_count_matrix(
@@ -120,6 +132,7 @@ def count_sites(
             size_transform=pc.get_caller("kde", bandwidth=kde_bandwidth, kernel=kde_kernel),
             n_jobs=cores,
         )
+        add_utr_bandwidths(kde_anndata)
         _write(kde_anndata, kde_out, matrix="peaks", **kde, **settings)
         logger.info(f"Wrote KDE peaks to {kde_out}")
     else:
@@ -133,6 +146,7 @@ def count_sites(
             n_jobs=cores,
         )
         add_mapping_summary(count_matrix_anndata)
+        add_utr_bandwidths(count_matrix_anndata)
         _write(count_matrix_anndata, out, matrix="peaks", **kde, **settings)
 
 

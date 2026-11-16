@@ -729,7 +729,6 @@ def _edit_distances(sequences: npt.NDArray[np.uint8], pattern: str) -> npt.NDArr
 # The columns of the qc report, in order; whole numbers among them come first.
 REPORT_COUNTS = (
     "steps",
-    "bandwidth",
     "cells",
     "sites",
     "utrs",
@@ -783,6 +782,9 @@ def report_table(reports: Mapping[str, Mapping[str, Any]]) -> pd.DataFrame:
     table = table[[column for column in REPORT_COLUMNS if column in table]]
     counts = [column for column in REPORT_COUNTS if column in table]
     table[counts] = table[counts].astype("Int64")
+    if "bandwidth" in table:  # a number of nt, or a rule such as scott:0.5
+        bandwidths = table["bandwidth"].map(lambda value: value if pd.isna(value) else str(value))
+        table["bandwidth"] = bandwidths.astype("string")
     table.index.name = "file"
     return table
 

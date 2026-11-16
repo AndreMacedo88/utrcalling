@@ -149,7 +149,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         label_batches: bool | str | None = None,
         alignments: str | list[str] | None = None,
         strandedness: str | None = None,
-        kde_bandwidth: int = 12,
+        kde_bandwidth: kde_options.Bandwidth = 12,
         kde_kernel: str = "gaussian",
     ) -> None:
         """Initialize the protocol with pipeline configuration.
@@ -167,7 +167,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 'unstranded'). Only used by stranded bulk protocols (e.g. TruSeq);
                 ignored by protocols that fix their own strand convention.
             kde_bandwidth: Bandwidth of the KDE used to collapse UTR sizes into
-                consensus peaks. The default of 12 is tuned for 3'-end-enriched
+                consensus peaks: a number of nt, or a rule that sets one per UTR
+                (see peak_calling.utr_bandwidth). The default of 12 is tuned for
+                3'-end-enriched
                 assays, where reads pile within a few bp of a true
                 polyadenylation site. Random-fragmentation libraries have a far
                 broader per-site spread and need a wider kernel, otherwise the
@@ -668,7 +670,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
         alignments: str | list[str] | None = None,
         annotations: str | pd.DataFrame | None = None,
         strandedness: str | None = None,
-        kde_bandwidth: int = 12,
+        kde_bandwidth: kde_options.Bandwidth = 12,
         kde_kernel: str = "gaussian",
     ) -> None:
 
@@ -912,7 +914,7 @@ class ProtocolCapseq(ProtocolFivePrime):
         alignments: str | list[str] | None = None,
         annotations: str | pd.DataFrame | None = None,
         strandedness: str | None = None,
-        kde_bandwidth: int = 12,
+        kde_bandwidth: kde_options.Bandwidth = 12,
         kde_kernel: str = "gaussian",
     ) -> None:
 

@@ -7,13 +7,18 @@ from typing import Annotated
 from cyclopts import Parameter
 
 from utrcalling.commands.options import Cores, KdeKernel
+from utrcalling.commands.options import bandwidth as read_bandwidth
+from utrcalling.core.protocols.kde_options import Bandwidth
 
 
 def peaks(
     input_path: str,
     out_path: str,
     *,
-    bandwidth: Annotated[int, Parameter(name=("--bandwidth", "-b"))] = 12,
+    bandwidth: Annotated[
+        Bandwidth,
+        Parameter(name=("--bandwidth", "-b"), converter=read_bandwidth, metavar="NT|RULE"),
+    ] = 12,
     kde_kernel: KdeKernel = "gaussian",
     cores: Cores = None,
 ) -> None:
@@ -33,7 +38,8 @@ def peaks(
     Args:
         input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.
         out_path: Where to write the table (.tsv).
-        bandwidth: KDE bandwidth of the peak calling.
+        bandwidth: KDE bandwidth of the peak calling: a number of nt, or a rule
+            (see run --help), whose value for each UTR the table gives.
     """
     from utrcalling.core import helpers, provenance, storage
     from utrcalling.core import peak_calling_anndata as pc

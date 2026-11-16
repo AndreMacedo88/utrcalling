@@ -335,3 +335,37 @@ def generate_count_matrix_anndata(
 
     count_matrix_anndata = anndata.AnnData(X=count_matrix, var=var, obs=obs)
     return count_matrix_anndata
+
+
+def utr_bandwidths(utr_sizes: pd.DataFrame, bandwidth: str) -> pd.Series:
+    """The bandwidth that a rule gives each UTR's KDE, from its molecules' sizes.
+
+    Groups the molecules as :func:`generate_counts_and_anno` does, without a
+    pandas groupby (which copies every group), and sorts each UTR's sizes, as
+    peak calling does, so the values match those of `call-peaks` exactly.
+
+    Args:
+        utr_sizes: Flat DataFrame with columns (utr_name, observation_id, utr_size).
+        bandwidth: A rule, such as ``scott:0.5`` (see peak_calling.utr_bandwidth).
+
+    Returns:
+        Each UTR's bandwidth (NaN for 3 molecules or fewer), indexed by UTR name.
+    """
+    from utrcalling.core.protocols.peak_calling import utr_bandwidth
+
+    utr_col = utr_sizes["utr_name"]
+    if not isinstance(utr_col.dtype, pd.CategoricalDtype):
+        utr_col = utr_col.astype("category")
+    codes = utr_col.cat.codes.to_numpy()
+    sizes = utr_sizes["utr_size"].to_numpy()
+    named = codes >= 0  # rows without a UTR name (code -1) belong to no UTR
+    codes, sizes = codes[named], sizes[named]
+    order = np.lexsort((sizes, codes))  # by UTR, then size
+    codes, sizes = codes[order], sizes[order]
+    present, starts = np.unique(codes, return_index=True)
+    bounds = np.append(starts, len(codes))
+    values = [
+        utr_bandwidth(sizes[bounds[i] : bounds[i + 1]], bandwidth) for i in range(len(present))
+    ]
+    names = np.asarray(utr_col.cat.categories)[present]
+    return pd.Series(values, index=pd.Index(names, name="utr_name"), dtype=np.float64)

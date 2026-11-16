@@ -15,6 +15,7 @@ import scipy.sparse
 
 from utrcalling.core import module_log
 from utrcalling.core import peak_calling_anndata as pca
+from utrcalling.core.protocols import peak_calling as pc
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
@@ -808,6 +809,57 @@ class TestKernelReachesEveryCaller(unittest.TestCase):
         for name, call in callers.items():
             with self.subTest(caller=name), self.assertRaisesRegex(ValueError, "'box'"):
                 call()
+
+
+class TestBandwidthRules(unittest.TestCase):
+    """A rule sets each UTR's bandwidth, which its sites keep in .var["bandwidth"]."""
+
+    def setUp(self):
+        # UTR0: two sites with spread; UTR1: one size only; UTR2: 3 molecules.
+        self.adata = _make_adata(
+            count_matrix=[[3, 6, 3, 2, 5, 2, 4, 1, 0], [2, 5, 2, 3, 4, 3, 4, 1, 1]],
+            utr_names=["UTR0"] * 6 + ["UTR1", "UTR2", "UTR2"],
+            utr_sizes=[40, 41, 42, 90, 91, 92, 70, 10, 20],
+            n_obs=2,
+        )
+        sizes = np.repeat([40, 41, 42, 90, 91, 92], [5, 11, 5, 5, 9, 5])
+        self.expected = {
+            "UTR0": pc.utr_bandwidth(sizes, "scott:0.5"),
+            "UTR1": 0.0,  # all 8 molecules at 70
+            "UTR2": np.nan,  # 3 molecules take their median
+        }
+
+    def test_both_callers_record_each_utrs_bandwidth(self):
+        for call_peaks in (pca.peak_call_anndata, pca.peak_call_anndata_parallel):
+            with self.subTest(caller=call_peaks.__name__):
+                peaks = call_peaks(self.adata, "kde", bandwidth="scott:0.5", kernel="linear")
+                expected = peaks.var.utr_name.map(self.expected).to_numpy(np.float64)
+                np.testing.assert_array_equal(peaks.var.bandwidth.to_numpy(), expected)
+                self.assertListEqual(peaks.var.utr_size.tolist(), [41, 91, 70, 10])
+                self.assertEqual(peaks.X.sum(), self.adata.X.sum())
+
+    def test_a_number_adds_no_column(self):
+        peaks = pca.peak_call_anndata_parallel(self.adata, "kde", bandwidth="2", n_jobs=1)
+        self.assertNotIn("bandwidth", peaks.var)
+
+    def test_the_peak_table_gives_each_utrs_bandwidth(self):
+        for bandwidth, expected in (
+            (2, {"UTR0": 2.0, "UTR1": 2.0, "UTR2": np.nan}),
+            ("scott:0.5", self.expected),
+        ):
+            table = pca.peak_table(self.adata, bandwidth=bandwidth, n_jobs=1, kernel="linear")
+            with self.subTest(bandwidth=bandwidth):
+                np.testing.assert_array_equal(
+                    table.bandwidth.to_numpy(), table.utr_name.map(expected).to_numpy(np.float64)
+                )
+        self.assertListEqual(list(table.columns)[4:7], ["utr_share", "utr_sites", "bandwidth"])
+
+    def test_bandwidths_are_checked_before_any_work(self):
+        with self.assertRaisesRegex(ValueError, "bandwidth 'wide'"):
+            pca.peak_call_anndata_parallel(self.adata, "kde", bandwidth="wide")
+        with self.assertRaisesRegex(ValueError, "must be above 0"):
+            pca.peak_table(self.adata, bandwidth=0)
+        self.assertIs(pca.peak_call_anndata(self.adata, "kde", bandwidth="0"), self.adata)
 
 
 if __name__ == "__main__":

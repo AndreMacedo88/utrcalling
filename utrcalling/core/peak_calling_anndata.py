@@ -22,8 +22,11 @@ from tqdm import tqdm
 
 from utrcalling.core import anndata_processing, helpers, module_log
 from utrcalling.core.helpers import JOBLIB_DEFAULT_BACKEND
-from utrcalling.core.protocols.kde_options import check_kernel
-from utrcalling.core.protocols.peak_calling import call_peaks_using_kernel_density_estimator
+from utrcalling.core.protocols.kde_options import Bandwidth, check_kernel, parse_bandwidth
+from utrcalling.core.protocols.peak_calling import (
+    call_peaks_using_kernel_density_estimator,
+    utr_bandwidth,
+)
 
 # ---------------------------------------------------------------------------
 # Shared per-UTR peak calling logic (module-level for joblib picklability)
@@ -31,7 +34,7 @@ from utrcalling.core.protocols.peak_calling import call_peaks_using_kernel_densi
 
 
 def _peak_call_single_utr(
-    adata_utr: ad.AnnData, bandwidth: float, kernel: str = "gaussian"
+    adata_utr: ad.AnnData, bandwidth: Bandwidth, kernel: str = "gaussian"
 ) -> tuple[npt.NDArray[Any], pd.DataFrame]:
     """Run KDE peak calling on a single UTR slice of an AnnData.
 
@@ -40,13 +43,13 @@ def _peak_call_single_utr(
 
     Args:
         adata_utr: AnnData subset for one UTR (all peaks within that UTR).
-        bandwidth: KDE bandwidth parameter.
+        bandwidth: KDE bandwidth: a number of nt, or a rule.
         kernel: The KDE's kernel.
 
     Returns:
         A tuple of ``(count_matrix, var_df)`` where *count_matrix* is a 2-D
         numpy array (obs x new_peaks) and *var_df* is the corresponding
-        ``.var`` DataFrame.
+        ``.var`` DataFrame, with the UTR's ``bandwidth`` if a rule set it.
     """
     utr_var = adata_utr.var.iloc[0]
 
@@ -71,6 +74,8 @@ def _peak_call_single_utr(
     # The counts are summed per peak in size order: label the peaks in that order.
     # int64, as in the count matrices of run and call-peaks.
     utr_var_new["utr_size"] = np.sort(peak_sizes.unique()).astype(np.int64)
+    if isinstance(bandwidth, str):
+        utr_var_new["bandwidth"] = utr_bandwidth(umi_utr_sizes.to_numpy(), bandwidth)
 
     return mtx_new.to_numpy(), utr_var_new
 
@@ -88,7 +93,7 @@ def _peak_call_single_utr(
 def _peak_call_single_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
-    bandwidth: float,
+    bandwidth: Bandwidth,
     kernel: str = "gaussian",
 ) -> tuple[npt.NDArray[Any] | scipy.sparse.spmatrix, pd.DataFrame]:
     """Per-UTR peak-calling on raw ``(X, var)`` slices.
@@ -141,6 +146,8 @@ def _peak_call_single_utr_compact(
     # The counts are summed per peak in size order: label the peaks in that order.
     # int64, as in the count matrices of run and call-peaks.
     utr_var_new["utr_size"] = np.sort(peak_sizes.unique()).astype(np.int64)
+    if isinstance(bandwidth, str):  # the bandwidth the rule gives this UTR
+        utr_var_new["bandwidth"] = utr_bandwidth(umi_utr_sizes.to_numpy(), bandwidth)
 
     return new_mtx, utr_var_new
 
@@ -214,14 +221,15 @@ def _pas_table_per_utr_compact(
 def _peak_stats_per_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
-    bandwidth: float,
+    bandwidth: Bandwidth,
     kernel: str = "gaussian",
 ) -> pd.DataFrame:
     """The peaks of one UTR's raw sizes, with the spread of the sizes in each peak.
 
     Returns:
-        A row per peak: ``utr_size`` (the peak), ``molecules``, and the mean,
-        standard deviation, minimum and maximum of its molecules' raw sizes.
+        A row per peak: ``utr_size`` (the peak), ``molecules``, the UTR's
+        ``bandwidth`` (see peak_calling.utr_bandwidth), and the mean, standard
+        deviation, minimum and maximum of its molecules' raw sizes.
     """
     counts = np.asarray(X_sub.sum(axis=0)).ravel().astype(np.int64)
     sizes = var_sub.utr_size.to_numpy(dtype=np.int64)[counts > 0]
@@ -245,6 +253,7 @@ def _peak_stats_per_utr_compact(
         sizes_in["count"] * (sizes_in["size"] - sizes_in["peak"].map(stats["size_mean"])) ** 2
     )
     stats["size_sd"] = np.sqrt(sizes_in.groupby("peak")["squares"].sum() / stats["molecules"])
+    stats["bandwidth"] = utr_bandwidth(molecules, bandwidth)
     stats.index.name = "utr_size"
     return stats.reset_index()
 
@@ -260,7 +269,7 @@ CompactUtrItem = tuple[int, str, Any, pd.DataFrame]
 
 
 def _peak_call_utr_batch(
-    batch: list[CompactUtrItem], bandwidth: float, kernel: str = "gaussian"
+    batch: list[CompactUtrItem], bandwidth: Bandwidth, kernel: str = "gaussian"
 ) -> list[tuple[int, npt.NDArray[Any], pd.DataFrame]]:
     out = []
     for orig_idx, _utr_name, X_sub, var_sub in batch:
@@ -290,7 +299,7 @@ def _pas_table_utr_batch(
 
 
 def _peak_stats_utr_batch(
-    batch: list[CompactUtrItem], bandwidth: float, kernel: str = "gaussian"
+    batch: list[CompactUtrItem], bandwidth: Bandwidth, kernel: str = "gaussian"
 ) -> list[tuple[int, pd.DataFrame]]:
     return [
         (orig_idx, _peak_stats_per_utr_compact(X_sub, var_sub, bandwidth, kernel))
@@ -353,7 +362,7 @@ def _build_compact_batches(
 def peak_call_anndata_parallel(
     adata: ad.AnnData,
     method: str,
-    bandwidth: float = 1,
+    bandwidth: Bandwidth = 1,
     n_jobs: int | None = None,
     kernel: str = "gaussian",
 ) -> ad.AnnData:
@@ -368,7 +377,10 @@ def peak_call_anndata_parallel(
         adata: AnnData with UMI counts in ``.X`` and UTR metadata in
             ``.var`` (must contain ``utr_name``, ``gene_name``, ``utr_size``).
         method: Peak calling method (currently only ``"kde"``).
-        bandwidth: KDE bandwidth. ``0`` means no peak calling is performed.
+        bandwidth: KDE bandwidth: a number of nt, or a rule that sets one per
+            UTR (see peak_calling.utr_bandwidth), whose value goes to the
+            sites' ``bandwidth`` column. ``0`` means no peak calling is
+            performed.
         n_jobs: Worker process count. ``None`` falls back to
             JOBLIB_DEFAULT_N_JOBS; non-positive resolves to all-but-one core.
         kernel: The KDE's kernel, one of kde_options.KERNELS.
@@ -381,6 +393,7 @@ def peak_call_anndata_parallel(
     if method.lower() != "kde":
         raise NotImplementedError(f"Peak calling method {method!r} is not implemented: use 'kde'.")
     check_kernel(kernel)
+    bandwidth = parse_bandwidth(bandwidth, allow_zero=True)
     if bandwidth == 0:
         logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
@@ -435,7 +448,7 @@ def peak_call_anndata_parallel(
 def peak_call_anndata(
     adata: ad.AnnData,
     method: str,
-    bandwidth: float = 1,
+    bandwidth: Bandwidth = 1,
     min_umis: int | None = None,
     kernel: str = "gaussian",
 ) -> ad.AnnData:
@@ -450,7 +463,10 @@ def peak_call_anndata(
         adata: AnnData with UMI counts in ``.X`` and UTR metadata in
             ``.var`` (must contain ``utr_name``, ``gene_name``, ``utr_size``).
         method: Peak calling method (currently only ``"kde"``).
-        bandwidth: KDE bandwidth. ``0`` means no peak calling is performed.
+        bandwidth: KDE bandwidth: a number of nt, or a rule that sets one per
+            UTR (see peak_calling.utr_bandwidth), whose value goes to the
+            sites' ``bandwidth`` column. ``0`` means no peak calling is
+            performed.
         min_umis: If set, UTRs with fewer total UMIs are skipped.
         kernel: The KDE's kernel, one of kde_options.KERNELS.
 
@@ -462,6 +478,7 @@ def peak_call_anndata(
     if method.lower() != "kde":
         raise NotImplementedError(f"Peak calling method {method!r} is not implemented: use 'kde'.")
     check_kernel(kernel)
+    bandwidth = parse_bandwidth(bandwidth, allow_zero=True)
     if bandwidth == 0:
         logger.notice("Using Bandwidth = 0 means no changes were made")
         return adata
@@ -714,7 +731,10 @@ def pas_distance_table(
 
 
 def peak_table(
-    adata: ad.AnnData, bandwidth: float = 12, n_jobs: int | None = None, kernel: str = "gaussian"
+    adata: ad.AnnData,
+    bandwidth: Bandwidth = 12,
+    n_jobs: int | None = None,
+    kernel: str = "gaussian",
 ) -> pd.DataFrame:
     """The peaks that a bandwidth calls from raw sizes, and how spread out each one is.
 
@@ -725,7 +745,8 @@ def peak_table(
     Args:
         adata: Raw-sizes count matrix, with ``utr_name``, ``utr_size`` and
             optionally ``gene_name`` in ``.var``.
-        bandwidth: KDE bandwidth of the peak calling.
+        bandwidth: KDE bandwidth of the peak calling: a number of nt, or a
+            rule (see peak_calling.utr_bandwidth).
         n_jobs: Worker process count for the per-UTR loop.
         kernel: The KDE's kernel, one of kde_options.KERNELS.
 
@@ -733,11 +754,13 @@ def peak_table(
         A row per peak, indexed by its site name (as `call-peaks` names it),
         in UTR order, with ``gene_name`` (if ``.var`` has it), ``utr_name``,
         ``utr_size`` (the peak), ``molecules``, ``utr_share`` (of the UTR's
-        molecules), ``utr_sites`` (peaks in the UTR), and the ``size_mean``,
-        ``size_sd`` (weighted by molecules), ``size_min`` and ``size_max`` of
-        the raw sizes it collects.
+        molecules), ``utr_sites`` (peaks in the UTR), ``bandwidth`` (the UTR's;
+        missing for 3 molecules or fewer, which take their median), and the
+        ``size_mean``, ``size_sd`` (weighted by molecules), ``size_min`` and
+        ``size_max`` of the raw sizes it collects.
     """
     check_kernel(kernel)
+    bandwidth = parse_bandwidth(bandwidth)
     n_workers = helpers.resolve_n_jobs(n_jobs)
     has_molecules = np.asarray(adata.X.sum(axis=0)).ravel() > 0
     per_utr_inputs = _extract_per_utr_inputs(adata[:, has_molecules])
@@ -764,7 +787,7 @@ def peak_table(
         stats["utr_share"] = stats["molecules"] / stats["molecules"].sum()
         stats["utr_sites"] = len(stats)
         tables.append(stats)
-    columns = [*annotations, "utr_size", "molecules", "utr_share", "utr_sites"]
+    columns = [*annotations, "utr_size", "molecules", "utr_share", "utr_sites", "bandwidth"]
     columns += ["size_mean", "size_sd", "size_min", "size_max"]
     if not tables:
         return pd.DataFrame(columns=columns, index=pd.Index([], name="site"))
@@ -776,7 +799,7 @@ def peak_table(
 def score_bandwidths(
     adata: ad.AnnData,
     genome: str | pybedtools.BedTool,
-    bandwidths: Sequence[float],
+    bandwidths: Sequence[Bandwidth],
     hamming: int = 1,
     n_jobs: int | None = None,
     kernel: str = "gaussian",
