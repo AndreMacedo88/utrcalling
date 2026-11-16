@@ -14,6 +14,8 @@ from utrcalling.core import helpers
 from utrcalling.core.module_log import module_logger
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     import anndata
 
 
@@ -171,3 +173,15 @@ def write_table(table: pd.DataFrame, filename: str) -> None:
         filename: Path of the text file.
     """
     table.to_csv(filename, sep="\t")
+
+
+def write_fasta(records: Iterable[tuple[str, str]], filename: str) -> None:
+    """Write sequences as FASTA, each on one line after its header.
+
+    Args:
+        records: (header, sequence) pairs; the header without its ">".
+        filename: Path of the FASTA file.
+    """
+    with open(filename, "w") as fasta:
+        for header, sequence in records:
+            fasta.write(f">{header}\n{sequence}\n")

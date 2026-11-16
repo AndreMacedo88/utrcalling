@@ -64,6 +64,7 @@ GROUPED_COMMANDS = {
     ("process", "concatenate"): ["-i", "a.h5ad", "b.h5ad", "-o", "out.h5ad"],
     ("tools", "to-fractions"): ["in.h5ad", "out.h5ad"],
     ("tools", "mean-sizes"): ["in.h5ad", "out.h5ad"],
+    ("tools", "site-sequences"): ["in.h5ad", "genome.fa", "out.tsv"],
     ("qc", "report"): ["a.h5ad", "b.h5ad", "-o", "report.tsv"],
     ("qc", "cells"): ["in.h5ad", "out.tsv"],
     ("qc", "batches"): ["in.h5ad", "out", "-g", "batch"],
@@ -657,6 +658,66 @@ class TestQcCommands(unittest.TestCase):
         peaks(str(self.tmp / "sites.h5ad"), str(self.tmp / "out.tsv"), bandwidth=12, cores=1)
         table = pd.read_csv(self.tmp / "out.tsv", sep="\t", index_col="site")
         self.assertEqual(table.molecules.sum(), 24)
+
+
+class TestSiteSequencesCommand(unittest.TestCase):
+    """`tools site-sequences` writes a table or FASTA, by the output's ending."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        # Two 5' sites of UTR A on chromosome 1 (1001-1500, + strand), at 1401
+        # and 1301, and one of UTR B on chromosome 2, which the genome lacks.
+        var = pd.DataFrame(
+            {
+                "utr_name": ["A", "A", "B"],
+                "utr_size": [100, 200, 50],
+                "gene_name": ["G", "G", "H"],
+                "chrom": ["1", "1", "2"],
+                "start": 1001,
+                "end": 1500,
+                "strand": "+",
+            },
+            index=["G_1-100", "G_2-200", "H_1-50"],
+        )
+        counts = np.array([[4, 1, 3], [2, 2, 0]], dtype=np.int32)
+        ad.AnnData(X=counts, var=var).write_h5ad(self.tmp / "sites.h5ad")
+        genome = list("A" * 1600)
+        genome[1398:1402] = "GCAA"  # 1399-1402: C at -1 and A at +1 of the site at 1401
+        genome[1298:1302] = "TTTG"  # 1299-1302: T at -1 and +1 of the site at 1301
+        (self.tmp / "genome.fa").write_text(f">chr1\n{''.join(genome)}\n")
+
+    def _run(self, out, *options):
+        from utrcalling import runtime
+
+        args = [self.tmp / "sites.h5ad", self.tmp / "genome.fa", self.tmp / out]
+        argv = ["utrcalling", "tools", "site-sequences", *map(str, args), *options]
+        with (
+            mock.patch.object(sys, "argv", argv),
+            self.assertLogs("utrcalling", level="INFO") as logs,
+        ):
+            runtime.main()
+        return logs.output
+
+    def test_a_table(self):
+        logs = self._run(
+            "tss.tsv", "--utr-end", "five_prime", "--upstream", "2", "--downstream", "2"
+        )
+        table = pd.read_csv(self.tmp / "tss.tsv", sep="\t", index_col="site")
+        self.assertListEqual(table.position.tolist(), [1401, 1301, 1451])
+        self.assertListEqual(table.upstream.tolist()[:2], ["GC", "TT"])
+        self.assertListEqual(table.downstream.tolist()[:2], ["AA", "TG"])
+        self.assertTrue(pd.isna(table.upstream.iloc[2]))
+        self.assertIn("Wrote the sequences around 2 sites", logs[-2])
+        self.assertIn("No sequence for 1 sites on chromosomes that the genome lacks", logs[-1])
+
+    def test_fasta_for_motif_tools(self):
+        self._run("tss.fa", "--utr-end", "five_prime", "--upstream", "2", "--downstream", "2")
+        self.assertEqual(
+            (self.tmp / "tss.fa").read_text(),
+            ">G_1-100 1:1401(+) upstream=2 downstream=2\nGCAA\n"
+            ">G_2-200 1:1301(+) upstream=2 downstream=2\nTTTG\n",
+        )
 
 
 class TestPytestFailsOnUtrcallingDeprecations(unittest.TestCase):

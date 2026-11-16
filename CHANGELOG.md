@@ -62,6 +62,12 @@ a new major version can change results or require changes to your command lines.
   bandwidths that are not whole numbers (`-b 7.5`). For 5' Cap-seq data of
   neural stem cells treated with interferon, Eugenia Guerrero Aruffo found
   `scott:0.5` with the linear kernel best.
+- **`tools site-sequences`** writes the genome sequence around each site,
+  as FASTA for motif tools (for a `.fa`, `.fasta` or `.fna` output) or as a
+  table, for `--upstream` and `--downstream` nt (50 each by default).
+  Positions count from the transcript's end, as each field numbers them: for
+  5' data, +1 is the transcription start site; for 3' data, -1 is the
+  cleavage site. In Python, `genome.site_sequences()` returns the table.
 - **Quality control commands**, which write tables and leave the count
   matrices unchanged:
   - `qc report`: a row per count matrix of any step, with what it holds and

@@ -917,6 +917,18 @@ class TestQcCommands(_InTempDir):
         cls.placed_positions = positions
         (cls.tmp / "genome.fa").write_text(f">1\n{cls.genome}\n")
         utrcalling("qc", "priming", "placed.h5ad", "genome.fa", "priming.tsv", cwd=cls.tmp)
+        utrcalling(
+            "tools",
+            "site-sequences",
+            "placed.h5ad",
+            "genome.fa",
+            "sequences.tsv",
+            "--upstream",
+            "8",
+            "--downstream",
+            "5",
+            cwd=cls.tmp,
+        )
 
     def _table(self, name, index_col):
         return pd.read_csv(self.tmp / name, sep="\t", comment="#", index_col=index_col)
@@ -978,6 +990,20 @@ class TestQcCommands(_InTempDir):
                 self.assertEqual(row.known_site_distance, distance)
                 self.assertEqual(row.near_known_site, distance <= 20)
         self.assertGreater(known.near_known_site.sum(), len(known) / 2 - 1)
+
+    def test_site_sequences(self):
+        table = self._table("sequences.tsv", "site")
+        np.testing.assert_array_equal(table.position, self.placed_positions)
+        complement = str.maketrans("ACGT", "TGCA")
+        for site, row in table.iterrows():
+            p = row.position  # the last transcribed base: -1
+            if row.strand == "+":
+                upstream, downstream = self.genome[p - 8 : p], self.genome[p : p + 5]
+            else:  # read leftwards, complemented
+                upstream = self.genome[p - 1 : p + 7].translate(complement)[::-1]
+                downstream = self.genome[p - 6 : p - 1].translate(complement)[::-1]
+            with self.subTest(site=site):
+                self.assertEqual((row.upstream, row.downstream), (upstream, downstream))
 
     def test_priming(self):
         priming = self._table("priming.tsv", "site")

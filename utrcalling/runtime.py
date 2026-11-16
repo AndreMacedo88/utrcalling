@@ -18,7 +18,7 @@ from utrcalling.commands.qc import (
     report,
     score_bandwidths,
 )
-from utrcalling.commands.tools import mean_sizes, to_fractions
+from utrcalling.commands.tools import mean_sizes, site_sequences, to_fractions
 
 PIPELINE = Group("Pipeline", sort_key=0)
 COMMAND_GROUPS = Group("Command groups", sort_key=1)
@@ -58,12 +58,16 @@ app.command(process)
 
 tools = App(
     name="tools",
-    help="Compute the measures to analyse from site counts: site usage, mean UTR sizes.",
+    help=(
+        "Compute the measures to analyse from site counts: site usage, mean UTR sizes, "
+        "and the sequences around sites."
+    ),
     group=COMMAND_GROUPS,
     sort_key=1,
 )
 tools.command(to_fractions.to_fractions, name="to-fractions", sort_key=0)
 tools.command(mean_sizes.mean_sizes, name="mean-sizes", sort_key=1)
+tools.command(site_sequences.site_sequences, name="site-sequences", sort_key=2)
 app.command(tools)
 
 qc = App(

@@ -160,7 +160,7 @@ matrix and `tools` then computes the measures to analyse from it:
 | `map-reads`, then `count` | The same, in two steps |
 | `call-peaks` | The peaks of a raw-sizes count matrix (from `run --raw-sizes`), with one or more KDE bandwidths |
 | `process ...` | Prepare the count matrix: filter sites, keep multi-site UTRs, number sites again, join experiments |
-| `tools ...` | Compute the measures to analyse: site usage fractions, mean UTR sizes |
+| `tools ...` | Compute the measures to analyse: site usage fractions, mean UTR sizes, the sequences around sites |
 | `qc ...` | Quality control tables, at any step |
 
 `utrcalling --help` lists them, `utrcalling process --help` lists a group's
@@ -302,6 +302,12 @@ utrcalling tools to-fractions named.h5ad fractions.h5ad
 
 # Mean UTR size per cell and UTR
 utrcalling tools mean-sizes named.h5ad mean_sizes.h5ad
+
+# The genome around each site, for motif analyses (FASTA, or a table for .tsv).
+# Positions count from the transcript's end: for 5' data +1 is the start site,
+# for 3' data -1 is the cleavage site; --upstream reads before it.
+utrcalling tools site-sequences named.h5ad genome.fa sites.fa \
+    --upstream 50 --downstream 50
 ```
 
 ### Quality control

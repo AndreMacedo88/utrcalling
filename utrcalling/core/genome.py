@@ -162,3 +162,64 @@ def read_sequences(
             sequences.append(sequence)
     found = sites["chrom"].map(names).notna().to_numpy()
     return np.array(sequences, dtype=f"<U{length}"), found
+
+
+def site_sequences(
+    adata: anndata.AnnData,
+    genome: str | Path,
+    *,
+    upstream: int = 50,
+    downstream: int = 50,
+    utr_end: str | None = None,
+) -> pd.DataFrame:
+    """The genome sequence around each site, for motif and sequence analyses.
+
+    Positions count from the transcript's end, as each field numbers them.
+    For a 5' site (a transcription start site), +1 is the site and -1 the base
+    before it, outside the transcript. For a 3' site (a cleavage and
+    polyadenylation site), -1 is the site, the transcript's last base, and +1
+    the base after it. ``upstream`` holds -*upstream* to -1, and
+    ``downstream`` +1 to +*downstream*, in transcript orientation.
+
+    Args:
+        adata: Count matrix at UTR level (sites or raw sizes), with
+            ``utr_name``, ``utr_size``, ``chrom``, ``start``, ``end`` and
+            ``strand`` in ``.var``.
+        genome: Genome FASTA of the annotation (see :func:`read_sequences`).
+        upstream: How many nt to read before the transcript's end.
+        downstream: How many nt to read after it.
+        utr_end: Where the UTR sizes count from (see :func:`site_positions`).
+            By default, what the matrix records.
+
+    Returns:
+        The columns of :func:`site_table`, then ``upstream`` and
+        ``downstream``, missing for sites on chromosomes that the genome lacks.
+
+    Raises:
+        ValueError: If a length is negative or both are 0, if the matrix holds
+            fractions or mean sizes, or for the reasons of
+            :func:`positioned_utr_end` and :func:`read_sequences`.
+    """
+    if upstream < 0 or downstream < 0 or upstream + downstream == 0:
+        raise ValueError(
+            f"upstream {upstream} and downstream {downstream}: read 0 nt or more on "
+            "each side, and 1 or more in all"
+        )
+    matrix = provenance.recorded(adata).get("matrix")
+    if matrix in ("fractions", "mean_sizes"):
+        raise ValueError(
+            f"This matrix holds {matrix.replace('_', ' ')}: give the count matrix it comes from."
+        )
+    utr_end = positioned_utr_end(adata, utr_end)
+    table = site_table(adata, site_positions(adata.var, utr_end))
+    # Offset 0 is the site: +1 for 5' sites, -1 for 3' sites.
+    first = -upstream if utr_end == "five_prime" else 1 - upstream
+    sequences, found = read_sequences(genome, table, first, first + upstream + downstream)
+    for column, part in (
+        ("upstream", slice(None, upstream)),
+        ("downstream", slice(upstream, None)),
+    ):
+        values = pd.array([sequence[part] for sequence in sequences], dtype="string")
+        values[~found] = pd.NA
+        table[column] = values
+    return table

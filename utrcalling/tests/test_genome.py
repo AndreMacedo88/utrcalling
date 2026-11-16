@@ -119,6 +119,102 @@ class TestReadSequences(unittest.TestCase):
             self._read([("1", 5, "+")], 2, 2)
 
 
+def _sites(utr_end, sizes, strands, chrom="1", start=1, end=30):
+    """A count matrix of sites in one UTR on chrom:start-end, recording its UTR end."""
+    var = pd.DataFrame(
+        {
+            "utr_name": "U",
+            "utr_size": sizes,
+            "chrom": chrom,
+            "start": start,
+            "end": end,
+            "strand": strands,
+        },
+        index=[f"G_{i}-{size}" for i, size in enumerate(sizes)],
+    )
+    adata = ad.AnnData(X=scipy.sparse.csr_matrix(np.ones((1, len(sizes)))), var=var)
+    with mock.patch.object(sys, "argv", ["utrcalling", "run"]):
+        provenance.record(adata, matrix="peaks", utr_end=utr_end, summarization_level="utr")
+    return adata
+
+
+class TestSiteSequences(unittest.TestCase):
+    """Sequences around sites, numbered from the transcript's end."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.fasta = self.tmp / "genome.fa"
+        self.fasta.write_text(f">1\n{CHROM_1}\n")
+
+    def _sequences(self, adata, **lengths):
+        table = genome.site_sequences(adata, self.fasta, **lengths)
+        return list(zip(table.upstream, table.downstream, strict=True))
+
+    def test_five_prime_sites_start_the_downstream_sequence(self):
+        # Both sites at position 15 (G), the first transcribed base (+1). The
+        # minus-strand transcript runs leftwards: its promoter is 16-18 (TTT).
+        adata = _sites("five_prime", sizes=[16, 15], strands=["+", "-"])
+        table = genome.site_sequences(adata, self.fasta, upstream=3, downstream=3)
+        self.assertListEqual(table.position.tolist(), [15, 15])
+        self.assertListEqual(
+            list(zip(table.upstream, table.downstream, strict=True)),
+            [("GGG", "GTT"), ("AAA", "CCC")],
+        )
+
+    def test_three_prime_sites_end_the_upstream_sequence(self):
+        # Both sites at 15, the last transcribed base (-1).
+        adata = _sites("three_prime", sizes=[14, 15], strands=["+", "-"])
+        self.assertListEqual(
+            self._sequences(adata, upstream=3, downstream=3), [("GGG", "TTT"), ("AAC", "CCC")]
+        )
+
+    def test_the_initiator_of_a_start_site(self):
+        # A transcript starting at the A of CA, the most common initiator: C is
+        # -1, A +1. On the minus strand, the genome reads TG there.
+        sequence = list("G" * 60)
+        sequence[19:21] = "CA"  # positions 20-21
+        sequence[39:41] = "TG"  # positions 40-41
+        self.fasta.write_text(f">1\n{''.join(sequence)}\n")
+        # + strand: the site at 21 (size 60 - 21 + 1); - strand: at 40 (size 40).
+        adata = _sites("five_prime", sizes=[40, 40], strands=["+", "-"], end=60)
+        table = genome.site_sequences(adata, self.fasta, upstream=1, downstream=1)
+        self.assertListEqual((table.upstream + table.downstream).tolist(), ["CA", "CA"])
+
+    def test_the_polyadenylation_signal_of_a_cleavage_site(self):
+        # AATAAA ending 20 nt before the cleavage site, as the PAS lies.
+        sequence = list("C" * 100)
+        sequence[54:60] = "AATAAA"  # positions 55-60; the site at 80
+        self.fasta.write_text(f">1\n{''.join(sequence)}\n")
+        adata = _sites("three_prime", sizes=[79], strands=["+"], end=100)
+        table = genome.site_sequences(adata, self.fasta, upstream=30, downstream=5)
+        self.assertEqual(table.position.iloc[0], 80)
+        self.assertEqual(table.upstream.iloc[0].find("AATAAA") + 6, 30 - 20)
+        self.assertEqual(table.downstream.iloc[0], "CCCCC")
+
+    def test_one_side_only(self):
+        adata = _sites("five_prime", sizes=[16], strands=["+"])
+        self.assertListEqual(self._sequences(adata, upstream=0, downstream=2), [("", "GT")])
+        self.assertListEqual(self._sequences(adata, upstream=2, downstream=0), [("GG", "")])
+
+    def test_sites_on_chromosomes_the_genome_lacks(self):
+        adata = _sites("five_prime", sizes=[16, 16], strands=["+", "+"], chrom=["1", "7"])
+        table = genome.site_sequences(adata, self.fasta, upstream=1, downstream=1)
+        self.assertEqual(table.upstream.dtype, "string")
+        self.assertEqual(table.upstream.iloc[0], "G")
+        self.assertTrue(pd.isna(table.upstream.iloc[1]) and pd.isna(table.downstream.iloc[1]))
+
+    def test_invalid_requests(self):
+        adata = _sites("five_prime", sizes=[16], strands=["+"])
+        for lengths in ({"upstream": -1}, {"downstream": -5}, {"upstream": 0, "downstream": 0}):
+            with self.subTest(**lengths), self.assertRaisesRegex(ValueError, "1 or more in all"):
+                genome.site_sequences(adata, self.fasta, **lengths)
+        with mock.patch.object(sys, "argv", ["utrcalling", "tools"]):
+            provenance.record(adata, matrix="fractions")
+        with self.assertRaisesRegex(ValueError, "holds fractions: give the count matrix"):
+            genome.site_sequences(adata, self.fasta)
+
+
 class TestPositionedUtrEnd(unittest.TestCase):
     def setUp(self):
         var = pd.DataFrame({"utr_name": ["U"], "utr_size": [5]}, index=["s"])
