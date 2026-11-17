@@ -499,7 +499,7 @@ def peak_call_anndata_parallel(
     check_kernel(kernel)
     bandwidth = parse_bandwidth(bandwidth, allow_zero=True)
     if bandwidth == 0:
-        logger.notice("Using Bandwidth = 0 means no changes were made")
+        logger.info("Using Bandwidth = 0 means no changes were made")
         return adata
     caller = get_caller(method, bandwidth=bandwidth, kernel=kernel)
 
@@ -588,7 +588,7 @@ def peak_call_anndata(
     check_kernel(kernel)
     bandwidth = parse_bandwidth(bandwidth, allow_zero=True)
     if bandwidth == 0:
-        logger.notice("Using Bandwidth = 0 means no changes were made")
+        logger.info("Using Bandwidth = 0 means no changes were made")
         return adata
     caller = get_caller(method, bandwidth=bandwidth, kernel=kernel)
 

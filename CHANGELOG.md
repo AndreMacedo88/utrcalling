@@ -7,6 +7,13 @@ a new major version can change results or require changes to your command lines.
 
 ### Changed
 
+- **Logs with rich.** In a terminal, the messages show their time and level
+  in colour, with rich, which the command line already used. Outside a
+  terminal, such as in a workflow's log, they are plain lines that do not
+  wrap, as in the log file. coloredlogs, verboselogs and colorama are no longer
+  installed. In Python, `module_logger()` returns a standard `logging.Logger`;
+  its levels NOTICE and SUCCESS are gone.
+
 - **Fewer dependencies.** scanpy and pympler are no longer installed with
   utrcalling, which never imported scanpy: installs are smaller and faster.
   Install scanpy into the same environment for your analyses, if you use it.

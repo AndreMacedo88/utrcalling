@@ -37,11 +37,11 @@ def map_aligned_reads_perf(lines: int) -> None:
     reads_to_map.perf_test()
     profiler.disable()
 
-    logger.success("Total internal time:")
+    logger.info("Total internal time:")
     total_time = pstats.Stats(profiler).sort_stats("tottime")
     total_time.print_stats(lines)
 
-    logger.success("Cumulative time:")
+    logger.info("Cumulative time:")
     cum_time = pstats.Stats(profiler).sort_stats("cumtime")
     cum_time.print_stats(lines)
 

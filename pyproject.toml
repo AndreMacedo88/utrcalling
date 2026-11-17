@@ -43,9 +43,7 @@ dependencies = [
     "tqdm>=4.59.0",
     "bidict>=0.22.0",
     "psutil",
-    "coloredlogs",
-    "verboselogs",
-    "colorama",
+    "rich>=13",  # the console and its logs
     "cyclopts>=5.3,<6",  # the command line; a major version changes how command lines parse
 ]
 

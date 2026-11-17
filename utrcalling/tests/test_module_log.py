@@ -1,9 +1,15 @@
+import io
 import logging
 import os
 import re
+import sys
 import tempfile
 import unittest
+from unittest import mock
 
+from rich.logging import RichHandler
+
+import utrcalling
 from utrcalling.core.module_log import log_end_run, module_logger
 
 
@@ -87,9 +93,46 @@ class TestModuleLogger(unittest.TestCase):
         self.assertIs(logger1, logger2)
 
     def test_log_end_run(self):
-        # Just ensure it runs without error
         module_logger()  # initialize first
-        log_end_run("done")
+        with self.assertLogs("utrcalling", level="INFO") as logs:
+            log_end_run("done")
+        self.assertEqual(logs.output, ["INFO:utrcalling:Job ended: done"])
+
+    def test_plain_lines_outside_a_terminal(self):
+        # Such as a workflow's log: the lines of the log file, which do not wrap.
+        stderr = io.StringIO()
+        with mock.patch.object(sys, "stderr", stderr):
+            logger = module_logger(level="warning")
+            logger.info("not shown")
+            logger.warning("a long warning " * 10)
+        (handler,) = logger.handlers
+        self.assertIs(type(handler), logging.StreamHandler)
+        self.assertEqual(handler.level, logging.WARNING)
+        (line,) = stderr.getvalue().splitlines()
+        self.assertRegex(line, r"^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d utrcalling » WARNING - ")
+        self.assertEqual(line.split(" - ", 1)[1], "a long warning " * 10)  # one line
+
+    def test_rich_lines_in_a_terminal(self):
+        with mock.patch.object(sys.stderr, "isatty", return_value=True):
+            logger = module_logger(level="debug")
+        (handler,) = logger.handlers
+        self.assertIsInstance(handler, RichHandler)
+        self.assertEqual(handler.level, logging.DEBUG)
+
+    def test_later_calls_keep_the_handlers(self):
+        logger = module_logger()
+        handlers = list(logger.handlers)
+        self.assertIs(module_logger(level="debug"), logger)
+        self.assertListEqual(logger.handlers, handlers)
+
+
+class TestShowLogo(unittest.TestCase):
+    def test_name_and_version(self):
+        stdout = io.StringIO()
+        with mock.patch.object(sys, "stdout", stdout):
+            utrcalling.show_logo()
+        self.assertIn(f"/// utrcalling \\\\\\ 🧬 v{utrcalling.__version__} 🧬", stdout.getvalue())
+        self.assertNotIn("\x1b[", stdout.getvalue())  # no colours outside a terminal
 
 
 if __name__ == "__main__":
