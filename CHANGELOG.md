@@ -121,7 +121,8 @@ a new major version can change results or require changes to your command lines.
     other group has; per pair of groups, the correlation and difference of
     their site usage.
   - `qc known-sites`: each site's distance to the nearest known site of a BED
-    file, such as the PolyASite 2.0 clusters or refTSS.
+    file, such as the PolyASite 2.0 clusters or refTSS (a first line of column
+    names, as refTSS's files have, is skipped).
   - `qc priming`: flags the sites that the genome around them could explain
     as priming artefacts. For 3' data, internal priming: 6 A's in a row, or 7
     in 10 nt, in the genome after the site. For 5' data, strand invasion: the

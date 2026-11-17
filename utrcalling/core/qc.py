@@ -336,7 +336,8 @@ def read_known_sites(path: str | Path) -> pd.DataFrame:
     Args:
         path: BED file (plain or gzipped) with chromosome, start (0-based) and
             end, and optionally name, score and strand. Lines starting with
-            ``#``, ``track`` or ``browser`` are skipped.
+            ``#``, ``track`` or ``browser`` are skipped, and a first line of
+            column names, as refTSS's files have.
 
     Returns:
         A table with ``chrom``, ``start``, ``end`` and ``strand`` (``.`` when
@@ -345,6 +346,9 @@ def read_known_sites(path: str | Path) -> pd.DataFrame:
     opener = gzip.open if str(path).endswith(".gz") else open
     with opener(path, "rt") as bed_file:
         lines = [line for line in bed_file if not line.startswith(("#", "track", "browser"))]
+    first = lines[0].split("\t") if lines else []
+    if len(first) > 1 and not first[1].strip().isdigit():  # column names
+        lines = lines[1:]
     bed = pd.read_csv(io.StringIO("".join(lines)), sep="\t", header=None, dtype={0: str})
     known = pd.DataFrame(
         {

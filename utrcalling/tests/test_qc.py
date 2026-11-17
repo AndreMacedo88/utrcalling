@@ -273,6 +273,16 @@ class TestReadKnownSites(unittest.TestCase):
         )
         pd.testing.assert_frame_equal(known, expected)
 
+    def test_a_line_of_column_names(self):
+        # As refTSS's files start.
+        path = self.tmp / "refTSS.bed"
+        path.write_text(
+            "chromosome\tstart\tend\trefTSS_ID\tscore\tstrand\nchr1\t3221101\t3221109\trfmm_1.1\t1\t+\n"
+        )
+        known = qc.read_known_sites(path)
+        self.assertListEqual(known.start.tolist(), [3221101])
+        self.assertListEqual(known.strand.tolist(), ["+"])
+
     def test_lines_without_a_strand_among_lines_with_one(self):
         path = self.tmp / "sites.bed"
         path.write_text("1\t10\t20\tsite1\t5\t-\n1\t30\t31\n")
