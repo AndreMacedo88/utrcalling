@@ -42,6 +42,12 @@ a new major version can change results or require changes to your command lines.
   utrcalling, and every command and Python function. The README is now a short
   introduction that links to it.
 
+### Fixed
+
+- **macOS.** Mapping reads, calling peaks and scoring bandwidths failed on
+  macOS unless `--cores` was given: macOS cannot tell a process which cores it
+  may use. utrcalling now uses all cores but one there.
+
 ### Development
 
 - **pre-commit** formats and lints each commit with the ruff that CI uses

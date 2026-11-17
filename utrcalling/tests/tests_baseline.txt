@@ -4,7 +4,7 @@ rootdir: /mnt/storage/mytools/utrcalling
 configfile: pyproject.toml
 testpaths: utrcalling/tests
 plugins: fast-array-utils-1.3.1, zarr-3.1.5
-collecting ... collected 883 items
+collecting ... collected 884 items
 
 utrcalling/tests/test_3'10x/test_utr_mapping.py::TestTenxTwo::test_details PASSED [  0%]
 utrcalling/tests/test_3'10x/test_utr_mapping.py::TestTenxTwo::test_length PASSED [  0%]
@@ -59,7 +59,7 @@ utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_int32
 utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_matches_loop_reference PASSED [  5%]
 utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_no_future_warnings PASSED [  5%]
 utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_non_unique_var_names PASSED [  5%]
-utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_single_peak_utr_is_one PASSED [  6%]
+utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_single_peak_utr_is_one PASSED [  5%]
 utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_sparse_input PASSED [  6%]
 utrcalling/tests/test_anndata_processing.py::TestCountsToPercentages::test_zero_row_handled PASSED [  6%]
 utrcalling/tests/test_anndata_processing.py::TestConcatenateAdata::test_fills_missing_with_zero PASSED [  6%]
@@ -117,7 +117,7 @@ utrcalling/tests/test_bulk_pe/test_utr_mapping.py::TestDeduplicateFragments::tes
 utrcalling/tests/test_bulk_pe/test_utr_mapping.py::TestDeduplicateFragments::test_preserves_first_occurrence_and_order PASSED [ 11%]
 utrcalling/tests/test_cli.py::TestCLIHelp::test_bandwidth_defaults_are_shown_as_typed PASSED [ 11%]
 utrcalling/tests/test_cli.py::TestCLIHelp::test_every_command_has_a_help_page 
-utrcalling/tests/test_cli.py::TestCLIHelp::test_every_command_has_a_help_page PASSED [ 12%]
+utrcalling/tests/test_cli.py::TestCLIHelp::test_every_command_has_a_help_page PASSED [ 11%]
 utrcalling/tests/test_cli.py::TestCLIHelp::test_group_help_lists_its_commands 
 utrcalling/tests/test_cli.py::TestCLIHelp::test_group_help_lists_its_commands PASSED [ 12%]
 utrcalling/tests/test_cli.py::TestCLIHelp::test_main_help PASSED         [ 12%]
@@ -183,7 +183,7 @@ utrcalling/tests/test_cli.py::TestSiteSequencesCommand::test_a_table PASSED [ 17
 utrcalling/tests/test_cli.py::TestSiteSequencesCommand::test_fasta_for_motif_tools PASSED [ 17%]
 utrcalling/tests/test_cli.py::TestSiteSequencesCommand::test_sites_without_a_sequence_are_left_out_of_fasta PASSED [ 17%]
 utrcalling/tests/test_cli.py::TestSiteSequencesCommand::test_the_utr_each_site_makes PASSED [ 17%]
-utrcalling/tests/test_cli.py::TestFilterUtrsCommand::test_refuses_matrices_without_counts PASSED [ 18%]
+utrcalling/tests/test_cli.py::TestFilterUtrsCommand::test_refuses_matrices_without_counts PASSED [ 17%]
 utrcalling/tests/test_cli.py::TestPytestFailsOnUtrcallingDeprecations::test_deprecation_in_other_packages_does_not_fail PASSED [ 18%]
 utrcalling/tests/test_cli.py::TestPytestFailsOnUtrcallingDeprecations::test_deprecation_in_utrcalling_code_fails PASSED [ 18%]
 utrcalling/tests/test_cli_workflows.py::TestRunCommand::test_cells_and_their_columns_come_from_the_annotation_file 
@@ -240,7 +240,7 @@ utrcalling/tests/test_cli_workflows.py::TestSiteProcessingCommands::test_filter_
 utrcalling/tests/test_cli_workflows.py::TestSiteProcessingCommands::test_fractions_sum_to_one_per_cell_and_utr PASSED [ 23%]
 utrcalling/tests/test_cli_workflows.py::TestSiteProcessingCommands::test_generate_names_overwrites_its_output PASSED [ 23%]
 utrcalling/tests/test_cli_workflows.py::TestSiteProcessingCommands::test_generated_names_number_each_genes_sites_and_add_their_size PASSED [ 23%]
-utrcalling/tests/test_cli_workflows.py::TestSiteProcessingCommands::test_grouped_thresholds_keep_the_sites_one_batch_uses PASSED [ 24%]
+utrcalling/tests/test_cli_workflows.py::TestSiteProcessingCommands::test_grouped_thresholds_keep_the_sites_one_batch_uses PASSED [ 23%]
 utrcalling/tests/test_cli_workflows.py::TestSiteProcessingCommands::test_threshold_keeps_the_sites_with_enough_of_their_utr_counts PASSED [ 24%]
 utrcalling/tests/test_cli_workflows.py::TestComputeMeanUtrSizesCommand::test_one_column_per_utr_and_the_same_cells PASSED [ 24%]
 utrcalling/tests/test_cli_workflows.py::TestComputeMeanUtrSizesCommand::test_records_its_mean_sizes PASSED [ 24%]
@@ -298,7 +298,7 @@ utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV3Synthetic::test_
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV3Synthetic::test_var_has_utr_size PASSED [ 29%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV2Synthetic::test_is_anndata PASSED [ 29%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV2Synthetic::test_nonempty PASSED [ 29%]
-utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV2Synthetic::test_shape PASSED [ 30%]
+utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV2Synthetic::test_shape PASSED [ 29%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV2Synthetic::test_sparse_matrix PASSED [ 30%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline5TenxSynthetic::test_is_anndata PASSED [ 30%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline5TenxSynthetic::test_nonempty PASSED [ 30%]
@@ -307,7 +307,7 @@ utrcalling/tests/test_core/test_pipeline.py::TestPipeline5CapseqSynthetic::test_
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline5CapseqSynthetic::test_nonempty PASSED [ 30%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline5CapseqSynthetic::test_sparse_matrix PASSED [ 30%]
 utrcalling/tests/test_core/test_pipeline.py::TestDtypePreservationSmartseq3::test_anndata_x_is_numeric PASSED [ 30%]
-utrcalling/tests/test_core/test_pipeline.py::TestDtypePreservationSmartseq3::test_filtered_utr_name_is_categorical PASSED [ 31%]
+utrcalling/tests/test_core/test_pipeline.py::TestDtypePreservationSmartseq3::test_filtered_utr_name_is_categorical PASSED [ 30%]
 utrcalling/tests/test_core/test_pipeline.py::TestDtypePreservationSmartseq3::test_filtered_utr_size_dtype PASSED [ 31%]
 utrcalling/tests/test_core/test_pipeline.py::TestDtypePreservationSmartseq3::test_mapped_observation_id_is_categorical PASSED [ 31%]
 utrcalling/tests/test_core/test_pipeline.py::TestDtypePreservationSmartseq3::test_mapped_utr_name_is_categorical PASSED [ 31%]
@@ -351,7 +351,7 @@ utrcalling/tests/test_core/test_pipeline.py::TestResolveBatchIdx::test_sample_id
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV3WithBarcodeWhitelist::test_filtered_not_empty PASSED [ 35%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV3WithBarcodeWhitelist::test_observation_ids_have_batch_suffix PASSED [ 35%]
 utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV3WithBarcodeWhitelist::test_observation_ids_in_whitelist PASSED [ 35%]
-utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV3WithBarcodeWhitelist::test_whitelist_has_batch_suffix PASSED [ 36%]
+utrcalling/tests/test_core/test_pipeline.py::TestPipeline3TenxV3WithBarcodeWhitelist::test_whitelist_has_batch_suffix PASSED [ 35%]
 utrcalling/tests/test_count_matrix.py::TestMatrix::test_length PASSED    [ 36%]
 utrcalling/tests/test_count_matrix.py::TestMatrix::test_matrix_maximum PASSED [ 36%]
 utrcalling/tests/test_count_matrix.py::TestMatrix::test_matrix_values_count PASSED [ 36%]
@@ -360,7 +360,7 @@ utrcalling/tests/test_count_matrix.py::TestVar::test_vars_values_count PASSED [ 
 utrcalling/tests/test_count_matrix.py::TestObs::test_length PASSED       [ 36%]
 utrcalling/tests/test_count_matrix.py::TestObs::test_obs_values_count PASSED [ 36%]
 utrcalling/tests/test_count_matrix.py::TestMatrixSynthetic::test_length PASSED [ 36%]
-utrcalling/tests/test_count_matrix.py::TestMatrixSynthetic::test_matrix_composition PASSED [ 37%]
+utrcalling/tests/test_count_matrix.py::TestMatrixSynthetic::test_matrix_composition PASSED [ 36%]
 utrcalling/tests/test_count_matrix.py::TestMatrixSynthetic::test_matrix_maximum PASSED [ 37%]
 utrcalling/tests/test_count_matrix.py::TestMatrixSynthetic::test_matrix_values_count PASSED [ 37%]
 utrcalling/tests/test_count_matrix.py::TestVarSynthetic::test_length PASSED [ 37%]
@@ -408,7 +408,7 @@ utrcalling/tests/test_genome.py::TestSitePositions::test_an_unknown_utr_end_is_r
 utrcalling/tests/test_genome.py::TestSitePositions::test_five_prime_protocols_measure_from_the_read_start PASSED [ 41%]
 utrcalling/tests/test_genome.py::TestSitePositions::test_gene_level_coordinates_are_refused PASSED [ 41%]
 utrcalling/tests/test_genome.py::TestSitePositions::test_three_prime_protocols_measure_from_the_read_end_toward_the_polya PASSED [ 41%]
-utrcalling/tests/test_genome.py::TestReadSequences::test_a_genome_of_another_assembly_is_refused PASSED [ 42%]
+utrcalling/tests/test_genome.py::TestReadSequences::test_a_genome_of_another_assembly_is_refused PASSED [ 41%]
 utrcalling/tests/test_genome.py::TestReadSequences::test_at_least_one_nt PASSED [ 42%]
 utrcalling/tests/test_genome.py::TestReadSequences::test_before_and_after_the_site PASSED [ 42%]
 utrcalling/tests/test_genome.py::TestReadSequences::test_beyond_the_chromosome_ends_is_n PASSED [ 42%]
@@ -417,7 +417,7 @@ utrcalling/tests/test_genome.py::TestReadSequences::test_lower_case_and_other_le
 utrcalling/tests/test_genome.py::TestReadSequences::test_minus_strand_sites_read_the_reverse_complement PASSED [ 42%]
 utrcalling/tests/test_genome.py::TestReadSequences::test_plus_strand_sites_read_the_genome_forwards PASSED [ 42%]
 utrcalling/tests/test_genome.py::TestReadStretches::test_a_genome_of_another_assembly_is_refused PASSED [ 42%]
-utrcalling/tests/test_genome.py::TestReadStretches::test_at_least_one_nt PASSED [ 43%]
+utrcalling/tests/test_genome.py::TestReadStretches::test_at_least_one_nt PASSED [ 42%]
 utrcalling/tests/test_genome.py::TestReadStretches::test_before_and_after_the_site PASSED [ 43%]
 utrcalling/tests/test_genome.py::TestReadStretches::test_beyond_the_chromosome_ends_is_n PASSED [ 43%]
 utrcalling/tests/test_genome.py::TestReadStretches::test_chromosomes_the_genome_lacks PASSED [ 43%]
@@ -462,6 +462,7 @@ utrcalling/tests/test_helpers.py::TestShutdownJoblibPool::test_other_backends_ar
 utrcalling/tests/test_helpers.py::TestShutdownJoblibPool::test_releases_pool_after_parallel_run PASSED [ 47%]
 utrcalling/tests/test_helpers.py::TestResolveNJobs::test_a_positive_count_is_used_as_given PASSED [ 47%]
 utrcalling/tests/test_helpers.py::TestResolveNJobs::test_a_single_core_still_gets_one_worker PASSED [ 47%]
+utrcalling/tests/test_helpers.py::TestResolveNJobs::test_all_cores_of_the_machine_where_the_system_cannot_limit_them PASSED [ 47%]
 utrcalling/tests/test_helpers.py::TestResolveNJobs::test_the_default_zero_and_negative_counts_use_all_cores_but_one 
 utrcalling/tests/test_helpers.py::TestResolveNJobs::test_the_default_zero_and_negative_counts_use_all_cores_but_one PASSED [ 47%]
 utrcalling/tests/test_helpers.py::TestEnsureMappedReadsDtypes::test_canonical_columns_are_kept_as_they_are PASSED [ 47%]
@@ -484,7 +485,7 @@ utrcalling/tests/test_package_details.py::TestVersion::test_version PASSED [ 49%
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_3_molecules_or_fewer_have_no_kde PASSED [ 49%]
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_an_invalid_bandwidth_is_refused 
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_an_invalid_bandwidth_is_refused PASSED [ 49%]
-utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_molecules_all_of_one_size_are_one_site PASSED [ 49%]
+utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_molecules_all_of_one_size_are_one_site PASSED [ 50%]
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_numbers_are_every_utrs_bandwidth PASSED [ 50%]
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_peaks_with_a_rule PASSED [ 50%]
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_rules_narrow_with_more_molecules 
@@ -495,7 +496,7 @@ utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::te
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestUtrBandwidth::test_silverman_is_rs_bw_nrd0 PASSED [ 50%]
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestAnAddedRule::test_bandwidths_spell_it_with_a_factor PASSED [ 50%]
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestAnAddedRule::test_each_utrs_bandwidth PASSED [ 50%]
-utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestAnAddedRule::test_peaks_with_it PASSED [ 50%]
+utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestAnAddedRule::test_peaks_with_it PASSED [ 51%]
 utrcalling/tests/test_peak_calling/test_bandwidth_rules.py::TestAnAddedRule::test_unknown_rules_are_refused PASSED [ 51%]
 utrcalling/tests/test_peak_calling/test_callers.py::TestGetCaller::test_an_invalid_bandwidth_is_refused PASSED [ 51%]
 utrcalling/tests/test_peak_calling/test_callers.py::TestGetCaller::test_get_caller_spells_the_rule_as_the_record_does PASSED [ 51%]
@@ -504,7 +505,7 @@ utrcalling/tests/test_peak_calling/test_callers.py::TestGetCaller::test_kde_is_t
 utrcalling/tests/test_peak_calling/test_callers.py::TestGetCaller::test_unknown_method_raises PASSED [ 51%]
 utrcalling/tests/test_peak_calling/test_callers.py::TestAnAddedCaller::test_call_peaks_command PASSED [ 51%]
 utrcalling/tests/test_peak_calling/test_callers.py::TestAnAddedCaller::test_get_caller PASSED [ 51%]
-utrcalling/tests/test_peak_calling/test_callers.py::TestAnAddedCaller::test_peak_table PASSED [ 51%]
+utrcalling/tests/test_peak_calling/test_callers.py::TestAnAddedCaller::test_peak_table PASSED [ 52%]
 utrcalling/tests/test_peak_calling/test_callers.py::TestAnAddedCaller::test_peaks_of_a_matrix 
 utrcalling/tests/test_peak_calling/test_callers.py::TestAnAddedCaller::test_peaks_of_a_matrix PASSED [ 52%]
 utrcalling/tests/test_peak_calling/test_callers.py::TestAnAddedCaller::test_unknown_callers_are_refused_by_the_command_line PASSED [ 52%]
@@ -555,7 +556,7 @@ utrcalling/tests/test_peak_calling/test_scores.py::TestSeveralKernels::test_unkn
 utrcalling/tests/test_peak_calling/test_scores.py::TestKnownSitesScore::test_3_prime_sites PASSED [ 56%]
 utrcalling/tests/test_peak_calling/test_scores.py::TestKnownSitesScore::test_a_known_site_on_the_other_strand_does_not_count PASSED [ 56%]
 utrcalling/tests/test_peak_calling/test_scores.py::TestKnownSitesScore::test_another_assembly_is_refused PASSED [ 56%]
-utrcalling/tests/test_peak_calling/test_scores.py::TestKnownSitesScore::test_the_share_of_molecules_near_known_sites PASSED [ 56%]
+utrcalling/tests/test_peak_calling/test_scores.py::TestKnownSitesScore::test_the_share_of_molecules_near_known_sites PASSED [ 57%]
 utrcalling/tests/test_peak_calling/test_scores.py::TestKnownSitesScore::test_the_window PASSED [ 57%]
 utrcalling/tests/test_peak_calling/test_scores.py::TestKnownSitesScore::test_with_the_initiator PASSED [ 57%]
 utrcalling/tests/test_peak_calling/test_scores.py::TestScoreClass::test_a_score_must_be_a_site_score PASSED [ 57%]
@@ -564,7 +565,7 @@ utrcalling/tests/test_peak_calling/test_scores.py::TestScoreClass::test_what_a_s
 utrcalling/tests/test_peak_calling/test_scores.py::TestShareAtFrequentSites::test_shares PASSED [ 57%]
 utrcalling/tests/test_peak_calling/test_scores.py::TestAnAddedScore::test_qc_score_bandwidths PASSED [ 57%]
 utrcalling/tests/test_peak_calling/test_scores.py::TestAnAddedScore::test_score_bandwidths PASSED [ 57%]
-utrcalling/tests/test_peak_calling/test_settings.py::TestKernels::test_check_kernel PASSED [ 57%]
+utrcalling/tests/test_peak_calling/test_settings.py::TestKernels::test_check_kernel PASSED [ 58%]
 utrcalling/tests/test_peak_calling/test_settings.py::TestKernels::test_the_kernels_are_scikit_learns 
 utrcalling/tests/test_peak_calling/test_settings.py::TestKernels::test_the_kernels_are_scikit_learns PASSED [ 58%]
 utrcalling/tests/test_peak_calling/test_settings.py::TestParseBandwidth::test_bandwidth_label 
@@ -621,7 +622,7 @@ utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallingDoesNotDependOnSit
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallSingleUtr::test_output_shape PASSED [ 62%]
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallSingleUtr::test_var_has_utr_size PASSED [ 62%]
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallAnndataParallel::test_n_jobs_invariance PASSED [ 62%]
-utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallAnndataParallel::test_parallel_matches_sequential PASSED [ 62%]
+utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallAnndataParallel::test_parallel_matches_sequential PASSED [ 63%]
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallAnndataParallel::test_returns_actual_not_view PASSED [ 63%]
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallAnndataParallel::test_sparse_input_matches_dense PASSED [ 63%]
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallAnndataParallel::test_sparse_input_stays_sparse_end_to_end PASSED [ 63%]
@@ -630,7 +631,7 @@ utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallSingleUtrCompact::tes
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallSingleUtrCompact::test_sparse_and_dense_produce_same_values PASSED [ 63%]
 utrcalling/tests/test_peak_calling_anndata.py::TestPeakCallSingleUtrCompact::test_sparse_input_returns_sparse PASSED [ 63%]
 utrcalling/tests/test_peak_calling_anndata.py::TestEstimateBestBandwidthWithGenome::test_a_hexamer_away_from_the_molecules_scores_zero PASSED [ 63%]
-utrcalling/tests/test_peak_calling_anndata.py::TestEstimateBestBandwidthWithGenome::test_a_single_bandwidth_can_be_given_as_a_number PASSED [ 63%]
+utrcalling/tests/test_peak_calling_anndata.py::TestEstimateBestBandwidthWithGenome::test_a_single_bandwidth_can_be_given_as_a_number PASSED [ 64%]
 utrcalling/tests/test_peak_calling_anndata.py::TestEstimateBestBandwidthWithGenome::test_distances_are_returned_on_request PASSED [ 64%]
 utrcalling/tests/test_peak_calling_anndata.py::TestEstimateBestBandwidthWithGenome::test_genome_without_a_hexamer_scores_zero PASSED [ 64%]
 utrcalling/tests/test_peak_calling_anndata.py::TestEstimateBestBandwidthWithGenome::test_hexamer_upstream_of_the_peaks_scores_above_zero PASSED [ 64%]
@@ -680,7 +681,7 @@ utrcalling/tests/test_process_mapped_reads.py::TestMergeUtrsPerGene::test_read_m
 utrcalling/tests/test_process_mapped_reads.py::TestMergeUtrsPerGene::test_utr_regions_dataframe PASSED [ 68%]
 utrcalling/tests/test_process_mapped_reads.py::TestComputeGeneOffsets::test_a_repeated_utr_keeps_its_first_offset PASSED [ 68%]
 utrcalling/tests/test_process_mapped_reads.py::TestComputeGeneOffsets::test_minus_strand_runs_from_the_highest_coordinate PASSED [ 68%]
-utrcalling/tests/test_process_mapped_reads.py::TestComputeGeneOffsets::test_plus_strand PASSED [ 68%]
+utrcalling/tests/test_process_mapped_reads.py::TestComputeGeneOffsets::test_plus_strand PASSED [ 69%]
 utrcalling/tests/test_process_mapped_reads.py::TestComputeGeneOffsets::test_unknown_strand_raises PASSED [ 69%]
 utrcalling/tests/test_process_mapped_reads.py::TestMergeUtrsPerGeneDropsUnknownUtrs::test_reads_of_unknown_utrs_are_dropped PASSED [ 69%]
 utrcalling/tests/test_process_mapped_reads.py::TestMergeUtrsPerGeneCategoricalOffsetMap::test_does_not_crash_when_offsets_are_all_nonzero_distinct PASSED [ 69%]
@@ -689,7 +690,7 @@ utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodes::test_filter P
 utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodes::test_specific_utr PASSED [ 69%]
 utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodes::test_specific_utr_2 PASSED [ 69%]
 utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodes::test_using_annotations_as_dataframe PASSED [ 69%]
-utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodesSynthetic::test_barcodes_in_anno PASSED [ 69%]
+utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodesSynthetic::test_barcodes_in_anno PASSED [ 70%]
 utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodesSynthetic::test_filtered_id PASSED [ 70%]
 utrcalling/tests/test_process_mapped_reads.py::TestFilterBarcodesSynthetic::test_filtered_len PASSED [ 70%]
 utrcalling/tests/test_process_mapped_reads.py::TestMergeSamplesEdgeCases::test_invalid_method_raises PASSED [ 70%]
@@ -733,7 +734,7 @@ utrcalling/tests/test_protocol/test_creation.py::TestReadsBatchSuffixProperty::t
 utrcalling/tests/test_protocol/test_creation.py::TestReadsBatchSuffixProperty::test_tenx2_no_suffix PASSED [ 74%]
 utrcalling/tests/test_protocol/test_creation.py::TestReadsBatchSuffixProperty::test_tenx3_no_suffix PASSED [ 74%]
 utrcalling/tests/test_protocol/test_creation.py::TestBatchColumnDtypes::test_integers_are_kept PASSED [ 74%]
-utrcalling/tests/test_protocol/test_creation.py::TestBatchColumnDtypes::test_nullable_integers_are_kept PASSED [ 74%]
+utrcalling/tests/test_protocol/test_creation.py::TestBatchColumnDtypes::test_nullable_integers_are_kept PASSED [ 75%]
 utrcalling/tests/test_protocol/test_creation.py::TestBatchColumnDtypes::test_object_strings_are_factorized PASSED [ 75%]
 utrcalling/tests/test_protocol/test_creation.py::TestBatchColumnDtypes::test_string_dtype_is_factorized PASSED [ 75%]
 utrcalling/tests/test_protocol/test_creation.py::TestProtocolArgumentErrors::test_invalid_merge_method_lists_the_valid_ones PASSED [ 75%]
@@ -744,7 +745,7 @@ utrcalling/tests/test_protocol/test_creation.py::TestSmartseqWithoutAlignments::
 utrcalling/tests/test_protocol/test_creation.py::TestProtocolSettingsFromText::test_label_batches_accepts_yes_no_words 
 utrcalling/tests/test_protocol/test_creation.py::TestProtocolSettingsFromText::test_label_batches_accepts_yes_no_words PASSED [ 75%]
 utrcalling/tests/test_protocol/test_creation.py::TestProtocolSettingsFromText::test_labelling_batches_needs_a_batch_column PASSED [ 75%]
-utrcalling/tests/test_protocol/test_creation.py::TestProtocolSettingsFromText::test_merge_method_defaults_to_union PASSED [ 75%]
+utrcalling/tests/test_protocol/test_creation.py::TestProtocolSettingsFromText::test_merge_method_defaults_to_union PASSED [ 76%]
 utrcalling/tests/test_protocol/test_creation.py::TestProtocolSettingsFromText::test_other_words_are_refused PASSED [ 76%]
 utrcalling/tests/test_protocol/test_creation.py::TestProtocolSettingsFromText::test_unsupported_version_of_capseq_readname_raises PASSED [ 76%]
 utrcalling/tests/test_protocol/test_creation.py::TestSampleIdsOfBams::test_a_missing_sample_id_column_says_what_is_needed PASSED [ 76%]
@@ -801,7 +802,7 @@ utrcalling/tests/test_qc.py::TestJoinMappingSummaries::test_a_step_that_one_expe
 utrcalling/tests/test_qc.py::TestJoinMappingSummaries::test_an_experiment_without_a_summary PASSED [ 81%]
 utrcalling/tests/test_qc.py::TestJoinMappingSummaries::test_inputs_of_every_experiment_and_summed_totals PASSED [ 81%]
 utrcalling/tests/test_qc.py::TestCellMetrics::test_counts_per_cell PASSED [ 81%]
-utrcalling/tests/test_qc.py::TestCellMetrics::test_dense_counts_give_the_same_table PASSED [ 81%]
+utrcalling/tests/test_qc.py::TestCellMetrics::test_dense_counts_give_the_same_table PASSED [ 82%]
 utrcalling/tests/test_qc.py::TestCellMetrics::test_fractions_are_refused PASSED [ 82%]
 utrcalling/tests/test_qc.py::TestCellMetrics::test_relative_utr_size PASSED [ 82%]
 utrcalling/tests/test_qc.py::TestDepthCorrelation::test_fewer_than_three_cells PASSED [ 82%]
@@ -855,7 +856,7 @@ utrcalling/tests/test_registry.py::TestPlugins::test_plugins_cannot_take_names_a
 utrcalling/tests/test_registry.py::TestPlugins::test_the_command_line_does_not_load_importlib_metadata PASSED [ 87%]
 utrcalling/tests/test_standard_3'10x/test_utr_mapping.py::TestStandardTenxV3::test_keep_max_dedup_utr3 PASSED [ 87%]
 utrcalling/tests/test_standard_3'10x/test_utr_mapping.py::TestStandardTenxV3::test_observation_ids_are_cb_tags PASSED [ 87%]
-utrcalling/tests/test_standard_3'10x/test_utr_mapping.py::TestStandardTenxV3::test_protocol_properties PASSED [ 87%]
+utrcalling/tests/test_standard_3'10x/test_utr_mapping.py::TestStandardTenxV3::test_protocol_properties PASSED [ 88%]
 utrcalling/tests/test_standard_3'10x/test_utr_mapping.py::TestStandardTenxV3::test_read_in_pair_any PASSED [ 88%]
 utrcalling/tests/test_standard_3'10x/test_utr_mapping.py::TestStandardTenxV3::test_utr2_observation PASSED [ 88%]
 utrcalling/tests/test_standard_3'10x/test_utr_mapping.py::TestStandardTenxV3::test_utrs_found PASSED [ 88%]
@@ -908,7 +909,7 @@ utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepM
 utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_all_same_umi_keeps_max PASSED [ 93%]
 utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_basic_keep_max PASSED [ 93%]
 utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_complex_case PASSED [ 93%]
-utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_different_barcodes_same_umi PASSED [ 93%]
+utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_different_barcodes_same_umi PASSED [ 94%]
 utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_empty_input PASSED [ 94%]
 utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_max_at_different_positions PASSED [ 94%]
 utrcalling/tests/test_utr_mapping/test_deduplicate.py::TestDeduplicateReadsKeepMax::test_no_duplicates PASSED [ 94%]
@@ -988,4 +989,4 @@ utrcalling/tests/test_cli_workflows.py::TestComputeMeanUtrSizesCommand::test_uns
     value_idx = self._prep_dim_index(value.index, attr)
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====== 883 passed, 4 warnings, 1371 subtests passed in 455.20s (0:07:35) =======
+====== 884 passed, 4 warnings, 1371 subtests passed in 563.14s (0:09:23) =======

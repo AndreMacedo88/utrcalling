@@ -110,7 +110,12 @@ def get_number_cores(left_out: int = 1) -> int:
     Returns:
         Number of usable cores.
     """
-    available_cores = len(os.sched_getaffinity(0))
+    # The cores this process may use, which a job scheduler can limit (Linux);
+    # macOS cannot tell, so there all cores of the machine.
+    if hasattr(os, "sched_getaffinity"):
+        available_cores = len(os.sched_getaffinity(0))
+    else:
+        available_cores = os.cpu_count() or 1
     cores_to_use = available_cores - left_out
     return cores_to_use
 

@@ -1,6 +1,7 @@
 import os
 import shutil
 import tempfile
+import types
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -171,6 +172,12 @@ class TestResolveNJobs(unittest.TestCase):
     def test_a_single_core_still_gets_one_worker(self):
         with mock.patch.object(helpers.os, "sched_getaffinity", return_value={0}):
             self.assertEqual(helpers.resolve_n_jobs(0), 1)
+
+    def test_all_cores_of_the_machine_where_the_system_cannot_limit_them(self):
+        # macOS has no sched_getaffinity: calling it used to fail every run there.
+        macos = types.SimpleNamespace(cpu_count=lambda: 10)
+        with mock.patch.object(helpers, "os", macos):
+            self.assertEqual(helpers.resolve_n_jobs(None), 9)
 
 
 class TestEnsureMappedReadsDtypes(unittest.TestCase):
