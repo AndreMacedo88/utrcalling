@@ -22,7 +22,7 @@ import scipy.sparse
 
 from utrcalling import runtime
 from utrcalling.core import provenance
-from utrcalling.core.protocols.peak_calling import utr_bandwidth
+from utrcalling.core.peak_calling.bandwidth_rules import utr_bandwidth
 from utrcalling.core.utr_mapping import MAPPING_STEPS
 
 TEST_DATA = Path(__file__).resolve().parent / "test_data"
@@ -588,7 +588,20 @@ class TestKdeKernel(_InTempDir):
             cwd=cls.tmp,
         )
         cls.count = ad.read_h5ad(cls.tmp / "linear.h5ad")
-        cls.call_peaks = ad.read_h5ad(cls.tmp / "peaks_bw3.h5ad")
+        # Files name the kernel, unless it is the Gaussian.
+        cls.call_peaks = ad.read_h5ad(cls.tmp / "peaks_linear_bw3.h5ad")
+        utrcalling(
+            "call-peaks",
+            WORKDIR / "raw.h5ad",
+            "both",
+            "-b",
+            "3",
+            "0",
+            "--kde-kernel",
+            "linear",
+            "gaussian",
+            cwd=cls.tmp,
+        )
 
     def test_count_and_call_peaks_give_the_same_sites(self):
         assert_same_anndata(self.call_peaks[self.count.obs_names], self.count)
@@ -605,6 +618,16 @@ class TestKdeKernel(_InTempDir):
         sizes = raw.var.groupby("utr_name", observed=True).utr_size.agg(["min", "max"])
         site = self.count.var.join(sizes, on="utr_name")
         self.assertTrue(((site.utr_size >= site["min"]) & (site.utr_size <= site["max"])).all())
+
+    def test_several_kernels_give_a_file_each(self):
+        written = sorted(path.name for path in self.tmp.glob("both_*.h5ad"))
+        # Bandwidth 0 keeps the raw sizes, whatever the kernel: one file.
+        self.assertListEqual(written, ["both_bw0.h5ad", "both_bw3.h5ad", "both_linear_bw3.h5ad"])
+        assert_same_anndata(ad.read_h5ad(self.tmp / "both_linear_bw3.h5ad"), self.call_peaks)
+        gaussian = ad.read_h5ad(self.tmp / "both_bw3.h5ad")
+        self.assertEqual(provenance.recorded(gaussian)["kernel"], "gaussian")
+        raw = ad.read_h5ad(self.tmp / "both_bw0.h5ad")
+        self.assertEqual(raw.n_vars, ad.read_h5ad(WORKDIR / "raw.h5ad").n_vars)
 
     def test_both_record_the_kernel(self):
         for adata in (self.count, self.call_peaks):
@@ -640,7 +663,7 @@ class TestBandwidthRule(_InTempDir):
         utrcalling("call-peaks", WORKDIR / "raw.h5ad", "peaks", *rule, cwd=cls.tmp)
         utrcalling("qc", "report", "count_kde.h5ad", "-o", "report.tsv", cwd=cls.tmp)
         cls.count = ad.read_h5ad(cls.tmp / "count_kde.h5ad")
-        cls.call_peaks = ad.read_h5ad(cls.tmp / "peaks_bwscott0.5.h5ad")
+        cls.call_peaks = ad.read_h5ad(cls.tmp / "peaks_linear_bwscott0.5.h5ad")
 
     def test_count_and_call_peaks_give_the_same_sites_and_bandwidths(self):
         assert_same_anndata(self.call_peaks[self.count.obs_names], self.count)
@@ -687,19 +710,34 @@ class TestOptimize(_InTempDir):
             "2",
             cwd=cls.tmp,
         )
-        cls.scores = pd.read_csv(cls.tmp / "opt_bandwidth_scores.tsv", sep="\t", index_col=0)
-        cls.chosen = int(cls.scores.score.idxmax())
+        cls.scores = pd.read_csv(cls.tmp / "opt_bandwidth_scores.tsv", sep="\t", index_col=[0, 1])
+        cls.chosen = int(cls.scores.pas.idxmax()[1])
         utrcalling("call-peaks", "placed.h5ad", "direct", "-b", cls.chosen, cwd=cls.tmp)
+        # Each kernel with each candidate, chosen among all.
+        utrcalling(
+            "call-peaks",
+            "placed.h5ad",
+            "kernels",
+            "-b",
+            "optimize",
+            *candidates,
+            "--kde-kernel",
+            "gaussian",
+            "linear",
+            "--genome",
+            "genome.fa",
+            cwd=cls.tmp,
+        )
+        cls.kernel_scores = pd.read_csv(
+            cls.tmp / "kernels_bandwidth_scores.tsv", sep="\t", index_col=[0, 1]
+        )
 
         # count, with the scores given: the real genome is too big for a test.
         cls.mocked_scores = pd.DataFrame(
-            {
-                "kernel": "gaussian",
-                "score": [0.1, 0.3],
-                "sites": [9, 4],
-                "sites_per_utr": [2.0, 1.0],
-            },
-            index=pd.Index([12, 60], name="bandwidth"),
+            {"pas": [0.1, 0.3], "sites": [9, 4], "sites_per_utr": [2.0, 1.0]},
+            index=pd.MultiIndex.from_tuples(
+                [("gaussian", 12), ("gaussian", 60)], names=["kernel", "bandwidth"]
+            ),
         )
         intermediate = WORKDIR / "intermediate"
         count = [
@@ -727,14 +765,27 @@ class TestOptimize(_InTempDir):
         utrcalling("call-peaks", WORKDIR / "raw.h5ad", "fixed", "-b", "60", cwd=cls.tmp)
 
     def test_call_peaks_chooses_the_best_score(self):
-        self.assertListEqual(self.scores.index.tolist(), [4, 12, 60])
-        self.assertListEqual(self.scores.kernel.tolist(), ["gaussian"] * 3)
+        self.assertListEqual(
+            self.scores.index.tolist(), [("gaussian", 4), ("gaussian", 12), ("gaussian", 60)]
+        )
         self.assertEqual(self.scores.sites.is_monotonic_decreasing, True)
         optimized = ad.read_h5ad(self.tmp / f"opt_bw{self.chosen}.h5ad")
         assert_same_anndata(optimized, ad.read_h5ad(self.tmp / f"direct_bw{self.chosen}.h5ad"))
         info = provenance.recorded(optimized)
         self.assertEqual(info["bandwidth"], self.chosen)
-        np.testing.assert_allclose(info["bandwidth_scores"].score, self.scores.score)
+        np.testing.assert_allclose(info["bandwidth_scores"].pas, self.scores.pas)
+
+    def test_call_peaks_chooses_among_kernels(self):
+        expected = [(kernel, bw) for kernel in ("gaussian", "linear") for bw in (4, 12, 60)]
+        self.assertListEqual(self.kernel_scores.index.tolist(), expected)
+        # The Gaussian rows are those scored alone.
+        pd.testing.assert_frame_equal(self.kernel_scores.loc[["gaussian"]], self.scores)
+        kernel, bandwidth = self.kernel_scores.pas.idxmax()
+        label = f"bw{bandwidth}" if kernel == "gaussian" else f"{kernel}_bw{bandwidth}"
+        chosen = ad.read_h5ad(self.tmp / f"kernels_{label}.h5ad")
+        info = provenance.recorded(chosen)
+        self.assertEqual((info["kernel"], info["bandwidth"]), (kernel, bandwidth))
+        self.assertListEqual(info["bandwidth_scores"].kernel.tolist(), [k for k, _ in expected])
 
     def test_count_calls_the_peaks_of_the_best_bandwidth(self):
         fixed = ad.read_h5ad(self.tmp / "fixed_bw60.h5ad")
@@ -744,7 +795,8 @@ class TestOptimize(_InTempDir):
                 assert_same_anndata(fixed[optimized.obs_names], optimized)
                 info = provenance.recorded(optimized)
                 self.assertEqual((info["bandwidth"], info["kernel"]), (60, "gaussian"))
-                self.assertListEqual(info["bandwidth_scores"].index.tolist(), ["12", "60"])
+                self.assertEqual(info["peak_caller"], "kde")
+                self.assertListEqual(info["bandwidth_scores"].bandwidth.tolist(), ["12", "60"])
         # With -r, the raw sizes too; both runs summarise the mapping.
         assert_same_anndata(
             ad.read_h5ad(self.tmp / "count.h5ad"), ad.read_h5ad(WORKDIR / "raw.h5ad")
@@ -760,9 +812,10 @@ class TestOptimize(_InTempDir):
             self.assertEqual(genome, str(self.tmp / "genome.fa"))
             self.assertEqual(candidates, (12, 60))
             self.assertEqual(
-                (call.kwargs["kernel"], call.kwargs["utr_end"]), ("gaussian", "three_prime")
+                (call.kwargs["kernel"], call.kwargs["utr_end"]), (("gaussian",), "three_prime")
             )
-        written = pd.read_csv(self.tmp / "count_bandwidth_scores.tsv", sep="\t", index_col=0)
+            self.assertIsNone(call.kwargs["scores"])  # the UTR end's
+        written = pd.read_csv(self.tmp / "count_bandwidth_scores.tsv", sep="\t", index_col=[0, 1])
         pd.testing.assert_frame_equal(written, self.mocked_scores)
 
 

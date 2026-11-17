@@ -30,14 +30,20 @@ a new major version can change results or require changes to your command lines.
   `count`.
 - The command modules moved from `utrcalling.tools` to `utrcalling.commands`,
   with a subpackage per group.
+- In Python, peak calling moved from `utrcalling.core.protocols` to the
+  package `utrcalling.core.peak_calling`, a module per part: `kde`
+  (`call_peaks_using_kernel_density_estimator`), `callers` (`get_caller`),
+  `bandwidth_rules`, `scores` and `settings`. An unknown peak-calling method
+  raises a ValueError that lists the known ones, as every name does (it was a
+  NotImplementedError).
 - `qc pas-distance` and `qc score-bandwidths` write tab-separated tables
   instead of joblib files, which only Python could open. `pas-distance` has a
   row per site: its molecules, nearest hexamer and distance (weight the
   distances by the molecules for their distribution over molecules).
-  `score-bandwidths` has a row per bandwidth: its kernel, score, sites and
-  sites per UTR, and takes `-H/--hamming` (1 by default, as before). By
-  default it scores 4, 6, 8, 10, 12, 15 and 20 nt for 3' data (before: 1, 7,
-  12 and 15). In Python,
+  `score-bandwidths` has a row per kernel and bandwidth: a column per score,
+  the sites and the sites per UTR, and takes `-H/--hamming` (1 by default, as
+  before). By default it scores 4, 6, 8, 10, 12, 15 and 20 nt for 3' data
+  (before: 1, 7, 12 and 15). In Python,
   `peak_calling_anndata.pas_distance_table()` and `score_bandwidths()` return
   these tables.
 
@@ -68,8 +74,9 @@ a new major version can change results or require changes to your command lines.
   min(SD, IQR/1.34) x n^-1/5, as R's `bw.nrd0`, which several sites in a UTR
   inflate less), optionally scaled, as in `scott:0.5`. The sites keep their
   UTR's bandwidth in `.var["bandwidth"]`, and `qc peaks` shows it. `call-peaks`
-  names its files after the rule (`peaks_bwscott0.5.h5ad`), and takes
-  bandwidths that are not whole numbers (`-b 7.5`). For 5' Cap-seq data of
+  names its files after the rule and the kernel unless it is the Gaussian
+  (`peaks_bw12.h5ad`, `peaks_linear_bwscott0.5.h5ad`), and takes bandwidths
+  that are not whole numbers (`-b 7.5`). For 5' Cap-seq data of
   neural stem cells treated with interferon, Eugenia Guerrero Aruffo found
   `scott:0.5` with the linear kernel best.
 - **A bandwidth score for 5' data.** `qc score-bandwidths` scores the
@@ -92,6 +99,33 @@ a new major version can change results or require changes to your command lines.
   the peaks with the best, and writes the scores to
   `<out>_bandwidth_scores.tsv`; the matrix records them. `run` checks the
   genome before mapping any read. The default bandwidth stays 12 nt.
+- **A known-sites score.** `--score known-sites --known-sites BED` scores
+  settings by the share of molecules at sites within `--window` nt (10 by
+  default) of the known sites of a database of the same genome assembly, such
+  as refTSS for 5' data or PolyASite for 3' data, matched as `qc known-sites`
+  matches them. It needs no genome. A database knows clusters of sites, so the
+  score compares settings at the scale of the clusters: smoothing that joins
+  the sites of a cluster raises it. For 5' data, the initiator stays the
+  default.
+- **Several kernels and scores in one call.** `qc score-bandwidths` scores
+  each bandwidth with each `--kde-kernel` given, and by each `--score` given,
+  in one table: a row per kernel and bandwidth, a column per score.
+  `-b optimize` chooses the kernel too, when given several (`--kde-kernel
+  gaussian linear`), by the first `--score`. `call-peaks` writes a file per
+  kernel and bandwidth.
+- **Extension points.** Scores of peak-calling settings, peak callers,
+  bandwidth rules and protocols are registered by name, so new ones work in
+  every command that takes one, like utrcalling's own: from another package,
+  as an entry point of the groups `utrcalling.scores`,
+  `utrcalling.peak_callers`, `utrcalling.bandwidth_rules` and
+  `utrcalling.protocols`, or registered in a notebook. A score is a subclass
+  of `SiteScore`; it says which UTR ends it scores and which files it needs,
+  which the commands check before any work. `docs/extending.md` shows how,
+  with an example of each, and the test suite runs its examples.
+- **`--peak-caller`** in `run`, `count`, `call-peaks`, `qc peaks` and
+  `qc score-bandwidths` chooses the method that calls peaks: `kde`, the
+  default and utrcalling's own, or one that a plugin adds. The matrices record
+  it.
 - **`process filter-sites -g COLUMN`** counts per group of cells (a column
   of the annotations, such as a treatment) and keeps a site that passes the
   threshold in at least one group: a site that a condition raises stays,

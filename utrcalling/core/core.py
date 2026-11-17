@@ -40,7 +40,7 @@ from utrcalling.core.protocol import Protocol
 from utrcalling.core.utr_mapping import _IntervalData
 
 if TYPE_CHECKING:
-    from utrcalling.core.protocols.peak_calling import SizeTransform
+    from utrcalling.core.peak_calling.callers import SizeTransform
 
 
 def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:

@@ -17,14 +17,17 @@ from utrcalling.commands.options import (
     Cores,
     Genome,
     KdeBandwidth,
-    KdeKernel,
+    KdeKernels,
+    KnownSites,
     LabelBatches,
     LogLevel,
     NoLogFile,
     Out,
+    PeakCaller,
     ProtocolPlatform,
     ProtocolVersion,
     RawSizes,
+    Scores,
     StoreIntermediate,
     SummarizationLevel,
 )
@@ -44,9 +47,12 @@ def count(
     summarization_level: SummarizationLevel = "utr",
     raw_sizes: RawSizes = False,
     kde_bandwidth: KdeBandwidth = 12,
-    kde_kernel: Annotated[KdeKernel, Parameter(group=PEAK_CALLING)] = "gaussian",
+    kde_kernel: Annotated[KdeKernels, Parameter(group=PEAK_CALLING)] = ("gaussian",),
+    peak_caller: Annotated[PeakCaller, Parameter(group=PEAK_CALLING)] = "kde",
     candidates: Annotated[CandidateBandwidths, Parameter(group=PEAK_CALLING)] = None,
+    scores: Annotated[Scores, Parameter(group=PEAK_CALLING)] = None,
     genome: Annotated[Genome, Parameter(group=PEAK_CALLING)] = None,
+    known_sites: Annotated[KnownSites, Parameter(group=PEAK_CALLING)] = None,
     out: Out = "UTR_counts.h5ad",
     store_intermediate: StoreIntermediate = False,
     log_level: LogLevel = "info",
@@ -76,11 +82,18 @@ def count(
     from utrcalling.commands._count_sites import count_sites
     from utrcalling.core import helpers, protocol
     from utrcalling.core.module_log import module_logger
-    from utrcalling.core.protocols.kde_options import OPTIMIZE
+    from utrcalling.core.peak_calling.settings import OPTIMIZE
 
     optimize = kde_bandwidth == OPTIMIZE
+    _optimize.check_kernels(kde_kernel, optimize)
     if optimize:
-        _optimize.check(genome, summarization_level)
+        _optimize.check(
+            utr_end=protocol.protocol_class(protocol_platform, int(protocol_version)).utr_end,
+            scores=scores,
+            genome=genome,
+            known_sites=known_sites,
+            summarization_level=summarization_level,
+        )
 
     # Set up logging
     store_log = not no_log_file
@@ -98,7 +111,8 @@ def count(
         call_peaks=not (raw_sizes or optimize),  # optimize calls them itself
         annotations=annotations_file,
         kde_bandwidth=kde_bandwidth,
-        kde_kernel=kde_kernel,
+        kde_kernel=kde_kernel[0],
+        call_peaks_method=peak_caller,
     )
 
     utr_reference_regions = helpers.load_annotations(utr_annotation)
@@ -114,9 +128,12 @@ def count(
         summarization_level=summarization_level,
         raw_sizes=raw_sizes,
         kde_bandwidth=kde_bandwidth,
-        kde_kernel=kde_kernel,
+        kde_kernels=kde_kernel,
+        peak_caller=peak_caller,
         candidates=candidates,
+        scores=scores,
         genome=genome,
+        known_sites=known_sites,
         out=out,
         store_intermediate=store_intermediate,
         cores=cores,

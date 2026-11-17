@@ -10,11 +10,14 @@ from typing import Annotated, Literal, get_args
 
 from cyclopts import Group, Parameter, Token
 
-from utrcalling.core.protocols.kde_options import (
+from utrcalling.core.peak_calling.settings import (
     CANDIDATE_BANDWIDTHS,
     OPTIMIZE,
+    PEAK_CALLERS,
+    SCORES,
     Bandwidth,
     Kernel,
+    check_kernel,
     parse_bandwidth,
 )
 
@@ -43,6 +46,26 @@ def bandwidth(type_: object, tokens: Sequence[Token]) -> Bandwidth:
 def bandwidths(type_: object, tokens: Sequence[Token]) -> tuple[Bandwidth, ...]:
     """Read one or more KDE bandwidths, where 0 keeps the raw sizes."""
     return tuple(parse_bandwidth(token.value, allow_zero=True) for token in tokens)
+
+
+def candidate_bandwidths(type_: object, tokens: Sequence[Token]) -> tuple[Bandwidth, ...]:
+    """Read one or more KDE bandwidths to call peaks with (not 0)."""
+    return tuple(parse_bandwidth(token.value) for token in tokens)
+
+
+def kernels(type_: object, tokens: Sequence[Token]) -> tuple[str, ...]:
+    """Read one or more KDE kernels, in any case."""
+    return tuple(dict.fromkeys(check_kernel(token.value.lower()) for token in tokens))
+
+
+def peak_caller(type_: object, tokens: Sequence[Token]) -> str:
+    """Read the name of a peak caller, in any case."""
+    return PEAK_CALLERS.check(tokens[0].value)
+
+
+def scores(type_: object, tokens: Sequence[Token]) -> tuple[str, ...]:
+    """Read the names of one or more scores, in any case."""
+    return tuple(dict.fromkeys(SCORES.check(token.value) for token in tokens))
 
 
 def bandwidth_or_optimize(type_: object, tokens: Sequence[Token]) -> Bandwidth:
@@ -192,10 +215,10 @@ BANDWIDTH_RULES_HELP = (
 )
 # The help of the options that -b optimize needs.
 OPTIMIZE_HELP = (
-    "Or optimize: score the --candidates against the --genome, by a sequence that true "
-    "sites have (the polyadenylation signal 10-30 nt before 3' sites, the initiator at "
-    "5' sites; see qc score-bandwidths), and call the peaks with the best. Their scores "
-    "go to <out>_bandwidth_scores.tsv."
+    "Or optimize: score the --candidates with each --kde-kernel by the sites that look "
+    "true (the polyadenylation signal 10-30 nt before 3' sites, the initiator at 5' "
+    "sites, or the --known-sites; see --score and qc score-bandwidths), and call the "
+    "peaks with the best. Their scores go to <out>_bandwidth_scores.tsv."
 )
 KdeBandwidth = Annotated[
     Bandwidth,
@@ -206,7 +229,10 @@ KdeBandwidth = Annotated[
         group=PEAK_CALLING,
         help=(
             "Bandwidth of the KDE that collapses UTR sizes into peaks: a number of nt, "
-            "or a rule. 12 suits 3'-end-enriched assays, where reads pile up within a "
+            "or a rule. With the Gaussian kernel, each molecule spreads into a bell "
+            "curve whose standard deviation is the bandwidth: with 12, two equally used "
+            "sites stay apart only from 25 nt on, and less equal ones from further. 12 "
+            "suits 3'-end-enriched assays, where reads pile up within a "
             "few bp of the polyadenylation site. Randomly fragmented libraries spread "
             "more per site and need a wider kernel, or the spread splits into many close "
             "pseudo-peaks. For 5' data, 12 joins start sites a few nt apart: try "
@@ -214,16 +240,41 @@ KdeBandwidth = Annotated[
         ),
     ),
 ]
-# No help panel: the pipeline commands add theirs.
+# The help of the kernel options: what the kernels do.
+KERNELS_HELP = (
+    "The Gaussian smooths the most and suits 3' data. The linear kernel keeps the peaks "
+    "on the sizes where the molecules are, as transcription start sites need (5' data). "
+    "For all kernels but the Gaussian and the exponential, the bandwidth is the "
+    "kernel's half-width."
+)
+# No help panel: the commands add theirs.
 KdeKernel = Annotated[
     Kernel,
+    Parameter(converter=lowercase_choice, help=f"Kernel of the KDE. {KERNELS_HELP}"),
+]
+KdeKernels = Annotated[
+    tuple[Kernel, ...],
     Parameter(
-        converter=lowercase_choice,
+        name="--kde-kernel",
+        consume_multiple=1,
+        converter=kernels,
+        show_default=lambda kernels: " ".join(kernels),
         help=(
-            "Kernel of the KDE. The Gaussian smooths the most and suits 3' data. The "
-            "linear kernel keeps the peaks on the sizes where the molecules are, as "
-            "transcription start sites need (5' data). For all kernels but the "
-            "Gaussian and the exponential, the bandwidth is the kernel's half-width."
+            f"Kernel of the KDE. {KERNELS_HELP} With -b optimize, give several to choose "
+            "among them too, as in --kde-kernel gaussian linear."
+        ),
+    ),
+]
+# No help panel: the commands add theirs.
+PeakCaller = Annotated[
+    str,
+    Parameter(
+        converter=peak_caller,
+        metavar="NAME",
+        help=(
+            "Method that collapses each UTR's sizes into sites: kde (the kernel density "
+            "estimate of --kde-kernel and the bandwidth), or one that a plugin adds "
+            "(see docs/extending.md)."
         ),
     ),
 ]
@@ -279,19 +330,36 @@ UtrNameColumn = Annotated[
         help="Column of the count matrix's .var table with the UTR names.",
     ),
 ]
+# The help of the options of bandwidths to score: their defaults.
+CANDIDATES_HELP = (
+    f"By default, for 3' data {' '.join(map(str, CANDIDATE_BANDWIDTHS['three_prime']))}; "
+    f"for 5' data {' '.join(map(str, CANDIDATE_BANDWIDTHS['five_prime']))}. In bash, "
+    "{2..20..2} gives 2 4 ... 20."
+)
 CandidateBandwidths = Annotated[
     tuple[Bandwidth, ...] | None,
     Parameter(
+        consume_multiple=1,
+        converter=candidate_bandwidths,
+        metavar="NT|RULE",
+        show_default=False,
+        help=(
+            "The bandwidths that -b optimize chooses from: numbers of nt, or rules. "
+            f"{CANDIDATES_HELP}"
+        ),
+    ),
+]
+ScoredBandwidths = Annotated[
+    tuple[Bandwidth, ...] | None,
+    Parameter(
+        name=("--bandwidths", "-b"),
         consume_multiple=1,
         converter=bandwidths,
         metavar="NT|RULE",
         show_default=False,
         help=(
-            "The bandwidths to score (and, with -b optimize, to choose from): numbers of "
-            "nt, or rules. By default, for 3' data "
-            f"{' '.join(map(str, CANDIDATE_BANDWIDTHS['three_prime']))}; for 5' data "
-            f"{' '.join(map(str, CANDIDATE_BANDWIDTHS['five_prime']))}. In bash, "
-            "{2..20..2} gives 2 4 ... 20."
+            "The bandwidths to score: numbers of nt, or rules; 0 scores the raw sizes. "
+            f"{CANDIDATES_HELP}"
         ),
     ),
 ]
@@ -309,13 +377,48 @@ Bandwidths = Annotated[
         ),
     ),
 ]
+# The help of the score options: the scores.
+SCORES_HELP = (
+    "pas (the default for 3' data): molecules at sites 10-30 nt after a "
+    "polyadenylation signal, AATAAA. initiator (the default for "
+    "5' data): molecules at sites with C or T at -1 and A or G at +1, where RNA "
+    "polymerase II starts. known-sites: molecules at sites near the --known-sites, "
+    "which rewards smoothing up to the width of the database's clusters. pas and "
+    "initiator read the --genome."
+)
+# No help panel: the commands add theirs.
+Scores = Annotated[
+    tuple[str, ...] | None,
+    Parameter(
+        name="--score",
+        consume_multiple=1,
+        converter=scores,
+        metavar="NAME",
+        show_default=False,
+        help=(
+            "How -b optimize scores the candidates, by the sites that look true: "
+            f"{SCORES_HELP} With several, the first chooses."
+        ),
+    ),
+]
 # No help panel: the pipeline commands add theirs.
 Genome = Annotated[
     str | None,
     Parameter(
         help=(
-            "Genome sequence (FASTA) of the annotation, for -b optimize; chromosomes "
-            "match with or without chr."
+            "Genome sequence (FASTA) of the annotation, for -b optimize with the pas or "
+            "initiator score; chromosomes match with or without chr."
+        ),
+    ),
+]
+# No help panel: the commands add theirs.
+KnownSites = Annotated[
+    str | None,
+    Parameter(
+        help=(
+            "Known sites (BED, plain or gzipped) of the annotation's genome assembly, for "
+            "the known-sites score: polyadenylation sites such as PolyASite's for 3' "
+            "data, transcription start sites such as refTSS's for 5' data."
         ),
     ),
 ]

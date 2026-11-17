@@ -17,8 +17,7 @@ import scipy.sparse
 
 from utrcalling.core import module_log, provenance
 from utrcalling.core import peak_calling_anndata as pca
-from utrcalling.core.protocols import peak_calling as pc
-from utrcalling.core.protocols.kde_options import CANDIDATE_BANDWIDTHS
+from utrcalling.core.peak_calling import bandwidth_rules
 
 os.chdir(str(Path(__file__).resolve().parents[0]))
 
@@ -256,11 +255,15 @@ class TestPeakCallAnndata(unittest.TestCase):
                 self.assertIs(call_peaks(self.adata, method="kde", bandwidth=0), self.adata)
 
     def test_unknown_method_raises(self):
-        # Used to fail with an UnboundLocalError deep in the per-UTR code.
+        # Used to fail with an UnboundLocalError deep in the per-UTR code. Since
+        # 5.0.0 methods are looked up by name, as every named method is, and an
+        # unknown name is a ValueError that lists the known ones.
         for call_peaks in (pca.peak_call_anndata, pca.peak_call_anndata_parallel):
             with (
                 self.subTest(caller=call_peaks.__name__),
-                self.assertRaisesRegex(NotImplementedError, "'gmm'"),
+                self.assertRaisesRegex(
+                    ValueError, "Unknown peak caller 'gmm': expected one of kde"
+                ),
             ):
                 call_peaks(self.adata, method="gmm", bandwidth=1)
 
@@ -744,174 +747,6 @@ class TestPasDistanceTable(unittest.TestCase):
         )
 
 
-class TestScoreBandwidths(unittest.TestCase):
-    """score_bandwidths: estimate_best_bandwidth's scores, with the sites each bandwidth makes."""
-
-    def test_scores_and_sites_per_bandwidth(self):
-        tmpdir = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, tmpdir)
-        genome = tmpdir / "genome.fa"
-        genome.write_text(">chr1\n" + "C" * 119 + "AATAAA" + "C" * 175 + "\n")
-        # Two UTRs, each with sizes 40-42 and 90-92, on the same coordinates.
-        adata = _make_adata(
-            count_matrix=[[2, 5, 2, 3, 3, 3] * 2] * 4,
-            utr_names=["UTR0"] * 6 + ["UTR1"] * 6,
-            utr_sizes=[40, 41, 42, 90, 91, 92] * 2,
-            n_obs=4,
-        )
-        bandwidths = [1, 60]
-        with mock.patch.object(pca, "_find_pas", wraps=pca._find_pas) as find_pas:
-            table = pca.score_bandwidths(adata, genome=str(genome), bandwidths=bandwidths, n_jobs=1)
-        # The hexamers of each UTR are found once, whatever the bandwidths.
-        self.assertEqual(find_pas.call_count, 2)
-
-        self.assertEqual(table.index.name, "bandwidth")
-        self.assertListEqual(table.index.tolist(), bandwidths)
-        self.assertListEqual(table.kernel.tolist(), ["gaussian"] * 2)
-        expected = pca.estimate_best_bandwidth(
-            adata, genome=str(genome), hamming=1, bandwidths=bandwidths, n_jobs=1
-        )
-        np.testing.assert_allclose(table.score.to_numpy(), expected)
-        sites = [
-            pca.peak_call_anndata_parallel(adata, "kde", bandwidth=bw, n_jobs=1).n_vars
-            for bw in bandwidths
-        ]
-        self.assertListEqual(table.sites.tolist(), sites)
-        self.assertListEqual(table.sites_per_utr.tolist(), [s / 2 for s in sites])
-        # A narrow bandwidth keeps the two groups of sizes of each UTR apart.
-        self.assertListEqual(sites, [4, 2])
-
-    def test_chromosomes_match_with_or_without_chr(self):
-        tmpdir = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, tmpdir)
-        sequence = "C" * 119 + "AATAAA" + "C" * 175
-        (tmpdir / "chr.fa").write_text(f">chr1\n{sequence}\n")
-        (tmpdir / "plain.fa").write_text(f">1\n{sequence}\n>3\nACGT\n")
-        adata = _make_adata(
-            count_matrix=[[2, 5, 2, 3, 3, 3, 4] * 1] * 4,
-            utr_names=["UTR0"] * 6 + ["UTR1"],
-            utr_sizes=[40, 41, 42, 90, 91, 92, 10],
-            n_obs=4,
-        )
-        adata.var["chrom"] = ["chr1"] * 6 + ["chr2"]  # the genomes lack chromosome 2
-        scores = {
-            name: pca.score_bandwidths(adata, genome=str(tmpdir / name), bandwidths=[1], n_jobs=1)
-            for name in ("chr.fa", "plain.fa")
-        }
-        self.assertEqual(scores["chr.fa"].score.iloc[0], scores["plain.fa"].score.iloc[0])
-        # Only UTR0 counts: as if UTR1 were not in the matrix.
-        expected = pca.estimate_best_bandwidth(
-            adata[:, :6].copy(), genome=str(tmpdir / "chr.fa"), bandwidths=[1], n_jobs=1
-        )
-        self.assertEqual(scores["chr.fa"].score.iloc[0], expected[0])
-        (tmpdir / "other.fa").write_text(">NC_000067.7\nACGT\n")
-        with self.assertRaisesRegex(ValueError, "same genome assembly"):
-            pca.score_bandwidths(adata, genome=str(tmpdir / "other.fa"), bandwidths=[1])
-
-    def test_utrs_without_a_hexamer_score_0_but_count(self):
-        tmpdir = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, tmpdir)
-        genome = tmpdir / "genome.fa"
-        genome.write_text(">chr1\n" + "C" * 119 + "AATAAA" + "C" * 375 + "\n")
-        # UTR0 on 100-200 has the hexamer; UTR1 on 300-400 has none.
-        adata = _make_adata(
-            count_matrix=[[2, 5, 2, 3, 3, 3] * 2] * 4,
-            utr_names=["UTR0"] * 6 + ["UTR1"] * 6,
-            utr_sizes=[40, 41, 42, 90, 91, 92] * 2,
-            n_obs=4,
-        )
-        adata.var.loc[adata.var.utr_name == "UTR1", ["start", "end"]] = [300, 400]
-        table = pca.score_bandwidths(adata, genome=str(genome), bandwidths=[1], n_jobs=1)
-        expected = pca.estimate_best_bandwidth(adata, genome=str(genome), bandwidths=[1], n_jobs=1)
-        self.assertEqual(table.score.iloc[0], expected[0])
-        self.assertGreater(expected[0], 0)
-
-
-class TestBestBandwidth(unittest.TestCase):
-    def test_the_highest_score_and_the_first_of_equal_ones(self):
-        scores = pd.DataFrame(
-            {"score": [0.2, 0.5, 0.5, 0.1]},
-            index=pd.Index([4, "scott:0.5", 12, 20], name="bandwidth"),
-        )
-        self.assertEqual(pca.best_bandwidth(scores), "scott:0.5")
-        self.assertEqual(pca.best_bandwidth(scores.iloc[2:]), 12)
-        # Bandwidths of a table read from text come back as numbers.
-        self.assertEqual(pca.best_bandwidth(scores.set_axis(scores.index.map(str))), "scott:0.5")
-        self.assertIs(pca.best_bandwidth(scores.iloc[2:].set_axis(["12", "20"])), 12)
-
-
-class TestInitiatorScore(unittest.TestCase):
-    """For 5' data, bandwidths score by the initiator (a pyrimidine-purine pair) at their peaks."""
-
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(shutil.rmtree, self.tmp)
-        sequence = list("G" * 300)
-        sequence[99:101] = "CA"  # -1 and +1 of a + strand start site at 101
-        sequence[249:251] = "TG"  # read leftwards, CA: a - strand start site at 250
-        self.genome = self.tmp / "genome.fa"
-        self.genome.write_text(">chr1\n" + "".join(sequence) + "\n")
-        # UTR P (+ strand, 1-200): 30 molecules start at 101 (CA), 10 at 151 (GG),
-        # 1 at 51. UTR M (- strand, 201-300): 20 at 250 (CA). UTR X: chromosome 2.
-        var = pd.DataFrame(
-            {
-                "utr_name": ["P", "P", "P", "M", "X"],
-                "utr_size": [150, 100, 50, 50, 10],
-                "chrom": ["1", "1", "1", "1", "2"],
-                "start": [1, 1, 1, 201, 1],
-                "end": [200, 200, 200, 300, 100],
-                "strand": ["+", "+", "+", "-", "+"],
-            },
-            index=[f"site{i}" for i in range(5)],
-        )
-        # Sizes 150, 100 and 50 of P start at 51, 101 and 151 (end - size + 1).
-        counts = np.array([[1, 30, 10, 20, 9]], dtype=np.int32)
-        self.adata = ad.AnnData(X=scipy.sparse.csr_matrix(counts), var=var)
-
-    def _scores(self, bandwidths, kernel="linear", **kwargs):
-        table = pca.score_bandwidths(
-            self.adata,
-            genome=self.genome,
-            bandwidths=bandwidths,
-            kernel=kernel,
-            utr_end="five_prime",
-            n_jobs=1,
-            **kwargs,
-        )
-        return table.score.tolist()
-
-    def test_the_share_of_molecules_at_initiators(self):
-        # P: 30 of 41 molecules (the site at 51 has 1, not more than 1%); M: all.
-        self.assertAlmostEqual(self._scores([1])[0], (30 / 41 + 1) / 2)
-
-    def test_smoothing_off_the_start_sites_scores_lower(self):
-        # A wide Gaussian joins P's sites between 101 and 151: no initiator there.
-        narrow, wide = self._scores([1, 60], kernel="gaussian")
-        self.assertGreater(narrow, wide)
-        self.assertAlmostEqual(wide, (0 + 1) / 2)
-
-    def test_the_utr_end_comes_from_the_record(self):
-        with mock.patch.object(sys, "argv", ["utrcalling", "run"]):
-            provenance.record(self.adata, utr_end="five_prime", summarization_level="utr")
-        table = pca.score_bandwidths(
-            self.adata, genome=str(self.genome), bandwidths=["1"], n_jobs=1
-        )
-        self.assertListEqual(table.index.tolist(), [1])
-        self.assertAlmostEqual(table.score.iloc[0], (30 / 41 + 1) / 2)
-
-    def test_default_candidates_per_utr_end(self):
-        table = pca.score_bandwidths(self.adata, genome=self.genome, utr_end="five_prime", n_jobs=1)
-        self.assertListEqual(table.index.tolist(), list(CANDIDATE_BANDWIDTHS["five_prime"]))
-
-    def test_refusals(self):
-        with self.assertRaisesRegex(ValueError, "utr_end 'middle'"):
-            pca.score_bandwidths(self.adata, genome=self.genome, bandwidths=[1], utr_end="middle")
-        with mock.patch.object(sys, "argv", ["utrcalling", "run"]):
-            provenance.record(self.adata, summarization_level="gene")
-        with self.assertRaisesRegex(ValueError, "Gene-level sites"):
-            self._scores([1])
-
-
 class TestUtrWithoutMolecules(unittest.TestCase):
     """A UTR without molecules, as in a subset of the cells, has no peaks.
 
@@ -1047,7 +882,7 @@ class TestBandwidthRules(unittest.TestCase):
         )
         sizes = np.repeat([40, 41, 42, 90, 91, 92], [5, 11, 5, 5, 9, 5])
         self.expected = {
-            "UTR0": pc.utr_bandwidth(sizes, "scott:0.5"),
+            "UTR0": bandwidth_rules.utr_bandwidth(sizes, "scott:0.5"),
             "UTR1": 0.0,  # all 8 molecules at 70
             "UTR2": np.nan,  # 3 molecules take their median
         }

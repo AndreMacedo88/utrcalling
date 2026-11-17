@@ -22,8 +22,13 @@ single-cell resolution.
 - **3'UTR and 5'UTR calling** --- analyse either end of the transcript.
 - **Flexible summarisation** --- aggregate results at UTR or gene level.
 - **KDE peak calling** --- kernel density estimation, with a choice of kernel
-  and bandwidth (fixed, set per UTR, or chosen for the data by the genome), to
-  identify consensus UTR isoform peaks from per-molecule size distributions.
+  and bandwidth (fixed, set per UTR, or chosen for the data), to identify
+  consensus UTR isoform peaks from per-molecule size distributions.
+- **Peak calling chosen for the data** --- score kernels and bandwidths by the
+  genome around their sites or by a database of known sites, and call the
+  peaks with the best.
+- **Extensible** --- add your own scores, peak callers, bandwidth rules and
+  protocols, as plugins or in a notebook (see [Extending utrcalling](https://github.com/AndreMacedo88/utrcalling/blob/main/docs/extending.md)).
 - **Batch-aware processing** --- union or intersection merge strategies for
   multi-sample experiments.
 - **Sparse output** --- count matrices are stored as sparse arrays in AnnData
@@ -263,8 +268,9 @@ utrcalling count \
 | `--summarization-level / -s` | `utr` (default), or `gene` to join the UTRs of each gene. |
 | `--raw-sizes / -r` | Output both raw UTR sizes and KDE peaks. |
 | `--kde-bandwidth / -b` | KDE bandwidth for peak calling: a number of nt (default: 12), or a rule that sets one per UTR from the spread of its sizes, `scott` or `silverman`, optionally scaled (`scott:0.5`). |
-| `--kde-kernel` | KDE kernel: `gaussian` (default), `linear`, `epanechnikov`, `exponential`, `tophat` or `cosine`. |
-| `-b optimize`, `--candidates`, `--genome` | Choose the bandwidth: score the candidates against the genome (see `qc score-bandwidths`) and use the best. |
+| `--kde-kernel` | KDE kernel: `gaussian` (default), `linear`, `epanechnikov`, `exponential`, `tophat` or `cosine`. With `-b optimize`, several to choose among. |
+| `-b optimize`, `--candidates`, `--score`, `--genome`, `--known-sites` | Choose the bandwidth (and the kernel): score each candidate setting by its sites (see `qc score-bandwidths`) and use the best. |
+| `--peak-caller` | The method that calls peaks: `kde` (default), or one that a plugin adds. |
 | `--strandedness` | Library strandedness for `truseq`: `reverse` (default), `forward`, or `unstranded`. |
 | `--batch-merge-method / -m` | How to merge batches: `union` or `intersection`. |
 | `--store-intermediate / -i` | Save intermediate files for resumable workflows. |
@@ -317,6 +323,7 @@ utrcalling tools mean-sizes named.h5ad mean_sizes.h5ad
 # for 3' data -1 is the cleavage site; --upstream reads before it.
 utrcalling tools site-sequences named.h5ad genome.fa sites.fa \
     --upstream 50 --downstream 50
+
 ```
 
 ### Peak calling for 5' data
@@ -338,13 +345,25 @@ the share of molecules at peaks with a pyrimidine (C or T) at -1 and a purine
 the start sites lose it:
 
 ```bash
-# Score bandwidths, one kernel at a time, on the raw sizes of run -f five_prime_utr -r
-utrcalling qc score-bandwidths raw_sizes.h5ad scores_linear.tsv genome.fa --kde-kernel linear
-utrcalling qc score-bandwidths raw_sizes.h5ad scores_gaussian.tsv genome.fa
+# Score bandwidths with each kernel, on the raw sizes of run -f five_prime_utr -r
+utrcalling qc score-bandwidths raw_sizes.h5ad scores.tsv genome.fa \
+    --kde-kernel linear gaussian
 
-# Or let run, count or call-peaks choose the bandwidth with the best score
-utrcalling call-peaks raw_sizes.h5ad peaks -b optimize --kde-kernel linear --genome genome.fa
+# Also by known start sites (refTSS, of the same genome assembly)
+utrcalling qc score-bandwidths raw_sizes.h5ad scores.tsv genome.fa --kde-kernel linear \
+    --score initiator known-sites --known-sites refTSS_v4.1_mouse_coordinate.mm39.bed.gz
+
+# Or let run, count or call-peaks choose the bandwidth and the kernel with the best score
+utrcalling call-peaks raw_sizes.h5ad peaks -b optimize --kde-kernel linear gaussian \
+    --genome genome.fa
 ```
+
+The known-sites score checks that the sites lie at start sites that other
+data have seen, but it cannot choose the bandwidth to the nucleotide: refTSS
+knows clusters of start sites (14 nt wide in the median), and smoothing that
+joins the sites of a cluster raises it. On the Cap-seq data below, it rose
+from 0.77 to 0.83 between linear bandwidths of 1 and 12 nt, while the
+initiator score fell from 0.54 to 0.47. Let the initiator choose.
 
 The default stays as it is for other analyses.
 
@@ -358,7 +377,7 @@ commands give her sites in 99% of the UTRs:
 utrcalling run Mus_musculus.GRCm39.108.gtf.gz -a sample_*.bam -A samples.csv \
     -f five_prime_utr -p <your 5' protocol> -r -o capseq.h5ad
 utrcalling call-peaks capseq.h5ad capseq -b scott:0.5 --kde-kernel linear
-utrcalling process filter-utrs capseq_bwscott0.5.h5ad deep.h5ad --minimum-molecules 500
+utrcalling process filter-utrs capseq_linear_bwscott0.5.h5ad deep.h5ad --minimum-molecules 500
 utrcalling process filter-sites deep.h5ad sites.h5ad \
     --threshold 0.1 --minimum-counts 10 --groupby Treatment
 ```
@@ -396,7 +415,7 @@ them. Each writes a tab-separated table, which pandas, R and MultiQC read:
 | `qc pas-distance` | site | Distance to the nearest polyadenylation signal hexamer |
 | `qc priming` | site | Whether the genome around it could explain it as a priming artefact: A's after a 3' site (internal priming), or a sequence like the template-switching oligo before a 5' site (strand invasion) |
 | `qc peaks` | peak | Molecules, share of its UTR, and the spread of the raw sizes it collects |
-| `qc score-bandwidths` | KDE bandwidth | How well its peaks fall where the genome expects sites: 10-30 nt after a PAS hexamer (3' data), or on a pyrimidine-purine initiator (5' data); and how many it makes |
+| `qc score-bandwidths` | KDE kernel and bandwidth | How well its peaks fall where true sites are: 10-30 nt after a PAS hexamer (3' data), on a pyrimidine-purine initiator (5' data), or near the known sites of a database; and how many it makes |
 
 ```bash
 # A row per matrix, from mapping to analysis; MultiQC shows *_mqc.tsv files
@@ -423,7 +442,7 @@ utrcalling qc pas-distance peaks_bw12.h5ad pas_distances.tsv genome.fa
 # of the recorded protocol (or --tso)
 utrcalling qc priming peaks_bw12.h5ad genome.fa priming.tsv
 
-# How wide the peaks of a bandwidth are, and how well bandwidths score
+# How wide the peaks of a bandwidth are, and how well bandwidths (and kernels) score
 utrcalling qc peaks raw_sizes.h5ad peaks_bw12.tsv --bandwidth 12
 utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.tsv genome.fa \
     --bandwidths 4 8 12 16
@@ -511,6 +530,16 @@ although `--help` no longer lists them. `call-peaks` with read mappings
 
 [CHANGELOG.md](https://github.com/AndreMacedo88/utrcalling/blob/main/CHANGELOG.md) lists what changed in each version.
 
+## Extending utrcalling
+
+Data that utrcalling's methods do not fit, such as 5' data from degraded RNA,
+may need a method of their own. Scores of peak-calling settings, peak callers,
+bandwidth rules and protocols are extension points: write yours as a Python
+class or function, register it by name (in a notebook, or as an entry point of
+a plugin package), and every command takes it by that name, as in `--score
+your-score`. The guide [Extending utrcalling](https://github.com/AndreMacedo88/utrcalling/blob/main/docs/extending.md) shows how, with an example
+of each.
+
 ## Testing
 
 The test suite covers all protocols, edge cases, and the full pipeline
@@ -541,7 +570,10 @@ utrcalling/
 │   │   ├── utr_mapping.py      Read-to-UTR mapping (pysam)
 │   │   ├── utr_reference.py    GTF parsing, UTR extraction
 │   │   ├── count_matrix.py     Sparse count matrix assembly
-│   │   ├── protocols/          KDE peak calling (peak_calling.py) and its settings
+│   │   ├── peak_calling/       Peak callers (kde.py), bandwidth rules, scores of
+│   │   │                       settings (scores/), and their names (settings.py)
+│   │   ├── peak_calling_anndata.py  Peak calling and scoring of count matrices
+│   │   ├── registry.py         Methods by name, and plugins
 │   │   ├── genome.py           Where sites lie, and the genome around them
 │   │   ├── barcode_filtering.py
 │   │   ├── process_mapped_reads.py
@@ -550,6 +582,7 @@ utrcalling/
 │   ├── commands/               One module per command, a folder per group
 │   │                           (options.py: the options they share)
 │   └── tests/                  Unit and integration tests
+├── docs/                       Documentation (extending.md: add your own methods)
 ├── notebooks/                  Exploratory analyses
 ├── envs/
 │   └── utrcalling-frozen.yml   Exact versions validated by the test suite

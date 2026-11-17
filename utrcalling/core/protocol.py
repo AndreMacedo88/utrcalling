@@ -17,8 +17,9 @@ import re
 
 # built-in packages
 from abc import ABC, ABCMeta, abstractmethod
+from collections.abc import Mapping
 from enum import Enum
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
 # data wrangling packages
 import numpy as np
@@ -27,8 +28,8 @@ from bidict import bidict
 
 # internal packages
 from utrcalling.core import helpers, module_log
-from utrcalling.core.protocols import kde_options
-from utrcalling.core.protocols import peak_calling as pc
+from utrcalling.core.peak_calling import callers, settings
+from utrcalling.core.registry import Registry
 
 if TYPE_CHECKING:
     import numpy.typing as npt
@@ -136,6 +137,9 @@ class Protocol(ABC, metaclass=CombinedMeta):
 
     # Default label_batches value — subclasses override this class attribute
     _default_label_batches: bool | None = None
+    # Which end of the UTR the sizes count from: the start for 3' protocols,
+    # whose sites are 3' ends; the end for 5' protocols (ProtocolFivePrime).
+    utr_end: ClassVar[str] = "three_prime"
     # The template-switching oligo (TSO) of 5' protocols, or its 3' end: random
     # bases (a UMI) as N, riboguanosines as G. qc.priming_artefacts uses it.
     template_switching_oligo: str | None = None
@@ -149,7 +153,7 @@ class Protocol(ABC, metaclass=CombinedMeta):
         label_batches: bool | str | None = None,
         alignments: str | list[str] | None = None,
         strandedness: str | None = None,
-        kde_bandwidth: kde_options.Bandwidth = 12,
+        kde_bandwidth: settings.Bandwidth = 12,
         kde_kernel: str = "gaussian",
     ) -> None:
         """Initialize the protocol with pipeline configuration.
@@ -168,13 +172,13 @@ class Protocol(ABC, metaclass=CombinedMeta):
                 ignored by protocols that fix their own strand convention.
             kde_bandwidth: Bandwidth of the KDE used to collapse UTR sizes into
                 consensus peaks: a number of nt, or a rule that sets one per UTR
-                (see peak_calling.utr_bandwidth). The default of 12 is tuned for
+                (see peak_calling.bandwidth_rules). The default of 12 is tuned for
                 3'-end-enriched
                 assays, where reads pile within a few bp of a true
                 polyadenylation site. Random-fragmentation libraries have a far
                 broader per-site spread and need a wider kernel, otherwise the
                 smear is carved into many closely-spaced pseudo-peaks.
-            kde_kernel: The KDE's kernel, one of kde_options.KERNELS.
+            kde_kernel: The KDE's kernel, one of peak_calling.settings.KERNELS.
         """
         self.logger = module_log.module_logger()
 
@@ -201,10 +205,10 @@ class Protocol(ABC, metaclass=CombinedMeta):
         self.call_peaks = call_peaks
 
         self.kde_bandwidth = kde_bandwidth
-        self.kde_kernel = kde_options.check_kernel(kde_kernel)
-        self.peak_calling: pc.SizeTransform | None
+        self.kde_kernel = settings.check_kernel(kde_kernel)
+        self.peak_calling: callers.SizeTransform | None
         if self.call_peaks:
-            self.peak_calling = pc.get_caller(
+            self.peak_calling = callers.get_caller(
                 call_peaks_method, bandwidth=kde_bandwidth, kernel=kde_kernel
             )
         else:
@@ -605,6 +609,8 @@ class ProtocolThreePrime(Protocol):
 class ProtocolFivePrime(Protocol):
     """Protocol base for 5' UTR sequencing platforms."""
 
+    utr_end = "five_prime"
+
     @staticmethod
     def check_strand_matches(read_strand: str, utr_strand: str) -> bool:
         return read_strand == utr_strand
@@ -670,7 +676,7 @@ class ProtocolSmartseq(ProtocolThreePrime):
         alignments: str | list[str] | None = None,
         annotations: str | pd.DataFrame | None = None,
         strandedness: str | None = None,
-        kde_bandwidth: kde_options.Bandwidth = 12,
+        kde_bandwidth: settings.Bandwidth = 12,
         kde_kernel: str = "gaussian",
     ) -> None:
 
@@ -914,7 +920,7 @@ class ProtocolCapseq(ProtocolFivePrime):
         alignments: str | list[str] | None = None,
         annotations: str | pd.DataFrame | None = None,
         strandedness: str | None = None,
-        kde_bandwidth: kde_options.Bandwidth = 12,
+        kde_bandwidth: settings.Bandwidth = 12,
         kde_kernel: str = "gaussian",
     ) -> None:
 
@@ -1113,43 +1119,40 @@ def protocol_class(platform: str, version: int) -> type[Protocol]:
         NotImplementedError: If the platform/version combination is not supported.
     """
     error_message = f"Protocol for {platform} version {version} not implemented."
+    if platform not in PROTOCOLS:
+        raise NotImplementedError(error_message)
+    protocols = PROTOCOLS.get(platform)
+    if isinstance(protocols, type):  # any version
+        return protocols
+    if version not in protocols:
+        raise NotImplementedError(error_message)
+    return protocols[version]
 
-    if platform.lower() in ("10x", "10_x", "tenx", "ten_x"):
-        if version == 2:
-            return ProtocolTenx2
-        if version == 3:
-            return ProtocolTenx3
-        raise NotImplementedError(error_message)
-    if platform.lower() in ("smart-seq", "smartseq"):
-        if version == 3:
-            return ProtocolSmartseq3
-        raise NotImplementedError(error_message)
-    if platform.lower() in ("smart-seq_cap", "smartseq_cap"):
-        if version == 3:
-            return ProtocolCapseqSmartseq3
-        raise NotImplementedError(error_message)
-    if platform.lower() in ("smart-seq_cap-readname", "smartseq_cap-readname"):
-        if version == 3:
-            return ProtocolCapseqSmartseq3ReadName
-        raise NotImplementedError(error_message)
-    if platform.lower() in ("5'10x", "5'10_x", "5'tenx", "5prime10x"):
-        if version == 1:
-            return ProtocolFiveTenx
-        raise NotImplementedError(error_message)
-    if platform.lower() in ("standard_10x", "standard_10_x", "standard_tenx"):
-        if version == 2:
-            return ProtocolStandardTenx2
-        if version == 3:
-            return ProtocolStandardTenx3
-        raise NotImplementedError(error_message)
-    if platform.lower() in ("standard_smartseq", "standard_smart-seq"):
-        if version == 3:
-            return ProtocolStandardSmartseq3
-        raise NotImplementedError(error_message)
-    if platform.lower() in ("truseq", "truseq_stranded", "standard_truseq", "standard_bulk"):
-        # Bulk RNA-seq has no protocol "version" — accept any.
-        return ProtocolTruseq
-    if platform.lower() in ("bulk_pe", "bulk-pe", "standard_bulk_pe", "unstranded_bulk_pe"):
-        # Bulk RNA-seq has no protocol "version" — accept any.
-        return ProtocolBulkPe
-    raise NotImplementedError(error_message)
+
+# The protocols of each platform (--protocol-platform): a Protocol subclass for
+# platforms without versions, such as bulk RNA-seq, or one per version. Plugins
+# add theirs, by an entry point of the group utrcalling.protocols (see
+# core.registry and docs/extending.md).
+TENX = {2: ProtocolTenx2, 3: ProtocolTenx3}
+SMARTSEQ = {3: ProtocolSmartseq3}
+SMARTSEQ_CAP = {3: ProtocolCapseqSmartseq3}
+SMARTSEQ_CAP_READNAME = {3: ProtocolCapseqSmartseq3ReadName}
+FIVE_PRIME_TENX = {1: ProtocolFiveTenx}
+STANDARD_TENX = {2: ProtocolStandardTenx2, 3: ProtocolStandardTenx3}
+STANDARD_SMARTSEQ = {3: ProtocolStandardSmartseq3}
+_PLATFORMS = {
+    "TENX": ("10x", "10_x", "tenx", "ten_x"),
+    "SMARTSEQ": ("smart-seq", "smartseq"),
+    "SMARTSEQ_CAP": ("smart-seq_cap", "smartseq_cap"),
+    "SMARTSEQ_CAP_READNAME": ("smart-seq_cap-readname", "smartseq_cap-readname"),
+    "FIVE_PRIME_TENX": ("5'10x", "5'10_x", "5'tenx", "5prime10x"),
+    "STANDARD_TENX": ("standard_10x", "standard_10_x", "standard_tenx"),
+    "STANDARD_SMARTSEQ": ("standard_smartseq", "standard_smart-seq"),
+    "ProtocolTruseq": ("truseq", "truseq_stranded", "standard_truseq", "standard_bulk"),
+    "ProtocolBulkPe": ("bulk_pe", "bulk-pe", "standard_bulk_pe", "unstranded_bulk_pe"),
+}
+PROTOCOLS: Registry[type[Protocol] | Mapping[int, type[Protocol]]] = Registry(
+    "protocol platform",
+    "utrcalling.protocols",
+    {name: f"{__name__}:{attribute}" for attribute, names in _PLATFORMS.items() for name in names},
+)

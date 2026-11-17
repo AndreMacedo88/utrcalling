@@ -423,7 +423,7 @@ class TestUtrBandwidths(unittest.TestCase):
     """utr_bandwidths: each UTR's bandwidth under a rule, from the flat read mappings."""
 
     def test_each_utr_gets_the_rules_bandwidth_of_its_sorted_sizes(self):
-        from utrcalling.core.protocols.peak_calling import utr_bandwidth
+        from utrcalling.core.peak_calling.bandwidth_rules import utr_bandwidth
 
         reads = pd.DataFrame(
             {

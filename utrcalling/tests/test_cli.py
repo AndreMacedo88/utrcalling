@@ -284,26 +284,62 @@ class TestCLIInvalidArgs(unittest.TestCase):
 
     def test_bandwidths_are_checked(self):
         self.assertRefused(
-            *RUN, "-b", "wide", message="expected a number of nt, scott or silverman"
+            *RUN, "-b", "wide", message="expected a number of nt or a rule .scott, silverman."
         )
         self.assertRefused(*RUN, "-b", "0", message="must be above 0")
-        self.assertRefused(*COUNT, "-b", "scott:-1", message="factor of scott must be above 0")
+        self.assertRefused(
+            *COUNT, "-b", "scott:-1", message="factor of scott must be a number above 0"
+        )
+        self.assertRefused(*RUN, "--candidates", "4", "0", message="must be above 0")
         self.assertRefused("qc", "peaks", "in.h5ad", "out.tsv", "-b", "0", message="above 0")
         self.assertRefused("call-peaks", "in.h5ad", "out", "-b", "12", "-3", message="above 0")
 
     def test_the_kde_kernel_is_one_of_scikit_learns_in_any_case(self):
+        _, arguments = _parse("qc", "peaks", *GROUPED_COMMANDS["qc", "peaks"])
+        self.assertEqual(arguments["kde_kernel"], "gaussian")
+        _, arguments = _parse("qc", "peaks", "in.h5ad", "o.tsv", "--kde-kernel", "Linear")
+        self.assertEqual(arguments["kde_kernel"], "linear")
+        self.assertRefused(
+            "qc", "peaks", "in.h5ad", "o.tsv", "--kde-kernel", "box", message="expected one of"
+        )
+        # The others take several, to compare them.
         commands = [RUN, COUNT, ["call-peaks", "in.h5ad", "out"]]
-        for key in (("qc", "peaks"), ("qc", "score-bandwidths")):
-            commands.append([*key, *GROUPED_COMMANDS[key]])
+        commands.append(["qc", "score-bandwidths", *GROUPED_COMMANDS["qc", "score-bandwidths"]])
         for command in commands:
             with self.subTest(command=command[:2]):
-                self.assertEqual(_parse(*command)[1]["kde_kernel"], "gaussian")
-                self.assertEqual(
-                    _parse(*command, "--kde-kernel", "Linear")[1]["kde_kernel"], "linear"
-                )
+                self.assertEqual(_parse(*command)[1]["kde_kernel"], ("gaussian",))
+                arguments = _parse(*command, "--kde-kernel", "Linear", "gaussian", "linear")[1]
+                self.assertEqual(arguments["kde_kernel"], ("linear", "gaussian"))
                 self.assertRefused(
                     *command, "--kde-kernel", "box", message="expected one of gaussian"
                 )
+
+    def test_scores_and_peak_callers_are_named_in_any_case(self):
+        commands = [RUN, COUNT, ["call-peaks", "in.h5ad", "out"]]
+        commands.append(["qc", "score-bandwidths", *GROUPED_COMMANDS["qc", "score-bandwidths"]])
+        for command in commands:
+            with self.subTest(command=command[:2]):
+                arguments = _parse(*command)[1]
+                self.assertEqual((arguments["scores"], arguments["peak_caller"]), (None, "kde"))
+                arguments = _parse(
+                    *command, "--score", "Known-Sites", "PAS", "--peak-caller", "KDE"
+                )[1]
+                self.assertEqual(arguments["scores"], ("known-sites", "pas"))
+                self.assertEqual(arguments["peak_caller"], "kde")
+                self.assertRefused(*command, "--score", "best", message="Unknown score 'best'")
+                self.assertRefused(
+                    *command, "--peak-caller", "gmm", message="Unknown peak caller 'gmm'"
+                )
+        _, arguments = _parse("qc", "peaks", "in.h5ad", "o.tsv", "--peak-caller", "kde")
+        self.assertEqual(arguments["peak_caller"], "kde")
+
+    def test_known_sites(self):
+        _, arguments = _parse(*RUN, "-b", "optimize", "--known-sites", "refTSS.bed.gz")
+        self.assertEqual(arguments["known_sites"], "refTSS.bed.gz")
+        score = ["qc", "score-bandwidths", "in.h5ad", "o.tsv"]  # no genome: known sites
+        _, arguments = _parse(*score, "--score", "known-sites", "--known-sites", "k.bed", "-w", "5")
+        self.assertEqual((arguments["known_sites"], arguments["window"]), ("k.bed", 5))
+        self.assertIsNone(arguments["genome_path"])
 
     def test_a_flag_without_its_values_is_refused(self):
         self.assertRefused("run", "g.gtf", "-a", "-A", "a.csv", message="at least 1")
@@ -364,7 +400,7 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
             tool(
                 *args,
                 kde_bandwidth=150,
-                kde_kernel="linear",
+                kde_kernel=("linear",),
                 log_level="error",
                 no_log_file=True,
                 **kwargs,
@@ -379,6 +415,7 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
         )
         self.assertEqual(kwargs["kde_bandwidth"], 150)
         self.assertEqual(kwargs["kde_kernel"], "linear")
+        self.assertEqual(kwargs["call_peaks_method"], "kde")
 
     def test_count_forwards_kde_bandwidth(self):
         from utrcalling.commands.count import count
@@ -415,7 +452,28 @@ class TestOptimizeNeedsTheGenome(unittest.TestCase):
         for name, (tool, args, kwargs) in tools.items():
             with self.subTest(tool=name):
                 self._refused(
-                    tool, *args, **kwargs, message="give the genome .FASTA. with --genome"
+                    tool,
+                    *args,
+                    **kwargs,
+                    message="The pas score needs the genome sequence .FASTA. of the annotation: "
+                    "give it with --genome",
+                )
+                # 5' protocols score by the initiator.
+                self._refused(
+                    tool,
+                    *args,
+                    **kwargs,
+                    protocol_platform="5prime10x",
+                    protocol_version=1,
+                    message="The initiator score needs the genome",
+                )
+                self._refused(
+                    tool,
+                    *args,
+                    **kwargs,
+                    scores=("known-sites",),
+                    message="The known-sites score needs a BED file of known sites: give it "
+                    "with --known-sites",
                 )
                 self._refused(tool, *args, **kwargs, genome="missing.fa", message="no such file")
                 self._refused(
@@ -426,6 +484,25 @@ class TestOptimizeNeedsTheGenome(unittest.TestCase):
                     summarization_level="gene",
                     message="use -s utr",
                 )
+
+    def test_several_kernels_need_optimize(self):
+        from utrcalling.commands.count import count
+        from utrcalling.commands.run import run
+
+        tools = {
+            "run": (run, ["g.gtf"], {"alignments": ["x.bam"], "annotations_file": "a.csv"}),
+            "count": (count, ["ref.parquet"], {"utr_sizes_counts": ["m.parquet"]}),
+        }
+        for name, (tool, args, kwargs) in tools.items():
+            with (
+                self.subTest(tool=name),
+                mock.patch("utrcalling.core.protocol.create") as create,
+                self.assertRaisesRegex(
+                    ValueError, "--kde-kernel gaussian linear: give one kernel, or several with"
+                ),
+            ):
+                tool(*args, **kwargs, kde_kernel=("gaussian", "linear"), no_log_file=True)
+            create.assert_not_called()
 
 
 class TestCountRecordsTheUtrEnd(unittest.TestCase):
@@ -511,8 +588,10 @@ class TestScoreBandwidthsCommand(unittest.TestCase):
         genome_path.write_text(">chr1\nACGT\n")
         out_path = tmpdir / "scores.tsv"
         scores = pd.DataFrame(
-            {"score": [0.25, 0.5], "sites": [9, 4], "sites_per_utr": [3.0, 4 / 3]},
-            index=pd.Index([7, 12], name="bandwidth"),
+            {"initiator": [0.25, 0.5], "sites": [9, 4], "sites_per_utr": [3.0, 4 / 3]},
+            index=pd.MultiIndex.from_tuples(
+                [("linear", 7), ("linear", 12)], names=["kernel", "bandwidth"]
+            ),
         )
 
         with (
@@ -527,16 +606,24 @@ class TestScoreBandwidthsCommand(unittest.TestCase):
                 genome_path=str(genome_path),
                 bandwidths=(7, 12),
                 hamming=0,
-                kde_kernel="linear",
+                kde_kernel=("linear",),
                 utr_end="five_prime",
+                scores=("initiator",),
+                known_sites="known.bed",
+                window=3,
             )
 
-        self.assertEqual(scorer.call_args.kwargs["genome"].fn, str(genome_path))
-        self.assertEqual(scorer.call_args.kwargs["bandwidths"], (7, 12))
-        self.assertEqual(scorer.call_args.kwargs["hamming"], 0)
-        self.assertEqual(scorer.call_args.kwargs["kernel"], "linear")
-        self.assertEqual(scorer.call_args.kwargs["utr_end"], "five_prime")
-        pd.testing.assert_frame_equal(pd.read_csv(out_path, sep="\t", index_col=0), scores)
+        kwargs = scorer.call_args.kwargs
+        self.assertEqual(kwargs["genome"], str(genome_path))
+        self.assertEqual(kwargs["bandwidths"], (7, 12))
+        self.assertEqual(kwargs["hamming"], 0)
+        self.assertEqual(kwargs["kernel"], ("linear",))
+        self.assertEqual(kwargs["utr_end"], "five_prime")
+        self.assertEqual(kwargs["scores"], ("initiator",))
+        self.assertEqual((kwargs["known_sites"], kwargs["window"]), ("known.bed", 3))
+        self.assertEqual(kwargs["method"], "kde")
+        written = pd.read_csv(out_path, sep="\t", index_col=[0, 1])
+        pd.testing.assert_frame_equal(written, scores)
 
 
 class TestPasDistanceCommand(unittest.TestCase):

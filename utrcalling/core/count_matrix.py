@@ -19,7 +19,7 @@ from utrcalling.core.protocol import Protocol
 if TYPE_CHECKING:
     import numpy.typing as npt
 
-    from utrcalling.core.protocols.peak_calling import SizeTransform
+    from utrcalling.core.peak_calling.callers import SizeTransform
 
 
 class CountMatrixResult(NamedTuple):
@@ -346,12 +346,12 @@ def utr_bandwidths(utr_sizes: pd.DataFrame, bandwidth: str) -> pd.Series:
 
     Args:
         utr_sizes: Flat DataFrame with columns (utr_name, observation_id, utr_size).
-        bandwidth: A rule, such as ``scott:0.5`` (see peak_calling.utr_bandwidth).
+        bandwidth: A rule, such as ``scott:0.5`` (see peak_calling.bandwidth_rules).
 
     Returns:
         Each UTR's bandwidth (NaN for 3 molecules or fewer), indexed by UTR name.
     """
-    from utrcalling.core.protocols.peak_calling import utr_bandwidth
+    from utrcalling.core.peak_calling.bandwidth_rules import utr_bandwidth
 
     utr_col = utr_sizes["utr_name"]
     if not isinstance(utr_col.dtype, pd.CategoricalDtype):

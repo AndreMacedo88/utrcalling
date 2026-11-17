@@ -6,9 +6,9 @@ from typing import Annotated
 
 from cyclopts import Parameter
 
-from utrcalling.commands.options import Cores, KdeKernel
+from utrcalling.commands.options import Cores, KdeKernel, PeakCaller
 from utrcalling.commands.options import bandwidth as read_bandwidth
-from utrcalling.core.protocols.kde_options import Bandwidth
+from utrcalling.core.peak_calling.settings import Bandwidth
 
 
 def peaks(
@@ -20,6 +20,7 @@ def peaks(
         Parameter(name=("--bandwidth", "-b"), converter=read_bandwidth, metavar="NT|RULE"),
     ] = 12,
     kde_kernel: KdeKernel = "gaussian",
+    peak_caller: PeakCaller = "kde",
     cores: Cores = None,
 ) -> None:
     """Describe the peaks that a KDE bandwidth calls from raw UTR sizes.
@@ -50,5 +51,11 @@ def peaks(
         raise ValueError(
             f"This matrix holds {matrix.replace('_', ' ')}: give the raw sizes of run -r."
         )
-    table = pc.peak_table(adata, bandwidth=bandwidth, n_jobs=cores, kernel=kde_kernel)
+    table = pc.peak_table(
+        adata,
+        bandwidth=bandwidth,
+        n_jobs=cores,
+        kernel=kde_kernel,
+        method=peak_caller,
+    )
     storage.write_table(table, out_path)

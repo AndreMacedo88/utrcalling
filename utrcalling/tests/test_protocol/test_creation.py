@@ -616,6 +616,58 @@ class TestProtocolClass(unittest.TestCase):
                 self.assertEqual(tso, smart_seq3)
         self.assertIsNone(protocol.protocol_class("10x", 3).template_switching_oligo)
 
+    def test_every_platform_name_in_any_case(self):
+        expected = {
+            ("10X", 2): protocol.ProtocolTenx2,
+            ("ten_x", 3): protocol.ProtocolTenx3,
+            ("SmartSeq", 3): protocol.ProtocolSmartseq3,
+            ("smartseq_cap", 3): protocol.ProtocolCapseqSmartseq3,
+            ("5'10x", 1): protocol.ProtocolFiveTenx,
+            ("standard_tenx", 2): protocol.ProtocolStandardTenx2,
+            ("standard_smart-seq", 3): protocol.ProtocolStandardSmartseq3,
+            ("standard_bulk", 7): protocol.ProtocolTruseq,  # bulk RNA-seq: any version
+            ("unstranded_bulk_pe", 0): protocol.ProtocolBulkPe,
+        }
+        for (platform, version), protocol_class in expected.items():
+            with self.subTest(platform=platform):
+                self.assertIs(protocol.protocol_class(platform, version), protocol_class)
+        with self.assertRaisesRegex(NotImplementedError, "Protocol for nanopore version 1"):
+            protocol.protocol_class("nanopore", 1)
+
+    def test_the_utr_end_of_each_protocol(self):
+        self.assertEqual(protocol.protocol_class("10x", 3).utr_end, "three_prime")
+        self.assertEqual(protocol.protocol_class("truseq", 1).utr_end, "three_prime")
+        self.assertEqual(protocol.protocol_class("5prime10x", 1).utr_end, "five_prime")
+        self.assertEqual(protocol.protocol_class("smart-seq_cap", 3).utr_end, "five_prime")
+
+
+class ProtocolNanopore(protocol.ProtocolStandardSmartseq3):
+    """A protocol for the tests, as a plugin would add one: Smart-seq's, renamed."""
+
+
+class TestAnAddedProtocol(unittest.TestCase):
+    """Protocols added by name work as utrcalling's own."""
+
+    def setUp(self):
+        self.annotations = pd.DataFrame({"sample_id": ["S1"]})
+
+    def test_a_protocol_for_any_version(self):
+        protocol.PROTOCOLS.register("nanopore", ProtocolNanopore)
+        self.addCleanup(protocol.PROTOCOLS.unregister, "nanopore")
+        made = protocol.create("Nanopore", 4, annotations=self.annotations)
+        self.assertIs(type(made), ProtocolNanopore)
+
+    def test_a_protocol_per_version(self):
+        protocol.PROTOCOLS.register("nanopore", {1: ProtocolNanopore})
+        self.addCleanup(protocol.PROTOCOLS.unregister, "nanopore")
+        self.assertIs(protocol.protocol_class("nanopore", 1), ProtocolNanopore)
+        with self.assertRaisesRegex(NotImplementedError, "nanopore version 2"):
+            protocol.protocol_class("nanopore", 2)
+
+    def test_utrcallings_own_names_stay(self):
+        with self.assertRaisesRegex(ValueError, "'10x' is utrcalling's own"):
+            protocol.PROTOCOLS.register("10x", ProtocolNanopore)
+
 
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
