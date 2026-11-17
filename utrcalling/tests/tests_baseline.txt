@@ -971,4 +971,4 @@ utrcalling/tests/test_cli_workflows.py::TestComputeMeanUtrSizesCommand::test_uns
     value_idx = self._prep_dim_index(value.index, attr)
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====== 867 passed, 4 warnings, 1368 subtests passed in 1057.15s (0:17:37) ======
+====== 867 passed, 4 warnings, 1368 subtests passed in 293.42s (0:04:53) =======
