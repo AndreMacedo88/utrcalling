@@ -39,6 +39,8 @@ a new major version can change results or require changes to your command lines.
   endings and trailing spaces.
 - **Dependabot** proposes updates of the GitHub Actions that CI and releases
   use, once a month.
+- **CI tests Python 3.11 to 3.14**: the oldest version that utrcalling
+  supports, the recommended 3.12, and the newest two.
 
 ## [5.0.0] - 2026-11-17
 
