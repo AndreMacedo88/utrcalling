@@ -331,6 +331,40 @@ utrcalling tools site-sequences named.h5ad genome.fa utrs.fa --upstream 0 --down
 utrcalling tools site-sequences named.h5ad genome.fa utrs.fa --upstream utr --downstream 0
 ```
 
+### What the bandwidth means
+
+Peak calling turns the UTR sizes of a UTR's molecules into sites. The KDE
+spreads each molecule into a small curve, the kernel, and adds up the curves:
+each peak of the sum is a site, and each molecule goes to the peak on its side
+of the lowest points between peaks. The bandwidth sets how wide each
+molecule's curve is:
+
+- With the Gaussian kernel (the default), the bandwidth is the standard
+  deviation of the bell curve, in nt. With 12, a molecule weighs on sizes up to
+  about 24 nt away (95% of its weight). Two sites with as many molecules stay
+  two peaks only from 25 nt apart (more than twice the bandwidth); when one
+  site has twice or ten times the molecules of the other, from 32 or 41 nt.
+  Closer sites, and the scatter of a polyadenylation site's molecules over a
+  few nt, become one peak. That suits 3' data: PolyA_DB, too, joins cleavage
+  sites within 24 nt into one polyadenylation site (Tian et al. 2005).
+- With the kernels that end, such as the linear one (a triangle), the
+  bandwidth is the kernel's half-width: beyond it a molecule weighs nothing.
+  With the linear kernel, two sites stay apart from the bandwidth plus 1 nt
+  on, whatever their molecules: 3 nt for a bandwidth of 2. That suits
+  transcription start sites, which lie a few nt apart.
+
+So the same number means different things for different kernels: a linear
+kernel smooths as much as a Gaussian of 0.4 times its bandwidth. The peak lies
+where the curves add up most, which is not always on a size that molecules
+have: the wider the bandwidth, the more it can move off the most used size.
+A rule (`scott`, `silverman`) sets each UTR's bandwidth from the spread of its
+sizes instead.
+
+`qc score-bandwidths` compares bandwidths (and kernels) by their sites; with
+`-b optimize`, `run`, `count` and `call-peaks` call the peaks with the best.
+For 3' data, the default of 12 scores close to the best: the polyadenylation
+signal score barely changes between 6 and 20 nt.
+
 ### Peak calling for 5' data
 
 The default KDE, Gaussian with a bandwidth of 12 nt, suits 3' data, where the
