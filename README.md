@@ -26,7 +26,7 @@ single-cell resolution.
   consensus UTR isoform peaks from per-molecule size distributions.
 - **Peak calling chosen for the data** --- score kernels and bandwidths by the
   genome around their sites or by a database of known sites, and call the
-  peaks with the best.
+  peaks with the best; check how stable each peak is.
 - **Extensible** --- add your own scores, peak callers, bandwidth rules and
   protocols, as plugins or in a notebook (see [Extending utrcalling](https://github.com/AndreMacedo88/utrcalling/blob/main/docs/extending.md)).
 - **Batch-aware processing** --- union or intersection merge strategies for
@@ -419,7 +419,7 @@ them. Each writes a tab-separated table, which pandas, R and MultiQC read:
 | `qc known-sites` | site | Distance to the nearest known site of a database |
 | `qc pas-distance` | site | Distance to the nearest polyadenylation signal hexamer |
 | `qc priming` | site | Whether the genome around it could explain it as a priming artefact: A's after a 3' site (internal priming), or a sequence like the template-switching oligo before a 5' site (strand invasion) |
-| `qc peaks` | peak | Molecules, share of its UTR, and the spread of the raw sizes it collects |
+| `qc peaks` | peak | Molecules, share of its UTR, the spread of the raw sizes it collects, and with `--bootstrap`, how often it comes back when the UTR's molecules are drawn again |
 | `qc score-bandwidths` | KDE kernel and bandwidth | How well its peaks fall where true sites are: 10-30 nt after a PAS hexamer (3' data), on a pyrimidine-purine initiator (5' data), or near the known sites of a database; and how many it makes |
 
 ```bash
@@ -447,11 +447,18 @@ utrcalling qc pas-distance peaks_bw12.h5ad pas_distances.tsv genome.fa
 # of the recorded protocol (or --tso)
 utrcalling qc priming peaks_bw12.h5ad genome.fa priming.tsv
 
-# How wide the peaks of a bandwidth are, and how well bandwidths (and kernels) score
-utrcalling qc peaks raw_sizes.h5ad peaks_bw12.tsv --bandwidth 12
+# How wide the peaks of a bandwidth are, and how stable: the share of 100
+# draws of each UTR's molecules in which the peak comes back
+utrcalling qc peaks raw_sizes.h5ad peaks_bw12.tsv --bandwidth 12 --bootstrap 100
+
+# How well bandwidths (and kernels) score
 utrcalling qc score-bandwidths raw_sizes.h5ad bandwidth_scores.tsv genome.fa \
     --bandwidths 4 8 12 16
 ```
+
+Peak stability compares the peaks of one setting: peaks of few molecules, or
+on the flank of a larger one, come back less often. It does not compare
+settings, since wider bandwidths make every peak more stable.
 
 The site tables answer different questions. `known-sites` asks whether a
 database has seen the site. `priming` asks whether the genome around it could
@@ -634,7 +641,8 @@ cells by targeting regulatory elements on the 5' UTR* (Heidelberg University,
 carried out at the German Cancer Research Center, 2026). She chose the linear
 kernel, half of Scott's bandwidth per UTR, the filters per treatment and by
 molecules; found and fixed peak calling on flat densities; and proposed the
-initiator as a measure of how well peaks find start sites.
+initiator as a measure of how well peaks find start sites, and bootstrap
+resampling as a measure of how stable peaks are.
 
 ## License
 

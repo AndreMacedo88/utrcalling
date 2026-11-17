@@ -825,6 +825,67 @@ class TestPeakTable(unittest.TestCase):
         self.assertListEqual(list(empty.columns), list(table.columns))
 
 
+class TestPeakStability(unittest.TestCase):
+    """peak_table with bootstrap: how often each peak comes back in resamples of its UTR."""
+
+    def setUp(self):
+        # UTR0: a strong site at 100 (200 molecules) and a weak one at 140 (6);
+        # UTR1: one site of 3 molecules, which take their median (no density).
+        self.adata = _make_adata(
+            count_matrix=[[100, 3, 2], [100, 3, 1]],
+            utr_names=["UTR0", "UTR0", "UTR1"],
+            utr_sizes=[100, 140, 30],
+            n_obs=2,
+        )
+
+    def test_strong_peaks_always_come_back_and_weak_ones_less(self):
+        table = pca.peak_table(self.adata, bandwidth=5, n_jobs=1, bootstrap=200, seed=1)
+        self.assertEqual(table.columns[-1], "stability")
+        strong, weak, median = table.stability
+        self.assertEqual(strong, 1.0)
+        # The weak site keeps a peak while a resample draws any of its 6
+        # molecules: 1 - (200/206)^206, about 0.998. More than 1 nt off it,
+        # never: all its molecules are at 140.
+        self.assertGreater(weak, 0.98)
+        self.assertTrue(np.isnan(median))  # 3 molecules: no density, no stability
+
+    def test_a_peak_of_one_molecule_often_misses(self):
+        adata = self.adata.copy()
+        adata.X = np.array([[100, 1, 2], [100, 0, 1]])
+        table = pca.peak_table(adata, bandwidth=5, n_jobs=1, bootstrap=300, seed=2)
+        # Drawn at least once with probability 1 - (200/201)^201, about 0.63.
+        self.assertAlmostEqual(table.stability.iloc[1], 1 - (200 / 201) ** 201, delta=0.08)
+
+    def test_the_same_seed_gives_the_same_stabilities(self):
+        stabilities = [
+            pca.peak_table(self.adata, bandwidth=5, n_jobs=n_jobs, bootstrap=50, seed=3).stability
+            for n_jobs in (1, 2, 1)
+        ]
+        for other in stabilities[1:]:
+            pd.testing.assert_series_equal(other, stabilities[0])
+        other_seed = pca.peak_table(self.adata, bandwidth=1, n_jobs=1, bootstrap=50, seed=4)
+        self.assertEqual(len(other_seed), 3)
+
+    def test_without_bootstrap_no_stability(self):
+        table = pca.peak_table(self.adata, bandwidth=5, n_jobs=1)
+        self.assertNotIn("stability", table.columns)
+        with self.assertRaisesRegex(ValueError, "bootstrap -1: give 0 resamples or more"):
+            pca.peak_table(self.adata, bandwidth=5, bootstrap=-1)
+
+    def test_the_tolerance_is_the_utrs_bandwidth(self):
+        # A peak that moves by up to its bandwidth in resamples still comes back.
+        sizes, counts, peaks = np.array([100, 101, 102, 103]), np.full(4, 30), np.array([101])
+
+        def shifted(molecules):  # a caller whose peak is 3 nt from 101
+            return np.full(len(molecules), 104)
+
+        rng = np.random.default_rng(0)
+        for tolerance, expected in ((3, 1.0), (2, 0.0)):
+            with self.subTest(tolerance=tolerance):
+                stability = pca._peak_stability(sizes, counts, peaks, tolerance, shifted, 10, rng)
+                self.assertListEqual(stability.tolist(), [expected])
+
+
 class TestKernelReachesEveryCaller(unittest.TestCase):
     """Each way of calling peaks uses the kernel it is given.
 

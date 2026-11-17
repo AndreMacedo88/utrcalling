@@ -1,4 +1,4 @@
-"""`utrcalling qc peaks`: the peaks a KDE bandwidth calls, and how wide each one is."""
+"""`utrcalling qc peaks`: the peaks a KDE bandwidth calls, how wide and how stable each one is."""
 
 from __future__ import annotations
 
@@ -21,6 +21,8 @@ def peaks(
     ] = 12,
     kde_kernel: KdeKernel = "gaussian",
     peak_caller: PeakCaller = "kde",
+    bootstrap: Annotated[int, Parameter(name="--bootstrap", metavar="N")] = 0,
+    seed: int = 0,
     cores: Cores = None,
 ) -> None:
     """Describe the peaks that a KDE bandwidth calls from raw UTR sizes.
@@ -32,15 +34,28 @@ def peaks(
     may join neighbouring sites; many narrow peaks with few molecules each
     suggest a bandwidth too small for the data.
 
+    With --bootstrap N, also how stable each peak is: draws as many molecules
+    as each UTR has from its molecules, with replacement, N times (100 is
+    plenty), calls their peaks, and gives the share of draws in which a peak
+    lies within the UTR's bandwidth of it. Peaks with few molecules, or on the
+    flank of a larger one, come back less often: filter them out, or check
+    them. Wider bandwidths make every peak more stable (one peak per UTR
+    always comes back), so compare the peaks of one setting by it, not
+    settings: qc score-bandwidths compares settings.
+
     For example:
 
         utrcalling qc peaks raw_sizes.h5ad peaks_bw12.tsv -b 12
+        utrcalling qc peaks capseq_raw.h5ad peaks.tsv -b scott:0.5 --kde-kernel linear --bootstrap 100
 
     Args:
         input_path: Count matrix of raw UTR sizes (.h5ad), from run -r.
         out_path: Where to write the table (.tsv).
         bandwidth: KDE bandwidth of the peak calling: a number of nt, or a rule
             (see run --help), whose value for each UTR the table gives.
+        bootstrap: How many draws of each UTR's molecules give the peaks'
+            stability (column stability); 0 for none.
+        seed: Seed of the random draws: the same seed gives the same table.
     """
     from utrcalling.core import helpers, provenance, storage
     from utrcalling.core import peak_calling_anndata as pc
@@ -57,5 +72,7 @@ def peaks(
         n_jobs=cores,
         kernel=kde_kernel,
         method=peak_caller,
+        bootstrap=bootstrap,
+        seed=seed,
     )
     storage.write_table(table, out_path)

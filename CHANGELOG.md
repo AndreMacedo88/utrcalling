@@ -126,6 +126,13 @@ a new major version can change results or require changes to your command lines.
   `qc score-bandwidths` chooses the method that calls peaks: `kde`, the
   default and utrcalling's own, or one that a plugin adds. The matrices record
   it.
+- **Peak stability.** `qc peaks --bootstrap N` draws each UTR's molecules
+  again, with replacement, N times, calls their peaks, and gives each peak the
+  share of draws in which it comes back within its UTR's bandwidth. Peaks of
+  few molecules, or on the flank of a larger one, come back less often. It
+  compares the peaks of a setting, not settings: wider bandwidths make every
+  peak more stable. `--seed` makes the draws the same each time. Eugenia
+  Guerrero Aruffo proposed it in her master's thesis (2026).
 - **`process filter-sites -g COLUMN`** counts per group of cells (a column
   of the annotations, such as a treatment) and keeps a site that passes the
   threshold in at least one group: a site that a condition raises stays,

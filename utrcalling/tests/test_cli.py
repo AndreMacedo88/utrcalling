@@ -349,6 +349,12 @@ class TestCLIInvalidArgs(unittest.TestCase):
         self.assertEqual((arguments["known_sites"], arguments["window"]), ("k.bed", 5))
         self.assertIsNone(arguments["genome_path"])
 
+    def test_the_bootstrap(self):
+        peaks = ["qc", "peaks", "in.h5ad", "o.tsv"]
+        self.assertEqual((_parse(*peaks)[1]["bootstrap"], _parse(*peaks)[1]["seed"]), (0, 0))
+        _, arguments = _parse(*peaks, "--bootstrap", "100", "--seed", "7")
+        self.assertEqual((arguments["bootstrap"], arguments["seed"]), (100, 7))
+
     def test_a_flag_without_its_values_is_refused(self):
         self.assertRefused("run", "g.gtf", "-a", "-A", "a.csv", message="at least 1")
 

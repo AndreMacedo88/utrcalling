@@ -246,6 +246,8 @@ def _peak_stats_per_utr_compact(
     bandwidth: Bandwidth,
     kernel: str = "gaussian",
     caller: SizeTransform | None = None,
+    bootstrap: int = 0,
+    rng: np.random.Generator | None = None,
 ) -> pd.DataFrame:
     """The peaks of one UTR's raw sizes, with the spread of the sizes in each peak.
 
@@ -255,11 +257,15 @@ def _peak_stats_per_utr_compact(
         bandwidth: KDE bandwidth: a number of nt, or a rule.
         kernel: The KDE's kernel.
         caller: The peak caller; by default the KDE with *bandwidth* and *kernel*.
+        bootstrap: How many resamples of the molecules give each peak's
+            stability (see :func:`_peak_stability`); 0 for none.
+        rng: Random numbers for the resamples.
 
     Returns:
         A row per peak: ``utr_size`` (the peak), ``molecules``, the UTR's
         ``bandwidth`` (see peak_calling.bandwidth_rules), the mean, standard
-        deviation, minimum and maximum of its molecules' raw sizes.
+        deviation, minimum and maximum of its molecules' raw sizes, and with
+        *bootstrap*, its ``stability``.
     """
     counts = np.asarray(X_sub.sum(axis=0)).ravel().astype(np.int64)
     sizes = var_sub.utr_size.to_numpy(dtype=np.int64)[counts > 0]
@@ -285,8 +291,52 @@ def _peak_stats_per_utr_compact(
     )
     stats["size_sd"] = np.sqrt(sizes_in.groupby("peak")["squares"].sum() / stats["molecules"])
     stats["bandwidth"] = utr_bandwidth(molecules, bandwidth)
+    if bootstrap:
+        stats["stability"] = _peak_stability(
+            sizes,
+            counts,
+            stats.index.to_numpy(),
+            stats["bandwidth"].iloc[0],
+            call,
+            bootstrap,
+            rng if rng is not None else np.random.default_rng(),
+        )
     stats.index.name = "utr_size"
     return stats.reset_index()
+
+
+def _peak_stability(
+    sizes: npt.NDArray[np.int64],
+    counts: npt.NDArray[np.int64],
+    peaks: npt.NDArray[np.int64],
+    tolerance: float,
+    call: SizeTransform,
+    resamples: int,
+    rng: np.random.Generator,
+) -> npt.NDArray[np.float64]:
+    """How often each peak comes back when the UTR's molecules are drawn again.
+
+    Draws as many molecules as the UTR has, with replacement, *resamples*
+    times, and calls their peaks. A peak comes back in a resample with a peak
+    within *tolerance* nt (the UTR's bandwidth) of it.
+
+    Returns:
+        The share of resamples in which each of *peaks* comes back; NaN for
+        all if *tolerance* is (3 molecules or fewer, which take their median).
+    """
+    if math.isnan(tolerance):
+        return np.full(len(peaks), np.nan)
+    total = int(counts.sum())
+    back = np.zeros(len(peaks), dtype=np.int64)
+    for _ in range(resamples):
+        drawn = rng.multinomial(total, counts / total)
+        resampled_peaks = np.unique(call(np.repeat(sizes, drawn)))
+        # The resampled peaks next to each peak, on either side.
+        following = np.searchsorted(resampled_peaks, peaks)
+        right = resampled_peaks[np.minimum(following, len(resampled_peaks) - 1)]
+        left = resampled_peaks[np.maximum(following - 1, 0)]
+        back += np.minimum(np.abs(right - peaks), np.abs(left - peaks)) <= tolerance
+    return back / resamples
 
 
 # ---------------------------------------------------------------------------
@@ -330,10 +380,26 @@ def _pas_table_utr_batch(
 
 
 def _peak_stats_utr_batch(
-    batch: list[CompactUtrItem], bandwidth: Bandwidth, caller: SizeTransform
+    batch: list[CompactUtrItem],
+    bandwidth: Bandwidth,
+    caller: SizeTransform,
+    bootstrap: int = 0,
+    seed: int = 0,
 ) -> list[tuple[int, pd.DataFrame]]:
+    # Each UTR draws from its own random numbers, so the resamples do not
+    # depend on how the UTRs are batched.
     return [
-        (orig_idx, _peak_stats_per_utr_compact(X_sub, var_sub, bandwidth, caller=caller))
+        (
+            orig_idx,
+            _peak_stats_per_utr_compact(
+                X_sub,
+                var_sub,
+                bandwidth,
+                caller=caller,
+                bootstrap=bootstrap,
+                rng=np.random.default_rng([seed, orig_idx]),
+            ),
+        )
         for orig_idx, _utr_name, X_sub, var_sub in batch
     ]
 
@@ -806,12 +872,22 @@ def peak_table(
     n_jobs: int | None = None,
     kernel: str = "gaussian",
     method: str = "kde",
+    bootstrap: int = 0,
+    seed: int = 0,
 ) -> pd.DataFrame:
     """The peaks that a bandwidth calls from raw sizes, and how spread out each one is.
 
     Calls the peaks of each UTR as `call-peaks` does, and describes the raw
     sizes that each peak collects. A peak whose sizes spread much wider than
     the bandwidth may join neighbouring sites, or noise.
+
+    With *bootstrap*, also gives each peak's stability: draws as many
+    molecules as each UTR has from its molecules, with replacement,
+    *bootstrap* times, calls their peaks, and counts how often a peak comes
+    back within the UTR's bandwidth. Peaks of few molecules, or on the flank
+    of a larger one, come back less often. Stability grows with the
+    bandwidth (one peak per UTR always comes back): it compares the peaks of
+    one setting, not settings.
 
     Args:
         adata: Raw-sizes count matrix, with ``utr_name``, ``utr_size`` and
@@ -821,19 +897,27 @@ def peak_table(
         n_jobs: Worker process count for the per-UTR loop.
         kernel: The KDE's kernel, one of peak_calling.settings.KERNELS.
         method: The peak caller's name (see peak_calling.callers).
+        bootstrap: How many resamples give the stability; 0 for none.
+        seed: Seed of the resamples' random numbers: the same seed gives the
+            same stabilities.
 
     Returns:
         A row per peak, indexed by its site name (as `call-peaks` names it),
         in UTR order, with ``gene_name`` (if ``.var`` has it), ``utr_name``,
         ``utr_size`` (the peak), ``molecules``, ``utr_share`` (of the UTR's
         molecules), ``utr_sites`` (peaks in the UTR), ``bandwidth`` (the UTR's;
-        missing for 3 molecules or fewer, which take their median), and the
+        missing for 3 molecules or fewer, which take their median), the
         ``size_mean``, ``size_sd`` (weighted by molecules), ``size_min`` and
-        ``size_max`` of the raw sizes it collects.
+        ``size_max`` of the raw sizes it collects, and with *bootstrap*, its
+        ``stability`` (the share of resamples it comes back in; missing for 3
+        molecules or fewer).
 
     Raises:
-        ValueError: For the reasons of peak_calling.callers.get_caller.
+        ValueError: If *bootstrap* is negative, or for the reasons of
+            peak_calling.callers.get_caller.
     """
+    if bootstrap < 0:
+        raise ValueError(f"bootstrap {bootstrap}: give 0 resamples or more")
     check_kernel(kernel)
     bandwidth = parse_bandwidth(bandwidth)
     caller = get_caller(method, bandwidth=bandwidth, kernel=kernel)
@@ -846,7 +930,7 @@ def peak_table(
         with joblib.parallel_config(backend=JOBLIB_DEFAULT_BACKEND, inner_max_num_threads=1):
             batch_results = list(
                 joblib.Parallel(n_jobs=n_workers, return_as="generator")(
-                    joblib.delayed(_peak_stats_utr_batch)(batch, bandwidth, caller)
+                    joblib.delayed(_peak_stats_utr_batch)(batch, bandwidth, caller, bootstrap, seed)
                     for batch in tqdm(batches, colour="#ffb700", ascii=" ■", desc="UTR: ")
                 )
             )
@@ -865,6 +949,7 @@ def peak_table(
         tables.append(stats)
     columns = [*annotations, "utr_size", "molecules", "utr_share", "utr_sites", "bandwidth"]
     columns += ["size_mean", "size_sd", "size_min", "size_max"]
+    columns += ["stability"] if bootstrap else []
     if not tables:
         return pd.DataFrame(columns=columns, index=pd.Index([], name="site"))
     table = pd.concat(tables, ignore_index=True)[columns]
