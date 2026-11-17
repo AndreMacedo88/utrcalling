@@ -207,6 +207,17 @@ class TestKernels(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Unknown kernel 'box'"):
             pc.call_peaks_using_kernel_density_estimator(np.arange(10), 2, "box")
 
+    def test_a_bandwidth_wider_than_the_utr_joins_its_sites(self):
+        # The sizes span 21 nt with their padding. Before the fix, the kernels
+        # with an end made a density longer than that, and peak calling failed.
+        sizes = np.array([100] * 10 + [104] * 10)
+        # Not the exponential kernel: its cusps keep every site a peak, at any
+        # bandwidth (between two sizes, a sum of exponentials has no maximum).
+        for kernel in set(KERNELS) - {"exponential"}:
+            with self.subTest(kernel=kernel):
+                peaks = pc.call_peaks_using_kernel_density_estimator(sizes, 60, kernel)
+                self.assertEqual(set(peaks.tolist()), {102})
+
     def test_densities_are_the_kde_up_to_a_constant(self):
         # Summed here so that flat stretches come out exactly flat, but the KDE
         # all the same: the sum of each molecule's kernel, as scikit-learn
@@ -215,7 +226,8 @@ class TestKernels(unittest.TestCase):
         sizes = np.concatenate([rng.integers(20, 60, 200), np.full(80, 45), np.full(30, 120)])
         window = np.arange(5, 140)
         for kernel in KERNELS:
-            for bandwidth in (0.6, 1, 2.5, 7):
+            # 200 is wider than the window: every molecule reaches every size.
+            for bandwidth in (0.6, 1, 2.5, 7, 200):
                 with self.subTest(kernel=kernel, bandwidth=bandwidth):
                     density = pc._density(sizes, window, bandwidth, kernel)
                     kde = KernelDensity(kernel=kernel, bandwidth=bandwidth).fit(

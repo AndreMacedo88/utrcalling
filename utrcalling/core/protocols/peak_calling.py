@@ -173,18 +173,25 @@ def _density(
 
     counts = np.bincount(sizes - window[0], minlength=len(window))
     if kernel == "exponential":
-        reach = min(math.ceil(EXPONENTIAL_REACH * bandwidth), len(window))
+        reach = math.ceil(EXPONENTIAL_REACH * bandwidth)
     else:  # zero from the bandwidth on
         reach = math.ceil(bandwidth) - 1
+    # The molecules lie in the window: none is further from a size of it.
+    reach = min(reach, len(window) - 1)
     offsets = np.arange(-reach, reach + 1)
     if kernel in ("tophat", "linear", "epanechnikov"):
+
+        def summed(weights: npt.NDArray[np.int64]) -> npt.NDArray[np.int64]:
+            """Sum over the molecules of their weight by offset, at each size of the window."""
+            return np.convolve(counts, weights, mode="full")[reach : reach + len(window)]
+
         # Molecules within reach, and their summed distances and squared distances.
-        within = np.convolve(counts, np.ones(len(offsets), dtype=np.int64), mode="same")
+        within = summed(np.ones(len(offsets), dtype=np.int64))
         if kernel == "tophat":
             return within.astype(np.float64)
         if kernel == "linear":  # sum of (h - |k|) c(x + k)
-            return bandwidth * within - np.convolve(counts, np.abs(offsets), mode="same")
-        return bandwidth**2 * within - np.convolve(counts, offsets**2, mode="same")
+            return bandwidth * within - summed(np.abs(offsets))
+        return bandwidth**2 * within - summed(offsets**2)
 
     distances = np.arange(1, reach + 1)
     if kernel == "cosine":
