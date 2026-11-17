@@ -5,6 +5,15 @@ a new major version can change results or require changes to your command lines.
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-11-17
+
+Peak calling for 5' data, scores that choose the peak calling for your data,
+extension points for methods of your own, and quality control tables. The
+commands are renamed and grouped: command lines written for 4.0.0 need the new
+names, while those from before 4.0.0, as in the paper's workflows, keep
+working. The default peak calling (a Gaussian of 12 nt) gives the same sites as
+before.
+
 ### Changed (breaking)
 
 - **Commands renamed and regrouped**, so that each name says what the command
