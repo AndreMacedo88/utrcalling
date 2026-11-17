@@ -1,0 +1,21 @@
+# Checks that run before each commit: `pre-commit install` once, in the
+# utrcalling environment (see CONTRIBUTING.md). CI runs the same ruff version,
+# pinned in pyproject.toml: keep the two equal.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.17.3
+    hooks:
+      - id: ruff-check
+      - id: ruff-format
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: end-of-file-fixer
+        exclude: ^utrcalling/tests/(tests_baseline\.txt|test_data/)
+      - id: trailing-whitespace
+        exclude: ^utrcalling/tests/(tests_baseline\.txt|test_data/)

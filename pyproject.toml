@@ -62,7 +62,7 @@ utrcalling = "utrcalling.runtime:main"
 # Pinned because their verdicts (formatting, type errors) change between releases.
 [dependency-groups]
 test = ["coverage==7.17.1", "pytest==9.2.0"]
-dev = [{ include-group = "test" }, "mypy==2.4.1", "ruff==0.17.3"]
+dev = [{ include-group = "test" }, "mypy==2.4.1", "pre-commit==4.7.0", "ruff==0.17.3"]
 
 [tool.setuptools.dynamic]
 version = { attr = "utrcalling._metadata.__version__" }

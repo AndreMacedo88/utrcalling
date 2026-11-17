@@ -95,5 +95,3 @@ Interval: 100%|[38;2;255;183;0m■■■■■■■■■■[0m| 1016/1016 [0
        27    0.004    0.000    0.439    0.016 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/popen_loky_posix.py:41(__init__)
        27    0.018    0.001    0.433    0.016 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/popen_loky_posix.py:90(_launch)
        28    0.003    0.000    0.372    0.013 /mnt/weird_vol/miniforge3/envs/utrcalling/lib/python3.10/site-packages/joblib/externals/loky/backend/fork_exec.py:32(fork_exec)
-
-
