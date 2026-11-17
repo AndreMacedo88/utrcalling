@@ -6,6 +6,7 @@ and correct UTR size calculation from Cell Ranger-style BAM files.
 
 import os
 import unittest
+from pathlib import Path
 
 import pandas as pd
 
@@ -18,7 +19,7 @@ class TestMapReadsToUtrSynthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        os.chdir(Path(__file__).parent.parent)
         # Same UTR layout as the modified 10x tests
         utr_regions = {
             "utr_name": ["UTR1", "UTR2", "UTR3"],
@@ -181,8 +182,8 @@ class TestStandardTenxMissingTags(TestMapReadsToUtrSynthetic):
             )
             self.assertEqual(len(mappings), 0)
         finally:
-            os.remove(bam_path)
-            os.remove(f"{bam_path}.bai")
+            Path(bam_path).unlink()
+            Path(f"{bam_path}.bai").unlink()
 
 
 class TestReadWithoutAlignedBases(TestMapReadsToUtrSynthetic):
@@ -235,8 +236,8 @@ class TestReadWithoutAlignedBases(TestMapReadsToUtrSynthetic):
             self.assertEqual(len(mappings), 1)
             self.assertEqual(mappings["utr_size"].iloc[0], 1231)
         finally:
-            os.remove(bam_path)
-            os.remove(f"{bam_path}.bai")
+            Path(bam_path).unlink()
+            Path(f"{bam_path}.bai").unlink()
 
 
 class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
@@ -323,8 +324,8 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
             self.assertIn("UTR2", utrs)
             self.assertIn("UTR3", utrs)
         finally:
-            os.remove(bam_path)
-            os.remove(f"{bam_path}.bai")
+            Path(bam_path).unlink()
+            Path(f"{bam_path}.bai").unlink()
 
     def test_polyA_distal_position_used_for_size(self):
         """utr_size must be measured from polyA-distal end of the read."""
@@ -352,8 +353,8 @@ class TestStandardTenxCellRangerSingleEndFlags(TestMapReadsToUtrSynthetic):
             self.assertEqual(len(utr2), 1)
             self.assertEqual(int(utr2["utr_size"].iloc[0]), 87)
         finally:
-            os.remove(bam_path)
-            os.remove(f"{bam_path}.bai")
+            Path(bam_path).unlink()
+            Path(f"{bam_path}.bai").unlink()
 
 
 if __name__ == "__main__":

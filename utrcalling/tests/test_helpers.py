@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 import numpy as np
@@ -49,7 +50,7 @@ class TestCheckIfPathAndOpen(unittest.TestCase):
             self.assertEqual(len(result), 2)
             self.assertListEqual(list(result.columns), ["col1", "col2"])
         finally:
-            os.unlink(tmp_path)
+            Path(tmp_path).unlink()
 
     def test_load_parquet(self):
         df = pd.DataFrame({"x": [10, 20]})
@@ -60,12 +61,12 @@ class TestCheckIfPathAndOpen(unittest.TestCase):
             result = check_if_path_and_open(tmp_path, method="parquet")
             pd.testing.assert_frame_equal(result, df)
         finally:
-            os.unlink(tmp_path)
+            Path(tmp_path).unlink()
 
     def test_load_pickles(self):
         df = pd.DataFrame({"x": [10, 20]})
         with tempfile.TemporaryDirectory() as tmpdir:
-            path = os.path.join(tmpdir, "data.pkl")
+            path = Path(tmpdir) / "data.pkl"
             df.to_pickle(path)
             for method in ("pickle", "pickle_pandas"):
                 with self.subTest(method=method):
@@ -78,7 +79,7 @@ class TestCheckIfPathAndOpen(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 check_if_path_and_open(tmp_path, method="xml")
         finally:
-            os.unlink(tmp_path)
+            Path(tmp_path).unlink()
 
 
 class TestLoadAnnotations(unittest.TestCase):
@@ -95,14 +96,14 @@ class TestLoadAnnotations(unittest.TestCase):
     def test_parquet_and_pickle_give_the_same_reference(self):
         for suffix, write in ((".parquet", "to_parquet"), (".pkl", "to_pickle")):
             with self.subTest(suffix=suffix):
-                path = os.path.join(self.tmpdir, f"reference{suffix}")
+                path = Path(self.tmpdir) / f"reference{suffix}"
                 getattr(self.reference, write)(path)
                 pd.testing.assert_frame_equal(load_annotations(path), self.reference)
 
     def test_other_files_are_refused_with_a_hint(self):
         # A BED file used to load as a BedTool, which call-peaks then crashed on.
         with self.assertRaisesRegex(RuntimeError, "utr_reference_regions.parquet"):
-            load_annotations(os.path.join(self.tmpdir, "utrs_unmerged.bed"))
+            load_annotations(Path(self.tmpdir) / "utrs_unmerged.bed")
 
 
 class TestShutdownJoblibPool(unittest.TestCase):

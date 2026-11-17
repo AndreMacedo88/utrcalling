@@ -6,6 +6,7 @@ no deduplication, and observation_id from BAM path.
 
 import os
 import unittest
+from pathlib import Path
 
 import pandas as pd
 
@@ -18,7 +19,7 @@ class TestMapReadsToUtrSynthetic(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        os.chdir(Path(__file__).parent.parent)
         utr_regions = {
             "utr_name": ["UTR1", "UTR2", "UTR3"],
             "chrom": [1, 1, 16],

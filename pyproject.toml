@@ -86,6 +86,7 @@ select = [
     "SIM",  # flake8-simplify
     "RUF",  # ruff-specific rules
     "ANN",  # type annotations on every function signature (library code only)
+    "PTH",  # pathlib instead of os.path and open()
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)

@@ -54,7 +54,7 @@ def report(
         for path in input_paths
     }
     table = qc.report_table(rows)
-    with open(out_path, "w") as out:
+    with Path(out_path).open("w") as out:
         if multiqc:
             out.write(MULTIQC_HEADER)
         table.to_csv(out, sep="\t")

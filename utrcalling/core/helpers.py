@@ -144,14 +144,13 @@ def log_metrics_anndata(adata: anndata.AnnData) -> None:
     logger.info(adata)
 
 
-def check_if_exists_and_mkdir(folders_path: str) -> None:
+def check_if_exists_and_mkdir(folders_path: str | pathlib.Path) -> None:
     """Create a directory (and parents) if it does not already exist.
 
     Args:
         folders_path: Directory path to create.
     """
-    if not os.path.exists(folders_path):
-        os.makedirs(folders_path)
+    pathlib.Path(folders_path).mkdir(parents=True, exist_ok=True)
 
 
 @overload
@@ -181,7 +180,7 @@ def check_if_path_and_open(to_check: object, method: str = "parquet") -> object:
         if method == "parquet":
             output = pd.read_parquet(to_check)
         elif method == "pickle":
-            with open(to_check, "rb") as input_file:
+            with pathlib.Path(to_check).open("rb") as input_file:
                 output = pickle.load(input_file)
         elif method == "pickle_pandas":
             output = pd.read_pickle(to_check)
@@ -198,7 +197,7 @@ def check_if_path_and_open(to_check: object, method: str = "parquet") -> object:
         return to_check
 
 
-def load_annotations(annotation_path: str) -> pd.DataFrame:
+def load_annotations(annotation_path: str | pathlib.Path) -> pd.DataFrame:
     """Load a UTR reference written by utrcalling, by its file extension.
 
     Args:
@@ -210,9 +209,10 @@ def load_annotations(annotation_path: str) -> pd.DataFrame:
     Raises:
         RuntimeError: If the file extension is not recognized.
     """
-    if annotation_path.endswith(".parquet"):
+    suffix = pathlib.Path(annotation_path).suffix
+    if suffix == ".parquet":
         return pd.read_parquet(annotation_path)
-    if annotation_path.endswith(".pkl"):
+    if suffix == ".pkl":
         return pd.read_pickle(annotation_path)
     raise RuntimeError(
         f"UTR reference {annotation_path} is not a .parquet or .pkl file: use the "

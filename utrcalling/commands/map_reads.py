@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import Annotated
 
 from cyclopts import Parameter
@@ -54,7 +54,7 @@ def map_reads(
 
     # Set up logging
     store_log = not no_log_file
-    log_dir = os.getcwd() if store_log else None
+    log_dir = Path.cwd() if store_log else None
     logger = module_logger(disable=False, store_log=store_log, log_dir=log_dir, level=log_level)
     for arg, value in locals().items():
         logger.info(f"║ Argument {arg}: {value}\n")

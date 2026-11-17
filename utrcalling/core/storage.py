@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import pandas as pd
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 def store_utr_reference(
     utr_regions: pd.DataFrame,
     utr_reduced: pd.DataFrame,
-    directory: str = "./intermediate",
+    directory: str | Path = "./intermediate",
 ) -> None:
     """Save unmerged BED and merged parquet UTR reference files.
 
@@ -32,18 +32,18 @@ def store_utr_reference(
     """
     helpers.check_if_exists_and_mkdir(directory)
     utr_regions.to_csv(
-        os.path.join(directory, "utrs_unmerged.bed"),
+        Path(directory) / "utrs_unmerged.bed",
         sep="\t",
         header=False,
         index=False,
         na_rep=".",
     )
-    utr_reduced.to_parquet(os.path.join(directory, "utr_reference_regions.parquet"))
+    utr_reduced.to_parquet(Path(directory) / "utr_reference_regions.parquet")
 
 
 def store_read_mappings_multi(
     read_mappings_list: list[pd.DataFrame],
-    directory: str = "./intermediate",
+    directory: str | Path = "./intermediate",
     filename: str = "UTR_sizes_counts",
 ) -> None:
     """Save per-sample read mapping parquet files (multi-BAM).
@@ -55,13 +55,13 @@ def store_read_mappings_multi(
     """
     helpers.check_if_exists_and_mkdir(directory)
     for counter, utr_sizes_counts in enumerate(read_mappings_list):
-        file_path = os.path.join(directory, f"{filename}_{counter + 1}.parquet")
+        file_path = Path(directory) / f"{filename}_{counter + 1}.parquet"
         utr_sizes_counts.to_parquet(file_path)
 
 
 def store_read_mappings_single(
     read_mappings: pd.DataFrame,
-    directory: str = "./intermediate",
+    directory: str | Path = "./intermediate",
     filename: str = "UTR_sizes_counts",
 ) -> None:
     """Save a single read mapping parquet file (single-BAM).
@@ -72,13 +72,13 @@ def store_read_mappings_single(
         filename: Base filename for the parquet file.
     """
     helpers.check_if_exists_and_mkdir(directory)
-    read_mappings.to_parquet(os.path.join(directory, f"{filename}.parquet"))
+    read_mappings.to_parquet(Path(directory) / f"{filename}.parquet")
 
 
 def store_merged_counts(
     utr_sizes_counts: pd.DataFrame,
     merge_method: str,
-    directory: str = "./intermediate",
+    directory: str | Path = "./intermediate",
 ) -> None:
     """Save merged UTR sizes counts parquet file.
 
@@ -88,22 +88,20 @@ def store_merged_counts(
         directory: Directory to save files into.
     """
     helpers.check_if_exists_and_mkdir(directory)
-    utr_sizes_counts.to_parquet(
-        os.path.join(directory, f"UTR_sizes_counts_merged_{merge_method}.parquet")
-    )
+    utr_sizes_counts.to_parquet(Path(directory) / f"UTR_sizes_counts_merged_{merge_method}.parquet")
 
 
-def _to_parquet_or_csv(df: pd.DataFrame, directory: str, stem: str) -> None:
+def _to_parquet_or_csv(df: pd.DataFrame, directory: str | Path, stem: str) -> None:
     """Write *df* to ``<stem>.parquet``, or to ``<stem>.csv`` if parquet cannot store it.
 
     Parquet needs one type per column; a column mixing e.g. numbers and text
     makes pyarrow raise, and CSV can still hold it.
     """
     try:
-        df.to_parquet(os.path.join(directory, f"{stem}.parquet"))
+        df.to_parquet(Path(directory) / f"{stem}.parquet")
     except pa.ArrowException as err:
         module_logger().warning(f"Cannot write {stem} as parquet ({err}), writing CSV instead")
-        df.to_csv(os.path.join(directory, f"{stem}.csv"))
+        df.to_csv(Path(directory) / f"{stem}.csv")
 
 
 def store_peak_calling_results(
@@ -112,7 +110,7 @@ def store_peak_calling_results(
     peaks_obs: pd.DataFrame,
     utr_reference_subset: pd.DataFrame,
     merge_method: str,
-    directory: str = "./intermediate",
+    directory: str | Path = "./intermediate",
 ) -> None:
     """Save peak calling intermediate files.
 
@@ -132,7 +130,7 @@ def store_peak_calling_results(
     helpers.check_if_exists_and_mkdir(directory)
 
     save_npz(
-        os.path.join(directory, f"peaks_count_matrix_{merge_method}.npz"),
+        Path(directory) / f"peaks_count_matrix_{merge_method}.npz",
         peaks_count_matrix,
     )
     _to_parquet_or_csv(peaks_var, directory, f"peaks_var_{merge_method}")
@@ -187,6 +185,6 @@ def write_fasta(records: Iterable[tuple[str, str]], filename: str) -> None:
         records: (header, sequence) pairs; the header without its ">".
         filename: Path of the FASTA file.
     """
-    with open(filename, "w") as fasta:
+    with Path(filename).open("w") as fasta:
         for header, sequence in records:
             fasta.write(f">{header}\n{sequence}\n")

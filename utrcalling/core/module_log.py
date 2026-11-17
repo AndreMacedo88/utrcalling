@@ -22,7 +22,7 @@ DATEFMT = "%Y-%m-%d %H:%M:%S"
 def module_logger(
     disable: bool = False,
     store_log: bool = False,
-    log_dir: str | None = None,
+    log_dir: str | Path | None = None,
     level: str = "info",
 ) -> logging.Logger:
     """The logger "utrcalling", set up the first time.

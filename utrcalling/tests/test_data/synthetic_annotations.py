@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 from tempfile import mkstemp
 
 
@@ -136,4 +137,4 @@ class GtfEnsembl:
             f.writelines(header + features)
 
     def __exit__(self, exc_type, exc_value, traceback):
-        os.remove(self.file_path)
+        Path(self.file_path).unlink()

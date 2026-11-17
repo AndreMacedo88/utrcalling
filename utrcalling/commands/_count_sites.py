@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import os
 from collections.abc import Sequence
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 if TYPE_CHECKING:
@@ -103,7 +103,7 @@ def count_sites(
         protocol=protocol_,
         summary=counting,
     )
-    out_stem, _ = os.path.splitext(out)
+    out_stem = str(Path(out).with_suffix(""))
     settings = settings | {
         "summarization_level": summarization_level.lower(),
         # Which end of the UTR its sizes count from: the 5' end for 3' UTRs.

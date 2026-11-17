@@ -2,6 +2,7 @@ import os
 import shutil
 import tempfile
 import unittest
+from pathlib import Path
 
 import anndata as ad
 import numpy as np
@@ -15,7 +16,7 @@ class TestStorageBase(unittest.TestCase):
     """Base class that creates and cleans up a temp directory."""
 
     def setUp(self):
-        self.tmpdir = tempfile.mkdtemp()
+        self.tmpdir = Path(tempfile.mkdtemp())
 
     def tearDown(self):
         shutil.rmtree(self.tmpdir)
@@ -31,8 +32,8 @@ class TestStoreReadMappingsSingle(TestStorageBase):
             }
         )
         storage.store_read_mappings_single(df, directory=self.tmpdir)
-        expected_path = os.path.join(self.tmpdir, "UTR_sizes_counts.parquet")
-        self.assertTrue(os.path.exists(expected_path))
+        expected_path = self.tmpdir / "UTR_sizes_counts.parquet"
+        self.assertTrue(expected_path.exists())
         loaded = pd.read_parquet(expected_path)
         self.assertEqual(len(loaded), 2)
 
@@ -56,8 +57,8 @@ class TestStoreReadMappingsMulti(TestStorageBase):
             ),
         ]
         storage.store_read_mappings_multi(dfs, directory=self.tmpdir)
-        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, "UTR_sizes_counts_1.parquet")))
-        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, "UTR_sizes_counts_2.parquet")))
+        self.assertTrue((self.tmpdir / "UTR_sizes_counts_1.parquet").exists())
+        self.assertTrue((self.tmpdir / "UTR_sizes_counts_2.parquet").exists())
 
 
 class TestStoreMergedCounts(TestStorageBase):
@@ -70,8 +71,8 @@ class TestStoreMergedCounts(TestStorageBase):
             }
         )
         storage.store_merged_counts(df, merge_method="intersection", directory=self.tmpdir)
-        expected = os.path.join(self.tmpdir, "UTR_sizes_counts_merged_intersection.parquet")
-        self.assertTrue(os.path.exists(expected))
+        expected = self.tmpdir / "UTR_sizes_counts_merged_intersection.parquet"
+        self.assertTrue(expected.exists())
 
 
 class TestStorePeakCallingResults(TestStorageBase):
@@ -96,12 +97,10 @@ class TestStorePeakCallingResults(TestStorageBase):
             merge_method="union",
             directory=self.tmpdir,
         )
-        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, "peaks_count_matrix_union.npz")))
-        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, "peaks_var_union.parquet")))
-        self.assertTrue(os.path.exists(os.path.join(self.tmpdir, "peaks_obs_union.parquet")))
-        self.assertTrue(
-            os.path.exists(os.path.join(self.tmpdir, "UTR_reference_subset_union.parquet"))
-        )
+        self.assertTrue((self.tmpdir / "peaks_count_matrix_union.npz").exists())
+        self.assertTrue((self.tmpdir / "peaks_var_union.parquet").exists())
+        self.assertTrue((self.tmpdir / "peaks_obs_union.parquet").exists())
+        self.assertTrue((self.tmpdir / "UTR_reference_subset_union.parquet").exists())
 
 
 class TestStorePeakCallingResultsCsvFallback(TestStorageBase):
@@ -116,7 +115,7 @@ class TestStorePeakCallingResultsCsvFallback(TestStorageBase):
             storage.store_peak_calling_results(
                 matrix, var, obs, ref, merge_method="union", directory=self.tmpdir
             )
-        written = sorted(os.listdir(self.tmpdir))
+        written = sorted(path.name for path in self.tmpdir.iterdir())
         self.assertListEqual(
             written,
             [
@@ -127,7 +126,7 @@ class TestStorePeakCallingResultsCsvFallback(TestStorageBase):
             ],
         )
         self.assertIn("peaks_obs_union", logs.output[0])
-        stored = pd.read_csv(os.path.join(self.tmpdir, "peaks_obs_union.csv"), index_col=0)
+        stored = pd.read_csv(self.tmpdir / "peaks_obs_union.csv", index_col=0)
         self.assertListEqual(stored.batch.astype(str).tolist(), ["1", "b2"])
 
 
@@ -138,7 +137,7 @@ class TestWriteAnndata(TestStorageBase):
         obs = pd.DataFrame({"Sample_Name": [1, "b2"], "age": [3, 4]}, index=["c1", "c2"])
         var = pd.DataFrame({"chrom": [1, "X"], "utr_size": [10, 20]}, index=["s1", "s2"])
         adata = ad.AnnData(np.ones((2, 2)), obs=obs, var=var)
-        path = os.path.join(self.tmpdir, "out.h5ad")
+        path = self.tmpdir / "out.h5ad"
         with self.assertLogs("utrcalling", level="WARNING") as logs:
             storage.write_anndata(adata, path)
         written = ad.read_h5ad(path)
@@ -151,7 +150,7 @@ class TestWriteAnndata(TestStorageBase):
         # It used to log an error and return, so the command exited without output.
         obs = pd.DataFrame({"info": [{"a": 1}, {"b": 2}]}, index=["c1", "c2"])
         adata = ad.AnnData(np.ones((2, 2)), obs=obs)
-        path = os.path.join(self.tmpdir, "out.h5ad")
+        path = self.tmpdir / "out.h5ad"
         with self.assertRaises(TypeError):
             storage.write_anndata(adata, path)
 
@@ -164,9 +163,9 @@ class TestWriteTable(TestStorageBase):
             {"molecules": [5, 3], "pas_distance": pd.array([14, None], dtype="Int64")},
             index=pd.Index(["A_1-40", "B_1-50"], name="site"),
         )
-        path = os.path.join(self.tmpdir, "table.tsv")
+        path = self.tmpdir / "table.tsv"
         storage.write_table(table, path)
-        with open(path) as written:
+        with path.open() as written:
             self.assertListEqual(
                 written.read().splitlines(),
                 ["site\tmolecules\tpas_distance", "A_1-40\t5\t14", "B_1-50\t3\t"],

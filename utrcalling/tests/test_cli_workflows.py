@@ -43,7 +43,7 @@ WORKDIR = Path()
 
 def utrcalling(*args, cwd):
     """Run `utrcalling <args>` from directory *cwd*, in this process."""
-    previous = os.getcwd()
+    previous = Path.cwd()
     os.chdir(cwd)
     try:
         with mock.patch.object(sys, "argv", ["utrcalling", *map(str, args)]):

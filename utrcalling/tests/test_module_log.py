@@ -5,6 +5,7 @@ import re
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from rich.logging import RichHandler
@@ -45,7 +46,7 @@ class TestModuleLogger(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             logger = module_logger(store_log=True, log_dir=tmpdir)
             logger.info("test message")
-            log_files = [f for f in os.listdir(tmpdir) if f.endswith(".log")]
+            log_files = [f.name for f in Path(tmpdir).glob("*.log")]
             self.assertEqual(len(log_files), 1)
             self.assertIn("utrcalling.log", log_files[0])
 
@@ -56,10 +57,8 @@ class TestModuleLogger(unittest.TestCase):
             # Flush handlers
             for handler in logger.handlers:
                 handler.flush()
-            log_files = [f for f in os.listdir(tmpdir) if f.endswith(".log")]
-            log_path = os.path.join(tmpdir, log_files[0])
-            with open(log_path) as f:
-                content = f.read()
+            log_files = [f.name for f in Path(tmpdir).glob("*.log")]
+            content = (Path(tmpdir) / log_files[0]).read_text()
             self.assertNotIn("\x1b[", content)
             self.assertNotRegex(content, re.compile(r"\x1b\["))
             self.assertIn("test message for ANSI check", content)
@@ -70,16 +69,14 @@ class TestModuleLogger(unittest.TestCase):
             logger.debug("debug breadcrumb")
             for handler in logger.handlers:
                 handler.flush()
-            log_files = [f for f in os.listdir(tmpdir) if f.endswith(".log")]
-            log_path = os.path.join(tmpdir, log_files[0])
-            with open(log_path) as f:
-                content = f.read()
+            log_files = [f.name for f in Path(tmpdir).glob("*.log")]
+            content = (Path(tmpdir) / log_files[0]).read_text()
             self.assertIn("debug breadcrumb", content)
 
     def test_no_file_when_store_log_false(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             module_logger(store_log=False, log_dir=tmpdir)
-            log_files = [f for f in os.listdir(tmpdir) if f.endswith(".log")]
+            log_files = [f.name for f in Path(tmpdir).glob("*.log")]
             self.assertEqual(len(log_files), 0)
 
     def test_invalid_level_raises(self):

@@ -17,6 +17,7 @@ Key test scenarios:
 """
 
 import os
+from pathlib import Path
 from tempfile import mkstemp
 
 import pysam
@@ -133,5 +134,5 @@ class Bam:
     __enter__ = enter
 
     def __exit__(self, exc_type, exc_value, traceback):
-        os.remove(self.alignment)
-        os.remove(self.index)
+        Path(self.alignment).unlink()
+        Path(self.index).unlink()

@@ -370,7 +370,7 @@ def _codes(*sequences):
 
 
 def _write_genome(path, chromosomes):
-    with open(path, "w") as fasta:
+    with Path(path).open("w") as fasta:
         for name, sequence in chromosomes.items():
             fasta.write(f">{name}\n{sequence}\n")
 

@@ -25,7 +25,7 @@ class _BulkPeBase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        os.chdir(os.path.join(os.path.dirname(__file__), ".."))
+        os.chdir(Path(__file__).parent.parent)
         utr_regions = pd.DataFrame(
             {
                 "utr_name": ["UTR1", "UTR2", "UTR3"],
