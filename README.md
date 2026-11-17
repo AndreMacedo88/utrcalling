@@ -324,6 +324,11 @@ utrcalling tools mean-sizes named.h5ad mean_sizes.h5ad
 utrcalling tools site-sequences named.h5ad genome.fa sites.fa \
     --upstream 50 --downstream 50
 
+# The UTR each site makes, to the end of its UTR (utr instead of a number):
+# for 5' sites the start site to the start codon, for 3' sites the stop codon
+# to the cleavage site
+utrcalling tools site-sequences named.h5ad genome.fa utrs.fa --upstream 0 --downstream utr
+utrcalling tools site-sequences named.h5ad genome.fa utrs.fa --upstream utr --downstream 0
 ```
 
 ### Peak calling for 5' data

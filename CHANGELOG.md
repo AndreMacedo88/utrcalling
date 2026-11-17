@@ -141,7 +141,10 @@ a new major version can change results or require changes to your command lines.
   table, for `--upstream` and `--downstream` nt (50 each by default).
   Positions count from the transcript's end, as each field numbers them: for
   5' data, +1 is the transcription start site; for 3' data, -1 is the
-  cleavage site. In Python, `genome.site_sequences()` returns the table.
+  cleavage site. `utr` instead of a number reads to the end of the site's UTR,
+  so `--upstream 0 --downstream utr` gives the 5' UTR that each start site
+  makes, and `--upstream utr --downstream 0` the 3' UTR that each cleavage site
+  makes. In Python, `genome.site_sequences()` returns the table.
 - **Quality control commands**, which write tables and leave the count
   matrices unchanged:
   - `qc report`: a row per count matrix of any step, with what it holds and

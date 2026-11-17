@@ -1149,6 +1149,9 @@ class TestQcCommands(_InTempDir):
             "5",
             cwd=cls.tmp,
         )
+        sequences = ["tools", "site-sequences", "placed.h5ad", "genome.fa"]
+        utrcalling(*sequences, "utrs.tsv", "--upstream", "utr", "--downstream", "UTR", cwd=cls.tmp)
+        utrcalling(*sequences, "isoforms.fa", "--upstream", "utr", "--downstream", "0", cwd=cls.tmp)
 
     def _table(self, name, index_col):
         return pd.read_csv(self.tmp / name, sep="\t", comment="#", index_col=index_col)
@@ -1224,6 +1227,38 @@ class TestQcCommands(_InTempDir):
                 downstream = self.genome[p - 6 : p - 1].translate(complement)[::-1]
             with self.subTest(site=site):
                 self.assertEqual((row.upstream, row.downstream), (upstream, downstream))
+
+    def test_site_sequences_to_the_ends_of_the_utr(self):
+        table = self._table("utrs.tsv", "site").fillna("")
+        var = ad.read_h5ad(self.tmp / "placed.h5ad").var
+        complement = str.maketrans("ACGT", "TGCA")
+        for site, row in table.iterrows():
+            start, end, p = var.start[site], var.end[site], row.position
+            if row.strand == "+":  # the UTR's start up to the site (-1), then on to its end
+                upstream, downstream = self.genome[start - 1 : p], self.genome[p:end]
+            else:
+                upstream = self.genome[p - 1 : end].translate(complement)[::-1]
+                downstream = self.genome[start - 1 : p - 1].translate(complement)[::-1]
+            with self.subTest(site=site):
+                self.assertEqual((row.upstream, row.downstream), (upstream, downstream))
+                # Together, the whole UTR, for sites within it; a site past its
+                # annotated end makes a longer UTR, and reads up to the site.
+                if start <= p <= end:
+                    self.assertEqual(len(row.upstream + row.downstream), end - start + 1)
+                elif (p > end) == (row.strand == "+"):  # past the UTR's 3' end
+                    self.assertEqual(row.downstream, "")
+        positions = table.position.to_numpy()
+        inside = (var.start.to_numpy() <= positions) & (positions <= var.end.to_numpy())
+        self.assertGreater(inside.mean(), 0.9)
+
+    def test_the_utr_isoform_of_each_site_as_fasta(self):
+        table = self._table("utrs.tsv", "site").fillna("")
+        records = (self.tmp / "isoforms.fa").read_text().splitlines()
+        headers, sequences = records[::2], records[1::2]
+        self.assertListEqual([header.split()[0][1:] for header in headers], list(table.index))
+        self.assertListEqual(sequences, table.upstream.tolist())
+        for header, sequence in zip(headers, sequences, strict=True):
+            self.assertTrue(header.endswith(f"upstream={len(sequence)} downstream=0"))
 
     def test_priming(self):
         priming = self._table("priming.tsv", "site")

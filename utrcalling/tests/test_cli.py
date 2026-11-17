@@ -333,6 +333,14 @@ class TestCLIInvalidArgs(unittest.TestCase):
         _, arguments = _parse("qc", "peaks", "in.h5ad", "o.tsv", "--peak-caller", "kde")
         self.assertEqual(arguments["peak_caller"], "kde")
 
+    def test_site_sequences_read_to_the_utrs_end(self):
+        command = ["tools", "site-sequences", "in.h5ad", "g.fa", "out.fa"]
+        _, arguments = _parse(*command, "--upstream", "UTR", "--downstream", "0")
+        self.assertEqual((arguments["upstream"], arguments["downstream"]), ("utr", 0))
+        _, arguments = _parse(*command)
+        self.assertEqual((arguments["upstream"], arguments["downstream"]), (50, 50))
+        self.assertRefused(*command, "--upstream", "long", message="a number of nt or utr")
+
     def test_known_sites(self):
         _, arguments = _parse(*RUN, "-b", "optimize", "--known-sites", "refTSS.bed.gz")
         self.assertEqual(arguments["known_sites"], "refTSS.bed.gz")
@@ -846,7 +854,8 @@ class TestSiteSequencesCommand(unittest.TestCase):
         genome = list("A" * 1600)
         genome[1398:1402] = "GCAA"  # 1399-1402: C at -1 and A at +1 of the site at 1401
         genome[1298:1302] = "TTTG"  # 1299-1302: T at -1 and +1 of the site at 1301
-        (self.tmp / "genome.fa").write_text(f">chr1\n{''.join(genome)}\n")
+        self.genome = "".join(genome)
+        (self.tmp / "genome.fa").write_text(f">chr1\n{self.genome}\n")
 
     def _run(self, out, *options):
         from utrcalling import runtime
@@ -879,6 +888,30 @@ class TestSiteSequencesCommand(unittest.TestCase):
             ">G_1-100 1:1401(+) upstream=2 downstream=2\nGCAA\n"
             ">G_2-200 1:1301(+) upstream=2 downstream=2\nTTTG\n",
         )
+
+    def test_the_utr_each_site_makes(self):
+        # From each start site to the UTR's end, 1500.
+        self._run("utrs.fa", "--utr-end", "five_prime", "--upstream", "0", "--downstream", "utr")
+        self.assertEqual(
+            (self.tmp / "utrs.fa").read_text(),
+            f">G_1-100 1:1401(+) upstream=0 downstream=100\n{self.genome[1400:1500]}\n"
+            f">G_2-200 1:1301(+) upstream=0 downstream=200\n{self.genome[1300:1500]}\n",
+        )
+        self.assertTrue(self.genome[1300:1500].startswith("TGAAA"))
+
+    def test_sites_without_a_sequence_are_left_out_of_fasta(self):
+        sites = ad.read_h5ad(self.tmp / "sites.h5ad")
+        sites.var["utr_size"] = [100, 0, 50]  # G_2 at 1501, just past the UTR's end
+        sites.write_h5ad(self.tmp / "sites.h5ad")
+        logs = self._run(
+            "utrs.fa", "--utr-end", "five_prime", "--upstream", "0", "--downstream", "utr"
+        )
+        self.assertEqual(
+            (self.tmp / "utrs.fa").read_text(),
+            f">G_1-100 1:1401(+) upstream=0 downstream=100\n{self.genome[1400:1500]}\n",
+        )
+        self.assertIn("Left out 1 sites with no sequence: at the end of their UTR", logs[0])
+        self.assertIn("Wrote the sequences around 1 sites", logs[1])
 
 
 class TestFilterUtrsCommand(unittest.TestCase):

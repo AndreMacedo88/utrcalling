@@ -11,7 +11,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Literal
 
 import numpy as np
 import pandas as pd
@@ -157,38 +157,69 @@ def read_sequences(
     """
     if stop <= start:
         raise ValueError(f"offsets {start} to {stop}: read at least 1 nt")
-    length = stop - start
+    sequences, found = read_stretches(
+        genome, sites, np.full(len(sites), start), np.full(len(sites), stop)
+    )
+    return np.array(sequences, dtype=f"<U{stop - start}"), found
+
+
+def read_stretches(
+    genome: str | Path,
+    sites: pd.DataFrame,
+    starts: npt.NDArray[np.integer[Any]],
+    stops: npt.NDArray[np.integer[Any]],
+) -> tuple[list[str], npt.NDArray[np.bool_]]:
+    """The genome from each site's own offsets *starts* up to *stops* (see :func:`read_sequences`).
+
+    Args:
+        genome: Genome FASTA (see :func:`read_sequences`).
+        sites: Table with ``chrom``, ``position`` (1-based) and ``strand``.
+        starts: Each site's first offset to read.
+        stops: Each site's offset after the last one to read: at its start,
+            the stretch is empty.
+
+    Returns:
+        The sequences, as :func:`read_sequences` gives them, and whether the
+        genome has each site's chromosome.
+
+    Raises:
+        ValueError: If the genome has no chromosome of the sites.
+    """
     complement = str.maketrans("ACGT", "TGCA")
     names = chromosome_names(genome, sites["chrom"].unique())
+    sequences = []
     with pysam.FastaFile(str(genome)) as fasta:
-        sequences = []
-        for chrom, position, strand in sites[["chrom", "position", "strand"]].itertuples(
-            index=False
-        ):
+        rows = sites[["chrom", "position", "strand"]].itertuples(index=False)
+        for (chrom, position, strand), start, stop in zip(rows, starts, stops, strict=True):
+            length = int(max(stop - start, 0))
             name = names[chrom]
             if name is None:
                 sequences.append("N" * length)
                 continue
             # 0-based coordinates of the stretch; the minus strand reads leftwards.
-            first = position - 1 + start if strand != "-" else position - stop
+            first = int(position - 1 + start if strand != "-" else position - stop)
             last = first + length
             size = fasta.get_reference_length(name)
-            sequence = fasta.fetch(name, max(first, 0), min(last, size)).upper()
-            sequence = "N" * max(-first, 0) + sequence + "N" * max(last - size, 0)
+            # Within the chromosome; N for the bases before its start and after its end.
+            within_first = min(max(first, 0), size)
+            within_last = max(min(last, size), within_first)
+            sequence = fasta.fetch(name, within_first, within_last).upper()
+            sequence = "N" * min(max(-first, 0), length) + sequence
+            sequence += "N" * (length - len(sequence))
             sequence = re.sub("[^ACGT]", "N", sequence)
             if strand == "-":
                 sequence = sequence.translate(complement)[::-1]
             sequences.append(sequence)
     found = sites["chrom"].map(names).notna().to_numpy()
-    return np.array(sequences, dtype=f"<U{length}"), found
+    return sequences, found
 
 
 def site_sequences(
     adata: anndata.AnnData,
     genome: str | Path,
     *,
-    upstream: int = 50,
-    downstream: int = 50,
+    upstream: int | Literal["utr"] = 50,
+    downstream: int | Literal["utr"] = 50,
     utr_end: str | None = None,
 ) -> pd.DataFrame:
     """The genome sequence around each site, for motif and sequence analyses.
@@ -200,26 +231,36 @@ def site_sequences(
     the base after it. ``upstream`` holds -*upstream* to -1, and
     ``downstream`` +1 to +*downstream*, in transcript orientation.
 
+    ``utr`` reads to the end of the site's UTR (as utrcalling merged it from
+    the annotation's UTR features, one stretch of the genome) on that side.
+    So the UTR that each site makes is ``downstream="utr"`` for 5' sites (the
+    start site to the end of the 5' UTR) and ``upstream="utr"`` for 3' sites
+    (the start of the 3' UTR to the cleavage site); the other side gives the
+    part of the annotated UTR that the site leaves out. A UTR spliced into
+    several exons is several UTRs here, one per stretch (gene, gene_2, ...).
+
     Args:
         adata: Count matrix at UTR level (sites or raw sizes), with
             ``utr_name``, ``utr_size``, ``chrom``, ``start``, ``end`` and
             ``strand`` in ``.var``.
         genome: Genome FASTA of the annotation (see :func:`read_sequences`).
-        upstream: How many nt to read before the transcript's end.
-        downstream: How many nt to read after it.
+        upstream: How many nt to read before the transcript's end, or ``utr``.
+        downstream: How many nt to read after it, or ``utr``.
         utr_end: Where the UTR sizes count from (see :func:`site_positions`).
             By default, what the matrix records.
 
     Returns:
         The columns of :func:`site_table`, then ``upstream`` and
         ``downstream``, missing for sites on chromosomes that the genome lacks.
+        With ``utr``, empty where the site lies at or beyond the UTR's end.
 
     Raises:
         ValueError: If a length is negative or both are 0, if the matrix holds
             fractions or mean sizes, or for the reasons of
-            :func:`positioned_utr_end` and :func:`read_sequences`.
+            :func:`positioned_utr_end` and :func:`read_stretches`.
     """
-    if upstream < 0 or downstream < 0 or upstream + downstream == 0:
+    lengths = [length for length in (upstream, downstream) if length != "utr"]
+    if any(length < 0 for length in lengths) or lengths == [0, 0]:
         raise ValueError(
             f"upstream {upstream} and downstream {downstream}: read 0 nt or more on "
             "each side, and 1 or more in all"
@@ -230,15 +271,39 @@ def site_sequences(
             f"This matrix holds {matrix.replace('_', ' ')}: give the count matrix it comes from."
         )
     utr_end = positioned_utr_end(adata, utr_end)
-    table = site_table(adata, site_positions(adata.var, utr_end))
-    # Offset 0 is the site: +1 for 5' sites, -1 for 3' sites.
-    first = -upstream if utr_end == "five_prime" else 1 - upstream
-    sequences, found = read_sequences(genome, table, first, first + upstream + downstream)
-    for column, part in (
-        ("upstream", slice(None, upstream)),
-        ("downstream", slice(upstream, None)),
+    positions = site_positions(adata.var, utr_end)
+    table = site_table(adata, positions)
+    # Offsets count from the site's base; +1 is offset 0 for 5' sites, 1 for 3' sites.
+    plus_one = 0 if utr_end == "five_prime" else 1
+    # The offsets of the UTR's first and last base, in transcript orientation.
+    var = adata.var
+    plus = (var["strand"].astype(str) == "+").to_numpy()
+    utr_first = np.where(
+        plus, var["start"].to_numpy() - positions, positions - var["end"].to_numpy()
+    )
+    utr_last = np.where(
+        plus, var["end"].to_numpy() - positions, positions - var["start"].to_numpy()
+    )
+    # The offsets to read: from first up to stop, not included.
+    if upstream == "utr":
+        first = np.minimum(utr_first, plus_one)
+    else:
+        first = np.full(len(table), plus_one - upstream)
+    if downstream == "utr":
+        stop = np.maximum(utr_last + 1, plus_one)
+    else:
+        stop = np.full(len(table), plus_one + downstream)
+    sequences, found = read_stretches(genome, table, first, stop)
+    # Each sequence splits at +1, plus_one - first characters in.
+    splits = plus_one - first
+    for column, parts in (
+        ("upstream", [sequence[:split] for sequence, split in zip(sequences, splits, strict=True)]),
+        (
+            "downstream",
+            [sequence[split:] for sequence, split in zip(sequences, splits, strict=True)],
+        ),
     ):
-        values = pd.array([sequence[part] for sequence in sequences], dtype="string")
+        values = pd.array(parts, dtype="string")
         values[~found] = pd.NA
         table[column] = values
     return table

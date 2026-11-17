@@ -119,6 +119,29 @@ class TestReadSequences(unittest.TestCase):
             self._read([("1", 5, "+")], 2, 2)
 
 
+class TestReadStretches(TestReadSequences):
+    """read_stretches reads each site's own offsets, as read_sequences reads all alike."""
+
+    def _stretches(self, sites, starts, stops):
+        table = pd.DataFrame(sites, columns=["chrom", "position", "strand"])
+        return genome.read_stretches(self.fasta, table, np.array(starts), np.array(stops))
+
+    def test_each_its_own(self):
+        sites = [("1", 15, "+"), ("1", 15, "-"), ("chr1", 2, "+"), ("2", 5, "+")]
+        sequences, found = self._stretches(sites, [-2, 1, -2, 0], [3, 4, 0, 2])
+        # As read_sequences reads each alone; empty when the stop is the start.
+        self.assertListEqual(sequences, ["GGGTT", "CCC", "NA", "NN"])
+        self.assertListEqual(found.tolist(), [True, True, True, False])
+        empty, _ = self._stretches([("1", 15, "+"), ("1", 15, "-")], [4, 4], [4, 2])
+        self.assertListEqual(empty, ["", ""])
+
+    def test_wholly_beyond_the_chromosome_ends(self):
+        # 40 nt: offsets -10 to -6 of position 3 are -7 to -3, before its start;
+        # offsets 5 to 7 of position 38 are 43 to 45, after its end.
+        sequences, _ = self._stretches([("1", 3, "+"), ("1", 38, "+")], [-10, 5], [-5, 8])
+        self.assertListEqual(sequences, ["NNNNN", "NNN"])
+
+
 def _sites(utr_end, sizes, strands, chrom="1", start=1, end=30):
     """A count matrix of sites in one UTR on chrom:start-end, recording its UTR end."""
     var = pd.DataFrame(
@@ -204,9 +227,54 @@ class TestSiteSequences(unittest.TestCase):
         self.assertEqual(table.upstream.iloc[0], "G")
         self.assertTrue(pd.isna(table.upstream.iloc[1]) and pd.isna(table.downstream.iloc[1]))
 
+    def test_to_the_ends_of_the_utr(self):
+        # One UTR on 11-25. 5' sites at 15 (+1): before them the UTR's 11-14,
+        # from them on 15-25 (+), or 15 down to 11 and 16-25 reversed (-).
+        adata = _sites("five_prime", sizes=[11, 5], strands=["+", "-"], start=11, end=25)
+        self.assertListEqual(genome.site_sequences(adata, self.fasta).position.tolist(), [15, 15])
+        complement = str.maketrans("ACGT", "TGCA")
+
+        def minus(first, last):  # positions first to last, read on the minus strand
+            return CHROM_1[first - 1 : last].translate(complement)[::-1]
+
+        expected = [
+            (CHROM_1[10:14], CHROM_1[14:25]),  # + strand: 11-14 | 15-25
+            (minus(16, 25), minus(11, 15)),  # - strand: 25 down to 16 | 15 down to 11
+        ]
+        self.assertListEqual(self._sequences(adata, upstream="utr", downstream="utr"), expected)
+        # The UTR each start site makes: from the site to the UTR's end.
+        isoforms = self._sequences(adata, upstream=0, downstream="utr")
+        self.assertListEqual(isoforms, [("", expected[0][1]), ("", expected[1][1])])
+        # One side to the UTR's end, the other a number of nt.
+        self.assertListEqual(
+            self._sequences(adata, upstream=2, downstream="utr"),
+            [(CHROM_1[12:14], expected[0][1]), (minus(16, 17), expected[1][1])],
+        )
+
+    def test_three_prime_sites_to_the_ends_of_the_utr(self):
+        # 3' sites at 15 (-1): the UTR up to them (11-15), and what follows (16-25).
+        adata = _sites("three_prime", sizes=[4], strands=["+"], start=11, end=25)
+        self.assertListEqual(
+            self._sequences(adata, upstream="utr", downstream="utr"),
+            [(CHROM_1[10:15], CHROM_1[15:25])],
+        )
+
+    def test_sites_beyond_the_utr(self):
+        # A 5' site before the UTR's start (8, +) reads nothing before it within
+        # the UTR, and from the site to the UTR's end after it; a site after the
+        # UTR's end (28, +) reads from the UTR's start up to the site, and nothing after.
+        adata = _sites("five_prime", sizes=[18, -2], strands=["+", "+"], start=11, end=25)
+        self.assertListEqual(genome.site_sequences(adata, self.fasta).position.tolist(), [8, 28])
+        self.assertListEqual(
+            self._sequences(adata, upstream="utr", downstream="utr"),
+            [("", CHROM_1[7:25]), (CHROM_1[10:27], "")],
+        )
+
     def test_invalid_requests(self):
         adata = _sites("five_prime", sizes=[16], strands=["+"])
-        for lengths in ({"upstream": -1}, {"downstream": -5}, {"upstream": 0, "downstream": 0}):
+        invalid = [{"upstream": -1}, {"downstream": -5}, {"upstream": 0, "downstream": 0}]
+        invalid.append({"upstream": "utr", "downstream": -1})
+        for lengths in invalid:
             with self.subTest(**lengths), self.assertRaisesRegex(ValueError, "1 or more in all"):
                 genome.site_sequences(adata, self.fasta, **lengths)
         with mock.patch.object(sys, "argv", ["utrcalling", "tools"]):
