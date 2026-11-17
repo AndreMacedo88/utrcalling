@@ -282,7 +282,7 @@ To add a method to utrcalling itself, rather than as a plugin, put it in its
 own module beside the others, and add its name and "module:attribute" to the
 registry's built-in methods. Built-in methods are imported only when used, so
 the command line starts fast. Then test it, and describe it in the command's
-help and the README.
+help and in this documentation (`docs/`).
 
 ## Where the code is
 

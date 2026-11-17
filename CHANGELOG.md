@@ -32,6 +32,16 @@ a new major version can change results or require changes to your command lines.
   BedTool of the genome take its path, or the FASTA opened with pysam (a
   BedTool still works).
 
+### Added
+
+- **A documentation website**,
+  [utrcalling.readthedocs.io](https://utrcalling.readthedocs.io), for the
+  latest release and for the code on main: installation, a quickstart, the protocols and the annotation
+  table each needs, the output files, choosing the peak calling for your data,
+  from sites to analysis, quality control, use in workflows, extending
+  utrcalling, and every command and Python function. The README is now a short
+  introduction that links to it.
+
 ### Development
 
 - **pre-commit** formats and lints each commit with the ruff that CI uses
@@ -41,6 +51,8 @@ a new major version can change results or require changes to your command lines.
   use, once a month.
 - **CI tests Python 3.11 to 3.14**: the oldest version that utrcalling
   supports, the recommended 3.12, and the newest two.
+- **CONTRIBUTING.md** explains how to set up, check and propose changes, and
+  CI builds the documentation with warnings as errors.
 
 ## [5.0.0] - 2026-11-17
 

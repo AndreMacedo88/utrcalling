@@ -52,6 +52,7 @@ dependencies = [
 # Listed on the PyPI page.
 [project.urls]
 Homepage = "https://github.com/AndreMacedo88/utrcalling"
+Documentation = "https://utrcalling.readthedocs.io"
 Changelog = "https://github.com/AndreMacedo88/utrcalling/blob/main/CHANGELOG.md"
 Issues = "https://github.com/AndreMacedo88/utrcalling/issues"
 DOI = "https://doi.org/10.5281/zenodo.23686176"
@@ -60,11 +61,14 @@ DOI = "https://doi.org/10.5281/zenodo.23686176"
 utrcalling = "utrcalling.runtime:main"
 
 # Development tools, not installed for users. `pip install --group test` for
-# running the tests, `pip install --group dev` for everything.
+# running the tests, `pip install --group docs` for building the documentation,
+# `pip install --group dev` for the rest.
 # Pinned because their verdicts (formatting, type errors) change between releases.
 [dependency-groups]
 test = ["coverage==7.17.1", "pytest==9.2.0"]
 dev = [{ include-group = "test" }, "mypy==2.4.1", "pre-commit==4.7.0", "ruff==0.17.3"]
+# Sphinx 9 needs Python 3.12 or later; Read the Docs and CI build with 3.12.
+docs = ["furo==2025.12.19", "myst-parser==5.2.0", "sphinx==8.2.3", "sphinx-copybutton==0.5.2"]
 
 [tool.setuptools.dynamic]
 version = { attr = "utrcalling._metadata.__version__" }
