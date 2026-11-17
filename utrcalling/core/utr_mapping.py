@@ -467,11 +467,10 @@ def map_reads_to_utr(
     logger.info("Mapping statistics: %s", mapping_stats)
     if logger.isEnabledFor(logging.DEBUG):
         import psutil
-        from pympler import asizeof
 
         logger.debug(
             "Size of mapped reads object in bytes: %s \nMemory usage: %s",
-            asizeof.asizeof(utr_mappings),
+            int(utr_mappings.memory_usage(deep=True).sum()),
             psutil.virtual_memory().percent,
         )
 

@@ -7,6 +7,10 @@ a new major version can change results or require changes to your command lines.
 
 ### Changed
 
+- **Fewer dependencies.** scanpy and pympler are no longer installed with
+  utrcalling, which never imported scanpy: installs are smaller and faster.
+  Install scanpy into the same environment for your analyses, if you use it.
+
 - **No more BEDTools.** utrcalling builds its UTR reference and reads the
   genome without BEDTools, pybedtools or gtfparse, so `pip install utrcalling`
   installs everything it needs. The reference is the same as before (checked

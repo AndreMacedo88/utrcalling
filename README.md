@@ -641,7 +641,7 @@ ranges are declared in `pyproject.toml`, and the exact validated versions in
 `envs/utrcalling-frozen.yml`. The main ones are:
 
 - **pysam** --- reading BAM and genome FASTA files
-- **anndata** / **scanpy** --- single-cell data structures
+- **anndata** --- the count matrices
 - **pandas** / **numpy** / **scipy** --- tables, GTF files and the merging of
   UTR regions
 - **joblib** --- parallelism
