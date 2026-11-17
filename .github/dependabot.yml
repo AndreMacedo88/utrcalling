@@ -1,0 +1,13 @@
+# Pull requests that update the GitHub Actions of the workflows, once a month,
+# in one pull request. CI runs on each, so a breaking update shows as a failure.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci: :arrow_up:"

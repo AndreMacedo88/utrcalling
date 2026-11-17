@@ -37,6 +37,8 @@ a new major version can change results or require changes to your command lines.
 - **pre-commit** formats and lints each commit with the ruff that CI uses
   (`pip install --group dev`, then `pre-commit install`), and fixes file
   endings and trailing spaces.
+- **Dependabot** proposes updates of the GitHub Actions that CI and releases
+  use, once a month.
 
 ## [5.0.0] - 2026-11-17
 
