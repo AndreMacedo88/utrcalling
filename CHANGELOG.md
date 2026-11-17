@@ -3,7 +3,13 @@
 All notable changes to utrcalling. Versions follow [semantic versioning](https://semver.org):
 a new major version can change results or require changes to your command lines.
 
-## [Unreleased]
+## [5.1.0] - 2026-11-17
+
+utrcalling no longer needs BEDTools: `pip install utrcalling` installs
+everything it needs, and the UTR reference, the same as before, is built 5 to
+8 times faster. A documentation website, logs with rich, fewer dependencies,
+and a fix for macOS. Command lines and results do not change; in Python, a few
+functions that wrapped pybedtools are replaced (see below).
 
 ### Changed
 
