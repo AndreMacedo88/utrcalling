@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import pandas as pd
 import pyarrow as pa
-import pybedtools
 from scipy.sparse import csr_matrix, save_npz
 
 from utrcalling.core import helpers
@@ -20,19 +19,25 @@ if TYPE_CHECKING:
 
 
 def store_utr_reference(
-    utr_bed: pybedtools.BedTool,
+    utr_regions: pd.DataFrame,
     utr_reduced: pd.DataFrame,
     directory: str = "./intermediate",
 ) -> None:
     """Save unmerged BED and merged parquet UTR reference files.
 
     Args:
-        utr_bed: A pybedtools BedTool object with unmerged UTR regions.
+        utr_regions: The unmerged UTR regions, in the columns of a BED file.
         utr_reduced: The merged UTR reference DataFrame.
         directory: Directory to save files into.
     """
     helpers.check_if_exists_and_mkdir(directory)
-    utr_bed.saveas(os.path.join(directory, "utrs_unmerged.bed"))
+    utr_regions.to_csv(
+        os.path.join(directory, "utrs_unmerged.bed"),
+        sep="\t",
+        header=False,
+        index=False,
+        na_rep=".",
+    )
     utr_reduced.to_parquet(os.path.join(directory, "utr_reference_regions.parquet"))
 
 

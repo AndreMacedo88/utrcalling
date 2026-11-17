@@ -108,10 +108,13 @@ def pas_ends_per_utr(
 def _pas_ends_utr_batch(
     batch: list[pca.CompactUtrItem], hamming: int, genome: str
 ) -> list[tuple[str, npt.NDArray[np.int64]]]:
-    return [
-        (
-            str(utr_name),
-            np.asarray(pca._find_pas(var_sub, hamming=hamming, genome=genome)[0], dtype=np.int64),
-        )
-        for _orig_idx, utr_name, _X_sub, var_sub in batch
-    ]
+    with genome_.open_genome(genome) as fasta:  # once per batch
+        return [
+            (
+                str(utr_name),
+                np.asarray(
+                    pca._find_pas(var_sub, hamming=hamming, genome=fasta)[0], dtype=np.int64
+                ),
+            )
+            for _orig_idx, utr_name, _X_sub, var_sub in batch
+        ]

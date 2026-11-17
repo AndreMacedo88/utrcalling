@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING
 import anndata
 import joblib
 import pandas as pd
-import pybedtools
 from tqdm import tqdm
 
 from utrcalling.core import (
@@ -46,9 +45,10 @@ if TYPE_CHECKING:
 def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -> pd.DataFrame:
     """Parse a GTF file and build a non-overlapping UTR reference.
 
-    Extracts UTR features from the GTF, sorts by chromosome and start position,
-    merges overlapping regions via pybedtools, and returns a cleaned DataFrame
-    indexed by UTR name.
+    Reads the UTR features of the GTF, sorts them by chromosome and start
+    position, merges the overlapping ones of each strand (see
+    utr_reference.merge_regions), and returns a cleaned DataFrame indexed by
+    UTR name.
 
     Args:
         gtf: Path to a GTF annotation file (gzipped or plain).
@@ -58,25 +58,20 @@ def prepare_utr_reference_regions(gtf: str, feature: str, store: bool = False) -
     Returns:
         A DataFrame of merged, non-overlapping UTR regions indexed by utr_name.
     """
-    # open the gtf file
-    gtf_df = utr_reference.open_gtf(gtf)
-    # extract 3'UTRs from all the features in the GTF file
-    utr = utr_reference.extract_feature(gtf_df, feature)
-    # sort by chr and start for bed merge
-    utr = utr.sort_values(by=["seqname", "start"])
+    # The UTRs of the GTF file, by chromosome and start, as merging needs them.
+    utr = utr_reference.read_gtf(gtf, feature).sort_values(by=["seqname", "start"])
     annotations = ["gene_id", "score", "strand", "transcript_id", "gene_name"]
-    ann_cols, ann_idx = utr_reference.prepare_annotations_index(annotations)
-    # Create BedTool obj using the GTF dataframe
-    utr_bed = pybedtools.BedTool.from_dataframe(utr, columns=ann_cols)
-    # find and merge overlapping regions
-    utr_reduced = utr_reference.reduce_regions(utr_bed, annotations_index=ann_idx)
-    utr_reduced = utr_reference.turn_utr_bed_to_dataframe(utr_reduced)
+    ann_cols, _ = utr_reference.prepare_annotations_index(annotations)
+    utr_regions = utr[ann_cols]
+    utr_reduced = utr_reference.merge_regions(utr_regions)
+    utr_reduced["start"] = utr_reduced["start"].astype(int)
+    utr_reduced["end"] = utr_reduced["end"].astype(int)
     utr_reduced = utr_reference.generate_utr_name(utr_reduced)
     utr_reduced = utr_reference.correct_column_names(utr_reduced)
     utr_reduced.chrom = utr_reduced.chrom.astype(str)
 
     if store:
-        storage.store_utr_reference(utr_bed, utr_reduced)
+        storage.store_utr_reference(utr_regions, utr_reduced)
     return utr_reduced
 
 

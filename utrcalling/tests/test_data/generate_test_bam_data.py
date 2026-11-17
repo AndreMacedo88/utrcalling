@@ -5,16 +5,16 @@ repository.  It requires access to the original full-size BAM and GTF files
 (hardcoded paths below) and is not run as part of the test suite.
 """
 
-import pybedtools
 import pysam
 from numpy import random
 
+from utrcalling.core.utr_reference import read_gtf
 
-def generate_genome_intervals(regions):
-    intervals = []
-    for region in regions:
-        intervals.append((region.chrom, region.start, region.stop, region.strand))
-    return intervals
+
+def generate_genome_intervals(gtf_file):
+    """Each feature's chromosome, 0-based start, end and strand."""
+    table = read_gtf(gtf_file)
+    return list(zip(table.seqname, table.start - 1, table.end, table.strand, strict=True))
 
 
 def match_alignments(bam_path, output_path, intervals):
@@ -36,7 +36,7 @@ def match_alignments(bam_path, output_path, intervals):
                 continue
 
 
-gtf = pybedtools.BedTool("test_mus_musculus_GRCm38_102_5prime.gtf.gz")
+gtf = "test_mus_musculus_GRCm38_102_5prime.gtf.gz"
 
 bam_path = (
     "/mnt/weird_vol/projects/ifnb_nsc/seq.2021-07-06.CAPSeq-bams/"

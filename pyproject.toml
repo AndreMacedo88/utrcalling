@@ -39,10 +39,8 @@ dependencies = [
     "joblib>=1.0.1",
     "anndata>=0.12.0",
     "scanpy>=1.11.0",
-    "gtfparse>=1.2.1,<2",  # gtfparse 2 returns polars DataFrames
     "pyarrow",
     "pysam>=0.20.0",
-    "pybedtools>=0.8.2",
     "tqdm>=4.59.0",
     "bidict>=0.22.0",
     "psutil",
@@ -148,7 +146,7 @@ files = ["utrcalling"]
 exclude = ["^utrcalling/tests/"]
 python_version = "3.11"
 # Most scientific dependencies ship no type information (pandas without
-# pandas-stubs, anndata internals, pybedtools, gtfparse): treat them as Any.
+# pandas-stubs, anndata internals): treat them as Any.
 ignore_missing_imports = true
 warn_unused_ignores = true
 warn_redundant_casts = true

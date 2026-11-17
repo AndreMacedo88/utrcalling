@@ -36,12 +36,9 @@ def pas_distance(
         genome_path: Genome sequence (FASTA) of the annotation the UTRs come from.
         hamming: How many mismatches to AATAAA a hexamer may have.
     """
-    import pybedtools
-
     from utrcalling.core import helpers, storage
     from utrcalling.core import peak_calling_anndata as pc
 
     adata = helpers.check_if_path_and_open(input_path, method="h5ad")
-    genome = pybedtools.BedTool(genome_path)
-    table = pc.pas_distance_table(adata=adata, genome=genome, hamming=hamming, n_jobs=cores)
+    table = pc.pas_distance_table(adata=adata, genome=genome_path, hamming=hamming, n_jobs=cores)
     storage.write_table(table, out_path)

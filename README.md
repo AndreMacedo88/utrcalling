@@ -98,19 +98,16 @@ protocols (`truseq`, `bulk_pe`) have no versions and accept any value.
 
 ## Installation
 
-### Prerequisites
-
-- Python >= 3.11 (tested on 3.12)
-- [BEDTools](https://github.com/arq5x/bedtools2) must be installed and
-  available on your `PATH`.
+utrcalling needs Python 3.11 or later (it is tested on 3.12), and nothing
+outside Python: since version 5.1.0 it no longer needs BEDTools.
 
 ### With conda and pip (recommended)
 
-Create a conda environment with Python and BEDTools, then install utrcalling
-from PyPI into it:
+Create a conda environment with Python, then install utrcalling from PyPI
+into it:
 
 ```bash
-conda create -n utrcalling -c conda-forge -c bioconda python=3.12 bedtools
+conda create -n utrcalling -c conda-forge python=3.12
 conda activate utrcalling
 pip install utrcalling
 ```
@@ -118,8 +115,7 @@ pip install utrcalling
 ### From the source code
 
 The provided `environment.yml` creates a dedicated conda environment with
-Python 3.12, BEDTools, and the latest compatible versions of all Python
-dependencies, and installs utrcalling from the cloned repository in editable
+Python 3.12 and the latest compatible versions of all Python dependencies, and installs utrcalling from the cloned repository in editable
 mode, for example to use changes not yet released:
 
 ```bash
@@ -147,7 +143,7 @@ pytest
 
 To install utrcalling alongside other tools, install it with `pip` inside your
 active environment. Compatible versions are resolved from the ranges declared
-in `pyproject.toml`, and BEDTools must be available on your `PATH`:
+in `pyproject.toml`:
 
 ```bash
 pip install utrcalling
@@ -644,19 +640,14 @@ Python dependencies are installed automatically. Their compatible version
 ranges are declared in `pyproject.toml`, and the exact validated versions in
 `envs/utrcalling-frozen.yml`. The main ones are:
 
-- **pysam** --- BAM file reading
-- **pybedtools** --- genomic interval operations (requires BEDTools)
+- **pysam** --- reading BAM and genome FASTA files
 - **anndata** / **scanpy** --- single-cell data structures
-- **pandas** / **numpy** / **scipy**
+- **pandas** / **numpy** / **scipy** --- tables, GTF files and the merging of
+  UTR regions
 - **joblib** --- parallelism
-- **gtfparse** --- GTF file parsing
 - **rapidfuzz** --- fuzzy barcode matching
 - **scikit-learn** --- used by KDE peak calling
 - **pyarrow** --- Parquet I/O
-
-System dependency:
-
-- **BEDTools** (>= 2.30.0) --- install via `conda install -c bioconda bedtools`
 
 ## Citation
 

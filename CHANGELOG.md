@@ -5,6 +5,22 @@ a new major version can change results or require changes to your command lines.
 
 ## [Unreleased]
 
+### Changed
+
+- **No more BEDTools.** utrcalling builds its UTR reference and reads the
+  genome without BEDTools, pybedtools or gtfparse, so `pip install utrcalling`
+  installs everything it needs. The reference is the same as before (checked
+  identical, row by row, on the Ensembl annotations of mouse GRCm38 and GRCm39
+  and human GRCh38 and on Cell Ranger's GRCh38 annotation, for both UTR ends),
+  and takes 5 to 10 s to build instead of 40 to 60. The polyadenylation signal
+  scores and distances read the genome with pysam instead of starting bedtools
+  for each UTR. In Python, `utr_reference.read_gtf()` reads GTF files (also
+  just the rows of one feature, much faster) and `merge_regions()` merges UTR
+  regions as `bedtools merge -s` did; `reduce_regions()` and
+  `turn_utr_bed_to_dataframe()` are gone. Functions that took a pybedtools
+  BedTool of the genome take its path, or the FASTA opened with pysam (a
+  BedTool still works).
+
 ## [5.0.0] - 2026-11-17
 
 Peak calling for 5' data, scores that choose the peak calling for your data,

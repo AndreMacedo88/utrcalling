@@ -8,8 +8,10 @@ is the site (the first transcribed base for 5' sites, the last for 3' sites),
 
 from __future__ import annotations
 
+import os
 import re
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -24,6 +26,36 @@ if TYPE_CHECKING:
     import numpy.typing as npt
 
 UTR_ENDS = ("three_prime", "five_prime")
+
+# A genome FASTA: its path, or the file opened with pysam. (Objects with the
+# path as `fn`, such as the pybedtools BedTool of earlier versions, work too.)
+GenomeFasta = str | os.PathLike[str] | pysam.FastaFile
+# The complement of each base and IUPAC code, keeping lower case (soft-masked
+# repeats), as BEDTools complements them.
+IUPAC_COMPLEMENT = str.maketrans("ACGTRYKMBVDHSWNacgtrykmbvdhswn", "TGCAYRMKVBHDSWNtgcayrmkvbhdswn")
+
+
+@contextmanager
+def open_genome(genome: GenomeFasta) -> Iterator[pysam.FastaFile]:
+    """The genome FASTA, opened with pysam: closed after use, unless it came open."""
+    if isinstance(genome, pysam.FastaFile):
+        yield genome
+        return
+    with pysam.FastaFile(str(getattr(genome, "fn", genome))) as fasta:
+        yield fasta
+
+
+def region_sequence(genome: GenomeFasta, chrom: str, start: int, end: int, strand: str) -> str:
+    """The genome from *start* to *end* (1-based, inclusive), in the strand's orientation.
+
+    As ``bedtools getfasta -s`` reads it: the reverse complement on the minus
+    strand, with the case of the FASTA kept.
+    """
+    with open_genome(genome) as fasta:
+        sequence = fasta.fetch(str(chrom), start - 1, end)
+    if strand == "-":
+        sequence = sequence.translate(IUPAC_COMPLEMENT)[::-1]
+    return sequence
 
 
 def site_positions(var: pd.DataFrame, utr_end: str) -> npt.NDArray[np.int64]:

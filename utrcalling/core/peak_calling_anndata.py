@@ -18,7 +18,6 @@ import joblib
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import pybedtools
 import regex
 import scipy.sparse
 from tqdm import tqdm
@@ -178,7 +177,7 @@ def _get_distances_per_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
     hamming: int,
-    genome: str | pybedtools.BedTool,
+    genome: genome_.GenomeFasta,
 ) -> npt.NDArray[Any] | None:
     """Compute PAS distances for one UTR, given its raw ``(X, var)`` slices."""
     pas_end, _, _ = _find_pas(var_sub, hamming=hamming, genome=genome)
@@ -195,7 +194,7 @@ def _get_score_distances_per_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
     hamming: int,
-    genome: str | pybedtools.BedTool,
+    genome: genome_.GenomeFasta,
 ) -> list[float | tuple[float, npt.NDArray[Any]]] | None:
     """Score PAS distances for one UTR, given its raw ``(X, var)`` slices."""
     pas_end, _, _ = _find_pas(var_sub, hamming=hamming, genome=genome)
@@ -220,7 +219,7 @@ def _pas_table_per_utr_compact(
     X_sub: npt.NDArray[Any] | scipy.sparse.spmatrix,
     var_sub: pd.DataFrame,
     hamming: int,
-    genome: str | pybedtools.BedTool,
+    genome: genome_.GenomeFasta,
 ) -> tuple[npt.NDArray[np.int64], list[str] | None, npt.NDArray[np.int64] | None]:
     """Each site's molecules, nearest PAS hexamer and distance to it, for one UTR.
 
@@ -360,22 +359,26 @@ def _peak_call_utr_batch(
 
 
 def _pas_distance_utr_batch(
-    batch: list[CompactUtrItem], hamming: int, genome: str | pybedtools.BedTool
+    batch: list[CompactUtrItem], hamming: int, genome: genome_.GenomeFasta
 ) -> list[tuple[int, npt.NDArray[Any] | None]]:
     out = []
-    for orig_idx, _utr_name, X_sub, var_sub in batch:
-        result = _get_distances_per_utr_compact(X_sub, var_sub, hamming, genome)
-        out.append((orig_idx, result))
+    with genome_.open_genome(genome) as fasta:  # once per batch
+        for orig_idx, _utr_name, X_sub, var_sub in batch:
+            result = _get_distances_per_utr_compact(X_sub, var_sub, hamming, fasta)
+            out.append((orig_idx, result))
     return out
 
 
 def _pas_table_utr_batch(
-    batch: list[CompactUtrItem], hamming: int, genome: str | pybedtools.BedTool
+    batch: list[CompactUtrItem], hamming: int, genome: genome_.GenomeFasta
 ) -> list[tuple[int, npt.NDArray[np.int64], list[str] | None, npt.NDArray[np.int64] | None]]:
     out = []
-    for orig_idx, _utr_name, X_sub, var_sub in batch:
-        molecules, hexamers, distances = _pas_table_per_utr_compact(X_sub, var_sub, hamming, genome)
-        out.append((orig_idx, molecules, hexamers, distances))
+    with genome_.open_genome(genome) as fasta:  # once per batch
+        for orig_idx, _utr_name, X_sub, var_sub in batch:
+            molecules, hexamers, distances = _pas_table_per_utr_compact(
+                X_sub, var_sub, hamming, fasta
+            )
+            out.append((orig_idx, molecules, hexamers, distances))
     return out
 
 
@@ -405,12 +408,13 @@ def _peak_stats_utr_batch(
 
 
 def _score_distances_utr_batch(
-    batch: list[CompactUtrItem], hamming: int, genome: str | pybedtools.BedTool
+    batch: list[CompactUtrItem], hamming: int, genome: genome_.GenomeFasta
 ) -> list[tuple[int, list[float | tuple[float, npt.NDArray[Any]]] | None]]:
     out = []
-    for orig_idx, _utr_name, X_sub, var_sub in batch:
-        result = _get_score_distances_per_utr_compact(X_sub, var_sub, hamming, genome)
-        out.append((orig_idx, result))
+    with genome_.open_genome(genome) as fasta:  # once per batch
+        for orig_idx, _utr_name, X_sub, var_sub in batch:
+            result = _get_score_distances_per_utr_compact(X_sub, var_sub, hamming, fasta)
+            out.append((orig_idx, result))
     return out
 
 
@@ -694,7 +698,7 @@ def remove_peaks_below_count(
 
 def estimate_best_bandwidth(
     adata: ad.AnnData,
-    genome: str | pybedtools.BedTool,
+    genome: genome_.GenomeFasta,
     method: str = "kde",
     hamming: int = 1,
     bandwidths: float | Sequence[float] = (0.5, 1, 1.5, 2, 2.5, 3),
@@ -713,7 +717,7 @@ def estimate_best_bandwidth(
 
     Args:
         adata: AnnData with UMI counts and UTR metadata.
-        genome: Genome FASTA (path or pybedtools BedTool) to search for PAS
+        genome: Genome FASTA (path, or opened with pysam) to search for PAS
             hexamers in.
         method: Peak calling method (currently only ``"kde"``).
         hamming: Maximum Hamming distance for PAS matching.
@@ -804,7 +808,7 @@ def pas_distance(
 
 def pas_distance_table(
     adata: ad.AnnData,
-    genome: str | pybedtools.BedTool,
+    genome: genome_.GenomeFasta,
     hamming: int = 0,
     n_jobs: int | None = None,
 ) -> pd.DataFrame:
@@ -819,7 +823,7 @@ def pas_distance_table(
     Args:
         adata: Count matrix with ``utr_name``, ``utr_size``, ``chrom``,
             ``start``, ``end`` and ``strand`` in ``.var``.
-        genome: Genome FASTA (path or pybedtools BedTool) of the annotation.
+        genome: Genome FASTA (path, or opened with pysam) of the annotation.
         hamming: Maximum number of mismatches to AATAAA.
         n_jobs: Worker process count for the per-UTR parallel loop.
 
@@ -959,7 +963,7 @@ def peak_table(
 
 def score_bandwidths(
     adata: ad.AnnData,
-    genome: str | Path | pybedtools.BedTool | None = None,
+    genome: genome_.GenomeFasta | None = None,
     bandwidths: Sequence[Bandwidth] | None = None,
     hamming: int = 1,
     n_jobs: int | None = None,
@@ -992,7 +996,7 @@ def score_bandwidths(
 
     Args:
         adata: Raw-sizes count matrix, with UTR metadata in ``.var``.
-        genome: Genome FASTA (path or pybedtools BedTool) of the annotation,
+        genome: Genome FASTA (path, or opened with pysam) of the annotation,
             for the ``pas`` and ``initiator`` scores.
         bandwidths: The bandwidths to score: numbers of nt, or rules (see
             peak_calling.bandwidth_rules); 0 scores the raw sizes. By default,
@@ -1081,7 +1085,7 @@ def best_setting(scores: pd.DataFrame, score: str | None = None) -> tuple[str, B
 
 def _score_peak_assignment(
     adata: ad.AnnData,
-    genome: str | pybedtools.BedTool,
+    genome: genome_.GenomeFasta,
     hamming: int = 1,
     return_distances_to_hex: bool = False,
     n_jobs: int | None = None,
@@ -1090,7 +1094,7 @@ def _score_peak_assignment(
 
     Args:
         adata: AnnData with peak-called UTR counts.
-        genome: Genome FASTA (path or pybedtools BedTool) to search for PAS
+        genome: Genome FASTA (path, or opened with pysam) to search for PAS
             hexamers in.
         hamming: Maximum Hamming distance for PAS matching.
         return_distances_to_hex: If ``True``, also return the raw distance
@@ -1149,7 +1153,7 @@ def _score_peak_assignment(
 
 
 def _find_pas(
-    var: pd.DataFrame, genome: str | pybedtools.BedTool, hamming: int = 1
+    var: pd.DataFrame, genome: genome_.GenomeFasta, hamming: int = 1
 ) -> tuple[list[int], list[str], str]:
     """Find polyadenylation signal (PAS) sites in a UTR sequence.
 
@@ -1159,7 +1163,7 @@ def _find_pas(
     Args:
         var: Per-UTR var rows with chrom/start/end/strand columns. All rows
             describe the same UTR, so only the first is consulted.
-        genome: Path to a genome FASTA file (or a pybedtools BedTool).
+        genome: The genome FASTA, its path or opened with pysam.
         hamming: Maximum Hamming distance for fuzzy matching.
 
     Returns:
@@ -1167,20 +1171,10 @@ def _find_pas(
         of 0-based end positions, *pas_seq* the matched sequences, and
         *strand* the genomic strand.
     """
-    seq_chrom = var.chrom.iloc[0]
-    seq_start = var.start.iloc[0] - 1
-    seq_stop = var.end.iloc[0]
     seq_strand = var.strand.iloc[0]
-
-    query = pybedtools.BedTool(
-        f"{seq_chrom} {seq_start} {seq_stop} three_prime_utr 0 {seq_strand}",
-        from_string=True,
+    utr_seq = genome_.region_sequence(
+        genome, var.chrom.iloc[0], int(var.start.iloc[0]), int(var.end.iloc[0]), seq_strand
     )
-    query = query.sequence(fi=genome, s=True)
-
-    with open(query.seqfn) as q:
-        next(q)
-        utr_seq = q.read().strip()
 
     # Compile regex once before the search loop
     if hamming > 0:

@@ -4,12 +4,10 @@
 name: utrcalling
 channels:
   - conda-forge
-  - bioconda
 dependencies:
   # Pinned to the tested Python: an open-ended python>=3.11 lets conda pick a
-  # release that some compiled dependencies (pybedtools, h5py) have no wheels for.
+  # release that some compiled dependencies (such as h5py) have no wheels for yet.
   - python=3.12
-  - bedtools>=2.30.0
   - pip
   - pip:
     - -e .

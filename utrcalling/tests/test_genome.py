@@ -10,6 +10,7 @@ from unittest import mock
 import anndata as ad
 import numpy as np
 import pandas as pd
+import pysam
 import scipy.sparse
 
 from utrcalling.core import genome, protocol, provenance
@@ -140,6 +141,33 @@ class TestReadStretches(TestReadSequences):
         # offsets 5 to 7 of position 38 are 43 to 45, after its end.
         sequences, _ = self._stretches([("1", 3, "+"), ("1", 38, "+")], [-10, 5], [-5, 8])
         self.assertListEqual(sequences, ["NNNNN", "NNN"])
+
+
+class TestRegionSequence(unittest.TestCase):
+    """region_sequence reads a region as `bedtools getfasta -s` did, case and IUPAC codes kept."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, self.tmp)
+        self.fasta = self.tmp / "genome.fa"
+        self.fasta.write_text(">chr1\nACGTacgtRYKMbvdhSWN\n")
+
+    def test_strands(self):
+        self.assertEqual(genome.region_sequence(self.fasta, "chr1", 1, 8, "+"), "ACGTacgt")
+        # The reverse complement, IUPAC codes complemented and lower case kept.
+        self.assertEqual(genome.region_sequence(self.fasta, "chr1", 5, 19, "-"), "NWSdhbvKMRYacgt")
+
+    def test_the_genome_as_a_path_an_open_file_or_a_bedtool(self):
+        class BedTool:  # pybedtools' BedTool of a FASTA gives its path as fn
+            fn = str(self.fasta)
+
+        for genome_ in (str(self.fasta), self.fasta, BedTool()):
+            with self.subTest(genome=type(genome_).__name__):
+                self.assertEqual(genome.region_sequence(genome_, "chr1", 1, 4, "+"), "ACGT")
+        with pysam.FastaFile(str(self.fasta)) as fasta:
+            self.assertEqual(genome.region_sequence(fasta, "chr1", 1, 4, "-"), "ACGT")
+            # An open file stays open.
+            self.assertEqual(fasta.fetch("chr1", 0, 2), "AC")
 
 
 def _sites(utr_end, sizes, strands, chrom="1", start=1, end=30):
