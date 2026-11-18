@@ -11,8 +11,8 @@ abstract: >-
 authors:
   - given-names: André
     family-names: Macedo
-version: 5.1.0
-date-released: 2026-11-17
+version: 5.2.0
+date-released: 2026-11-18
 identifiers:
   - type: doi
     value: 10.5281/zenodo.23686176
