@@ -9,8 +9,10 @@ from cyclopts import Parameter
 
 from utrcalling.commands.options import (
     INPUTS,
+    OUTPUT,
     Alignments,
     AnnotationsFile,
+    Cores,
     Feature,
     LabelBatches,
     LogLevel,
@@ -33,6 +35,7 @@ def map_reads(
     label_batches: LabelBatches = None,
     log_level: LogLevel = "info",
     no_log_file: NoLogFile = False,
+    cores: Annotated[Cores, Parameter(group=OUTPUT)] = None,
 ) -> None:
     """Build the UTR reference and map the reads to it, for `count` to continue.
 
@@ -75,7 +78,9 @@ def map_reads(
 
     # Map to the reference UTR the reads that properly aligned to genome
     logger.info("Mapping aligned reads to UTR reference")
-    read_mappings = core.map_aligned_reads(alignments, utr_reference_regions, protocol_, store=True)
+    read_mappings = core.map_aligned_reads(
+        alignments, utr_reference_regions, protocol_, store=True, n_jobs=cores
+    )
     frames = read_mappings if isinstance(read_mappings, list) else [read_mappings]
     summary = qc.mapping_summary(
         alignments, [frame.attrs["mapping_summary"] for frame in frames], counting={}

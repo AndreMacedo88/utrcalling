@@ -3,6 +3,14 @@
 All notable changes to utrcalling. Versions follow [semantic versioning](https://semver.org):
 a new major version can change results or require changes to your command lines.
 
+## [Unreleased]
+
+### Added
+
+- `map-reads --cores`: the maximum number of worker processes that map the
+  reads, as in `run`. `map-reads` used all cores but one whatever you asked,
+  so in a workflow it could take more cores than the rule's threads.
+
 ## [5.1.0] - 2026-11-17
 
 utrcalling no longer needs BEDTools: `pip install utrcalling` installs

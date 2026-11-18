@@ -441,6 +441,54 @@ class TestToolsForwardKdeBandwidth(unittest.TestCase):
         self.assertEqual(kwargs["kde_kernel"], "linear")
 
 
+class _StopAfterMapping(Exception):
+    """Raised by the patched read mapping to end the tool run early."""
+
+
+class TestToolsForwardCores(unittest.TestCase):
+    """`--cores` must reach the read mapping, the longest step, in `run` and `map-reads`.
+
+    `map-reads` had no `--cores` before 5.2.0: inside a workflow it used all cores
+    but one, whatever the rule's threads.
+    """
+
+    def _mapping_n_jobs(self, tool, **kwargs):
+        with (
+            mock.patch("utrcalling.core.protocol.create"),
+            mock.patch("utrcalling.core.core.prepare_utr_reference_regions"),
+            mock.patch(
+                "utrcalling.core.core.map_aligned_reads", side_effect=_StopAfterMapping
+            ) as mapping,
+            self.assertRaises(_StopAfterMapping),
+        ):
+            tool(
+                "annotation.gtf",
+                alignments=["sample.bam"],
+                annotations_file="anno.csv",
+                log_level="error",
+                no_log_file=True,
+                **kwargs,
+            )
+        return mapping.call_args.kwargs["n_jobs"]
+
+    def test_run_and_map_reads_forward_cores(self):
+        from utrcalling.commands.map_reads import map_reads
+        from utrcalling.commands.run import run
+
+        for tool in (run, map_reads):
+            with self.subTest(tool=tool.__name__):
+                self.assertEqual(self._mapping_n_jobs(tool, cores=3), 3)
+                # Without --cores, joblib's default of all cores but one
+                self.assertIsNone(self._mapping_n_jobs(tool))
+
+    def test_map_reads_parses_cores(self):
+        self.assertEqual(_parse(*MAP_READS, "--cores", "4")[1]["cores"], 4)
+        self.assertIsNone(_parse(*MAP_READS)[1]["cores"])
+        # the name of the paper's workflows too
+        old = ["prepare-reference-and-map-reads", *MAP_READS[1:], "--cores", "2"]
+        self.assertEqual(_parse(*old)[1]["cores"], 2)
+
+
 class TestOptimizeNeedsTheGenome(unittest.TestCase):
     """`-b optimize` refuses to start without what it needs, before mapping any read."""
 
