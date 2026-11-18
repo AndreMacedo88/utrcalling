@@ -3,7 +3,10 @@
 All notable changes to utrcalling. Versions follow [semantic versioning](https://semver.org):
 a new major version can change results or require changes to your command lines.
 
-## [Unreleased]
+## [5.2.0] - 2026-11-18
+
+`map-reads` now takes `--cores`, as `run` does. Command lines and results do
+not change.
 
 ### Added
 
