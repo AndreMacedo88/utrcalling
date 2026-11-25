@@ -3,7 +3,13 @@
 All notable changes to utrcalling. Versions follow [semantic versioning](https://semver.org):
 a new major version can change results or require changes to your command lines.
 
-## [Unreleased]
+## [5.3.0] - 2026-11-25
+
+Statistics: `utrcalling stats site-usage` tests differential site usage with
+any model (conditions, pseudotime, paired designs), on cells or samples, with
+permutation p-values and effect sizes; `process pseudobulk` and `tools
+length-index` prepare its inputs and measures. Existing command lines and
+results do not change.
 
 ### Added
 
