@@ -64,6 +64,37 @@ jobs:
         run: |
           python -m pip install dist/*.whl
           cd "$RUNNER_TEMP" && utrcalling --version
+      # Files that are not Python modules ship only if MANIFEST.in lists them.
+      - name: Check that the wheel has the R script of the DRIMSeq engine
+        run: |
+          cd "$RUNNER_TEMP"
+          python -c "from utrcalling.core.stats import drimseq; assert drimseq.SCRIPT.is_file()"
+
+  # The DRIMSeq engine of `stats site-usage` against real R and DRIMSeq, which
+  # are optional and which the other jobs replace with a stand-in. Installed as
+  # the documentation tells users to.
+  drimseq:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: conda-incubator/setup-miniconda@v4
+        with:
+          miniforge-version: latest
+      - name: Create the environment, with R and DRIMSeq
+        run: |
+          conda env create -n utrcalling -f environment.yml
+          conda install -y -n utrcalling -c conda-forge -c bioconda r-base bioconductor-drimseq
+      - name: Install the test tools (pinned in the test dependency group)
+        run: conda run -n utrcalling python -m pip install --group test
+      # Fail, rather than skip the tests, if R cannot load DRIMSeq.
+      - name: Check that R loads DRIMSeq
+        run: conda run -n utrcalling Rscript -e 'library(DRIMSeq); packageVersion("DRIMSeq")'
+      - name: Run the tests of the statistics
+        run: conda run --no-capture-output -n utrcalling pytest utrcalling/tests/test_stats -rs
 
   tests:
     name: tests (${{ matrix.name }})
