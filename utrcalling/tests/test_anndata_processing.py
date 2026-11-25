@@ -491,3 +491,202 @@ class TestConcatenateAdata(unittest.TestCase):
 if __name__ == "__main__":
     unittest.main(exit=False, verbosity=2, buffer=True)
     module_log.log_end_run("Finished testing")
+
+
+def _sites_matrix():
+    """Six cells of two samples: UTR A with 3 sites, B with 2, C with 1."""
+    counts = np.array(
+        [
+            [2, 0, 2, 1, 1, 5],
+            [0, 0, 4, 0, 0, 1],
+            [1, 1, 0, 3, 0, 0],
+            [0, 0, 0, 0, 0, 2],
+            [3, 1, 0, 0, 4, 0],
+            [1, 2, 1, 2, 2, 1],
+        ],
+        dtype=np.int32,
+    )
+    var = pd.DataFrame(
+        {
+            "utr_name": ["A", "A", "A", "B", "B", "C"],
+            # Sites out of order: ranks follow sizes, not columns.
+            "utr_size": [10, 200, 50, 300, 30, 5],
+            "gene_name": ["gA", "gA", "gA", "gB", "gB", "gC"],
+            "strand": ["+", "+", "+", "-", "-", "+"],
+        },
+        index=[f"site{i}" for i in range(6)],
+    )
+    obs = pd.DataFrame(
+        {
+            "sample": ["s1", "s1", "s1", "s2", "s2", "s2"],
+            "condition": ["ctl", "ctl", "ctl", "trt", "trt", "trt"],
+            "pseudotime": [0.1, 0.5, 0.9, 0.2, 0.6, 0.8],
+            "phase": ["G1", "S", "G1", "G1", "G2M", "S"],
+            "flag": [True, False, True, True, False, True],
+        },
+        index=[f"cell{i}" for i in range(6)],
+    )
+    return ad.AnnData(X=scipy.sparse.csr_matrix(counts), obs=obs, var=var)
+
+
+class TestUtrAnnotations(unittest.TestCase):
+    def test_one_row_per_utr_with_the_columns_its_sites_share(self):
+        utrs = ap.utr_annotations(_sites_matrix().var)
+        self.assertListEqual(list(utrs.index), ["A", "B", "C"])
+        self.assertListEqual(list(utrs.columns), ["gene_name", "strand", "sites"])
+        self.assertListEqual(utrs["sites"].tolist(), [3, 2, 1])
+        self.assertListEqual(utrs["gene_name"].tolist(), ["gA", "gB", "gC"])
+
+    def test_without_shared_columns_only_the_number_of_sites(self):
+        var = pd.DataFrame({"utr_name": ["A", "A"], "utr_size": [1, 2]})
+        self.assertListEqual(list(ap.utr_annotations(var).columns), ["sites"])
+
+
+class TestLengthIndexMatrix(unittest.TestCase):
+    def setUp(self):
+        self.counts = _sites_matrix()
+        self.index = ap.length_index(self.counts)
+
+    def test_a_column_per_multi_site_utr(self):
+        self.assertListEqual(list(self.index.var_names), ["A", "B"])
+        self.assertListEqual(self.index.var["sites"].tolist(), [3, 2])
+        pd.testing.assert_index_equal(self.index.obs_names, self.counts.obs_names)
+
+    def test_values_are_the_mean_rank_of_each_cells_molecules(self):
+        dense = self.counts.X.toarray()
+        # A: sizes 10, 200, 50 give ranks 0, 1, 0.5; B: 300, 30 give 1, 0.
+        a = dense[:, :3]
+        with np.errstate(invalid="ignore"):
+            expected_a = (a @ np.array([0.0, 1.0, 0.5])) / a.sum(axis=1)
+        b = dense[:, 3:5]
+        with np.errstate(invalid="ignore"):
+            expected_b = (b @ np.array([1.0, 0.0])) / b.sum(axis=1)
+        np.testing.assert_allclose(self.index.X[:, 0], expected_a, rtol=1e-6)
+        np.testing.assert_allclose(self.index.X[:, 1], expected_b, rtol=1e-6)
+        # Cell 3 has no molecules in A or B.
+        self.assertTrue(np.isnan(self.index.X[3]).all())
+
+    def test_entropy_layer(self):
+        entropy = self.index.layers["entropy"]
+        # Cell 0, UTR A: shares 0.5, 0, 0.5 of three sites.
+        self.assertAlmostEqual(float(entropy[0, 0]), np.log(2) / np.log(3), places=6)
+        # Cell 1, UTR A: all at one site.
+        self.assertEqual(float(entropy[1, 0]), 0.0)
+        self.assertTrue(np.isnan(entropy[1, 1]))
+
+    def test_global_index_is_the_mean_over_measured_utrs(self):
+        obs = self.index.obs
+        self.assertListEqual(obs["utrs_measured"].tolist(), [2, 1, 2, 0, 2, 2])
+        np.testing.assert_allclose(obs["length_index"].iloc[0], np.nanmean(self.index.X[0]))
+        np.testing.assert_allclose(
+            obs["entropy"].iloc[2], np.nanmean(self.index.layers["entropy"][2])
+        )
+        self.assertTrue(np.isnan(obs["length_index"].iloc[3]))
+
+    def test_smoothing_averages_the_counts_over_neighbours_first(self):
+        graph = scipy.sparse.csr_matrix(np.ones((6, 6)) - np.eye(6))
+        self.counts.obsp["knn"] = graph
+        smoothed = ap.length_index(self.counts, smooth_graph="knn", smooth_rounds=1)
+        dense = self.counts.X.toarray().astype(float)
+        mean_of_others = (dense.sum(axis=0) - dense[3]) / 5
+        a = mean_of_others[:3]
+        self.assertAlmostEqual(float(smoothed.X[3, 0]), a @ [0.0, 1.0, 0.5] / a.sum(), places=6)
+        self.assertEqual(smoothed.obs["utrs_measured"].iloc[3], 2)
+
+    def test_no_multi_site_utr_is_refused(self):
+        with self.assertRaisesRegex(ValueError, "two or more sites"):
+            ap.length_index(self.counts[:, [5]].copy())
+
+
+class TestSmoothCounts(unittest.TestCase):
+    def test_each_round_takes_the_weighted_mean_of_the_neighbours(self):
+        counts = np.array([[1.0, 0.0], [3.0, 2.0], [5.0, 4.0]])
+        graph = scipy.sparse.csr_matrix([[0, 1, 1], [1, 0, 0], [1, 0, 0]], dtype=float)
+        once = ap.smooth_counts(counts, graph, rounds=1).toarray()
+        np.testing.assert_allclose(once, [[4.0, 3.0], [1.0, 0.0], [1.0, 0.0]])
+        twice = ap.smooth_counts(counts, graph, rounds=2).toarray()
+        np.testing.assert_allclose(twice, [[1.0, 0.0], [4.0, 3.0], [4.0, 3.0]])
+
+    def test_cells_without_neighbours_keep_their_counts(self):
+        counts = np.array([[1.0], [3.0], [7.0]])
+        graph = scipy.sparse.csr_matrix([[0, 1, 0], [1, 0, 0], [0, 0, 0]], dtype=float)
+        np.testing.assert_allclose(ap.smooth_counts(counts, graph, 1).toarray().ravel(), [3, 1, 7])
+
+    def test_zero_rounds_and_errors(self):
+        counts = np.array([[1.0], [3.0]])
+        graph = scipy.sparse.csr_matrix([[0, 1], [1, 0]], dtype=float)
+        np.testing.assert_allclose(ap.smooth_counts(counts, graph, 0).toarray(), counts)
+        with self.assertRaisesRegex(ValueError, "0 or more"):
+            ap.smooth_counts(counts, graph, -1)
+        with self.assertRaisesRegex(ValueError, "a row and a column per cell"):
+            ap.smooth_counts(counts, scipy.sparse.eye(3), 1)
+
+
+class TestNeighbourGraph(unittest.TestCase):
+    def test_reads_obsp_or_says_what_is_there(self):
+        adata = _sites_matrix()
+        adata.obsp["connectivities"] = scipy.sparse.csr_matrix(np.eye(6))
+        self.assertEqual(ap.neighbour_graph(adata, "connectivities").shape, (6, 6))
+        with self.assertRaisesRegex(ValueError, "it has: connectivities"):
+            ap.neighbour_graph(adata, "distances")
+        with self.assertRaisesRegex(ValueError, "it has: none"):
+            ap.neighbour_graph(_sites_matrix(), "connectivities")
+
+
+class TestPseudobulk(unittest.TestCase):
+    def setUp(self):
+        self.cells = _sites_matrix()
+
+    def test_sums_the_counts_of_each_samples_cells(self):
+        units = ap.pseudobulk(self.cells, by=["sample"], min_cells=1)
+        self.assertListEqual(list(units.obs_names), ["s1", "s2"])
+        dense = self.cells.X.toarray()
+        np.testing.assert_array_equal(units.X.toarray(), [dense[:3].sum(0), dense[3:].sum(0)])
+        self.assertTrue(scipy.sparse.issparse(units.X))
+        self.assertEqual(units.X.dtype, np.int32)
+        self.assertListEqual(units.obs["n_cells"].tolist(), [3, 3])
+        pd.testing.assert_frame_equal(units.var, self.cells.var)
+
+    def test_keeps_shared_columns_and_means_of_numbers(self):
+        units = ap.pseudobulk(self.cells, by=["sample"], min_cells=1)
+        self.assertListEqual(units.obs["condition"].tolist(), ["ctl", "trt"])
+        np.testing.assert_allclose(units.obs["pseudotime"], [0.5, (0.2 + 0.6 + 0.8) / 3])
+        # Text and booleans that differ within a unit are left out.
+        self.assertNotIn("phase", units.obs)
+        self.assertNotIn("flag", units.obs)
+
+    def test_categorical_columns_stay_categorical(self):
+        self.cells.obs["condition"] = pd.Categorical(self.cells.obs["condition"])
+        units = ap.pseudobulk(self.cells, by=["sample"], min_cells=1)
+        self.assertIsInstance(units.obs["condition"].dtype, pd.CategoricalDtype)
+
+    def test_bins_cut_a_numeric_column_into_equal_frequency_bins(self):
+        units = ap.pseudobulk(self.cells, by=["sample"], bins={"pseudotime": 2}, min_cells=1)
+        self.assertListEqual(list(units.obs_names), ["s1|1", "s1|2", "s2|1", "s2|2"])
+        self.assertListEqual(units.obs["pseudotime_bin"].tolist(), [1, 2, 1, 2])
+        self.assertListEqual(units.obs["n_cells"].tolist(), [2, 1, 1, 2])
+        np.testing.assert_allclose(units.obs["pseudotime"], [0.3, 0.9, 0.2, 0.7])
+
+    def test_small_units_and_cells_without_a_value_are_left_out(self):
+        self.cells.obs.loc["cell0", "sample"] = np.nan
+        units = ap.pseudobulk(self.cells, by=["sample"], min_cells=3)
+        self.assertListEqual(list(units.obs_names), ["s2"])
+
+    def test_repeated_values_make_fewer_bins(self):
+        self.cells.obs["pseudotime"] = [0.0, 0.0, 0.0, 0.0, 1.0, 2.0]
+        with self.assertLogs("utrcalling", level="WARNING") as logs:
+            units = ap.pseudobulk(self.cells, by=["sample"], bins={"pseudotime": 3}, min_cells=1)
+        self.assertIn("made 2", logs.output[0])
+        self.assertListEqual(sorted(units.obs["pseudotime_bin"].unique()), [1, 2])
+
+    def test_errors(self):
+        with self.assertRaisesRegex(ValueError, "No column donor"):
+            ap.pseudobulk(self.cells, by=["donor"])
+        with self.assertRaisesRegex(ValueError, "phase is not numeric"):
+            ap.pseudobulk(self.cells, by=["sample"], bins={"phase": 2})
+        with self.assertRaisesRegex(ValueError, "flag is not numeric"):
+            ap.pseudobulk(self.cells, by=["sample"], bins={"flag": 2})
+        with self.assertRaisesRegex(ValueError, "1 or more bins"):
+            ap.pseudobulk(self.cells, by=["sample"], bins={"pseudotime": 0})
+        with self.assertRaisesRegex(ValueError, "the largest has 3"):
+            ap.pseudobulk(self.cells, by=["sample"], min_cells=4)

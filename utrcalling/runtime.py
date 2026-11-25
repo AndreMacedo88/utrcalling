@@ -12,6 +12,7 @@ from utrcalling.commands.process import (
     filter_sites,
     filter_utrs,
     keep_multi_site,
+    pseudobulk,
     rename_sites,
 )
 from utrcalling.commands.qc import (
@@ -24,7 +25,8 @@ from utrcalling.commands.qc import (
     report,
     score_bandwidths,
 )
-from utrcalling.commands.tools import mean_sizes, site_sequences, to_fractions
+from utrcalling.commands.stats import site_usage
+from utrcalling.commands.tools import length_index, mean_sizes, site_sequences, to_fractions
 
 PIPELINE = Group("Pipeline", sort_key=0)
 COMMAND_GROUPS = Group("Command groups", sort_key=1)
@@ -49,12 +51,12 @@ app.command(count.count, name="count", group=PIPELINE, sort_key=2)
 app.command(call_peaks.call_peaks, name="call-peaks", group=PIPELINE, sort_key=3)
 
 # The groups come in the order of an analysis, like scanpy's pp and tl: process
-# the count matrix, then compute the measures to analyse from it.
+# the count matrix, compute the measures to analyse from it, then test them.
 process = App(
     name="process",
     help=(
         "Prepare the site count matrix: filter sites and UTRs, keep multi-site UTRs, "
-        "join experiments."
+        "join experiments, sum cells into units per sample."
     ),
     group=COMMAND_GROUPS,
     sort_key=0,
@@ -64,27 +66,41 @@ process.command(filter_utrs.filter_utrs, name="filter-utrs", sort_key=1)
 process.command(keep_multi_site.keep_multi_site, name="keep-multi-site", sort_key=2)
 process.command(rename_sites.rename_sites, name="rename-sites", sort_key=3)
 process.command(concatenate.concatenate, name="concatenate", sort_key=4)
+process.command(pseudobulk.pseudobulk, name="pseudobulk", sort_key=5)
 app.command(process)
 
 tools = App(
     name="tools",
     help=(
         "Compute the measures to analyse from site counts: site usage, mean UTR sizes, "
-        "and the sequences around sites."
+        "length indices, and the sequences around sites."
     ),
     group=COMMAND_GROUPS,
     sort_key=1,
 )
 tools.command(to_fractions.to_fractions, name="to-fractions", sort_key=0)
 tools.command(mean_sizes.mean_sizes, name="mean-sizes", sort_key=1)
-tools.command(site_sequences.site_sequences, name="site-sequences", sort_key=2)
+tools.command(length_index.length_index, name="length-index", sort_key=2)
+tools.command(site_sequences.site_sequences, name="site-sequences", sort_key=3)
 app.command(tools)
+
+stats = App(
+    name="stats",
+    help=(
+        "Test which UTRs change the use of their sites: between conditions, along "
+        "trajectories, between groups, with effect sizes."
+    ),
+    group=COMMAND_GROUPS,
+    sort_key=2,
+)
+stats.command(site_usage.site_usage, name="site-usage", sort_key=0)
+app.command(stats)
 
 qc = App(
     name="qc",
     help="Quality control: tables that describe sites, cells and samples, at any step.",
     group=COMMAND_GROUPS,
-    sort_key=2,
+    sort_key=3,
 )
 # From the whole picture to the details: the matrices, cells, groups of cells,
 # and sites, then the choice of bandwidth.

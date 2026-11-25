@@ -18,8 +18,13 @@ if TYPE_CHECKING:
 
 KEY = "utrcalling"
 # What a matrix holds: molecule counts per UTR size (raw sizes) or per site
-# (peaks), each site's share of its UTR's molecules, or each UTR's mean size.
-MATRICES = ("raw_sizes", "peaks", "fractions", "mean_sizes")
+# (peaks), each site's share of its UTR's molecules, each UTR's mean size, or
+# each UTR's length index (and entropy of site use).
+MATRICES = ("raw_sizes", "peaks", "fractions", "mean_sizes", "length_index")
+# The matrices with a column per UTR instead of per site.
+PER_UTR = ("mean_sizes", "length_index")
+# The matrices that hold measures computed from counts, not counts.
+MEASURES = ("fractions", *PER_UTR)
 
 
 def command_line() -> str:

@@ -282,3 +282,290 @@ def concatenate_adata(
     adata_concat.var = var_new
 
     return adata_concat
+
+
+def utr_annotations(var: pd.DataFrame, utr_name_column: str = "utr_name") -> pd.DataFrame:
+    """One row per UTR, with the site annotations that are the same for all its sites.
+
+    Columns that differ between the sites of a UTR, such as ``utr_size``, are
+    left out. The UTRs come in the order of their first site.
+
+    Args:
+        var: Site annotations with *utr_name_column*.
+        utr_name_column: Column of *var* with the UTR names.
+
+    Returns:
+        The UTR annotations, indexed by UTR name, with ``sites``: the number
+        of sites of each UTR.
+    """
+    grouped = var.groupby(utr_name_column, sort=False, observed=True)
+    same = [
+        column
+        for column in var.columns
+        if column != utr_name_column and (grouped[column].nunique(dropna=False) <= 1).all()
+    ]
+    utrs = grouped[same].first() if same else pd.DataFrame(index=grouped.size().index)
+    utrs["sites"] = grouped.size()
+    utrs.index = utrs.index.astype(str)
+    utrs.index.name = None
+    return utrs
+
+
+def neighbour_graph(adata: anndata.AnnData, key: str) -> scipy.sparse.csr_matrix:
+    """The graph of neighbouring cells in ``adata.obsp[key]``, such as scanpy's connectivities.
+
+    Args:
+        adata: The count matrix whose cells the graph connects.
+        key: The key of the graph in ``adata.obsp``.
+
+    Returns:
+        The graph's weights, a row and a column per cell.
+
+    Raises:
+        ValueError: If ``adata.obsp`` has no *key*.
+    """
+    if key not in adata.obsp:
+        known = ", ".join(adata.obsp.keys()) or "none"
+        raise ValueError(
+            f"The matrix has no graph {key!r} in .obsp (it has: {known}). Compute one with "
+            "scanpy (sc.pp.neighbors stores obsp['connectivities']) and add it to the matrix."
+        )
+    return scipy.sparse.csr_matrix(adata.obsp[key], dtype=np.float64)
+
+
+def smooth_counts(
+    counts: scipy.sparse.spmatrix | np.ndarray, graph: scipy.sparse.spmatrix, rounds: int = 2
+) -> scipy.sparse.csr_matrix:
+    """Average each cell's counts over its neighbours, *rounds* times.
+
+    Each round replaces the counts of a cell with the mean of its neighbours'
+    counts, weighted by the graph. A cell without neighbours keeps its own.
+    Smoothing shares molecules between similar cells, which steadies the
+    measures of single cells (such as the length index) but makes them
+    dependent: don't give p-values to correlations over smoothed cells.
+
+    Args:
+        counts: Counts, a row per cell.
+        graph: Weights between cells, a row and a column per cell, such as
+            scanpy's ``obsp['connectivities']``.
+        rounds: How many times to average.
+
+    Returns:
+        The smoothed counts.
+
+    Raises:
+        ValueError: If *rounds* is negative, or the graph does not have a row
+            and a column per cell.
+    """
+    if rounds < 0:
+        raise ValueError(f"rounds {rounds}: smooth 0 or more times")
+    if graph.shape != (counts.shape[0], counts.shape[0]):
+        raise ValueError(
+            f"The graph is {graph.shape[0]} x {graph.shape[1]}: it needs a row and a "
+            f"column per cell ({counts.shape[0]})"
+        )
+    graph = scipy.sparse.csr_matrix(graph, dtype=np.float64)
+    sums = np.asarray(graph.sum(axis=1)).ravel()
+    isolated = sums == 0
+    inverse = np.divide(1.0, sums, out=np.zeros_like(sums), where=~isolated)
+    weights = scipy.sparse.diags(inverse) @ graph + scipy.sparse.diags(isolated.astype(float))
+    smoothed = scipy.sparse.csr_matrix(counts, dtype=np.float64)
+    for _ in range(rounds):
+        smoothed = scipy.sparse.csr_matrix(weights @ smoothed)
+    return smoothed
+
+
+def length_index(
+    adata: anndata.AnnData,
+    utr_name_column: str = "utr_name",
+    smooth_graph: str | None = None,
+    smooth_rounds: int = 2,
+) -> anndata.AnnData:
+    """The length index and entropy of site use, per cell (or sample) and UTR.
+
+    The length index is the mean scaled rank of a UTR's molecules' sites, from
+    0 (all at its shortest site) to 1 (all at its longest); the entropy, from
+    0 (one site) to 1 (equal use of all sites). See
+    :mod:`utrcalling.core.stats.measures`. Only UTRs with two or more sites
+    have them. Cells without molecules in a UTR get NaN.
+
+    Args:
+        adata: A count matrix of sites (peaks), cells or samples by sites.
+        utr_name_column: Column of ``.var`` with the UTR names.
+        smooth_graph: Key of a graph of neighbouring cells in ``.obsp``
+            (such as scanpy's ``connectivities``): average the counts over it
+            first, see :func:`smooth_counts`.
+        smooth_rounds: How many times to average over *smooth_graph*.
+
+    Returns:
+        A matrix of cells by UTRs with the length index in ``.X`` and the
+        entropy in ``.layers['entropy']``. ``.obs`` adds each cell's mean
+        over its UTRs, ``length_index`` and ``entropy``, and how many UTRs it
+        has molecules in, ``utrs_measured``. ``.var`` holds the UTRs'
+        annotations and ``sites``.
+
+    Raises:
+        ValueError: If no UTR has two or more sites.
+    """
+    from utrcalling.core.stats import measures
+
+    var = adata.var
+    ranks = measures.site_ranks(var[utr_name_column].astype(str), var["utr_size"])
+    multi_site = ~np.isnan(ranks)
+    if not multi_site.any():
+        raise ValueError("No UTR has two or more sites: there is no length index to compute.")
+    counts = scipy.sparse.csr_matrix(adata.X, dtype=np.float64)[:, multi_site]
+    if smooth_graph is not None:
+        counts = smooth_counts(counts, neighbour_graph(adata, smooth_graph), smooth_rounds)
+    sites = var[multi_site]
+    codes, _ = pd.factorize(sites[utr_name_column].astype(str), sort=False)
+    utrs = utr_annotations(sites, utr_name_column)
+    n_sites, n_utrs = len(codes), len(utrs)
+    columns = np.arange(n_sites)
+    aggregator = scipy.sparse.csr_matrix(
+        (np.ones(n_sites), (columns, codes)), shape=(n_sites, n_utrs)
+    )
+    ranked = scipy.sparse.csr_matrix((ranks[multi_site], (columns, codes)), shape=(n_sites, n_utrs))
+
+    totals = (counts @ aggregator).toarray()
+    measured = totals > 0
+    with np.errstate(invalid="ignore", divide="ignore"):
+        index = np.where(measured, (counts @ ranked).toarray() / totals, np.nan)
+    entries = counts.tocoo()
+    shares = entries.data / totals[entries.row, codes[entries.col]]
+    with np.errstate(divide="ignore", invalid="ignore"):
+        terms = np.where(shares > 0, -shares * np.log(shares), 0.0)
+    entropy_sums = scipy.sparse.csr_matrix((terms, (entries.row, entries.col)), shape=counts.shape)
+    entropy = (entropy_sums @ aggregator).toarray() / np.log(utrs["sites"].to_numpy(float))
+    entropy = np.where(measured, entropy, np.nan)
+
+    obs = adata.obs.copy()
+    utrs_measured = measured.sum(axis=1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        obs["length_index"] = np.nansum(index, axis=1) / utrs_measured
+        obs["entropy"] = np.nansum(entropy, axis=1) / utrs_measured
+    obs["utrs_measured"] = utrs_measured
+    return anndata.AnnData(
+        X=index.astype(np.float32),
+        obs=obs,
+        var=utrs,
+        layers={"entropy": entropy.astype(np.float32)},
+    )
+
+
+def _bin_by_quantiles(values: pd.Series, bins: int) -> pd.Series:
+    """Number the values 1 to *bins* by their quantiles (fewer bins if values repeat)."""
+    numbers = pd.qcut(values, q=bins, labels=False, duplicates="drop")
+    return (numbers + 1).astype("Int64")
+
+
+def pseudobulk(
+    adata: anndata.AnnData,
+    by: list[str],
+    bins: dict[str, int] | None = None,
+    min_cells: int = 10,
+) -> anndata.AnnData:
+    """Sum the counts of cells into units: per sample, or per sample and bin.
+
+    A unit is a group of cells that share their values of the *by* columns
+    of ``.obs`` (such as the sample) and, with *bins*, their bin of a numeric
+    column (such as pseudotime cut into equal-frequency bins over all cells).
+    Units let statistics treat samples, not cells, as the replicates: build
+    them within samples, never across.
+
+    Each unit keeps the ``.obs`` columns whose value is the same for all its
+    cells (such as the sample's condition or batch), and the mean of the
+    other numeric columns (such as the mean pseudotime of a bin). Other
+    columns are left out. Cells with a missing value in *by* or *bins* are
+    in no unit.
+
+    Args:
+        adata: A count matrix, cells by sites (or raw sizes).
+        by: Columns of ``.obs`` whose values make the units.
+        bins: Numeric columns of ``.obs`` to cut into that many bins of equal
+            numbers of cells: each unit is also one bin, numbered from 1 in
+            the column ``<column>_bin``.
+        min_cells: Units with fewer cells are left out.
+
+    Returns:
+        A count matrix of units by sites, named ``<value>|<value>...``, with
+        ``n_cells`` in ``.obs``.
+
+    Raises:
+        ValueError: If a column is missing or a bins column is not numeric,
+            or if no unit has *min_cells* cells.
+    """
+    from utrcalling.core.module_log import module_logger
+
+    bins = dict(bins or {})
+    obs = adata.obs.copy()
+    missing = [column for column in [*by, *bins] if column not in obs.columns]
+    if missing:
+        raise ValueError(
+            f"No column {', '.join(missing)} in the cell annotations (.obs): it has "
+            f"{', '.join(map(str, obs.columns))}"
+        )
+    for column, number in bins.items():
+        if not pd.api.types.is_numeric_dtype(obs[column]) or pd.api.types.is_bool_dtype(
+            obs[column]
+        ):
+            raise ValueError(f"Column {column} is not numeric: it cannot be cut into bins")
+        if number < 1:
+            raise ValueError(f"{column}:{number}: cut into 1 or more bins")
+        obs[f"{column}_bin"] = _bin_by_quantiles(obs[column], number)
+        made = obs[f"{column}_bin"].nunique()
+        if made < number:
+            module_logger().warning(
+                f"{column} has too many equal values for {number} bins: made {made}"
+            )
+    keys = [*by, *(f"{column}_bin" for column in bins)]
+    in_a_unit = obs[keys].notna().all(axis=1).to_numpy()
+    if not in_a_unit.all():
+        module_logger().info(
+            f"Left out {(~in_a_unit).sum()} cells with a missing {' or '.join(keys)}"
+        )
+    obs = obs[in_a_unit]
+    grouped = obs.groupby(keys, sort=True, observed=True, dropna=True)
+    unit = grouped.ngroup().to_numpy()
+    n_cells = np.bincount(unit)
+    kept = n_cells >= min_cells
+    if not kept.any():
+        raise ValueError(
+            f"No unit has {min_cells} cells or more (the largest has {n_cells.max()}): "
+            "lower --min-cells, or make larger units"
+        )
+    if not kept.all():
+        module_logger().info(
+            f"Left out {(~kept).sum()} of {len(kept)} units with fewer than {min_cells} cells"
+        )
+
+    membership = scipy.sparse.csr_matrix(
+        (np.ones(len(unit), dtype=np.int64), (unit, np.arange(len(unit)))),
+        shape=(len(n_cells), len(unit)),
+    )[kept]
+    counts = scipy.sparse.csr_matrix(adata.X)[in_a_unit]
+    summed = scipy.sparse.csr_matrix(membership @ counts).astype(counts.dtype)
+
+    first = grouped.first()
+    units = first.reset_index()[keys]
+    left_out = []
+    for column in obs.columns.difference(keys, sort=False):
+        constant = (grouped[column].nunique(dropna=False) <= 1).to_numpy()
+        if constant.all():
+            units[column] = first[column].reset_index(drop=True)
+        elif pd.api.types.is_numeric_dtype(obs[column]) and not pd.api.types.is_bool_dtype(
+            obs[column]
+        ):
+            units[column] = grouped[column].mean().reset_index(drop=True)
+        else:
+            left_out.append(str(column))
+    if left_out:
+        module_logger().info(
+            f"Left out the columns that differ within units: {', '.join(left_out)}"
+        )
+    units["n_cells"] = n_cells
+    units = units[kept]
+    units.index = pd.Index(
+        ["|".join(map(str, values)) for values in units[keys].itertuples(index=False)]
+    )
+    return anndata.AnnData(X=summed, obs=units, var=adata.var.copy())

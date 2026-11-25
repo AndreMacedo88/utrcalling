@@ -288,7 +288,7 @@ def site_sequences(
 
     Raises:
         ValueError: If a length is negative or both are 0, if the matrix holds
-            fractions or mean sizes, or for the reasons of
+            fractions, mean sizes or length indices, or for the reasons of
             :func:`positioned_utr_end` and :func:`read_stretches`.
     """
     lengths = [length for length in (upstream, downstream) if length != "utr"]
@@ -298,7 +298,7 @@ def site_sequences(
             "each side, and 1 or more in all"
         )
     matrix = provenance.recorded(adata).get("matrix")
-    if matrix in ("fractions", "mean_sizes"):
+    if matrix in provenance.MEASURES:
         raise ValueError(
             f"This matrix holds {matrix.replace('_', ' ')}: give the count matrix it comes from."
         )

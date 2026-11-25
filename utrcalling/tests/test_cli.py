@@ -1,6 +1,7 @@
 """CLI tests: subcommands parse, --help works, and the tool entry points behave."""
 
 import io
+import json
 import os
 import shutil
 import subprocess
@@ -13,6 +14,7 @@ from unittest import mock
 import anndata as ad
 import numpy as np
 import pandas as pd
+import scipy.sparse
 
 from utrcalling.commands.qc.report import MULTIQC_HEADER
 
@@ -63,9 +65,12 @@ GROUPED_COMMANDS = {
     ("process", "keep-multi-site"): ["in.h5ad", "out.h5ad"],
     ("process", "rename-sites"): ["in.h5ad", "out.h5ad"],
     ("process", "concatenate"): ["-i", "a.h5ad", "b.h5ad", "-o", "out.h5ad"],
+    ("process", "pseudobulk"): ["in.h5ad", "out.h5ad", "--by", "sample"],
     ("tools", "to-fractions"): ["in.h5ad", "out.h5ad"],
     ("tools", "mean-sizes"): ["in.h5ad", "out.h5ad"],
+    ("tools", "length-index"): ["in.h5ad", "out.h5ad"],
     ("tools", "site-sequences"): ["in.h5ad", "genome.fa", "out.tsv"],
+    ("stats", "site-usage"): ["in.h5ad", "out.tsv", "--full", "~ condition"],
     ("qc", "report"): ["a.h5ad", "b.h5ad", "-o", "report.tsv"],
     ("qc", "cells"): ["in.h5ad", "out.tsv"],
     ("qc", "batches"): ["in.h5ad", "out", "-g", "batch"],
@@ -117,7 +122,7 @@ class TestCLIHelp(unittest.TestCase):
             self.assertIn(panel, page)
         for command in ("run", "map-reads", "count", "call-peaks"):
             self.assertIn(command, page)
-        for group in ("process", "tools", "qc"):
+        for group in ("process", "tools", "stats", "qc"):
             self.assertIn(group, page)
 
     def test_group_help_lists_its_commands(self):
@@ -276,6 +281,42 @@ class TestCLIInvalidArgs(unittest.TestCase):
         _, arguments = _parse(*old)
         self.assertEqual((arguments["threshold"], arguments["minimum_counts"]), (0.05, 10))
         self.assertIsNone(arguments["groupby"])
+
+    def test_pseudobulk_units_and_bins(self):
+        tokens = ["process", "pseudobulk", "in.h5ad", "out.h5ad", "--by", "sample", "cell_type"]
+        _, arguments = _parse(*tokens, "--bins", "pseudotime:3", "dpt:time:2")
+        self.assertEqual(arguments["by"], ["sample", "cell_type"])
+        self.assertEqual(arguments["bins"], ("pseudotime:3", "dpt:time:2"))
+        self.assertEqual(arguments["min_cells"], 10)
+        _, arguments = _parse(*tokens)
+        self.assertIsNone(arguments["bins"])
+        for wrong in ("pseudotime", "pseudotime:three", ":3"):
+            self.assertRefused(*tokens, "--bins", wrong, message="expected COLUMN:N")
+        self.assertRefused("process", "pseudobulk", "in.h5ad", "out.h5ad", message="requires")
+
+    def test_site_usage_options(self):
+        tokens = ["stats", "site-usage", "in.h5ad", "out.tsv", "--full", "~ C(batch) + condition"]
+        _, arguments = _parse(*tokens)
+        self.assertEqual(arguments["reduced"], "~ 1")
+        self.assertEqual(arguments["engine"], "dirmult")
+        self.assertEqual(arguments["permutations"], (49, 199, 999))
+        self.assertEqual(arguments["effect_range"], (10, 90))
+        self.assertFalse(arguments["permute"])
+        self.assertIsNone(arguments["contrast"])
+        options = ["--engine", "DRIMSeq", "--contrast", "treated", "control", "--permute"]
+        options += ["--permutations", "99", "999", "--effect-range", "5", "95"]
+        options += ["--precision-moderation", "Common", "--replicates", "sample"]
+        _, arguments = _parse(*tokens, *options)
+        self.assertEqual(arguments["engine"], "drimseq")
+        self.assertEqual(arguments["contrast"], ("treated", "control"))
+        self.assertEqual(arguments["permutations"], (99, 999))
+        self.assertEqual(arguments["effect_range"], (5.0, 95.0))
+        self.assertEqual(arguments["precision_moderation"], "common")
+        self.assertTrue(arguments["permute"])
+        self.assertRefused(
+            *tokens, "--engine", "deseq2", message="expected one of dirmult, drimseq"
+        )
+        self.assertRefused("stats", "site-usage", "in.h5ad", "out.tsv", message="requires")
 
     def test_filter_utrs_needs_its_minimum(self):
         _, arguments = _parse("process", "filter-utrs", "in.h5ad", "out.h5ad", "-m", "500")
@@ -982,6 +1023,135 @@ class TestFilterUtrsCommand(unittest.TestCase):
         fractions.write_h5ad(tmp / "fractions.h5ad")
         with self.assertRaisesRegex(ValueError, "holds fractions"):
             filter_utrs(str(tmp / "fractions.h5ad"), str(tmp / "out.h5ad"), minimum_molecules=1)
+
+
+class TestSiteUsageCommands(unittest.TestCase):
+    """`process pseudobulk`, `tools length-index` and `stats site-usage`, from the command line."""
+
+    @classmethod
+    def setUpClass(cls):
+        from utrcalling.tests.test_stats import simulate
+
+        cls.tmp = Path(tempfile.mkdtemp())
+        cells = simulate.site_counts(n_units=240, n_utrs=4, changing=1, strength=3)
+        order = np.argsort(cells.obs["pseudotime"].to_numpy())
+        graph = np.zeros((240, 240))
+        graph[order[:-1], order[1:]] = graph[order[1:], order[:-1]] = 1
+        cells.obsp["connectivities"] = scipy.sparse.csr_matrix(graph)
+        with mock.patch.object(sys, "argv", ["utrcalling", "call-peaks"]):
+            from utrcalling.core import provenance
+
+            provenance.record(cells, matrix="peaks")
+        cells.write_h5ad(cls.tmp / "cells.h5ad")
+        cls.cells = cells
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp)
+
+    def utrcalling(self, *args):
+        from utrcalling import runtime
+
+        with mock.patch.object(sys, "argv", ["utrcalling", *map(str, args)]):
+            runtime.main()
+
+    def test_pseudobulk(self):
+        from utrcalling.core import provenance
+
+        out = self.tmp / "units.h5ad"
+        self.utrcalling(
+            "process",
+            "pseudobulk",
+            self.tmp / "cells.h5ad",
+            out,
+            "--by",
+            "sample",
+            "--bins",
+            "pseudotime:2",
+            "--min-cells",
+            "5",
+        )
+        units = ad.read_h5ad(out)
+        self.assertEqual(units.n_obs, 8)
+        self.assertEqual(int(units.obs["n_cells"].sum()), 240)
+        self.assertEqual(int(units.X.sum()), int(self.cells.X.sum()))
+        record = provenance.recorded(units)
+        self.assertEqual(record["matrix"], "peaks")
+        self.assertEqual(list(record["pseudobulk_by"]), ["sample"])
+        self.assertEqual(list(record["pseudobulk_bins"]), ["pseudotime:2"])
+        self.assertEqual(record["pseudobulk_min_cells"], 5)
+        self.assertIn("process pseudobulk", record["commands"][-1])
+        self.utrcalling(
+            "process",
+            "pseudobulk",
+            self.tmp / "cells.h5ad",
+            self.tmp / "samples.h5ad",
+            "--by",
+            "sample",
+        )
+        self.assertNotIn(
+            "pseudobulk_bins", provenance.recorded(ad.read_h5ad(self.tmp / "samples.h5ad"))
+        )
+
+    def test_length_index(self):
+        from utrcalling.core import provenance
+
+        self.utrcalling("tools", "length-index", self.tmp / "cells.h5ad", self.tmp / "index.h5ad")
+        index = ad.read_h5ad(self.tmp / "index.h5ad")
+        self.assertEqual(index.shape, (240, 4))
+        self.assertIn("entropy", index.layers)
+        record = provenance.recorded(index)
+        self.assertEqual(record["matrix"], "length_index")
+        self.assertNotIn("smoothing", record)
+        self.utrcalling(
+            "tools",
+            "length-index",
+            self.tmp / "cells.h5ad",
+            self.tmp / "smooth.h5ad",
+            "--smooth-graph",
+            "connectivities",
+            "--smooth-rounds",
+            "3",
+        )
+        smooth = ad.read_h5ad(self.tmp / "smooth.h5ad")
+        self.assertEqual(provenance.recorded(smooth)["smoothing"], "connectivities x 3")
+        # Averaging over neighbours narrows the spread of single cells' indices.
+        self.assertLess(float(np.nanvar(smooth.X)), float(np.nanvar(index.X)))
+        with self.assertRaisesRegex(ValueError, "holds length index"):
+            self.utrcalling(
+                "tools", "length-index", self.tmp / "index.h5ad", self.tmp / "again.h5ad"
+            )
+
+    def test_site_usage_writes_the_utrs_the_sites_and_the_settings(self):
+        out = self.tmp / "pseudotime.tsv"
+        self.utrcalling(
+            "stats",
+            "site-usage",
+            self.tmp / "cells.h5ad",
+            out,
+            "--full",
+            "~ C(batch) + bs(pseudotime, df=3)",
+            "--reduced",
+            "~ C(batch)",
+            "--replicates",
+            "sample",
+            "--permute",
+            "--permutations",
+            "9",
+            "19",
+            "--cores",
+            "1",
+        )
+        genes = pd.read_csv(out, sep="\t", index_col=0)
+        self.assertListEqual(list(genes.index), ["UTR0", "UTR1", "UTR2", "UTR3"])
+        self.assertLess(genes.loc["UTR0", "p_value"], 1e-6)
+        self.assertAlmostEqual(genes.loc["UTR0", "permutation_p_value"], 1 / 20)
+        sites = pd.read_csv(self.tmp / "pseudotime_sites.tsv", sep="\t", index_col=0)
+        self.assertEqual(len(sites), self.cells.n_vars)
+        settings = json.loads((self.tmp / "pseudotime_settings.json").read_text())
+        self.assertEqual(settings["input"], str(self.tmp / "cells.h5ad"))
+        self.assertIn("stats site-usage", settings["command"])
+        self.assertEqual(settings["permutation"]["stages"], [9, 19])
 
 
 class TestPytestFailsOnUtrcallingDeprecations(unittest.TestCase):

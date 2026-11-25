@@ -1,1 +1,3 @@
 include utrcalling/tests/test_data/*
+# The R script of the DRIMSeq engine (utrcalling.core.stats.drimseq)
+include utrcalling/core/stats/*.R

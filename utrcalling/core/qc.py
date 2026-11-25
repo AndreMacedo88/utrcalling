@@ -100,13 +100,14 @@ def join_mapping_summaries(summaries: Sequence[pd.DataFrame | None]) -> pd.DataF
 
 
 def require_counts(adata: anndata.AnnData) -> None:
-    """Refuse matrices that do not count molecules (fractions or mean sizes).
+    """Refuse matrices that do not count molecules (fractions, mean sizes, length indices).
 
     Raises:
-        ValueError: If the matrix records that it holds fractions or mean sizes.
+        ValueError: If the matrix records that it holds fractions, mean sizes
+            or length indices.
     """
     matrix = provenance.recorded(adata).get("matrix")
-    if matrix in ("fractions", "mean_sizes"):
+    if matrix in provenance.MEASURES:
         raise ValueError(
             f"This matrix holds {matrix.replace('_', ' ')}: give a count matrix "
             "(raw sizes or peaks) instead."
@@ -167,7 +168,7 @@ def cell_metrics(adata: anndata.AnnData, min_molecules: int = 5) -> pd.DataFrame
         can be, do not count).
 
     Raises:
-        ValueError: If the matrix holds fractions or mean sizes.
+        ValueError: If the matrix holds fractions, mean sizes or length indices.
     """
     require_counts(adata)
     per_utr, _, n_utrs = _molecules_per_cell_and_utr(adata)
@@ -260,7 +261,7 @@ def batch_consistency(
 
     Raises:
         KeyError: If ``.obs`` has no column *groupby*.
-        ValueError: If the matrix holds fractions or mean sizes.
+        ValueError: If the matrix holds fractions, mean sizes or length indices.
     """
     require_counts(adata)
     if groupby not in adata.obs.columns:
@@ -670,8 +671,8 @@ def matrix_report(adata: anndata.AnnData, min_molecules: int = 5) -> dict[str, A
     """A summary of a count matrix, from any step: one row of the qc report.
 
     Args:
-        adata: A matrix that utrcalling wrote: raw sizes, peaks, fractions or
-            mean sizes.
+        adata: A matrix that utrcalling wrote: raw sizes, peaks, fractions,
+            mean sizes or length indices.
         min_molecules: Molecules a cell needs in a UTR to measure its size
             there (see :func:`cell_metrics`).
 
@@ -681,9 +682,10 @@ def matrix_report(adata: anndata.AnnData, min_molecules: int = 5) -> dict[str, A
         genes. For counts: the molecules, the median
         molecules, sites and measured UTRs per cell, the multi-site UTRs and
         the share of molecules in them, and the depth correlation (see
-        :func:`depth_correlation`). For fractions and mean sizes: the median
-        values per cell. With a mapping summary: its total alignments, reads,
-        molecules and molecules counted, prefixed ``mapping_``. These describe
+        :func:`depth_correlation`). For fractions, mean sizes and length
+        indices: the median values per cell. With a mapping summary: its
+        total alignments, reads, molecules and molecules counted, prefixed
+        ``mapping_``. These describe
         the run that made the matrix, so after filtering its molecules are
         fewer than ``mapping_molecules_counted``.
     """
@@ -696,7 +698,7 @@ def matrix_report(adata: anndata.AnnData, min_molecules: int = 5) -> dict[str, A
         "steps": len(record.get("commands", [])),
         "cells": adata.n_obs,
     }
-    if matrix == "mean_sizes":  # a column per UTR
+    if matrix in provenance.PER_UTR:  # a column per UTR
         report["utrs"] = adata.n_vars
     else:
         report["sites"] = adata.n_vars
@@ -707,11 +709,12 @@ def matrix_report(adata: anndata.AnnData, min_molecules: int = 5) -> dict[str, A
         if setting in record:
             report[setting] = record[setting]
 
-    if matrix in ("fractions", "mean_sizes"):
-        # A mean size is missing where the cell has no molecules; a fraction is 0.
+    if matrix in provenance.MEASURES:
+        # A mean size or length index is missing where the cell has no
+        # molecules; a fraction is 0.
         if scipy.sparse.issparse(adata.X):
             values = np.diff(scipy.sparse.csr_matrix(adata.X).indptr)
-        elif matrix == "mean_sizes":
+        elif matrix in provenance.PER_UTR:
             values = np.isfinite(adata.X).sum(axis=1)
         else:
             values = (np.asarray(adata.X) != 0).sum(axis=1)
