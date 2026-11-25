@@ -16,6 +16,7 @@ same functions, not new ones.
 
 from __future__ import annotations
 
+import ast
 import re
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Any, Literal
@@ -49,15 +50,50 @@ def _formula_text(formula: str, which: str) -> str:
     return terms.strip() or "1"
 
 
+def _expression_variables(expression: str) -> set[str]:
+    """The names a Python expression reads as values, not as functions or modules.
+
+    In ``np.log(depth)`` or ``bs(pseudotime, df=5)``, the variables are
+    ``depth`` and ``pseudotime``.
+    """
+    tree = ast.parse(expression, mode="eval")
+    not_variables = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            not_variables.add(id(node.func))
+        elif isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+            not_variables.add(id(node.value))
+    return {
+        node.id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name) and id(node) not in not_variables
+    }
+
+
 def _required_variables(formula: str, which: str) -> set[str]:
-    """The columns of the data that *formula* needs."""
+    """The columns of the data that *formula* needs.
+
+    Read from the formula's factors rather than from formulaic's
+    ``Formula.required_variables``, which some versions get wrong: 1.2.2
+    leaves out the variables inside ``bs()``, and 1.2.0 fails on column names
+    in backticks.
+    """
     from formulaic import Formula
     from formulaic.errors import FormulaicError
+    from formulaic.parser.types import Factor
 
     try:
-        return set(Formula(formula).required_variables)
+        terms = list(Formula(formula))
     except FormulaicError as error:
         raise ValueError(f"Could not read the {which} model {formula!r}: {error}") from error
+    variables = set()
+    for term in terms:
+        for factor in term.factors:
+            if factor.eval_method is Factor.EvalMethod.LOOKUP:
+                variables.add(factor.expr)
+            elif factor.eval_method is Factor.EvalMethod.PYTHON:
+                variables |= _expression_variables(factor.expr)
+    return variables
 
 
 def independent_columns(matrix: npt.NDArray[np.float64]) -> npt.NDArray[np.intp]:

@@ -108,6 +108,25 @@ class TestBuild(unittest.TestCase):
         built = design.build(_obs(), "~ condition", "~")
         self.assertEqual(built.reduced_columns, ("Intercept",))
 
+    def test_variables_inside_transforms_are_found(self):
+        # Functions (bs, C, log) and modules (np) are not variables; what they read is
+        built = design.build(
+            _obs(),
+            "~ C(batch_number) + np.log(depth) + bs(pseudotime, df=4)",
+            "~ C(batch_number) + np.log(depth)",
+        )
+        self.assertListEqual(list(built.data.columns), ["batch_number", "depth", "pseudotime"])
+        self.assertEqual(built.tested, ("pseudotime",))
+        self.assertEqual(built.reduced_variables, ("batch_number", "depth"))
+        with self.assertRaisesRegex(ValueError, "The models use donor_age"):
+            design.build(_obs(), "~ batch + bs(donor_age, df=3)", "~ batch")
+
+    def test_column_names_in_backticks(self):
+        obs = _obs().rename(columns={"pseudotime": "pseudo time"})
+        built = design.build(obs, "~ batch + `pseudo time`", "~ batch")
+        self.assertEqual(built.tested, ("pseudo time",))
+        self.assertEqual(built.full.shape, (60, 4))
+
 
 class TestEvaluation(unittest.TestCase):
     def test_splines_keep_their_knots_on_other_values(self):
