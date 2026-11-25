@@ -47,6 +47,7 @@ dependencies = [
     "psutil",
     "rich>=13",  # the console and its logs
     "cyclopts>=5.3,<6",  # the command line; a major version changes how command lines parse
+    "formulaic>=1.1",  # R-style model formulas of the statistics (stateful splines since 1.1)
 ]
 
 # Listed on the PyPI page.
