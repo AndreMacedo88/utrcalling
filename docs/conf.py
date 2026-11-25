@@ -26,7 +26,7 @@ napoleon_google_docstring = True
 napoleon_numpy_docstring = False
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
-    "anndata": ("https://anndata.readthedocs.io/en/stable", None),
+    "anndata": ("https://anndata.scverse.org/en/stable", None),
     "pandas": ("https://pandas.pydata.org/docs", None),
 }
 copybutton_prompt_text = "$ "
