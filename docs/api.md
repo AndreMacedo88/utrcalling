@@ -56,6 +56,31 @@ too. Count matrices are AnnData objects; tables are pandas DataFrames.
    :members:
 ```
 
+## Differential site usage
+
+```{eval-rst}
+.. automodule:: utrcalling.core.stats.site_usage
+   :members: site_usage, SiteUsageResult
+
+.. automodule:: utrcalling.core.stats.measures
+   :members:
+
+.. automodule:: utrcalling.core.stats.design
+   :members: build, Design, Contrast, independent_columns
+
+.. automodule:: utrcalling.core.stats.dirmult
+   :members: Counts, Fit, fit, log_likelihood, proportions, moment_precision, variance_ratios
+
+.. automodule:: utrcalling.core.stats.permutation
+   :members: scheme, Scheme, permutation_test, PermutationResult
+
+.. automodule:: utrcalling.core.stats.effects
+   :members:
+
+.. automodule:: utrcalling.core.stats.drimseq
+   :members: check, run, DrimseqResult
+```
+
 ## The genome and quality control
 
 ```{eval-rst}

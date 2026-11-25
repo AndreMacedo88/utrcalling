@@ -1,9 +1,9 @@
 # From sites to analysis
 
-After the pipeline, the `process` commands prepare the count matrix and the
+After the pipeline, the `process` commands prepare the count matrix, the
 `tools` commands compute the measures to analyse from it, like scanpy's `pp`
-and `tl`. Each reads a count matrix and writes another, recording the step
-in it (see [](outputs.md)).
+and `tl`, and the `stats` commands test them. Each reads a count matrix and
+writes another, or a table, recording the step (see [](outputs.md)).
 
 ## Preparing the count matrix: `process`
 
@@ -35,6 +35,11 @@ utrcalling process rename-sites apa.h5ad named.h5ad
 
 # Join the cells of several experiments
 utrcalling process concatenate -i experiment1.h5ad experiment2.h5ad -o combined.h5ad
+
+# Sum the cells of each sample into one unit, so that samples are the
+# replicates of statistics; or of each sample and bin of a numeric column
+utrcalling process pseudobulk named.h5ad samples.h5ad --by sample
+utrcalling process pseudobulk named.h5ad terciles.h5ad --by sample --bins pseudotime:3
 ```
 
 ## Computing what to analyse: `tools`
@@ -45,6 +50,10 @@ utrcalling tools to-fractions named.h5ad fractions.h5ad
 
 # Each cell's mean UTR size, per UTR
 utrcalling tools mean-sizes named.h5ad mean_sizes.h5ad
+
+# Each cell's length index (the mean rank of its molecules' sites, from 0 at
+# the shortest to 1 at the longest) and entropy of site use, per UTR
+utrcalling tools length-index named.h5ad length_index.h5ad
 ```
 
 ### The sequences around sites
@@ -65,5 +74,18 @@ utrcalling tools site-sequences named.h5ad genome.fa sites.fa --upstream 50 --do
 utrcalling tools site-sequences named.h5ad genome.fa utrs.fa --upstream 0 --downstream utr
 utrcalling tools site-sequences named.h5ad genome.fa utrs.fa --upstream utr --downstream 0
 ```
+
+## Testing differences: `stats`
+
+`stats site-usage` tests which UTRs change the use of their sites between
+conditions, along a trajectory or between groups, with effect sizes:
+
+```bash
+utrcalling stats site-usage samples.h5ad condition.tsv \
+    --full "~ C(batch) + condition" --reduced "~ C(batch)"
+```
+
+Which test to run on cells or on samples, and how to prepare the data:
+[](site-usage.md).
 
 Each command's options: [](cli.rst).

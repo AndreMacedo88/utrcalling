@@ -30,11 +30,16 @@ transcription initiation (ATI) at single-cell resolution.
   sites that pandas, R and MultiQC read, and a record in each matrix of how it
   was made.
 - **From sites to analysis** --- filter sites and UTRs, keep the UTRs with
-  several sites, site usage per cell, mean UTR sizes, and the sequences
-  around sites for motif analyses.
+  several sites, site usage, mean UTR sizes and length indices per cell or
+  sample, pseudobulk units, and the sequences around sites for motif analyses.
+- **Differential site usage** --- which UTRs change the use of their sites,
+  along a trajectory or between conditions, with R-style model formulas: a
+  Dirichlet-multinomial test on cells or samples, permutations that respect
+  the replicates, DRIMSeq as an optional engine, and effect sizes.
 - **Extensible** --- add your own scores, peak callers, bandwidth rules and
   protocols, as plugins or in a notebook.
-- **Nothing outside Python** --- `pip install` is all it needs.
+- **Nothing outside Python** --- `pip install` is all it needs (R only for
+  the optional DRIMSeq engine).
 
 ## Installation
 
@@ -80,6 +85,8 @@ describes one. The documentation explains each step:
   what the bandwidth means, choosing it for your data, and 5' data
 - [From sites to analysis](https://utrcalling.readthedocs.io/en/latest/analysis.html)
   and [quality control](https://utrcalling.readthedocs.io/en/latest/quality-control.html)
+- [Differential site usage](https://utrcalling.readthedocs.io/en/latest/site-usage.html):
+  which test answers which question, and how to prepare the data
 - [In workflows](https://utrcalling.readthedocs.io/en/latest/workflows.html),
   and the command lines of earlier versions, which still work
 - [Extending utrcalling](https://utrcalling.readthedocs.io/en/latest/extending.html)

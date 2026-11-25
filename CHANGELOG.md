@@ -3,6 +3,56 @@
 All notable changes to utrcalling. Versions follow [semantic versioning](https://semver.org):
 a new major version can change results or require changes to your command lines.
 
+## [Unreleased]
+
+### Added
+
+- **Differential site usage: `utrcalling stats site-usage`.** Tests which UTRs
+  change the use of their sites (3' polyadenylation sites or 5' start sites)
+  between conditions, along a trajectory such as pseudotime, or between
+  groups, with models written as R-style formulas of the annotation columns
+  (`--full "~ C(batch) + bs(pseudotime, df=5)" --reduced "~ C(batch)"`). A
+  Dirichlet-multinomial regression of each UTR's site counts, compared by a
+  likelihood-ratio test, on cells or samples. It writes a table of UTRs (test,
+  status, Benjamini-Hochberg adjusted p-values, precision, effect sizes),
+  `<out>_sites.tsv` and `<out>_settings.json`.
+  - `--replicates` names each unit's biological replicate. The test refuses
+    cell-level p-values of variables that are the same within replicates (a
+    condition, a genotype): cells are not independent replicates of those.
+  - `--permute` adds a permutation p-value that refits everything for each
+    shuffle: within replicates when the tested variables vary within them,
+    between replicates (optionally within `--strata`, such as families) when
+    they don't. When the distinct permutations are few, all are used and the
+    p-value is exact.
+  - `--engine drimseq` runs DRIMSeq (Bioconductor) in R on the same design
+    matrices, with its estimate of the precision for few samples. R and
+    DRIMSeq are optional: install them with `conda install -c conda-forge -c
+    bioconda r-base bioconductor-drimseq`, or point `--rscript` at an
+    Rscript that has them.
+  - Effect sizes from the fitted full model: the change of the length index
+    (`delta_length_index`), total variation distance, the largest change of a
+    site, and along a numeric variable the range, position and monotonicity
+    of the change; each site's proportions; and descriptive correlations of
+    each unit's length index and entropy with the variable, optionally on
+    counts smoothed over a graph of neighbouring cells (`--smooth-graph`).
+  - In Python: `utrcalling.core.stats.site_usage.site_usage`.
+  - Checked against the R implementation it ports: p-values ranked alike
+    (Spearman 0.995) on 7,900 UTRs of 14,000 single cells, computed in under
+    a minute on 30 cores; the DRIMSeq engine reproduces a direct DRIMSeq
+    analysis (Spearman 0.99996).
+- **`utrcalling tools length-index`**: each cell's (or sample's) length index
+  per UTR, the mean scaled rank of its molecules' sites from 0 (shortest) to 1
+  (longest), scUTRquant's Weighted UTR Index, and the entropy of site use,
+  with each cell's mean over its UTRs (a global length index);
+  `--smooth-graph` averages counts over neighbouring cells first.
+- **`utrcalling process pseudobulk`**: sums the counts of cells into units per
+  sample (`--by`), optionally per bin of a numeric column (`--bins
+  pseudotime:3`), keeping the annotations the cells of a unit share and the
+  mean of numeric ones.
+- A guide to differential site usage in the documentation: which test
+  answers which question, what each assumes, and how to prepare the data.
+- formulaic (MIT) is a new dependency, for the model formulas.
+
 ## [5.2.0] - 2026-11-18
 
 `map-reads` now takes `--cores`, as `run` does. Command lines and results do

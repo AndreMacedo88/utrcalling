@@ -84,6 +84,12 @@ utrcalling/
 │   │   ├── peak_calling_anndata.py  Peak calling and scoring of count matrices
 │   │   ├── registry.py         Methods by name, and plugins
 │   │   ├── genome.py           Where sites lie, and the genome around them
+│   │   ├── anndata_processing.py  Matrices from matrices: fractions, mean sizes,
+│   │   │                       length indices, pseudobulk units
+│   │   ├── stats/              Differential site usage: formulas (design.py), the
+│   │   │                       Dirichlet-multinomial fit (dirmult.py), permutations,
+│   │   │                       effect sizes, DRIMSeq (drimseq.py, drimseq.R), the
+│   │   │                       test (site_usage.py)
 │   │   ├── barcode_filtering.py
 │   │   ├── process_mapped_reads.py
 │   │   ├── storage.py

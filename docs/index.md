@@ -19,6 +19,9 @@ utrcalling run genes.gtf.gz -a sample1.bam sample2.bam -A cells.csv -p 10x -o co
 - **Peak calling chosen for your data**: a kernel density estimate with a
   choice of kernel and bandwidth, scored by the genome around its sites or by
   a database of known sites ([](peak-calling.md)).
+- **Differential site usage**: which UTRs change the use of their sites,
+  along trajectories or between conditions, on cells or samples, with effect
+  sizes and permutation p-values ([](site-usage.md)).
 - **Quality control at every step**, as tables that pandas, R and MultiQC read
   ([](quality-control.md)).
 - **Extensible**: add your own scores, peak callers, bandwidth rules and
@@ -40,6 +43,7 @@ outputs
 
 peak-calling
 analysis
+site-usage
 quality-control
 workflows
 extending

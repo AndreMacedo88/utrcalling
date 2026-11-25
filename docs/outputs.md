@@ -46,12 +46,13 @@ overlap. A UTR spliced into several exons is several UTRs here (`gene`,
 
 Every count matrix records in `.uns["utrcalling"]` how it was made: the
 utrcalling version, the commands that made it (as typed, the first one making
-the matrix), what it holds (`matrix`: `raw_sizes`, `peaks`, `fractions` or
-`mean_sizes`), and the settings needed to read it: the protocol, the
-`summarization_level`, `utr_end` (where its sizes count from: `three_prime`
-or `five_prime`), the peak calling (`peak_caller`, `kernel`, `bandwidth`,
-and the `bandwidth_scores` of `-b optimize`) and the mapping summary. The
-`qc` commands read it.
+the matrix), what it holds (`matrix`: `raw_sizes`, `peaks`, `fractions`,
+`mean_sizes` or `length_index`), and the settings needed to read it: the
+protocol, the `summarization_level`, `utr_end` (where its sizes count from:
+`three_prime` or `five_prime`), the peak calling (`peak_caller`, `kernel`,
+`bandwidth`, and the `bandwidth_scores` of `-b optimize`), how cells were
+summed into units (`pseudobulk_by`, `pseudobulk_bins`) and the mapping
+summary. The `qc` commands read it.
 
 ```python
 sites.uns["utrcalling"]["commands"]
@@ -90,3 +91,5 @@ molecules it kept:
   the read mappings, as Parquet files in `./intermediate/`, from which `count`
   can redo the last steps quickly (see [](workflows.md)).
 - **Bandwidth scores**: with `-b optimize`, `<out>_bandwidth_scores.tsv`.
+- **Differential site usage**: `stats site-usage` writes a table of UTRs,
+  `<out>_sites.tsv` and `<out>_settings.json` (see [](site-usage.md)).
